@@ -179,26 +179,26 @@ proc install_qmaster {} {
    set CSP_COPY_RSH_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
 
    # windows
-   set WINDOWS_SUPPORT              [translate_macro DISTINST_WINDOWS_SUPPORT]
-   set WINDOWS_DOMAIN_USER          [translate_macro DISTINST_QMASTER_WINDOWS_DOMAIN_USER]
-   set WINDOWS_MANAGER              [translate_macro DISTINST_QMASTER_WINDOWS_MANAGER]
+   set WINDOWS_SUPPORT              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WINDOWS_SUPPORT]]
+   set WINDOWS_DOMAIN_USER          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_QMASTER_WINDOWS_DOMAIN_USER]]
+   set WINDOWS_MANAGER              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_QMASTER_WINDOWS_MANAGER]]
 
    # java
-   set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
-   set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS "*"]
-   set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
-   set JMX_SSL_QUESTION             [translate_macro DISTINST_JMX_SSL]
-   set JMX_SSL_CLIENT_QUESTION      [translate_macro DISTINST_JMX_SSL_CLIENT]
-   set JMX_SSL_KEYSTORE_QUESTION    [translate_macro DISTINST_JMX_SSL_KEYSTORE "*" ]
-   set JMX_SSL_KEYSTORE_PW_QUESTION [translate_macro DISTINST_JMX_SSL_KEYSTORE_PW]
-   set JMX_USE_DATA                 [translate_macro DISTINST_JMX_USE_DATA]
+   set JMX_JAVA_HOME                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JAVA_HOME] "*" ]
+   set JMX_ADD_JVM_ARGS             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_JVM_ARGS] "*"]
+   set JMX_PORT_QUESTION            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_PORT]]
+   set JMX_SSL_QUESTION             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL]]
+   set JMX_SSL_CLIENT_QUESTION      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_CLIENT]]
+   set JMX_SSL_KEYSTORE_QUESTION    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_KEYSTORE] "*" ]
+   set JMX_SSL_KEYSTORE_PW_QUESTION [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_KEYSTORE_PW]]
+   set JMX_USE_DATA                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USE_DATA]]
 
-   set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME] ]
-   set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
-   set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
-   set DETECT_BDB_KEEP_CELL         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_BDB_KEEP_CELL] ]
-   set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
-   set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT] ]
+   set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME]]
+   set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME]]
+   set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER]]
+   set DETECT_BDB_KEEP_CELL         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_BDB_KEEP_CELL]]
+   set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE]]
+   set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT]]
 
    set feature_install_options ""
    if {$ts_config(product_feature) == "csp"} {
@@ -219,11 +219,12 @@ proc install_qmaster {} {
    }
 
    if {$CHECK_ADMIN_USER_SYSTEM == 0} {
-      set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) env_list 0 15 $set_ld_library_path 1 1]
+      set install_user "root"
    } else {
+      set install_user $CHECK_USER
       ts_log_fine "--> install as user $CHECK_USER <--" 
-      set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) env_list 0 15 $set_ld_library_path 1 1]
    }
+   set id [open_remote_spawn_process "$ts_config(master_host)" $install_user "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) env_list 0 15 $set_ld_library_path 1 1]
    set sp_id [lindex $id 1] 
 
    set hostcount 0
@@ -240,7 +241,7 @@ proc install_qmaster {} {
          }
       }
 
-      set timeout 600
+      set timeout 300
       expect {
          -i $sp_id full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -261,7 +262,7 @@ proc install_qmaster {} {
          }
 
          -i $sp_id timeout {
-            ts_log_severe "timeout while waiting for output"
+            ts_log_warning "timeout while waiting for output"
             close_spawn_process $id
             return
          }

@@ -1,3 +1,8 @@
+CR-2008-11-21-0: Cleanup:    o Fixed minor TS framework issues
+                             o Performance enhancements for remote calls
+                             o Simplified scripts/file_check.sh
+                 Review:     JG 
+
 TB-2008-11-21-0: Bugfix:     o fixed Hedeby test issues/issue_374: was testing
                                persistence behavior (order store) of RP which
                                is not implemented => now tests issue described

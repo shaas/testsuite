@@ -80,7 +80,7 @@ proc execution_time_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc execution_time_test {} {
-   global execution_time_test_hosts check_description CHECK_USER
+   global check_description CHECK_USER
    global ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 

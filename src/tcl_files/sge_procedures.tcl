@@ -3217,7 +3217,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 
    set master_arch [resolve_arch $ts_config(master_host)]
    if { [ file isfile $ts_config(product_root)/bin/$master_arch/qstat ] != 1} {
-      ts_log_severe "qstat file not found!!!"
+      ts_log_severe "qstat file not found!!!" $do_error_check
       return -1      
    }
 

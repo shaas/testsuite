@@ -47,7 +47,7 @@ global complex_queue_name
 global global_consumable host_consumable
 global host_complex queue_complex 
 
-#set check_root_access_needs "yes"
+set check_root_access_needs "yes"
 
 # define a level initialization procedure:
 set check_init_level_procedure "scheduler_advance_reservation_init_level"

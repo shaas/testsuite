@@ -1887,7 +1887,6 @@ proc create_shell_script { scriptfile
                 }
             } else { 
                set u_val $users_env($u_env)
-               ts_log_finest "setting $u_env to $u_val"
                append set_env_skript "${u_env}=\"${u_val}\"\n"
                append set_env_skript "export ${u_env}\n"
             }
@@ -1933,7 +1932,6 @@ proc create_shell_script { scriptfile
    }
   
    puts -nonewline $script $script_content
-   flush $script
    close $script
 
    if {$CHECK_DEBUG_LEVEL != 0} {
@@ -1948,7 +1946,6 @@ proc create_shell_script { scriptfile
          wait_for_enter
       }
    }
-
 }
 
 
@@ -2605,6 +2602,7 @@ proc delete_file_at_startup {filename} {
 #  RESULT
 #     no results 
 #
+#  TODO: use remote_delete_file where ever possible
 #  SEE ALSO
 #     file_procedures/delete_directory
 #*******************************

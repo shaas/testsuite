@@ -4544,7 +4544,7 @@ proc execute_test_preparation_procedure {func_name type {warning_counter "ts_war
       set old_category $check_category
       lappend check_category "USE_CLI"
 
-      ts_log_fine ">>> C A L L I N G  test >$type< praparation function \"$func_name\""
+      ts_log_fine ">>> C A L L I N G  test >$type< preparation function \"$func_name\""
       set CHECK_CUR_PROC_NAME $func_name
 
       set CHECK_CUR_PREPARATION_PROCEDURE "Test >$type< preparation procedure \"$func_name\""

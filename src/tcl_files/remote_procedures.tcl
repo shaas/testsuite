@@ -697,10 +697,15 @@ proc start_remote_prog { hostname
    set real_start_found 0
    set nr_of_lines 0
    set find_out_more 0
-   ts_log_finest "start_remote_prog: expecting ..."
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finer "start_remote_prog: expecting ..."
+   }
    expect {
      -i $myspawn_id timeout {
         set find_out_more 1
+     }
+     -i $myspawn_id eof {
+        ts_log_severe "got unexpected eof" $raise_error
      }
      -i $myspawn_id full_buffer {
         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
@@ -713,11 +718,10 @@ proc start_remote_prog { hostname
                  incr nr_of_lines 1
                  set tmp_exit_status_start [string first "_exit_status_:" $line]
                  if { $tmp_exit_status_start >= 0 } {
-                    # check if a ? is between _exit_status_:() - brackets
                     set tmp_exit_status_string [string range $line $tmp_exit_status_start end]
                     set tmp_exit_status_end [string first ")" $tmp_exit_status_string]
                     if {$tmp_exit_status_end >= 0 } {
-                       set tmp_exit_status_string [ string range $tmp_exit_status_string 0 $tmp_exit_status_end ]
+                       set tmp_exit_status_string [string range $tmp_exit_status_string 0 $tmp_exit_status_end]
                     } else {
                        ts_log_severe "unexpected error - did not get full exit status string" $raise_error
                     }
@@ -729,11 +733,9 @@ proc start_remote_prog { hostname
                     #  here we read the last line ( _END_OF_FILE_ )
                     set do_stop 1
                     break
-                 }
-                 if { [ string first "_start_mark_:" $line ] >= 0 } {
+                 } elseif {[string first "_start_mark_:" $line] >= 0} {
                     set real_start_found 1
-                    set output "_start_mark_\n"
-                    if { $background == 1 } { 
+                    if {$background == 1} {
                        set do_stop 1
                        break
                     }
@@ -741,12 +743,11 @@ proc start_remote_prog { hostname
               }
            }
         }
-        if { !$do_stop } {
+        if {!$do_stop} {
            exp_continue
         }
      }
    }
-
 
    set info_message_text ""
    if { $find_out_more == 1 } {
@@ -773,13 +774,8 @@ proc start_remote_prog { hostname
          }
       }
    }
-   ts_log_finest "start_remote_prog: expecting ... done"
-
-   # parse output: cut leading sequence 
-   set found_start [string first "_start_mark_" $output]
-   if { $found_start >= 0 } {
-      incr found_start 13
-      set output [string range $output $found_start end]
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finer "start_remote_prog: expecting ... done"
    }
 
    # parse output: find end of output and rest
@@ -802,7 +798,9 @@ proc start_remote_prog { hostname
       set exit_status -1
    }
 
-   ts_log_finest "E X I T   S T A T E   of remote prog: $exit_status"
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finer "E X I T   S T A T E   of remote prog: $exit_status"
+   }
    close_spawn_process $id
 
    if {$info_message_text != ""} {
@@ -1182,7 +1180,7 @@ proc increase_timeout {{max 5} {step 1}} {
 #     remote_procedures/open_remote_spawn_process()
 #*******************************************************************************
 proc map_special_users {hostname user win_local_user} {
-   global CHECK_USER
+   global CHECK_USER CHECK_DEBUG_LEVEL
 
    upvar real_user         real_user          ;# this is the real user name on the target machine
    upvar connect_user      connect_user       ;# we'll connect as this user
@@ -1208,10 +1206,12 @@ proc map_special_users {hostname user win_local_user} {
       } else {
          set connect_full_user   $real_user
       }
-      ts_log_finer "map_special_users: $user on windows host $hostname"
-      ts_log_finer "   real_user:         $real_user"
-      ts_log_finer "   connect_user:      $connect_user"
-      ts_log_finer "   connect_full_user: $connect_full_user"
+      if {$CHECK_DEBUG_LEVEL != 0} {
+         ts_log_finer "map_special_users: $user on windows host $hostname"
+         ts_log_finer "   real_user:         $real_user"
+         ts_log_finer "   connect_user:      $connect_user"
+         ts_log_finer "   connect_full_user: $connect_full_user"
+      }
    } else {
       # on unixes, we connect
       # with rlogin always as CHECK_USER (and su later, if necessary)
@@ -1232,10 +1232,12 @@ proc map_special_users {hostname user win_local_user} {
          set connect_user $CHECK_USER
          set connect_full_user $CHECK_USER
       }
-      ts_log_finest "map_special_users: $user on host $hostname"
-      ts_log_finest "   real_user:         $real_user"
-      ts_log_finest "   connect_user:      $connect_user"
-      ts_log_finest "   connect_full_user: $connect_full_user"
+      if {$CHECK_DEBUG_LEVEL != 0} {
+         ts_log_finer "map_special_users: $user on host $hostname"
+         ts_log_finer "   real_user:         $real_user"
+         ts_log_finer "   connect_user:      $connect_user"
+         ts_log_finer "   connect_full_user: $connect_full_user"
+      }
    }
 }
 
@@ -1353,10 +1355,12 @@ proc open_remote_spawn_process { hostname
    get_current_cluster_config_array ts_config
 
    set testsuite_root_dir $ts_config(testsuite_root_dir)
-   ts_log_finest "open_remote_spawn_process on host \"$hostname\""
-   ts_log_finest "user:           $user"
-   ts_log_finest "exec_command:   $exec_command"
-   ts_log_finest "exec_arguments: $exec_arguments"
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finest "open_remote_spawn_process on host \"$hostname\""
+      ts_log_finest "user:           $user"
+      ts_log_finest "exec_command:   $exec_command"
+      ts_log_finest "exec_arguments: $exec_arguments"
+   }
 
    # check parameters
    if {$nr_of_tries < 5} {
@@ -1406,7 +1410,9 @@ proc open_remote_spawn_process { hostname
       set cached_script_file_name $open_remote_spawn_script_cache($spawn_command_arguments)
       if {[file isfile $cached_script_file_name]} {
          set script_name $cached_script_file_name
-         ts_log_finest "re-using script $script_name"
+         if {$CHECK_DEBUG_LEVEL != 0} {
+            ts_log_finer "re-using script $script_name"
+         }
          set re_use_script 1
       } else {
          # script file does not exist anymore - remove from cache
@@ -1423,7 +1429,6 @@ proc open_remote_spawn_process { hostname
       set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
       set open_remote_spawn_script_cache($script_name) $spawn_command_arguments
       create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line $disable_stty_echo
-      ts_log_finest "created $script_name"
    }
    set used_script_name $script_name
 
@@ -1433,35 +1438,43 @@ proc open_remote_spawn_process { hostname
    set open_new_connection 1
    if {[get_open_spawn_rlogin_session $hostname $user $win_local_user con_data]} {
       if { $con_data(in_use) } {
-         set info_text "connection to host \"$con_data(hostname)\" ad user \"$con_data(user)\" is in use by script:\n"
-         append info_text "$con_data(command_script)\n"
-         append info_text "command string: $con_data(command_name) $con_data(command_args)\n"
-         ts_log_finer $info_text
-
          set found_alternative 0
-         ts_log_finest "session is in use, looking for alternate session ..."
+         if {$CHECK_DEBUG_LEVEL != 0} {
+            set info_text "connection to host \"$con_data(hostname)\" ad user \"$con_data(user)\" is in use by script:\n"
+            append info_text "$con_data(command_script)\n"
+            append info_text "command string: $con_data(command_name) $con_data(command_args)\n"
+            ts_log_finer $info_text
+         }
          foreach alternative $con_data(alternate_sessions) {
             if {[is_spawn_process_in_use $alternative] == 0} {
                fill_session_info_array $alternative con_data
-               ts_log_finest "found alternate session!"
+               if {$CHECK_DEBUG_LEVEL != 0} {
+                  ts_log_finer "found alternate session!" 
+               }
                set found_alternative 1
                break
             }
          }
          if {!$found_alternative} { 
-            ts_log_finest "no alternate session available!"
+            if {$CHECK_DEBUG_LEVEL != 0} {
+               ts_log_finer "no alternate session available!"
+            }
             set create_alternate_connection 1
          }
       } 
       if {$create_alternate_connection == 0} {
          # check if the connection is OK - if not, we'll try to reopen it
          if {[check_rlogin_session $con_data(spawn_id) $con_data(pid) $hostname $user $con_data(nr_shells)]} {
-            ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
+            if {$CHECK_DEBUG_LEVEL != 0} {
+               ts_log_finer "Using open rlogin connection to host \"$hostname\", user \"$user\""
+            }
             set open_new_connection 0
             set spawn_id     $con_data(spawn_id)
             set pid          $con_data(pid)
             set nr_of_shells $con_data(nr_shells)
-            ts_log_finest "session \"$spawn_id\" has alternate sessions: $con_data(alternate_sessions)"
+            if {$CHECK_DEBUG_LEVEL != 0} {
+               ts_log_finer "session \"$spawn_id\" has alternate sessions: $con_data(alternate_sessions)"
+            }
          }
       }
    }
@@ -1473,7 +1486,7 @@ proc open_remote_spawn_process { hostname
       set connect_succeeded 0
       while {$connect_succeeded == 0} {
          # no open connection - open a new one
-         ts_log_finest "opening connection to host $hostname"
+         ts_log_finer "opening connection to host $hostname"
 
          # on unixes, we connect as CHECK_USER which will give us no passwd question,
          # and handle root passwd question when switching to the target user later on
@@ -1525,7 +1538,7 @@ proc open_remote_spawn_process { hostname
 
          # set buffer size for new connection
          match_max -i $spawn_id $CHECK_EXPECT_MATCH_MAX_BUFFER
-         ts_log_finest "open_remote_spawn_process -> buffer size is: [match_max -i $spawn_id]"
+         ts_log_finer "open_remote_spawn_process -> buffer size is: [match_max -i $spawn_id]"
 
          # wait for shell to start
          set connect_errors 0
@@ -1562,7 +1575,7 @@ proc open_remote_spawn_process { hostname
                      ts_log_warning "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
-                     ts_log_finest "Got password question"
+                     ts_log_finer "Got password question"
                      log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "$passwd\n" $hostname 1
                      if {$CHECK_DEBUG_LEVEL != 0} {
@@ -1573,17 +1586,17 @@ proc open_remote_spawn_process { hostname
                   }
                }
                -i $spawn_id -- "The authenticity of host*" {
-                  ts_log_finest "Got ssh \"authenticity of host\""
+                  ts_log_finer "Got ssh \"authenticity of host\""
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Are you sure you want to continue connecting (yes/no)?*" {
-                  ts_log_finest "Got ssh continue connection question"
+                  ts_log_finer "Got ssh continue connection question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Please type 'yes' or 'no'*" {
-                  ts_log_finest "Go yes/no question"
+                  ts_log_finer "Go yes/no question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
@@ -1622,11 +1635,11 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id -re $CHECK_SHELL_PROMPT {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  ts_log_finest "recognized shell prompt: \"$line\" - ts will continue now ..."
+                  ts_log_finer "recognized shell prompt: \"$line\" - ts will continue now ..."
                }
                -i $spawn_id -- $CHECK_LOGIN_LINE {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  ts_log_finest "unrecognized login output: \"$line\""
+                  ts_log_finer "unrecognized login output: \"$line\""
                   lappend unrecognized_messages "$line"
                   exp_continue
                }
@@ -1704,7 +1717,7 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id "ts_shell_response*\n" {
                   # got output from shell_start_output.sh - leaving expect
-                  ts_log_finest "shell started"
+                  ts_log_finer "shell started"
                   set connect_succeeded 1
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
@@ -1757,7 +1770,7 @@ proc open_remote_spawn_process { hostname
                }
              }
              -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
-                 ts_log_finest "logged in as ${connect_user} - fine" 
+                 ts_log_finer "logged in as ${connect_user} - fine" 
              }
           }
       } catch_error_message]
@@ -1783,18 +1796,18 @@ proc open_remote_spawn_process { hostname
       }
 
       if {$switch_user} {
-         ts_log_finest "we have to switch user"
+         ts_log_finer "we have to switch user"
          set catch_return [ catch {
             if {[have_ssh_access]} {
-               ts_log_finest "have ssh root access - switching to $real_user"
+               ts_log_finer "have ssh root access - switching to $real_user"
                ts_send $spawn_id "su - $real_user\n" $hostname
             } else {
                # we had rlogin access and are CHECK_USER
                if {$real_user == "root"} {
-                  ts_log_finest "switching to root user"
+                  ts_log_finer "switching to root user"
                   ts_send $spawn_id "su - root\n" $hostname
                } else {
-                  ts_log_finest "switching to $real_user user"
+                  ts_log_finer "switching to $real_user user"
                   ts_send $spawn_id "su - root -c 'su - $real_user'\n"  $hostname
                }
             }
@@ -1819,7 +1832,7 @@ proc open_remote_spawn_process { hostname
                   -i $spawn_id "assword:" {
                      log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
-                     ts_log_finest "root password sent" 
+                     ts_log_finer "root password sent" 
                      if {$CHECK_DEBUG_LEVEL != 0} {
                         log_user 1
                      }
@@ -1867,7 +1880,7 @@ proc open_remote_spawn_process { hostname
                   }
                }
                -i $spawn_id -- "TS_ID: ->*${real_user}*\n" { 
-                  ts_log_finest "correctly switched to user $real_user - fine" 
+                  ts_log_finer "correctly switched to user $real_user - fine" 
                }
                -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
                   ts_log_warning "${error_info}\nswitch to user $real_user didn't succeed, we are still ${connect_user}" $raise_error
@@ -1922,7 +1935,6 @@ proc open_remote_spawn_process { hostname
                                     $exec_command $exec_arguments $alternate_connection_of
    } ;# opening new connection
 
-   ts_log_finest "working on session \"$spawn_id\""
    # If we call the command for the first time, make sure it is available on the remote machine
    # we wait for some time, as the it might take some time until the command is visible (NFS)
    if {$re_use_script == 0} {
@@ -1968,8 +1980,8 @@ proc open_remote_spawn_process { hostname
          close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0
          return ""
       }
-   } else {
-      ts_log_finest "skip checking remote script, using already used script ..."
+   } elseif {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finer "skip checking remote script, using already used script ..."
    }
 
    # prepare for background start
@@ -1978,7 +1990,9 @@ proc open_remote_spawn_process { hostname
    }
 
    # now start the commmand and set the connection to busy
-   ts_log_finest "$user starting command on $hostname: $exec_command $exec_arguments"
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      ts_log_finer "$user starting command on $hostname: $exec_command $exec_arguments"
+   }
    set_spawn_process_command_script $spawn_id $script_name $exec_command $exec_arguments
    set catch_return [catch {
       ts_send $spawn_id "$script_name\n" $hostname
@@ -2003,8 +2017,6 @@ proc open_remote_spawn_process { hostname
       }
       ts_log_fine "hope background process is initalized now!"
    }
-
-   ts_log_finest "number of open shells: $nr_of_shells"
 
    set back "$pid $spawn_id $nr_of_shells"
    return $back
@@ -3262,6 +3274,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
                # do not raise an error here - we use this code to close broken connections
                ts_log_finest "eof while waiting for shell prompt after CTRL-C"
                set send_exit 0
+               set do_close_connection 0
             }
             -i $spawn_id timeout {
                # do not raise an error here - we use this code to close broken connections
