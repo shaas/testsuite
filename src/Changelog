@@ -1,3 +1,10 @@
+TB-2008-11-21-0: Bugfix:     o fixed Hedeby test issues/issue_374: was testing
+                               persistence behavior (order store) of RP which
+                               is not implemented => now tests issue described
+                               in IZ#374
+                 Cleanup:    o cleanup of above test
+                 Review:     MG
+
 MB-2008-11-21-0: Enahncem.:  test for hedeby IZ#554:
                              checktree_hedeby/checktree/issues/issue_554
                  Review   :  MG

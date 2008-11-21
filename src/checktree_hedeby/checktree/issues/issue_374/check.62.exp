@@ -42,22 +42,20 @@ global check_use_installed_system check_init_level_procedure
 set check_root_access_needs    "yes"
 set check_name                 "issue_374"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "jvms start and stop stress test"
+set check_description(0)       "JVM start and stop stress test"
 set check_needs                "hedeby_install"                  
-set check_init_level_procedure "RP_add_resource_stress_test_init_level"
+set check_init_level_procedure "hedeby_issue_374_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_level_function "RP_add_resource_stress_test_setup"
-set check_cleanup_level_function "RP_add_resource_stress_test_cleanup"
+set check_setup_level_function "hedeby_issue_374_setup"
+set check_cleanup_level_function "hedeby_issue_374_cleanup"
 
-lappend check_functions "RP_add_resource_stress_test_check"
+lappend check_functions "hedeby_issue_374_check"
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
-global RP_add_resource_stress_test_current_cluster_config
-
-proc RP_add_resource_stress_test_init_level {} {
+proc hedeby_issue_374_init_level {} {
   global CHECK_ACT_LEVEL
 
   if { $CHECK_ACT_LEVEL == 0 } {
@@ -66,44 +64,45 @@ proc RP_add_resource_stress_test_init_level {} {
   return -1
 }
 
-proc RP_add_resource_stress_test_setup {} {
-   global RP_add_resource_stress_test_current_cluster_config
-   set RP_add_resource_stress_test_current_cluster_config [get_current_cluster_config_nr]
+proc hedeby_issue_374_setup {} {
+   upvar #0 hedeby_issue_374_ctx this
+
+   set this(cc_cnr) [get_current_cluster_config_nr]
+
+   get_hedeby_proc_default_opt_args default_args
+   # the rp_vm of the master host is stopped and started
+   set this(host)   $default_args(host)
+   set this(user)   $default_args(user)
+   # this resource is added and removed in the tests
+   ## expr { srand(5) } ; # seed random number generator to get a fixed resource
+   set this(res)    [pick_random [get_all_spare_pool_resources]]
 }
 
-#****** issue_374/RP_add_resource_stress_test_cleanup() *************************
+#****** issue_374/hedeby_issue_374_cleanup() *************************
 #  NAME
-#     RP_add_resource_stress_test_cleanup() -- clean the test up
+#     hedeby_issue_374_cleanup() -- clean the test up
 #
 #  SYNOPSIS
-#     RP_add_resource_stress_test_cleanup { } 
+#     hedeby_issue_374_cleanup { } 
 #
 #  FUNCTION
-#     Remove used spare_pool resource again and add it with correct properties
-#     by using add_host_resources() procedure. The remove and
+#     Remove used resource again and add it with correct properties
+#     by using add_host_resources() procedure. The call to remove and
 #     add_host_resources() MUST be done, otherwise the resource properties
 #     might not be set correctly.
 #*******************************************************************************
-proc RP_add_resource_stress_test_cleanup {} {
-   global RP_add_resource_stress_test_current_cluster_config
-   global hedeby_config
+proc hedeby_issue_374_cleanup {} {
+   upvar #0 hedeby_issue_374_ctx this
 
-   set host $hedeby_config(hedeby_master_host)
-   set user [get_hedeby_admin_user]
-   set sysType [get_hedeby_pref_type]
-   set sysName [get_hedeby_system_name]
-   set free_resource [lindex [get_all_spare_pool_resources] 0]
+   # remove resource
+   ts_log_fine "Removing resource \"$this(res)\" ..."
+   sdmadm_command_opt "rr -r $this(res) -force"
 
-
-   # remove $free_resource
-   ts_log_fine "Removing spare_pool resource \"$free_resource\" ..."
-   sdmadm_command $host $user "-p $sysType -s $sysName rr -r $free_resource -force"
-
-   # wait for removal of $free_resource
-   if {[wait_for_resource_removal $free_resource] == 0} {
+   # wait for removal of $this(res)
+   if {[wait_for_resource_removal $this(res)] == 0} {
       # resource is removed, so re-add with correct properties
-      ts_log_fine "Re-add spare_pool resource \"$free_resource\" ..."
-      if {[add_host_resources $free_resource] != 0} {
+      ts_log_fine "Re-add resource \"$this(res)\" ..."
+      if {[add_host_resources $this(res)] != 0} {
          # Re-add failed: as last resort do a reset_hedeby
          reset_hedeby 1
       }
@@ -112,58 +111,77 @@ proc RP_add_resource_stress_test_cleanup {} {
    }
 
    # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $RP_add_resource_stress_test_current_cluster_config
+   set_current_cluster_config_nr $this(cc_cnr)
+   unset this
 }
 
-#****** issue_374/RP_add_resource_stress_test_check() *****************************
+#****** issue_374/hedeby_issue_374_check() *****************************
 #  NAME
-#     RP_add_resource_stress_test_check() -- jvms startup/stop stress test
+#     hedeby_issue_374_check() -- jvms startup/stop stress test
 #
 #  SYNOPSIS
-#     RP_add_resource_stress_test_check { } 
+#     hedeby_issue_374_check { } 
 #
 #  FUNCTION
-#     This test is doing following in a loop for all services with the first
-#     spare_pool resource:
-#     1. remove resource
-#     2. Stop rp_vm on resouce_provider host
-#     3. Startup rp_vm and add resource to current service
-#   
-#     This is supposed to test the correct spooling of rp_vm state during
-#     shutdown and startup.
+#     This test checks if right after startup of the resource provider JVM a
+#     resource can be added to a service in the system.
+#     
+#     For this, the test does the following in a loop for all services. A
+#     random spare_pool resource is picked and used throughout this test:
+#     1. remove resource and wait for resource removal
+#     2. Stop rp_vm on resource_provider host
+#     3. wait for shutdown of JVM
+#     4. Startup rp_vm, wait for RP to be started and add resource to current
+#        service
+#
 #  INPUTS
 #     no input parameters
+#
+#  NOTES
+#     With (a small modification of) this test it would be possible to also
+#     test the persistence behavior of the RP. In order to do this, the only
+#     thing that needs to be removed (best in a different run level) is the
+#     waiting for the resource removal before the shutdown. So the sequence
+#     would then be:
+#     1. remove resource
+#     2. immediately (NO WAIT) stop rp_vm on RP host
+#     3. wait for shutdown of JVM
+#     4. startup rp_vm, wait for RP to be started and then wait for resource
+#        removal
+#
+#     Currently, however, the RP does NOT have a persistent order store.
+#     Therefore this additional test would fail.
 #
 #  RESULT
 #     no return values
 #*******************************************************************************
-proc RP_add_resource_stress_test_check {} {
-   global hedeby_config
-
-   set free_resource [lindex [get_all_spare_pool_resources] 0]
-   set host $hedeby_config(hedeby_master_host)
-   set user [get_hedeby_admin_user]
-   set sysType [get_hedeby_pref_type]
-   set sysName [get_hedeby_system_name]
+proc hedeby_issue_374_check {} {
+   upvar #0 hedeby_issue_374_ctx this
 
    # for all ge-adapter-services and the spare_pool
    get_hedeby_default_services service_names
    set services $service_names(services)
    lappend services "spare_pool"
+
    foreach service $services {
-      ts_log_fine "Removing spare_pool resource \"$free_resource\" ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName rr -r $free_resource"
+      # step 1
+      ts_log_heading "Testing service '$service' ..."
+      ts_log_fine "Removing resource \"$this(res)\" ..."
+      sdmadm_command_opt "rr -r $this(res)"
+      wait_for_resource_removal $this(res)
 
-      ts_log_fine "Shutting down rp_vm on host \"$host\" ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName sdj -j rp_vm -h $host"
+      # step 2
+      ts_log_fine "Shutting down rp_vm on host \"$this(host)\" ..."
+      sdmadm_command_opt "sdj -j rp_vm -h $this(host)"
 
-      read_hedeby_jvm_pid_info pid_info $host $user "rp_vm"
+      # step 3
+      read_hedeby_jvm_pid_info pid_info $this(host) $this(user) "rp_vm"
       set pid $pid_info(pid)
       set my_timeout [timestamp]
       incr my_timeout 60
       while { 1 } {
          ts_log_fine "Waiting for shutdown of process \"$pid\" ..."
-         if { [is_hedeby_process_running $host $pid] == 0 } {
+         if { [is_hedeby_process_running $this(host) $pid] == 0 } {
             ts_log_fine "Process not found - fine!"
             break
          }
@@ -174,18 +192,21 @@ proc RP_add_resource_stress_test_check {} {
          after 1000
       }
       
-      ts_log_fine "Startup rp_vm on host \"$host\" ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName suj -j rp_vm"
+      # step 4
+      ts_log_fine "Startup rp_vm on host \"$this(host)\" ..."
+      sdmadm_command_opt "suj -j rp_vm"
 
-      wait_for_resource_removal $free_resource
-     
-      ts_log_fine "Adding resource \"$free_resource\" to service $service ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName ar -r $free_resource -s $service"
+      # ... wait until RP is STARTED
+      set exp_comp_info(resource_provider,$this(host),state) "STARTED"
+      wait_for_component_info exp_comp_info
 
-      # Wait for resource ($free_resource) to be added
-      set exp_res_info($free_resource,service) $service 
-      set exp_res_info($free_resource,flags) "{}"
-      set exp_res_info($free_resource,state) "ASSIGNED"
+      ts_log_fine "Adding resource \"$this(res)\" to service '$service' ..."
+      sdmadm_command_opt "ar -r $this(res) -s $service"
+
+      # Wait for resource to be added
+      set exp_res_info($this(res),service) $service 
+      set exp_res_info($this(res),flags) "{}"
+      set exp_res_info($this(res),state) "ASSIGNED"
       wait_for_resource_info exp_res_info
    }
 }
