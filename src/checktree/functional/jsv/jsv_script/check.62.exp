@@ -146,24 +146,32 @@ proc jsv_script_setup {} {
  
    # scripts to be tested for each run and corresponding names for messages
    lappend jsv_script_list "$jsv_base_path/jsv.sh"
+
+   # TODO: Use correct path in test script !!!
+   # How to do:
+   # tmp_file_name [get_tmp_file_name $ts_config(master_host) "jsv_script" "sh"]
+   # read_file $jsv_base_path/jsv.sh script_file
+   # set script_file(1) "#![get_binary_path $ts_config(master_host) "sh"]"
+   # save_file $tmp_file_name script_file
+
    lappend jsv_name_list "bourne shell"
    lappend jsv_enter_list "\r\n"
    lappend jsv_enter2_list "\r\n"
-   lappend jsv_shell_list "sh"
+   lappend jsv_shell_list [get_binary_path $ts_config(master_host) "sh"]
 
    # test TCL JSV template
    lappend jsv_script_list "$jsv_base_path/jsv.tcl"
    lappend jsv_name_list "TCL"
    lappend jsv_enter_list "\r\n"
    lappend jsv_enter2_list "\r\r\n"
-   lappend jsv_shell_list "tclsh"
+   lappend jsv_shell_list [get_binary_path $ts_config(master_host) "tclsh"]
 
    # test Perl JSV template
    lappend jsv_script_list "$jsv_base_path/jsv.pl"
    lappend jsv_name_list "Perl"
    lappend jsv_enter_list "\r\n"
    lappend jsv_enter2_list "\r\n"
-   lappend jsv_shell_list "perl"
+   lappend jsv_shell_list [get_binary_path $ts_config(master_host) "perl"]
 
    # spawn processes and store id's so that the can be terminated later 
    set i 0

@@ -594,7 +594,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    puts $test_file "set terminal gif" 
    flush $test_file
    close $test_file
-   set result [start_remote_prog $local_host $CHECK_USER gnuplot $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $local_host $CHECK_USER [get_binary_path $local_host "gnuplot"] $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state != 0 } {
       ts_log_fine "gnuplot does not support gif terminal, using png terminal ..."
       set terminal_type "png"
@@ -623,7 +623,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    }
    close $cmd_file
 
-   set result [start_remote_prog $local_host $CHECK_USER gnuplot $command_file prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $local_host $CHECK_USER [get_binary_path $local_host "gnuplot"] $command_file prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state == 0 } {
       return $data(output_file)
    } else {
@@ -2044,7 +2044,7 @@ proc write_remote_file {host user file array_name} {
 #     get_binary_path { hostname binary } 
 #
 #  FUNCTION
-#     This procedure will parse the binary-path.conf configuration file of the 
+#     This procedure will parse the host configuration file of the 
 #     testsuite. In this file the user can configure his host specific binary 
 #     path names. 
 #
@@ -2054,35 +2054,87 @@ proc write_remote_file {host user file array_name} {
 #
 #  RESULT
 #     The full path name of the binary on the given host. The return value 
-#     depends on the entries in the binary-path.conf file. 
+#     depends on the entries in the testsuite host configuration file.
 #
-#  EXAMPLE
-#     ??? 
+#     If there is no entry in the host configuration file the path settings
+#     from the CHECK_USER are used to find out the path of the binary by
+#     doing a which call. If the CHECK_USER settings does also not return
+#     the path the path settings fromt the root user are checked.
 #
-#  NOTES
-#     The binary-path.conf file has following syntax: 
-#     Each line has 3  entries: 
-#     hostname binary path. The $ARCH variable is resolved. 
+#     The testsuite will generate a configuration warning message that
+#     a host configuration does not contain the path for a binary if the
+#     path has to be resolved by using any users environment.
 #
-#  BUGS
-#     ??? 
+#     The path settings from the users's environments are cached. If a
+#     cached entry is returned the testsuite will not report a configuration
+#     warning. 
+#
+#     If the binary cannot be found at all the content of the binary argument
+#     is returned.
 #
 #  SEE ALSO
 #     file_procedures/get_dir_names
 #*******************************
-proc get_binary_path {nodename binary {raise_error 1}} {
-   global CHECK_DEBUG_LEVEL
-   global ts_host_config
 
+# This is the cache for users's binary which calls. The cache is erased 
+# when the file is (re-)sourced!
+global cached_binary_path_array
+if {[info exists cached_binary_path_array]} {
+   unset cached_binary_path_array
+}
+proc get_binary_path {nodename binary {raise_error 1}} {
+   global ts_host_config 
+   global ts_config
+   global CHECK_USER
+   global cached_binary_path_array
+
+   # get node name of host
    set hostname [node_get_host $nodename]
 
+   # Check if there is an entry for the binary in the host config
    if {[info exists ts_host_config($hostname,$binary)]} {
       return $ts_host_config($hostname,$binary)
    }
 
-   ts_log_severe "no entry for binary \"$binary\" on host \"$hostname\" in host configuration" $raise_error
-   if {$CHECK_DEBUG_LEVEL >= 2} {
-      wait_for_enter
+   # Check if we already have cached entry from the CHECK_USER user path settings
+   if {[info exists cached_binary_path_array($hostname,$binary,$CHECK_USER)]} {
+      return $cached_binary_path_array($hostname,$binary,$CHECK_USER)
+   }
+
+   # Check if we already have a cached entry from the root user path settings
+   if {[info exists cached_binary_path_array($hostname,$binary,root)]} {
+      return $cached_binary_path_array($hostname,$binary,root)
+   }
+
+   # Try to find out the path from CHECK_USER user's environment
+   set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary]
+   set binary_path [string trim $binary_path]
+   if {[is_remote_file $hostname $CHECK_USER $binary_path 0]} {
+      # We have figured out the path from the user's environment
+      # The binary path is not configured in the host configuration, report config warning
+      set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
+      append config_text "Using \"$binary\" binary from ${CHECK_USER}`s environment path setting: \"$binary_path\"\n"
+      ts_log_config $config_text
+      # Now add the binary path to the cache
+      set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
+      return $binary_path
+   } else {
+      # If we have a root password we also try to get it from root's path environment
+      if {[have_root_passwd] == 0} {
+         set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary]
+         set binary_path [string trim $binary_path]
+         if {[is_remote_file $hostname "root" $binary_path 0]} {
+            # We have figured out the path from the root user's environment
+            # The binary path is not configured in the host configuration, report config warning
+            set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
+            append config_text "Using \"$binary\" binary from root`s environment path setting: \"$binary_path\"\n"
+            ts_log_config $config_text
+            # Now add the binary path to the cache
+            set cached_binary_path_array($hostname,$binary,root) $binary_path
+            return $binary_path
+         }
+      }
+      ts_log_warning "Cannot find path to binary \"$binary\" on host \"$hostname\"" $raise_error
    }
    return $binary
 }
@@ -2938,7 +2990,8 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
 #     file_procedures/wait_for_file()
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
-proc is_remote_file {hostname user path {be_quiet 0}} {
+proc is_remote_file {hostname user fpath {be_quiet 0}} {
+   set path [string trim $fpath]
    if {$path == ""} {
       ts_log_severe "got no path parameter!"
       return 0;

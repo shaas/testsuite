@@ -1,3 +1,11 @@
+CR-2008-11-24-0: Enhancem.:  - Procedure get_binary_path() now tries to get
+                               full path of binary also from user's environment
+                             - jsv_script test now uses get_binary_path()
+                             - create_gnuplot_xy_gif() now uses get_binary_path()
+                             - is_remote_file() now is doing a string trim
+                               on the ingoing file path parameter
+                 Review:     EB
+
 HP-2008-11-21-0: Bugfix:     Now the worker.exe for the qsub test on Windows
                              loads one CPU with at least 95% and works for the 
                              requested time +30 ms/-0 ms.
