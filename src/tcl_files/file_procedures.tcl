@@ -3702,6 +3702,41 @@ proc get_file_uid {user host file} {
    return $uid
 }
 
+
+#****** file_procedures/get_dir_uid() *****************************************
+#  NAME
+#     get_dir_uid() -- get uid of dir on host
+#
+#  SYNOPSIS
+#     get_dir_uid { user host dir } 
+#
+#  FUNCTION
+#     Returns the uid of the given dir on the remote host.
+#
+#  INPUTS
+#     user - user name
+#     host - host name
+#     dir - full path to dir
+#
+#  RESULT
+#     string containing the uid of the dir
+#
+#  SEE ALSO
+#     file_procedures/get_file_uid()
+#     file_procedures/get_file_gid()
+#*******************************************************************************
+proc get_dir_uid {user host dir} {
+   wait_for_remote_dir $host $user $dir 
+   set output [start_remote_prog $host $user ls "-ldn $dir"]
+   set uid [lindex $output 2]
+   if {$uid == ""} {
+      ts_log_severe "can't get dir uid on host $host"
+   }
+   return $uid
+}
+
+
+
 #****** file_procedures/get_file_perms() ***************************************
 #  NAME
 #     get_file_perm() -- get permission of file on host
@@ -3762,6 +3797,40 @@ proc get_file_gid {user host file} {
    }
    return $gid
 }
+
+
+#****** dir_procedures/get_dir_gid() *****************************************
+#  NAME
+#     get_dir_gid() -- get gid of dir on host
+#
+#  SYNOPSIS
+#     get_dir_gid { user host dir } 
+#
+#  FUNCTION
+#     Returns the gid of the given dir on the remote host.
+#
+#  INPUTS
+#     user - user name
+#     host - host name
+#     dir - full path to dir
+#
+#  RESULT
+#     string containing the gid of the dir
+#
+#  SEE ALSO
+#     file_procedures/get_file_uid()
+#     file_procedures/get_file_gid()
+#*******************************************************************************
+proc get_dir_gid {user host dir} {
+   wait_for_remote_dir $host $user $dir 
+   set output [start_remote_prog $host $user ls "-ldn $dir"]
+   set gid [lindex $output 3]
+   if {$gid == ""} {
+      ts_log_severe "can't get dir gid on host $host"
+   }
+   return $gid
+}
+
 
 
 #****** file_procedures/get_spool_dir() ****************************************

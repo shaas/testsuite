@@ -1,3 +1,13 @@
+CR-2008-11-26-0: Bugfix:     - Fixed checktree/upgrade_test/check.exp so that
+                               it fails when bdb spool dir is not onwed by
+                               admin user.
+                             - Cleanup function now fixes wrong user owner
+                               of dbd spool dir if it is not admin user after
+                               running this test.
+                             - added new tcl file procedures:
+                               get_dir_gid() and get_dir_uid()
+                 Review:     DG
+
 CR-2008-11-25-0: Cleanup:    - Use get_binary_path() for start_remote_prog()
                                calls where it is possible.
                              - get_binary_path() should be the one and only

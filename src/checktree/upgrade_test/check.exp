@@ -125,10 +125,24 @@ proc upgrade_test_setup {} {
 }
 
 proc upgrade_test_cleanup {} {
-   global ts_config CHECK_UPGRADE_TEMP_CONFIG_DIR
+   global ts_config CHECK_UPGRADE_TEMP_CONFIG_DIR CHECK_USER
 
    # delete directory with additional cluster's configurations
    delete_directory $CHECK_UPGRADE_TEMP_CONFIG_DIR
+
+   # test if bdb spool dir belongs root
+   set spool_dir [get_bdb_spooldir $ts_config(master_host)]
+   if {[is_remote_path $ts_config(master_host) "root" $spool_dir]} {
+      set spool_uid [get_dir_uid "root" $ts_config(master_host) $spool_dir]
+      if {$spool_uid != [get_uid $CHECK_USER $ts_config(master_host)]} {
+         set error_text "Spool dir \"$spool_dir\" is not owned by admin user! It's owned by user id \"$spool_uid\"\n"
+         append error_text "Testsuite will do a chown -r \"admin user\" for this directory"
+         ts_log_severe $error_text
+         # We have to fix this, otherwise the init_core_system will fail!
+         start_remote_prog $ts_config(master_host) "root" "chown" "-R $CHECK_USER $spool_dir"
+      }
+   }
+
 }
 
 #************** upgrade_test/upgrade_test_backup_initial_config() **************
@@ -205,19 +219,10 @@ proc upgrade_test_init_cluster {} {
    }
 
    # start up execution deamons
-   set errors 0
    foreach host $ts_config(execd_nodes) {
       if { ![is_execd_alive $host] } {
          set result [startup_daemon $host "execd"]
-         if { $result != 0 } {
-            incr errors 1
-         }
       }
-   }
-   if { $errors != 0 } {
-      return -1
-   } else {
-      return 0
    }
 }
 
@@ -601,7 +606,6 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    while { true } {
       log_user 1
       set timeout 60
-      wait_for_enter
       expect {
          -i $sp_id full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
