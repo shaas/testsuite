@@ -70,9 +70,9 @@ proc get_SWC_USER { { swc_host "" } } {
 
    ts_log_finest "Checking if the SWC user is set among web console properties."
    if { [expr $swc_version(major)] == 3 } {
-      set output [start_remote_prog $swc_host root  "wcadmin" "list -p | grep com.sun.web.console.user | awk -F\" \" '{print \$2}'"]
+      set output [start_remote_prog $swc_host root  [get_binary_path $swc_host "wcadmin"] "list -p | grep com.sun.web.console.user | awk -F\" \" '{print \$2}'"]
    } else {
-      set output [start_remote_prog $swc_host root  "smreg" "list -p | grep com.sun.web.console.user | awk -F= '{print \$2}'"]
+      set output [start_remote_prog $swc_host root  [get_binary_path $swc_host "smreg"] "list -p | grep com.sun.web.console.user | awk -F= '{print \$2}'"]
    }
 
    if { $prg_exit_state != 0 } {
@@ -81,10 +81,11 @@ proc get_SWC_USER { { swc_host "" } } {
    }
 
    set swc_user [string trim $output]
+   set getent_path [get_binary_path $swc_host "getent"]
 
    if { [string compare $swc_user ""] != 0 } {
       ts_log_finest "Checking if the SWC user $output can log in the host $swc_host."
-      set output [start_remote_prog $swc_host root  "getent" "passwd $swc_user | awk -F: '{print \$1}'"]
+      set output [start_remote_prog $swc_host root  $getent_path "passwd $swc_user | awk -F: '{print \$1}'"]
       set swc_user [string trim $output]
       if { $prg_exit_state != 0 } {
          ts_log_severe "Unexpected error while looking for user. ($output)"
@@ -97,7 +98,7 @@ proc get_SWC_USER { { swc_host "" } } {
    }
 
    ts_log_finest "SWC user not found, checking if the user noaccess can log in the host $swc_host."
-   set output [start_remote_prog $swc_host root  "getent" "passwd noaccess | awk -F: '{print \$1}'"]
+   set output [start_remote_prog $swc_host root  $getent_path "passwd noaccess | awk -F: '{print \$1}'"]
    set swc_user [string trim $output]
    if { $prg_exit_state != 0 } {
       ts_log_severe "Unexpected error while looking for user. ($output)"
@@ -110,7 +111,7 @@ proc get_SWC_USER { { swc_host "" } } {
 
    # user noaccess doesn't exist, let's check if nobody user exists in system
    ts_log_finest "User noaccess not found, checking if the user nobody can log in the host $swc_host."
-   set output [start_remote_prog $swc_host root  "getent" "passwd nobody | awk -F: '{print \$1}'"]
+   set output [start_remote_prog $swc_host root  $getent_path "passwd nobody | awk -F: '{print \$1}'"]
    set swc_user [string trim $output]
    if { $prg_exit_state != 0 } {
       ts_log_severe "Unexpected error while looking for user. ($output)"

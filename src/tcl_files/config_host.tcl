@@ -1442,7 +1442,7 @@ wait_for_enter
          # convert the java home string to a version dependent one
          puts -nonewline " ... "
          set myenv(EN_QUIET) "1"
-         set java15_bin [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
+         set java15_bin [start_remote_prog $host $CHECK_USER [get_binary_path $host "csh"] "-c \"source /vol2/resources/en_jdk15 ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
          if { $prg_exit_state != 0 } {
             set java15_bin "" 
          }
@@ -1700,7 +1700,7 @@ proc check_java_version { host java_bin version } {
 proc autodetect_java { host {version "1.4"} } {
    global CHECK_USER ts_config
    set ver [get_testsuite_java_version $version]
-   set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
+   set output [start_remote_prog $host $CHECK_USER [get_binary_path $host "csh"] "-c \"source /vol2/resources/en_jdk$ver ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
    if  { [string match "* NOT SUPPORTED *" $output] == 1 } {
       ts_log_fine "Error: [lindex [split $output "\n"] 0]"
       set bin ""

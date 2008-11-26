@@ -174,10 +174,11 @@ proc issue_1803_test {} {
       set spool_dir [get_spool_dir $host execd]
 
       set qsub_arg_list {}
-      lappend qsub_arg_list "-l h=$host -o /dev/null -e /dev/null -S /bin/csh"
-      lappend qsub_arg_list "-b y -l h=$host -o /dev/null -e /dev/null -S /bin/csh"
-      lappend qsub_arg_list "-l h=$host -S /bin/csh"
-      lappend qsub_arg_list "-b y -l h=$host -S /bin/csh"
+      set csh_path [get_binary_path $host "csh"]
+      lappend qsub_arg_list "-l h=$host -o /dev/null -e /dev/null -S $csh_path"
+      lappend qsub_arg_list "-b y -l h=$host -o /dev/null -e /dev/null -S $csh_path"
+      lappend qsub_arg_list "-l h=$host -S $csh_path"
+      lappend qsub_arg_list "-b y -l h=$host -S $csh_path"
 
       foreach job_args $qsub_arg_list {
          set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 1"]
@@ -218,13 +219,13 @@ proc issue_1803_test {} {
                      set expected_argument3        ""
                   } elseif {$starter_method == "none" && $counter == 1 && [string first "-b y" $job_args] >= 0} {
                      # job
-                     set expected_binary  "/bin/csh"
+                     set expected_binary  $csh_path
                      set expected_argument1        "-csh"
                      set expected_argument2        "-c"
                      set expected_argument3        "$ts_config(product_root)/examples/jobs/sleeper.sh 1 "
                   } elseif {$starter_method == "none" && $counter == 1} {
                      # job
-                     set expected_binary  "/bin/csh"
+                     set expected_binary  $csh_path
                      set expected_argument1        "-csh"
                      set expected_argument2        "$spool_dir/job_scripts/$job_id"
                      set expected_argument3        "1"

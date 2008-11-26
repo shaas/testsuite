@@ -150,8 +150,8 @@ proc path_alias_setup {} {
 
       set index 0
       foreach host $ts_config(unique_arch_nodes) {
-         set output [start_remote_prog "$host" $CHECK_USER "csh" "-c 'cd $ts_config(product_root) ; echo \"pwd_output:\" ; pwd'"]
-         set output [get_string_value_between "pwd_output:" -1 $output]
+         set output [start_remote_prog $host $CHECK_USER "pwd" "" prg_exit_state 60 0 $ts_config(product_root)]
+         set output [string trim $output]
          if { $output != $ts_config(product_root) } {
             ts_log_fine "host $host seems to have an automounter prefix! checking ..."
             set pos [string first $ts_config(product_root) $output]
@@ -235,7 +235,7 @@ proc path_alias_main {} {
       ts_log_fine "qsub $elem ..."
       set args     "-cwd -l h=${elem} $job_script"
       ts_log_fine "qsub $args"
-      start_remote_prog $elem $CHECK_USER "qsub" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1
+      start_sge_bin "qsub" $args $elem $CHECK_USER prg_exit_state 60 $PATH_ALIAS_OUTPUT1
 
       ts_log_fine "qrsh $elem ..."
 

@@ -97,15 +97,13 @@ proc execd_uninstall_setup  {} {
    global ts_config check_execd CHECK_USER
 
    set exit_state 1
-
    set check_execd "unknown"
-
    foreach tmp_check_execd $ts_config(execd_nodes) {
       set DENIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_CANTDELADMINQMASTER_S] "*" ]
       ts_log_fine "Try to remove host $tmp_check_execd from adminhost list!" 
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-dh $tmp_check_execd" exit_state 60 ]
+      set output [start_sge_bin "qconf" "-dh $tmp_check_execd"]
       ts_log_fine $output
-      if { $exit_state != 0 || [string match "*$DENIED*" $output] } {
+      if { $prg_exit_state != 0 || [string match "*$DENIED*" $output] } {
          ts_log_fine "failed, trying next!"
       } else {
          ts_log_fine "OK, taking this one!"
@@ -120,11 +118,11 @@ proc execd_uninstall_cleanup  {} {
 
    if { $check_execd != "unknown" } {
       ts_log_fine "Readding host $check_execd to adminhost list!" 
-      set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qconf" "-ah $check_execd"] 
+      set output [start_sge_bin "qconf" "-ah $check_execd"]
       ts_log_fine $output
-      set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qmod" "-e all.q"] 
+      set output [start_sge_bin "qmod" "-e all.q"]
       ts_log_fine $output
-      set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qmod" "-us all.q"] 
+      set output [start_sge_bin "qmod" "-us all.q"]
       ts_log_fine $output
    }
 }

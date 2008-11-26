@@ -361,38 +361,27 @@ proc set_hosts_for_runlevel {} {
 #*******************************************************************************
 proc get_lowest_java_version { host } {
    set java {}
-
    # try to use java 1.4, 
    # if not configured, java 1.5
    # if not configured, give it a try with the java in PATH
    set JAVA [get_binary_path $host "java14" 0]
-
    if {$JAVA == "java14"} {
       # java variable didn't change... 
       set JAVA [get_binary_path $host "java15" 0]
-   
       if {$JAVA == "java15"} {
          # java variable didn't change 
          set JAVA [get_binary_path $host "java16" 0]
-
          if {$JAVA == "java16"} {
             # java variable didn't change 
             # try to use java in standard path
-            ts_log_fine "ERROR: No Java versions found on host $host!"
+            ts_log_warning "No Java versions found on host $host!"
             set JAVA ""
          }          
       }
    } 
-    
-   # we left only one element in list 
-   lappend java $JAVA   
-    
-   set list_length [llength $java] 
-
-   if {$list_length < 1} {
-      ts_log_fine "ERROR: get_lowest_java_version() has no elements in list!"
+   if {$JAVA != ""} {
+      lappend java $JAVA   
    }
-
    return $java 
 }
 

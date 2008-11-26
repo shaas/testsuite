@@ -206,8 +206,8 @@ proc setup_qping_dump { log_array  } {
    }
 }
 
-
-proc get_xterm_path { host } {
+# ATTENTION: Please don't use this function, use get_binary_path $host "xterm"
+proc private_get_xterm_path { host } {
    global ts_config CHECK_USER xterm_path_cache
 
    if { [info exists xterm_path_cache($host)] } {
@@ -817,110 +817,109 @@ proc start_remote_prog { hostname
 
 #****** remote_procedures/sendmail() *******************************************
 #  NAME
-#     sendmail() -- sendmail in mime format (first prototype)
+#     sendmail() -- sendmail in mime format
 #
 #  SYNOPSIS
-#     sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } 
-#     { from "" } { replyto "" } { organisation "" } } 
+#     sendmail { to subject thebody { send_html 0 } { cc "" } { bcc "" } 
+#     { from "" } { replyto "" } { organisation "" } { force_mail 0 } } 
 #
 #  FUNCTION
-#     This procedure is under construction
+#     Send a mail in mime format via sendmail application. HTML is supported.
 #
 #  INPUTS
-#     to                  - ??? 
-#     subject             - ??? 
-#     body                - ??? 
-#     { send_html 0 }     - ??? 
-#     { cc "" }           - ??? 
-#     { bcc "" }          - ??? 
-#     { from "" }         - ??? 
-#     { replyto "" }      - ??? 
-#     { organisation "" } - ??? 
+#     to                  - receiver e-mail address
+#     subject             - mail subject (is enhanced by version info) 
+#     thebody             - mail body
+#     { send_html 0 }     - if 0    use Content-Type: text/plain ; charset=ISO-8859-1
+#                           if != 0 use Content-Type: text/html ; charset=ISO-8859-1
+#                           if 2    use Content-Type: text/html ; charset=ISO-8859-1 
+#                                   AND
+#                                   auto-wrap thebody into HTML <pre><code> tags
+#     { cc "" }           - cc e-mail address
+#     { bcc "" }          - bcc e-mail address
+#     { from "" }         - from e-mail address
+#     { replyto "" }      - reply to e-mail address
+#     { organisation "" } - organisation
+#     { force_mail 0 }    - force sending the mail, even when mail is switched off
 #
 #  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
+#     0 on success, -1 if mail was not sent
 #*******************************************************************************
-proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" } { replyto "" } { organisation "" } { force_mail 0 } } {
+proc sendmail { to subject thebody { send_html 0 } { cc "" } { bcc "" } { from "" } { replyto "" } { organisation "" } { force_mail 0 } } {
    global CHECK_USER CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
    get_current_cluster_config_array ts_config
 
    if { $CHECK_ENABLE_MAIL != 1 && $force_mail == 0 } {
      ts_log_fine "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
      ts_log_fine "mail subject: $subject"
-     ts_log_fine "mail body:"
-     ts_log_fine "$body"
+     ts_log_fine "mail thebody:"
+     ts_log_fine "$thebody"
      return -1
    }
+   set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
+   ts_log_fine "--> sending mail \"$new_subject\" to $to from host $ts_config(mailx_host) ...\n"
 
-
-   ts_log_fine "--> sending mail to $to from host $ts_config(mailx_host) ...\n"
-   # setup mail message    
-   set mail_file [get_tmp_file_name]
-   set file [open $mail_file "w"]
-
-   puts $file "Mime-Version: 1.0"
-   if { $send_html != 0 } {
-      puts $file "Content-Type: text/html ; charset=ISO-8859-1"
+   if {$send_html == 2} {
+      set body "<html>"
+      append body "<head>$new_subject</head>"
+      append body "<body>"
+      append body "<pre><code>$thebody</code></pre>"
+      append body "</body>"
+      append body "</html>"
    } else {
-      puts $file "Content-Type: text/plain ; charset=ISO-8859-1"
+      set body $thebody
+   }
+
+   # setup mail message    
+   set mail_file_text ""
+   append mail_file_text "Mime-Version: 1.0\n"
+   if { $send_html != 0 } {
+      append mail_file_text "Content-Type: text/html ; charset=ISO-8859-1\n"
+   } else {
+      append mail_file_text "Content-Type: text/plain ; charset=ISO-8859-1\n"
    }
 
    if { $organisation != "" }  {
-      puts $file "Organization: $organisation"
+      append mail_file_text "Organization: $organisation\n"
    }
    if { $from != "" } {
-      puts $file "From: $from"
+      append mail_file_text "From: $from\n"
    }
    if { $replyto != "" } {
-      puts $file "Reply-To: $replyto"
+      append mail_file_text "Reply-To: $replyto\n"
    }
-   puts $file "To: $to"
+   append mail_file_text "To: $to\n"
    foreach elem $cc {
-      puts $file "Cc: $elem"
+      append mail_file_text "Cc: $elem\n"
    }
    foreach elem $bcc {
-      puts $file "Bcc: $elem"
+      append mail_file_text "Bcc: $elem\n"
    }
 
-   set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
-
-   puts $file "Subject: $new_subject"
-   puts $file ""
+   append mail_file_text "Subject: $new_subject\n"
+   append mail_file_text "\n"
    # after this line the mail begins
-   puts $file "Grid Engine Version: [get_version_info]"
-   puts $file "Subject            : $subject"
-   puts $file ""
-   puts $file "$body"
-   puts $file ""
-   puts $file "."
-   close $file
+   append mail_file_text "$body"
+   append mail_file_text "\n"
+   append mail_file_text "."
 
+   set mail_file [get_tmp_file_name $ts_config(mailx_host) "sendmail" "mail"]
+   set act_line 0
+   foreach line [split $mail_file_text "\n"] {
+      incr act_line 1
+      set mail_file_array($act_line) $line
+   }
+   set mail_file_array(0) $act_line
+   write_remote_file $ts_config(mailx_host) $CHECK_USER $mail_file mail_file_array
 
    # start sendmail
-
-   # TODO: get sendmail path
-   # TODO: configure mail host in testsuite configuration
-
-   set command "/usr/lib/sendmail"
    set arguments "-B 8BITMIME -t < $mail_file"
 
-   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $command $arguments prg_exit_state 60 0 "" "" 1 0]
+   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER "sendmail" $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
       ts_log_frame
       ts_log_fine "COULD NOT SEND MAIL:\n$result"
-      ts_log_fine
+      ts_log_frame
       return -1
    }
    incr CHECK_MAILS_SENT 1
@@ -938,19 +937,13 @@ proc sendmail_wrapper { address cc subject body } {
    get_current_cluster_config_array ts_config
 
 
-#   set html_text ""
-#   foreach line [split $body "\n"] {
-#      append html_text [create_html_text $line]
-#   }
-#   return [sendmail $address $subject $html_text 1 $cc "" $address $address "Gridware"]
-
    if { $ts_config(mail_application) == "mailx" } {
       ts_log_fine "using mailx to send mail ..."
       return 1
    }
    if { $ts_config(mail_application) == "sendmail" } {
       ts_log_fine "using sendmail to send mail ..."
-      sendmail $address $subject $body 0 $cc "" $address $address "Gridware"
+      sendmail $address $subject $body 2 $cc "" $address $address "Testsuite"
       return 0
    }
 
@@ -1515,7 +1508,7 @@ proc open_remote_spawn_process { hostname
             log_user 1
          }
          if {$tmp_help || $ts_config(connection_type) == "ssh_with_password"} {
-            set ssh_binary [get_binary_path $ts_config(master_host) ssh]
+            set ssh_binary [get_binary_path $ts_config(master_host) "ssh"]
             set pid [spawn $ssh_binary "-l" $connect_full_user $hostname] 
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
@@ -3429,7 +3422,8 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
 #     config_host/host_conf_get_arch
 #*******************************
 proc ping_daemon {host port name {max_tries 10}} {
-   global ts_config CHECK_USER
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    ts_log_finest "ping_daemon: $name on host $host with port $port"
 

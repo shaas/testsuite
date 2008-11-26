@@ -634,13 +634,13 @@ proc issue_751 {} {
       set additional_message "\nhas been fixed only for 6.1 and higher"
    }
 
-  set output [start_remote_prog $host $CHECK_USER "qconf" "-sstnode /" exit_state 30]
+  set output [start_sge_bin "qconf" "-sstnode /" $host $CHECK_USER exit_state 30]
   ts_log_fine $output
   if { $exit_state != 0 } {
       ts_log $error_level "Issue 751: qconf -sstnode / broken$additional_message"
   }
 
-  set output [start_remote_prog $host $CHECK_USER "qconf" "-sstnode Root" exit_state 30]
+  set output [start_sge_bin "qconf" "-sstnode Root" $host $CHECK_USER exit_state 30]
   ts_log_fine $output
   if { $exit_state != 0 } {
       ts_log $error_level "Issue 751: qconf -sstnode Root broken$additional_message"

@@ -106,7 +106,8 @@ proc create_job_script { option } {
    global file_parsing_job_script file_parsing_job_host
 
    delete_remote_file $file_parsing_job_host $CHECK_USER $file_parsing_job_script
-   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#!/bin/sh\" > $file_parsing_job_script"
+   set script_path [get_binary_path $file_parsing_job_host "sh"]
+   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#$get_binary_path\" > $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#$ $option\" >> $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"sleep 15\" >> $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "chmod" "755 $file_parsing_job_script"
@@ -124,8 +125,8 @@ proc prepare_file_and_start_job { request_file_name option_parameter job_script 
    global global file_parsing_job_host
 
    ts_log_fine "creating file $request_file_name on host $file_parsing_job_host"
-
-   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "$option_parameter -e /dev/null -o /dev/null -S /bin/sh > $request_file_name"
+   set script_path [get_binary_path $file_parsing_job_host "sh"]
+   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "$option_parameter -e /dev/null -o /dev/null -S $script_path > $request_file_name"
 
    wait_for_remote_file $file_parsing_job_host $CHECK_USER $request_file_name
 

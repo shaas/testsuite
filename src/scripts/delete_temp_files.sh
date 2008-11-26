@@ -21,7 +21,4 @@ for file in `cat $orig`; do
    fi
 done
 
-# cleanup
-rm $orig
-
 exit 0

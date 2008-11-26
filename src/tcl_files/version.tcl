@@ -139,30 +139,29 @@ proc get_version_info {} {
 
    get_current_cluster_config_array ts_config
 
-
    if { [info exists ts_config(product_root)] != 1 } {
-      set CHECK_PRODUCT_VERSION_NUMBER "system not running"
+      set CHECK_PRODUCT_VERSION_NUMBER "system not installed"
       return $CHECK_PRODUCT_VERSION_NUMBER
    }
  
-   set master_arch [resolve_arch $ts_config(master_host)]  
-   if { [file isfile "$ts_config(product_root)/bin/$master_arch/qconf"] } {
+   set qconf_host [host_conf_get_suited_hosts]
+   set qconf_host_arch [resolve_arch $qconf_host]
+   set qconf_bin $ts_config(product_root)/bin/$qconf_host_arch/qconf
+
+   if { [file isfile $qconf_bin] } {
       # We don't use start_sge_bin since we don't want to call this over JGDI
-      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-sh" prg_exit_state 10 0 "" "" 1 1 0 0]
-      set qmaster_running $prg_exit_state
-      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-help"]
+      set result [start_remote_prog $qconf_host $CHECK_USER $qconf_bin "-help"]
       set help [ split $result "\n" ] 
       if { ([ string first "fopen" [ lindex $help 0] ] >= 0)        || 
            ([ string first "error" [ lindex $help 0] ] >= 0)        || 
-           ([ string first "product_mode" [ lindex $help 0] ] >= 0) ||   
-           ($qmaster_running != 0) } {
-          set CHECK_PRODUCT_VERSION_NUMBER "system not running"
+           ([ string first "product_mode" [ lindex $help 0] ] >= 0) } {
+          set CHECK_PRODUCT_VERSION_NUMBER "system not installed"
           return $CHECK_PRODUCT_VERSION_NUMBER
       }
       set CHECK_PRODUCT_VERSION_NUMBER [ lindex $help 0]
       set CHECK_PRODUCT_VERSION_NUMBER [string trim $CHECK_PRODUCT_VERSION_NUMBER]
       if { [ string first "exit" $CHECK_PRODUCT_VERSION_NUMBER ] >= 0 } {
-         set CHECK_PRODUCT_VERSION_NUMBER "system not running"
+         set CHECK_PRODUCT_VERSION_NUMBER "system not installed"
       } else {
          if {$ts_config(gridengine_version) == 53} {
             # SGE(EE) 5.x: we have a product mode file

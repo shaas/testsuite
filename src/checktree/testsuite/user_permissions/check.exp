@@ -99,8 +99,9 @@ proc check_user_permissions {} {
 
         # additional check the directory pwd output
         #ts_log_fine "   pwd test ..."
-        set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $execd_spooldir ; echo \"pwd_output:\" ; pwd'"]
-        set output [get_string_value_between "pwd_output:" -1 $output]
+        set output [start_remote_prog $host $user "pwd" "" prg_exit_state 60 0 $execd_spooldir]
+        set output [string trim $output]
+
         if { [string match "*$execd_spooldir*" "$output"] == 0 } {
            ts_log_fine "pwd in execd spool directory on $host (user=$user): \"$execd_spooldir\": \"[string trim $output]\")"
            ts_log_severe "pwd (csh) in \"$execd_spooldir\" on host $host returned: $output, not $execd_spooldir"
@@ -119,14 +120,13 @@ proc check_user_permissions {} {
       }
 
       # additional check the directory pwd output
-      set output [start_remote_prog "$ts_config(master_host)" "$user" "csh" "-c 'cd $master_spooldir ; echo \"pwd_output:\" ; pwd'"]
-      set output [get_string_value_between "pwd_output:" -1 $output]
+      set output [start_remote_prog $ts_config(master_host) $user "pwd" "" prg_exit_state 60 0 $execd_spooldir]
+      set output [string trim $output]
+
       if { [string match "*$master_spooldir*" $output] == 0 } {
          ts_log_fine "pwd in master spool directory on $host (user=$user): \"$master_spooldir\": \"[string trim $output]\")"
          ts_log_severe "pwd (csh) in \"$master_spooldir\" on host $host returned: $output, not $master_spooldir"
       }
-
-
   }
   ts_log_fine "runtime: [ expr ( [timestamp] - $time ) ]"
   get_version_info

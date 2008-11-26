@@ -601,6 +601,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    while { true } {
       log_user 1
       set timeout 60
+      wait_for_enter
       expect {
          -i $sp_id full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"

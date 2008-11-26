@@ -92,8 +92,9 @@ proc issue_1156_setup {} {
    ts_log_fine "creating a script file to be executed by qsh -S <script>"
    set script_name "$CHECK_JOB_OUTPUT_DIR/issue_1156_qsh.csh"
    set report_name "$CHECK_JOB_OUTPUT_DIR/issue_1156_report.txt"
+   set csh_path [get_binary_path $ts_config(master_host) "csh"]
    set f [open $script_name "w" "0755"]
-   puts $f "#!/bin/csh"
+   puts $f "#!$csh_path"
    puts $f "env >! $report_name"
    close $f
 

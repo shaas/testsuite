@@ -1026,7 +1026,8 @@ proc get_java_web_console_status { { swc_host "" } } {
       set_root_passwd
    }
 
-   set output [start_remote_prog $swc_host root  "/usr/sbin/smcwebserver" "status" ]
+   set webserver_binary [get_binary_path $swc_host "smcwebserver"]
+   set output [start_remote_prog $swc_host root $webserver_binary "status" ]
    
    if { $prg_exit_state != 0 } {
 
@@ -1034,7 +1035,7 @@ proc get_java_web_console_status { { swc_host "" } } {
     #     return 0
     #  }
        puts "------------------------------------------------------------------"
-       puts "Command '/usr/sbin/smcwebserver status' on host $swc_host failed"
+       puts "Command '$webserver_binary status' on host $swc_host failed"
        puts "------------------------------------------------------------------"
        puts $output
        puts "------------------------------------------------------------------"
@@ -1047,7 +1048,7 @@ proc get_java_web_console_status { { swc_host "" } } {
    } else if { [string first "is running" $output] > 0 } {
       return 1
    } else {
-      puts "Unexpected output of command '/usr/sbin/smcwebserver status' on host $swc_host:"
+      puts "Unexpected output of command '$webserver_binary status' on host $swc_host:"
       puts $output
       return -1
    }
@@ -1098,12 +1099,13 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
    } else {
       set_root_passwd
    }
+   set webserver_binary [get_binary_path $swc_host "smcwebserver"]
 
-   set output [start_remote_prog $swc_host root  "/usr/sbin/smcwebserver" "-V"]
+   set output [start_remote_prog $swc_host root  "$webserver_binary" "-V"]
 
    if { $prg_exit_state != 0 } {
       puts "------------------------------------------------------------------"
-      puts "'/usr/sbin/smcwebserver -V' on host $swc_host failed"
+      puts "'$webserver_binary -V' on host $swc_host failed"
       puts "------------------------------------------------------------------"
       puts $output
       puts "------------------------------------------------------------------"
@@ -1113,7 +1115,7 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
    
    set list [split $output " "]
    if { [llength $list] != 2 || [lindex $list 0] != "Version" } {
-       ts_log_severe "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
+       ts_log_severe "Got invalid version string $output from '$webserver_binary -V' on host $swc_host"
        return -1
    }
    set output [lindex $list 1]
@@ -1133,7 +1135,7 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
         return 0
       }
       default {
-         ts_log_severe "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
+         ts_log_severe "Got invalid version string $output from '$webserver_binary -V' on host $swc_host"
          return -1
       }
    }

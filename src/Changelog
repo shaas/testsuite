@@ -1,3 +1,23 @@
+CR-2008-11-25-0: Cleanup:    - Use get_binary_path() for start_remote_prog()
+                               calls where it is possible.
+                             - get_binary_path() should be the one and only
+                               procedure to get full path to applications.
+                             - cleanup of mail sending procedures. When
+                               "sendmail" is configured the mails are now
+                               sent in html format.
+                             - TS framework used wrong cluster configuration
+                               for test level check procedure calls.
+                             - TS framework is now checking that the current
+                               cluster configuration is set to the main TS
+                               config when a test is started.
+                             - write_remote_file() did not wait for NFS
+                                  availability of the file.
+                             - fixed translate_all_macros()
+                               (helper tool used for I18N)
+                             - delete_temp_script_files(): Added some
+                               additional verify functionality 
+                 Review:     RD, TB
+
 JG-2008-11-26-0: Bugfix:     Fixed testsuite startup problem.
                  Review:     CR
 

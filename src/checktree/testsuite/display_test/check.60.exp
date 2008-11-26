@@ -91,7 +91,7 @@ proc display_test_test {} {
       ts_log_fine "user: $user"
       foreach host $hosts {
          ts_log_progress FINE "\r   open xterm on host $host: \r"
-         set xterm_path [get_xterm_path $host]
+         set xterm_path [get_binary_path $host "xterm"]
          set output [start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"]
          if { $prg_exit_state != 0 } {
             set disp_result($user,$host) 0

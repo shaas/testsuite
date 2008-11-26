@@ -861,10 +861,9 @@ proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
       set short_2 [lindex [split $host_2 "."] 0]
 
       if {[string compare -nocase $short_1 $short_2] != 0} {
-         ts_log_severe "host lists differ:\n$list_1\n$list_2" $raise_error
+         ts_log_severe "host lists not equal:\nlist_1=<$list_1>\nlist_2=<$list_2>" $raise_error
          return -2
       }
    }
-
    return 0
 }

@@ -92,10 +92,10 @@ proc smf_test_host_supported {} {
 
    set hosts [get_all_hosts]
    foreach host $hosts {
-      start_remote_prog $host $CHECK_USER "/bin/sh" "-c [get_sge_smf_cmd] supported" supported_exit_state
+      start_remote_prog $host $CHECK_USER [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] supported" supported_exit_state
       set arch_str [resolve_arch $host]
       if { [string match "sol-*" $arch_str] == 1 } {
-         set result [string trim [start_remote_prog $host $CHECK_USER "/usr/bin/uname" "-r"]]
+         set result [string trim [start_remote_prog $host $CHECK_USER [get_binary_path $host "uname"] "-r"]]
          set min [lindex [split $result .] end]
          if { $min < 10 && $supported_exit_state == 0 } {
             ts_log_severe "ERROR: Unexpected SMF support on host=$host with arch=$arch_str OS_release=$result!"

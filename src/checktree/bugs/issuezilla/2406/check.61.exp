@@ -113,8 +113,7 @@ proc issue_2406 {} {
 
       ts_log_fine "calling \"qconf -ah\" and checking if usage shows: \"-ah hostname_list\" and"
       ts_log_fine "\"hostname_list   hostname\[,hostname,...\]\""
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "$option" exit_state "600" 0 "" ""]
-
+      set output [start_sge_bin "qconf" "$option"]
       set tmp_output [split $output "\n"]
 
       foreach line $tmp_output {
@@ -136,8 +135,7 @@ proc issue_2406 {} {
 
       ts_log_fine "calling \"qconf -as\" and checking if usage shows: \"-as hostname_list\" and"
       ts_log_fine "\"hostname_list   hostname\[,hostname,...\]\""
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "$option" exit_state "600" 0 "" ""]
-
+      set output [start_sge_bin "qconf" "$option"]
       set tmp_output [split $output "\n"]
 
       foreach line $tmp_output {

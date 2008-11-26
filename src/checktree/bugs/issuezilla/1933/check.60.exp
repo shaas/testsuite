@@ -120,7 +120,7 @@ proc issue_1933_test {} {
    }
 
    delete_job $job_id
-   set output [start_remote_prog $host $CHECK_USER qstat "-q ${queue_name} -explain E" exit_state 30] 
+   set output [start_sge_bin "qstat" "-q ${queue_name} -explain E"]
 
    ts_log_fine $output
 

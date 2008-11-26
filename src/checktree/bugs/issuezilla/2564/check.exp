@@ -370,11 +370,10 @@ proc issue_2564_cleanup  {} {
    #
    # Restore original JobID file
    #
-   #file rename -force $seqfile.original $seqfile
-   start_remote_prog $ts_config(master_host) $CHECK_USER "/bin/mv" "$seqfile.original $seqfile"
+   start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "$seqfile.original $seqfile"
    infrastructure_file_cleanup
-
 }
+
 proc infrastructure_file_cleanup {} {
 
    global CHECK_USER
@@ -391,8 +390,8 @@ proc infrastructure_file_cleanup {} {
    # qmaster:
    #
    ts_log_finest "File Cleanup $CHECK_USER $qmaster_spool_dir \n"
-   start_remote_prog $qmaster_host $CHECK_USER "/bin/rm" "-rf $qmaster_spool_dir/jobs/*"
-   start_remote_prog $qmaster_host $CHECK_USER "/bin/rm" "-rf $qmaster_spool_dir/job_scripts/*"
+   start_remote_prog $qmaster_host $CHECK_USER "rm" "-rf $qmaster_spool_dir/jobs/*"
+   start_remote_prog $qmaster_host $CHECK_USER "rm" "-rf $qmaster_spool_dir/job_scripts/*"
    #
    # execd:
    #
@@ -400,9 +399,9 @@ proc infrastructure_file_cleanup {} {
       set execd_spool_dir [ get_execd_spool_dir $execd_host ]
       set execd_spool_dir $execd_spool_dir/$execd_host
       ts_log_finest "File Cleanup $CHECK_USER $execd_spool_dir \n"
-      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/jobs/*"
-      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/job_scripts/*"
-      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/active_jobs/*"
+      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/jobs/*"
+      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/job_scripts/*"
+      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/active_jobs/*"
    }
 }
 

@@ -738,10 +738,9 @@ proc qmod_forceaction {} {
    switch -- [resolve_arch $test_host] {
       "glinux" {
          foreach pidnr $pid_list {
-            start_remote_prog $test_host $CHECK_USER "/bin/kill" "-CONT $pidnr"
+            start_remote_prog $test_host $CHECK_USER "kill" "-CONT $pidnr"
          }
       }
-
       default {
          start_remote_prog $test_host $CHECK_USER "kill" "-CONT -$grppid"
       }

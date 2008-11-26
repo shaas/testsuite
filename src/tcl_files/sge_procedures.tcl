@@ -6170,9 +6170,9 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
    
    ts_log_fine "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
    set arch [resolve_arch $start_host]
-   set xterm_path [get_xterm_path $start_host]
 
    if {$master_debug != 0} {
+      set xterm_path [get_binary_path $start_host "xterm"]
       ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
       start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
    } else {
@@ -6186,6 +6186,7 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
 
          ts_log_fine "starting up scheduler ..."
          if { $schedd_debug != 0 } {
+            set xterm_path [get_binary_path $start_host "xterm"]
             ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
             ts_log_finest "starting schedd as $startup_user" 
             start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
@@ -6261,8 +6262,8 @@ proc startup_scheduler {} {
 
    ts_log_fine "starting up scheduler on host \"$ts_config(master_host)\" as user \"$startup_user\""
    set arch [resolve_arch $ts_config(master_host)]
-   set xterm_path [get_xterm_path $ts_config(master_host)]
    if { $schedd_debug != 0 } {
+      set xterm_path [get_binary_path $ts_config(master_host) "xterm"]
       ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
       start_remote_prog "$ts_config(master_host)" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$ts_config(master_host) \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
    } else {

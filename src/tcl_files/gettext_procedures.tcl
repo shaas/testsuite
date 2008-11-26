@@ -716,6 +716,26 @@ proc get_internal_message_number_from_id { id } {
 
 
 
+#****** gettext_procedures/translate_all_macros() ******************************
+#  NAME
+#     translate_all_macros() -- helper function to find out if macro is L10Ned
+#
+#  SYNOPSIS
+#     translate_all_macros { } 
+#
+#  FUNCTION
+#     This procedure can be used to generate a file in /tmp/unused_macros.txt
+#     which contains all NOT localized message macros from GE. This is helpful
+#     when checking localized po files.
+#
+#  INPUTS
+#
+#  RESULT
+#     n.a.
+#
+#  EXAMPLE
+#     expect check.exp execute_func translate_all_macros
+#*******************************************************************************
 proc translate_all_macros {} {
   global macro_messages_list
   global CHECK_USER ts_config
@@ -725,11 +745,16 @@ proc translate_all_macros {} {
   set not_localized ""
   set max_mess $macro_messages_list(0)
 
+  set parse_host [fs_config_get_server_for_path $ts_config(source_dir) 0]
+  if {$parse_host == ""} {
+     set parse_host [gethostname]
+     ts_log_fine "using host $parse_host for parsing messages files!"
+  } else {
+     ts_log_fine "using NFS server host $parse_host for parsing messages files!"
+  }
 
-#  set max_mess [get_internal_message_number_from_id 43262]
-  set max_mess 2270
   file delete /tmp/unused_macros.txt
-  for {set i 2269} {$i <= $max_mess} {incr i 1} {
+  for {set i 1} {$i <= $max_mess} {incr i 1} {
      ts_log_fine "-------$i---------------"
      set format_string $macro_messages_list($i,string)
 
@@ -752,22 +777,17 @@ proc translate_all_macros {} {
      set localized [ replace_string $localized "__REP_6_DUMMY_" "\\\'"]
      set localized [ replace_string $localized "__REP_7_DUMMY_" "\\\\"]
 
-
-
      set localized [ string trim $localized]
      set format_string [ string trim $format_string ]
      ts_log_fine ">$format_string<"
      ts_log_fine ">$localized<"
 
      if { [string compare $format_string $localized] == 0 } {
-
         ts_log_fine "not localized"
         ts_log_fine "macro: >$macro_messages_list($i,macro)<"
         ts_log_fine "file : >$macro_messages_list($i,file)<"
         lappend not_localized $i
-        # JG: TODO: This depends on environment variables C and H being set!
-        #           There should be better solutions, e.g. using find.
-        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $ts_config(source_dir) ; grep $macro_messages_list($i,macro) \$C \$H\""]
+        set back [start_remote_prog $parse_host $CHECK_USER "grep" "$macro_messages_list($i,macro) \`find . -name \"*.\[ch\]\"\`" prg_exit_state 60 0 $ts_config(source_dir)]
         puts $back
         if { [ string first "\.c:" $back ] >= 0 } {
            ts_log_fine "used in C file !!!"
@@ -794,7 +814,6 @@ proc translate_all_macros {} {
 
   }
   close $f_d
-
 }
 
 

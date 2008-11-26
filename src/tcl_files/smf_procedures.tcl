@@ -45,7 +45,7 @@ proc get_all_smf_hosts {} {
    set smf_hosts ""
    set hosts [get_all_hosts]
    foreach host $hosts {
-      start_remote_prog $host $CHECK_USER "/bin/sh" "-c [get_sge_smf_cmd] supported" prg_exit_state
+      start_remote_prog $host $CHECK_USER [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] supported" prg_exit_state
       if { $prg_exit_state == 0 } {
          lappend smf_hosts $host
       }
@@ -82,7 +82,7 @@ proc smf_service_exists {host service} {
    global ts_config CHECK_USER
 
    set fmri [get_sge_fmri $host $service 0]
-   start_remote_prog $host $CHECK_USER "/usr/bin/svcs" "-H $fmri"
+   start_remote_prog $host $CHECK_USER [get_binary_path $host "svcs"] "-H $fmri"
    return $prg_exit_state
 }
 
@@ -97,7 +97,7 @@ proc start_smf_service {host service {exit_var prg_exit_state}} {
    }
 
    ts_log_fine "Starting $service:$ts_config(cluster_name) on host $host as user root ..."
-   set output [start_remote_prog $host "root" "/usr/sbin/svcadm" "enable -st $fmri" back_exit_state]
+   set output [start_remote_prog $host "root" [get_binary_path $host "svcadm"] "enable -st $fmri" back_exit_state]
    if { $back_exit_state != 0 } {
       return ""
    }
@@ -116,7 +116,7 @@ proc stop_smf_service {host service {exit_var prg_exit_state}} {
    }
 
    ts_log_fine "Stopping $service:$ts_config(cluster_name) on host $host as user root ..."
-   set output [start_remote_prog $host "root" "/usr/sbin/svcadm" "disable -st $fmri" back_exit_state]
+   set output [start_remote_prog $host "root" [get_binary_path $host "svcadm"] "disable -st $fmri" back_exit_state]
    if { $back_exit_state != 0 } {
       return ""
    }
@@ -150,7 +150,7 @@ proc get_smf_service_state { host service {exit_var prg_exit_state} } {
       set back_exit_state 1
       return "-service_missing-"
    }
-   set output [start_remote_prog $host $CHECK_USER "/usr/bin/svcs" "-H -o STATE $fmri" back_exit_state]
+   set output [start_remote_prog $host $CHECK_USER [get_binary_path $host "svcs"] "-H -o STATE $fmri" back_exit_state]
    return [string trim $output]
 }
 
@@ -174,7 +174,7 @@ proc get_sge_fmri {host service {check_fmri 1}} {
       return $fmri
    }
    #Check service exists
-   start_remote_prog $host $CHECK_USER "/usr/bin/svcs" "-H $fmri"
+   start_remote_prog $host $CHECK_USER [get_binary_path $host "svcs"] "-H $fmri"
    if {$prg_exit_state != 0} {
       ts_log_severe "No service $service found on host $host!"
       return ""
@@ -196,7 +196,7 @@ proc smf_kill_and_restart { host service {signal 15} {timeout 30} {kill_restarts
       set user $CHECK_USER
    }
    
-   set old_ctid [string trim [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
+   set old_ctid [string trim [start_remote_prog $host "root" [get_binary_path $host "svcs"] "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
    if {[string match $old_ctid "-"] == 1} {
       ts_log_severe "No CTID for $service. Manually stopped?"
       return -1
@@ -232,7 +232,7 @@ proc smf_kill_and_restart { host service {signal 15} {timeout 30} {kill_restarts
       if {[smf_check_service_state $host $service "online" $timeout]} {
 	 return -1
       }
-      set new_ctid [string trim [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
+      set new_ctid [string trim [start_remote_prog $host "root" [get_binary_path $host "svcs"] "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
       if {[string match $old_ctid "-"] == 1} {
          ts_log_severe "No CTID for $service. Manually stopped?"
          return -1
@@ -323,7 +323,7 @@ proc smf_get_pid {host service} {
    global CHECK_USER
    
    set bin [smf_get_process_name $service]
-   set output [start_remote_prog $host $CHECK_USER "/usr/bin/svcs" "-lp $service"]
+   set output [start_remote_prog $host $CHECK_USER [get_binary_path $host "svcs"] "-lp $service"]
    foreach line [split $output "\n"] {
       if {[string compare [lindex $line 0] "process"] == 0} {
 	 if {[string match "*/$bin" [lindex $line 2]] == 1} {
@@ -509,7 +509,7 @@ proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {
       "restart" {
 	 set expected_state "online"
 	 set text_action "Restarting"
-	 set old_ctid [string trim [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
+	 set old_ctid [string trim [start_remote_prog $host "root" [get_binary_path $host "svcs"] "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
 	 if {[string match $old_ctid "-"] == 1} {
             ts_log_severe "No CTID for $service. STATE '[get_smf_service_state $host $service]', expected 'online'."
             return -1
@@ -523,11 +523,11 @@ proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {
    
    ts_log_fine "$text_action $service: 'svcadm $args' on host $host as user root"
    #Run svcadm
-   start_remote_prog $host "root" "/usr/sbin/svcadm" "$args"
+   start_remote_prog $host "root" [get_binary_path $host "svcadm"] "$args"
    
    if {$wait_for_new_process == 0} {
       if {$prg_exit_state != 0} {
-         ts_log_severe "/usr/sbin/svcadm $args exit code is: $prg_exit_state"
+         ts_log_severe "svcadm $args exit code is: $prg_exit_state"
          return -1
       }
       return 0
@@ -544,7 +544,7 @@ proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {
    }
    #restart action handling
    if {$old_ctid != -1} {
-      set new_ctid [string trim [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
+      set new_ctid [string trim [start_remote_prog $host "root" [get_binary_path $host "svcs"] "-H -o CTID svc:/application/sge/$service:$ts_config(cluster_name)"]]
       if {[string match $new_ctid "-"] == 1} {
          ts_log_severe "No CTID for $service. STATE '[get_smf_service_state $host $service]', expected '$expected_state'."
          return -1
@@ -576,7 +576,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
    
    #Register with SMF
    ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-   set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+   set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
    if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
       ts_log_severe "ERROR: Registering $service service did not succeed!"
       return -1
@@ -597,7 +597,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
 
    #Unregister (stops the service first)
    ts_log_fine "Unregistering $service:$ts_config(cluster_name) service ..."
-   set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] unregister $service $ts_config(cluster_name)" prg_exit_state]
+   set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] unregister $service $ts_config(cluster_name)" prg_exit_state]
    if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
       ts_log_severe "ERROR: Unregistering $service service did NOT succeed!"
       return -1
@@ -686,7 +686,7 @@ proc enable_smf_in_cluster {} {
    set service "bdb"
    if {[llength $ts_config(bdb_server)] != 0 && [is_smf_host $host] == 1} {
       ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-      set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+      set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
       if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
          ts_log_severe "ERROR: Registering $service did not succeed!"
          return -1
@@ -696,7 +696,7 @@ proc enable_smf_in_cluster {} {
    set service "qmaster"
    if {[is_smf_host $host] == 1} {
       ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-      set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+      set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
       if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
          ts_log_severe "ERROR: Registering $service did not succeed!"
          return -1
@@ -706,7 +706,7 @@ proc enable_smf_in_cluster {} {
    foreach host $ts_config(shadowd_hosts) {
       if {[is_smf_host $host] == 1} {
          ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
          if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
            ts_log_severe "ERROR: Registering $service did not succeed!"
            return -1
@@ -718,7 +718,7 @@ proc enable_smf_in_cluster {} {
       set service "dbwriter"
       if {[info exists arco_config(dbwriter_host)] == 1} {
          ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
          if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
             ts_log_severe "ERROR: Registering $service did not succeed!"
             return -1
@@ -729,7 +729,7 @@ proc enable_smf_in_cluster {} {
    foreach host $ts_config(execd_nodes) {
       if {[is_smf_host $host] == 1} {
          ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
-         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         set output [start_remote_prog $host "root" [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
          if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
             ts_log_severe "ERROR: Registering $service did not succeed!"
             return -1
@@ -744,10 +744,10 @@ proc remove_smf_from_cluster {} {
    set hosts [get_all_hosts]
    foreach host $hosts {
       if { [is_smf_host $host] == 1 } {
-         set output [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o fmri svc:/application/sge/*:$ts_config(cluster_name)" prg_exit_state]
+         set output [start_remote_prog $host "root" [get_binary_path $host "svcs"] "-H -o fmri svc:/application/sge/*:$ts_config(cluster_name)" prg_exit_state]
          if { $prg_exit_state == 0 } {
             foreach found_service $output {
-               start_remote_prog $host "root" "/usr/sbin/svccfg" "delete -f $found_service"
+               start_remote_prog $host "root" [get_binary_path $host "svccfg"] "delete -f $found_service"
 	    }
          }
       }

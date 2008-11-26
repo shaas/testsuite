@@ -179,7 +179,7 @@ proc submit_del_test { } {
       foreach host $ts_config(execd_nodes) {
          set arguments "-o /dev/null -e /dev/null -l h=$host"
 
-         set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "$arguments $job_script \nqdel $job_id"]
+         set result [start_sge_bin "qsub" "$arguments $job_script \nqdel $job_id"  $ts_config(master_host) $CHECK_USER]
          ts_log_fine $result 
          incr job_id 1
          incr runs -1

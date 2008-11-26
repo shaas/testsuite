@@ -911,12 +911,10 @@ proc save_file {filename array_name} {
    
    set file [open $filename "w"]
    set last_line $data(0)
-   ts_log_fine "saving file \"$filename\""
    for {set i 1} {$i <= $last_line} {incr i} {
       puts $file $data($i)
    }
    close $file
-   ts_log_fine "\ndone"
 }
 
 #****** file_procedures/read_file() ********************************************
@@ -1362,7 +1360,8 @@ proc get_file_names {path {ext "*"}} {
 #     generate_html_file() -- generate html file
 #
 #  SYNOPSIS
-#     generate_html_file { file headliner content { return_text 0 } } 
+#     generate_html_file { file headliner content { return_text 0 }
+#                          {refresh_time 15} } 
 #
 #  FUNCTION
 #     This procedure creates the html file with the given headline and
@@ -1373,6 +1372,8 @@ proc get_file_names {path {ext "*"}} {
 #     headliner         - headline text
 #     content           - html body
 #     { return_text 0 } - if not 0: return file content
+#     {refresh_time 15} - default refresh time for browser auto reload
+#     
 #
 #  SEE ALSO
 #     file_procedures/generate_html_file()
@@ -1380,7 +1381,7 @@ proc get_file_names {path {ext "*"}} {
 #     file_procedures/create_html_link()
 #     file_procedures/create_html_text()
 #*******************************************************************************
-proc generate_html_file { file headliner content { return_text 0 } } {
+proc generate_html_file { file headliner content {return_text 0} {refresh_time 15} } {
 
    global CHECK_USER
 
@@ -1398,6 +1399,7 @@ proc generate_html_file { file headliner content { return_text 0 } } {
    lappend output "<head>"
    lappend output "   <meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">"
    lappend output "   <meta http-equiv=\"expires\" content=\"0\">"
+   lappend output "   <meta http-equiv=\"refresh\" content=\"$refresh_time\">"
    lappend output "   <meta name=\"Author\" content=\"Grid Engine Testsuite - user ${CHECK_USER}\">"
    lappend output "   <meta name=\"GENERATOR\" content=\"unknown\">"
    lappend output "</head>"
@@ -1986,7 +1988,7 @@ proc get_file_content {host user file {file_a "file_array"}} {
       set help [split $output "\n"]
       foreach line $help {
          incr lcounter 1
-         set back($lcounter) $line
+         set back($lcounter) [string trimright $line]
       }
       incr lcounter -1 ;# we have one line more because of start_remote_prog!
    }
@@ -2028,6 +2030,7 @@ proc write_remote_file {host user file array_name} {
 
    set tmp_file [get_tmp_file_name $host $user]
    save_file $tmp_file data
+   wait_for_remote_file $host $user $tmp_file 
    set program "cp"
    set program_arg "$tmp_file $file"
    start_remote_prog $host $user $program $program_arg
@@ -2106,14 +2109,31 @@ proc get_binary_path {nodename binary {raise_error 1}} {
       return $cached_binary_path_array($hostname,$binary,root)
    }
 
+   # This is for the special xterm binary 
+   if {$binary == "xterm"} {
+      set binary_path [private_get_xterm_path $hostname]
+      set binary_path [string trim $binary_path]
+      if {$binary_path != "xterm"} {
+         # The binary path is not configured in the host configuration, report config warning
+         set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
+         append config_text "Using \"$binary\" binary: \"$binary_path\"\n"
+         ts_log_config $config_text
+         # Now add the binary path to the cache
+         set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
+         return $binary_path 
+      }
+      ts_log_warning "Cannot find path to binary \"$binary\" on host \"$hostname\"" $raise_error
+      return $binary
+   }
+
    # Try to find out the path from CHECK_USER user's environment
-   set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary]
+   set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
    set binary_path [string trim $binary_path]
    if {[is_remote_file $hostname $CHECK_USER $binary_path 0]} {
       # We have figured out the path from the user's environment
       # The binary path is not configured in the host configuration, report config warning
       set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
-      append config_text "Using \"$binary\" binary from ${CHECK_USER}`s environment path setting: \"$binary_path\"\n"
+      append config_text "Using \"$binary\" binary from testsuite user`s environment path setting: \"$binary_path\"\n"
       ts_log_config $config_text
       # Now add the binary path to the cache
       set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
@@ -2121,7 +2141,7 @@ proc get_binary_path {nodename binary {raise_error 1}} {
    } else {
       # If we have a root password we also try to get it from root's path environment
       if {[have_root_passwd] == 0} {
-         set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary]
+         set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
          set binary_path [string trim $binary_path]
          if {[is_remote_file $hostname "root" $binary_path 0]} {
             # We have figured out the path from the root user's environment
@@ -2134,8 +2154,8 @@ proc get_binary_path {nodename binary {raise_error 1}} {
             return $binary_path
          }
       }
-      ts_log_warning "Cannot find path to binary \"$binary\" on host \"$hostname\"" $raise_error
    }
+   ts_log_warning "Cannot find path to binary \"$binary\" on host \"$hostname\"" $raise_error
    return $binary
 }
 
@@ -2840,11 +2860,13 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
    while {$is_ok == 0} {
       set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
+         # The file must be here
          if {$prg_exit_state == 0} {
             set is_ok 1
             break
          } 
       } else {
+         # The file must NOT be here
          if {$prg_exit_state != 0} {
             set is_ok 1
             break
@@ -2932,11 +2954,13 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
    while {$is_ok == 0} {
       set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
+         # The directory must be here
          if {$prg_exit_state == 0} {
             set is_ok 1
             break
          } 
       } else {
+         # The directory must NOT be here
          if {$prg_exit_state != 0} {
             set is_ok 1
             break

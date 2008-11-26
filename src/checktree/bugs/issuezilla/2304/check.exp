@@ -153,7 +153,8 @@ proc issue_2304_setup {} {
    # this test with v3, since v4 does not generate an error message (the
    # bug still exists, though)
    # 
-   set fs [start_remote_prog $execd_host [lindex $admin_user_list 0] "/usr/bin/nfsstat"  "-m"] 
+   # TODO: Use nfs procedures from testsuite
+   set fs [start_remote_prog $execd_host [lindex $admin_user_list 0] [get_binary_path $execd_host "nfsstat"]  "-m"] 
    set running_index 0
    foreach elem [split $fs "\n"] {
       foreach member [split $elem " ,"] {

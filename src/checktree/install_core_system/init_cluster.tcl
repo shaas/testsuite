@@ -1325,7 +1325,8 @@ proc setup_sge_aliases_file {} {
          # Do a 'cd $SGE_ROOT; pwd' on this host to get the path with
          # automount prefix
          ts_log_fine "Found a win32-x86 host, adding automount prefix to sge_aliases file"
-         set output [start_remote_prog $host $CHECK_USER /bin/sh "-c 'cd $ts_config(product_root);pwd;exit'"]
+         set output [start_remote_prog $host $CHECK_USER "pwd" prg_exit_state 60 0 $ts_config(product_root)]
+         set output [string trim $output]
          set pos [string first $ts_config(product_root) $output]
          set prefix [string range $output 0 $pos]
 

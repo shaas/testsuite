@@ -843,7 +843,7 @@ proc tcov_call_tcov {file result_var} {
       file delete $tcovfile
    }
    set CHECK_COVERAGE "none"
-   set output [start_remote_prog $local_host $CHECK_USER "tcov" "-x $profile -o $tcovfile $file"]
+   set output [start_remote_prog $local_host $CHECK_USER [get_binary_path $local_host "tcov"] "-x $profile -o $tcovfile $file"]
    set CHECK_COVERAGE "tcov"
    if {$prg_exit_state == 0} {
       ts_log_progress FINE "+"

@@ -88,7 +88,7 @@ proc qconf_backslash_default_space_check {} {
    set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] "(\[@a-zA-Z0-9_-\]+)" "host group"]
 
    foreach group $setup_groups {
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group"]
+      set output [start_sge_bin "qconf" "-Ahgrp $group" $master_host $CHECK_USER]
       set output [string trim $output]
       ts_log_fine $output
       if { [regexp $ADDED $output match groupname] == 0 } {
@@ -108,8 +108,7 @@ proc qconf_backslash_default_space_check {} {
 
    foreach group $space_groups {
       ts_log_fine "parsing host group file: $group"
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group" ]
-
+      set output [start_sge_bin "qconf" "-Ahgrp $group" $master_host $CHECK_USER]
       if { [regexp $ADDED $output match groupname] == 0 } {
          ts_log_severe "error parsing file \"$group\" in qconf_backslash_default_space_check"
          continue
@@ -140,7 +139,7 @@ proc qconf_backslash_default_space_check {} {
 
    foreach group $space_groups {
       ts_log_fine "parsing host group file: $group"
-      catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group" }
+      start_sge_bin "qconf" "-Ahgrp $group" $master_host $CHECK_USER
 
       if { $prg_exit_state == 0 } {
          ts_log_severe "allowed bad file \"$group\" in qconf_backslash_default_space_check"
@@ -191,7 +190,7 @@ proc qconf_backslash_default_comma_check {} {
    ts_log_fine "added is \"$ADDED\""
    foreach userlist $comma_userlists {
       ts_log_fine "parsing userlist file: $userlist"
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $userlist" ]
+      set output [start_sge_bin "qconf" "-Au $userlist" $master_host $CHECK_USER]
       ts_log_fine "output is \"$output\""
       if { [regexp $ADDED $output match userlistname] == 0 } {
          ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check\n(output: $output)"
@@ -220,8 +219,8 @@ proc qconf_backslash_default_comma_check {} {
 
    foreach userlist $comma_userlists {
       ts_log_fine "parsing userlist file: $userlist"
-      catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Au $userlist" }
-
+      start_sge_bin "qconf" "-Au $userlist" $master_host $CHECK_USER
+      
       if { $prg_exit_state == 0 } {
          ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check"
          continue
@@ -268,7 +267,7 @@ proc qconf_backslash_custom_space_check {} {
 
 
    foreach user $setup_users {
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $user"]
+      set output [start_sge_bin "qconf" "-Au $user" $master_host $CHECK_USER]
 
       if { [regexp $ADDED $output match username] == 0 } {
          ts_log_severe "error parsing file \"$user\" in qconf_backslash_custom_space_check"
@@ -290,7 +289,7 @@ proc qconf_backslash_custom_space_check {} {
 
    foreach queue $space_queues {
       ts_log_fine "parsing queue file: $queue"
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" ]
+      set output [start_sge_bin "qconf" "-Aq $queue" $master_host $CHECK_USER]
 
       if { [regexp $ADDED $output match queuename] == 0 } {
          ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
@@ -321,7 +320,7 @@ proc qconf_backslash_custom_space_check {} {
 
    foreach queue $space_queues {
       ts_log_fine "parsing queue file: $queue"
-      catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" }
+      start_sge_bin "qconf" "-Aq $queue" $master_host $CHECK_USER
 
       if { $prg_exit_state == 0 } {
          ts_log_severe "allowed bad file \"$queue\" in qconf_backslash_custom_space_check"
@@ -373,7 +372,7 @@ proc qconf_backslash_custom_comma_check {} {
    set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] "(\[@a-zA-Z0-9_-\]+)" "userset"]
 
    foreach user $setup_users {
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $user"]
+      set output [start_sge_bin "qconf" "-Au $user" $master_host $CHECK_USER]
 
       if { [regexp $ADDED $output match username] == 0 } {
          ts_log_severe "error parsing file \"$user\" in qconf_backslash_custom_space_check"
@@ -395,7 +394,7 @@ proc qconf_backslash_custom_comma_check {} {
 
    foreach queue $comma_queues {
       ts_log_fine "parsing queue file: $queue"
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" ]
+      set output [start_sge_bin "qconf" "-Aq $queue" $master_host $CHECK_USER]
 
       if { [regexp $ADDED $output match queuename] == 0 } {
          ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
@@ -427,7 +426,7 @@ proc qconf_backslash_custom_comma_check {} {
 
    foreach queue $comma_queues {
       ts_log_fine "parsing queue file: $queue"
-      catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" }
+      start_sge_bin "qconf" "-Aq $queue" $master_host $CHECK_USER
 
       if { $prg_exit_state == 0 } {
          ts_log_severe "allowed bad file \"$queue\" in qconf_backslash_custom_comma_check"
@@ -469,6 +468,8 @@ proc qconf_backslash_space_output_check {} {
 
    ts_log_fine "testing qconf backslash line continuation in output"
    set master_host [resolve_host $ts_config(master_host)]
+   set master_arch [resolve_arch $master_host]
+   set qconf "$ts_config(product_root)/bin/$master_arch/qconf"
 
    # Set up failure report
    set failures ""
@@ -492,6 +493,7 @@ proc qconf_backslash_space_output_check {} {
 
    ts_log_fine "adding host groups"
 
+   
    # Add each of the names as a host group
    foreach name $names {
       ts_log_fine "adding host group: $name"
@@ -499,7 +501,6 @@ proc qconf_backslash_space_output_check {} {
       set short_name [string range $name 0 99]
       set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $short_name "host group"]
       # add by handling vi
-      set master_arch [resolve_arch $ts_config(master_host)]
       handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ahgrp $name" "" $ADDED
    }
 
@@ -540,7 +541,7 @@ proc qconf_backslash_space_output_check {} {
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
          # so in order to test backslash line continuation, we first have to
          # unset the env var.
-         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-shgrp $groupname" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
+         set output [start_remote_prog $master_host $CHECK_USER $qconf "-shgrp $groupname" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
          # I love TCL.  The next line does the following:
          # 1. Break the output up by lines
          # 2. Remove the first line, the group name
@@ -664,6 +665,8 @@ proc qconf_backslash_comma_output_check {} {
    global ts_config CHECK_USER env
 
    set master_host [resolve_host $ts_config(master_host)]
+   set master_arch [resolve_arch $master_host]
+   set qconf "$ts_config(product_root)/bin/$master_arch/qconf"
 
    ts_log_fine "testing qconf backslash line continuation in output"
 
@@ -767,7 +770,9 @@ proc qconf_backslash_comma_output_check {} {
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
          # so in order to test backslash line continuation, we first have to
          # unset the env var.
-         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-se global" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
+         
+         
+         set output [start_remote_prog $master_host $CHECK_USER $qconf "-se global" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
 
          # I love TCL.  The next line does the following:
          # 1. Replace \r\n with \n

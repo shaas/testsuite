@@ -702,7 +702,7 @@ proc have_ssh_access {} {
      set host_array $ts_config(execd_hosts)
   }
 
-  set ssh_binary [get_binary_path $local_host ssh]
+  set ssh_binary [get_binary_path $local_host "ssh"]
   if { $ssh_binary == "" } {
      ts_log_severe "--> no ssh binary configured for host $local_host - please update your testsuite host configuration"
      return 0
@@ -1232,7 +1232,6 @@ proc send_mail { address cc subject body } {
    if { $erg == 0 } {
       return
    }
-
    set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
   
    if {$CHECK_ENABLE_MAIL != 1} {
@@ -1242,25 +1241,15 @@ proc send_mail { address cc subject body } {
       ts_log_fine $body
       return
    }
- 
-   set tmp_mailfile [get_tmp_file_name]
 
-   set output_file [open $tmp_mailfile "w"]
-   puts $output_file $body
-   flush $output_file
-   close $output_file
- 
-   set file_size 0
-   while {$file_size == 0} {
-      catch { set file_size [file size $tmp_mailfile]}
-      if {$file_size == 0} { 
-         ts_log_fine "--> file size of \"$tmp_mailfile\": $file_size ; waiting for filesize > 0"
-         sleep 1
-      }
+   set tmp_mailfile [get_tmp_file_name $CHECK_MAILX_HOST "mailx" "mail"]
+   set act_line 0
+   foreach line [split $body "\n"] {
+      incr act_line 1
+      set mail_file_array($act_line) $line
    }
- 
-   catch { exec "touch" $tmp_mailfile } result
-   catch { exec "chmod" "0755" $tmp_mailfile } result
+   set mail_file_array(0) $act_line
+   write_remote_file $CHECK_MAILX_HOST $CHECK_USER $tmp_mailfile mail_file_array
  
    if { [string compare $cc "none"] != 0 } {
       set mail_args "-s \"$new_subject\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
@@ -1268,7 +1257,6 @@ proc send_mail { address cc subject body } {
       set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
    }
    set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
- 
    if { $prg_exit_state != 0 } {
       ts_log_fine "--> send_mail - could not send mail:\n$mail_output"
    } else {
@@ -1284,8 +1272,6 @@ proc send_mail { address cc subject body } {
          set CHECK_ENABLE_MAIL 0
       }  
    }
- 
-   file delete $tmp_mailfile 
 }
 
 
@@ -4169,9 +4155,11 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
    global errorInfo check_need_running_system
    global check_setup_level_function check_cleanup_level_function
-   global ts_config CHECK_JGDI_ENABLED check_category
+   global CHECK_JGDI_ENABLED check_category
    global CHECK_INTERRUPT
-   
+
+   get_current_cluster_config_array ts_config
+
    # do not run already completed tests
    ts_log_finest "runcompleted is $runcompleted"
    if {$runcompleted == 0} {
@@ -4449,16 +4437,26 @@ proc delete_temp_script_files { } {
    set temp_del_file_name "${del_file_name}.old"
 
    # try to delete the temp files on the fileserver
+   set local_host [gethostname]
    set host [fs_config_get_server_for_path $del_file_name 0]
+
    if {$host == ""} {
-      set host [gethostname]
+      set host $local_host
    }
  
-   # The files might be removed on an different server we
-   # have to remove them from the remote spawn script cache
-   # Here we get the file content (part 1/2)
-   get_file_content $host $CHECK_USER $del_file_name del_files
-
+   # This might be an old delete tmp file, remove it
+   if {[file isfile $temp_del_file_name]} {
+      ts_log_fine "file \"$temp_del_file_name\" already exists!"
+      # append files from old tmp file to the actual del file
+      get_file_content $local_host $CHECK_USER $temp_del_file_name lost_files
+      for { set i 1} { $i <= $lost_files(0) } { incr i 1 } {
+         if {[file isfile $lost_files($i)]} {
+            ts_log_fine "append file \"$lost_files($i)\" to delete file!"
+            delete_file_at_startup $lost_files($i)
+         }
+      }
+      file delete $temp_del_file_name
+   }
    # Move the del_file_name file at the local (NFS) host
    if {[file isfile $del_file_name]} {
       file rename -force $del_file_name $temp_del_file_name
@@ -4466,23 +4464,55 @@ proc delete_temp_script_files { } {
       ts_log_fine "no generated files to delete"
       return
    }
-   
+
+   if {[file isfile $del_file_name]} {
+      ts_log_severe "$del_file_name should not be available anymore"
+      return
+   }
+
    # Check that renamed file is available on NFS server
    # This call makes 2 new entries in new del_file_name 
    if {[wait_for_remote_file $host $CHECK_USER $temp_del_file_name] != 0} {
-      ts_log_severe "moving file $del_file_name to $temp_del_file_name failed"
+      ts_log_severe "waiting for file $temp_del_file_name on host \"$host\" failed!"
       return
    } 
 
-   # Here we remove the file from internal script cache
-   # part (2/2)
+   get_file_content $local_host $CHECK_USER $temp_del_file_name del_files
    for { set i 1} { $i <= $del_files(0) } { incr i 1 } {
       remove_from_remote_spawn_script_cache $del_files($i)
    }
 
-   # This call makes a 3rd entry in new del_file_name and deletes the renamed file
+   if { $local_host != $host } {
+      # The files might be removed on an different server we
+      # have to remove them from the remote spawn script cache
+      # Here we get the file content from the renamed file (part 1/2) 
+      # This must be done also on the local host!
+      get_file_content $host $CHECK_USER $temp_del_file_name del_files_remote
+
+      # First check that the remote file and local file have the same number of lines
+      if {$del_files_remote(0) != $del_files(0)} {
+         ts_log_severe "files to delete remote ($del_files_remote(0)) != files to delete local ($del_files(0))"
+         return
+      }
+   
+      # Here we remove the file from internal script cache
+      # part (2/2)
+      for { set i 1} { $i <= $del_files(0) } { incr i 1 } {
+         if {$del_files($i) != $del_files_remote($i)} {
+            ts_log_severe "local file entry \"$del_files($i)\" does not match remote file entry \"$del_files_remote($i)\""
+            return
+         }
+      }
+   }
+   ts_log_fine "deleting $del_files(0) files on host $host"
+
+
+   # This call makes new entry in new del_file_name and deletes
+   # the renamed file on the file server
    set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $temp_del_file_name]
-   ts_log_fine $result
+
+   # Now delete the temp_del_file_name localy !!!
+   file delete $temp_del_file_name
 }
 
 #****** check/execute_test_preparation_procedure() *********************************
@@ -4618,7 +4648,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global check_errstr check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME check_root_access_needs check_need_running_system
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER
+   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER check_use_installed_system
    global check_category CHECK_GROUP DISABLE_ADD_PROC_ERROR
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
    global ts_config
@@ -4805,6 +4835,14 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       set session_info [dump_spawn_rlogin_sessions 0]
       ts_log_warning "We have $num_busy_sessions_before_check busy rlogin sessions before starting test $check_name ($path).\nThis may indicate a problem (missing close_spawn_session call in previous check).\n\n$session_info"
    }
+
+   # Check that the actual cluster config is the main cluster config
+   # It should be 0
+   if {[get_current_cluster_config_nr] != 0} {
+      ts_log_warning "Current cluster config nr. is not reset to main TS cluster config.\nA test might not have reseted it!\nUsing main cluster config for futher tests!"
+      set_current_cluster_config_nr 0
+   }
+
 
    # start a setup function for this check - should it exist
    set CHECK_ACT_LEVEL 0
@@ -5262,7 +5300,7 @@ proc check_display {} {
      ts_log_fine "using display: $CHECK_DISPLAY_OUTPUT"
    
      set local_host [gethostname]
-     set xterm_path [get_xterm_path $local_host]
+     set xterm_path [get_binary_path $local_host "xterm"]
 
      start_remote_prog $local_host "$CHECK_USER" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 1"
      if { $prg_exit_state != 0 } {
@@ -6409,7 +6447,7 @@ proc prepare_packages { } {
       set user_key "unknown"
       foreach pkg $package_names {
          puts -nonewline "Checking if package \"$pkg\" is already installed on host \"$local_host\" ... "
-         set output [start_remote_prog $local_host "root" "pkginfo" "$pkg"]
+         set output [start_remote_prog $local_host "root" [get_binary_path $local_host "pkginfo"] "$pkg"]
          if { $prg_exit_state != 0 } {
             puts "not installed"
          } else {
@@ -6421,7 +6459,7 @@ proc prepare_packages { } {
             }
             if { $user_key == "yes" } {
                puts "removing package \"$pkg\" ..."
-               set output [start_remote_prog $local_host "root" "pkgrm" "-n $pkg"]
+               set output [start_remote_prog $local_host "root" [get_binary_path $local_host "pkgrm"] "-n $pkg"]
                puts $output
                if { $prg_exit_state != 0 } {
                   puts "error uninstalling package \"$pkg\""
