@@ -1,3 +1,6 @@
+JG-2008-11-26-0: Bugfix:     Fixed testsuite startup problem.
+                 Review:     CR
+
 AP-2008-11-26-0: WWW:        Adding initial page.
 
 CR-2008-11-24-0: Enhancem.:  - Procedure get_binary_path() now tries to get
