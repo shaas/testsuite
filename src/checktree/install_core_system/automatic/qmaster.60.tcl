@@ -103,8 +103,10 @@ proc install_qmaster {} {
    if {$ts_config(product_feature) == "csp"} {
       append feature_install_options "-csp"
    }
-   
-   if {$ts_config(jmx_port) > 0} {
+
+   if {$ts_config(jmx_port) == 0} {
+      append feature_install_options " -no-jmx"
+   } else if {$ts_config(jmx_port) > 0} {
       # For the JMX MBean Server we need java 1.5
       set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
       if {$java_home == ""} {

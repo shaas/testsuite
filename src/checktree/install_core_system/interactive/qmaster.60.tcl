@@ -204,7 +204,10 @@ proc install_qmaster {} {
    if {$ts_config(product_feature) == "csp"} {
       append feature_install_options "-csp"
    }
-   if {$ts_config(jmx_port) > 0} {
+
+   if {$ts_config(jmx_port) == 0} {
+      append feature_install_options " -no-jmx"
+   } else if {$ts_config(jmx_port) > 0} {
       append feature_install_options " -jmx"
    }
 

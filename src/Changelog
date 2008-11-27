@@ -1,3 +1,6 @@
+LP-2008-11-27-0: Enhancem.:  -no-jmx is used when JMX_PORT == 0
+                 Review:     MD, AP
+
 CR-2008-11-27-0: Bugfix:     - fixed broken file_parsing test
                  Belongs to: CR-2008-11-25-0
 
