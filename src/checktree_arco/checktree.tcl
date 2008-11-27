@@ -479,9 +479,9 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
 #
 #   if { $res == 0 } {
 #      puts "dbwriter is running"
-#   } else if { $res == 1 } {
+#   } elseif { $res == 1 } {
 #      puts "dbwriter is not running
-#   } else if { $res == 2 } {
+#   } elseif { $res == 2 } {
 #      puts "dbwriter is not running, but the pid file exits
 #   } else {
 #      puts "Can not determine status of the Java Web Console"
@@ -1004,7 +1004,7 @@ global ARCO_TABLES ARCO_VIEWS
 #   set res [get_java_web_console_status]
 #   if { $res == 0 } {
 #      puts "Java Web Console is not running"
-#   } else if { $res == 1 } {
+#   } elseif { $res == 1 } {
 #      puts "Java Web Console is running
 #   } else {
 #      puts "Can not determine status of the Java Web Console"
@@ -1045,7 +1045,7 @@ proc get_java_web_console_status { { swc_host "" } } {
    
    if { [string first "is not running" $output] > 0 } {
       return 0
-   } else if { [string first "is running" $output] > 0 } {
+   } elseif { [string first "is running" $output] > 0 } {
       return 1
    } else {
       puts "Unexpected output of command '$webserver_binary status' on host $swc_host:"

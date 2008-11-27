@@ -1,3 +1,6 @@
+LP-2008-11-27-1: Bugfix:     Fixed else if syntax problem
+                 Review:     EB
+
 LP-2008-11-27-0: Enhancem.:  -no-jmx is used when JMX_PORT == 0
                  Review:     MD, AP
 
