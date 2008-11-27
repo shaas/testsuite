@@ -1,3 +1,6 @@
+CR-2008-11-27-0: Bugfix:     - fixed broken file_parsing test
+                 Belongs to: CR-2008-11-25-0
+
 CR-2008-11-26-0: Bugfix:     - Fixed checktree/upgrade_test/check.exp so that
                                it fails when bdb spool dir is not onwed by
                                admin user.

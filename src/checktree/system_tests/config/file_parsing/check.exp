@@ -107,7 +107,7 @@ proc create_job_script { option } {
 
    delete_remote_file $file_parsing_job_host $CHECK_USER $file_parsing_job_script
    set script_path [get_binary_path $file_parsing_job_host "sh"]
-   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#$get_binary_path\" > $file_parsing_job_script"
+   start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#$script_path\" > $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"#$ $option\" >> $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "echo" "\"sleep 15\" >> $file_parsing_job_script"
    start_remote_prog $file_parsing_job_host $CHECK_USER "chmod" "755 $file_parsing_job_script"
