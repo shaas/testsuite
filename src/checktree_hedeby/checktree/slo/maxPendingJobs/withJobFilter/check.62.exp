@@ -194,7 +194,7 @@ proc with_job_filter_check {} {
    }
    
    #we will get the architecture and arch properties of the moveable resource
-   set job_arch [host_conf_get_arch $mov_resource]
+   set job_arch [resolve_arch $mov_resource]
    if {[get_resource_info] != 0} {
         append error_text "Cannot get the properties of resource $mov_resource"
    }

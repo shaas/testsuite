@@ -1,3 +1,8 @@
+TB-2008-11-28-1: Bugfix:     o fixed Hedeby test slo/maxPendingJobs/withJobFilter,
+                               architecture from host-config can be different
+                               from arch of util/arch
+                 Review:     RH
+
 EB-2008-11-28-0: Bugfix:     - fixed bug which were caused by changes of perl
 										 script in maintrunc.
 									  - Added handling of ps output for free bsb
@@ -9,7 +14,7 @@ EB-2008-11-28-0: Bugfix:     - fixed bug which were caused by changes of perl
 									  	 jsv_ge tests
 				     Review:     CR
 
-TB-2008-11-28-0: Cleanup     o cleanup of Hedeby test slo/min_resource
+TB-2008-11-28-0: Cleanup:    o cleanup of Hedeby test slo/min_resource
                  Review:     MG
 
 LP-2008-11-27-1: Bugfix:     Fixed else if syntax problem
