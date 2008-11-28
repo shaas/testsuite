@@ -1125,6 +1125,7 @@ proc fs_config_get_supported_filesystem_list { } {
    lappend supported_fs_types "ext2"
    lappend supported_fs_types "ext3"
    lappend supported_fs_types "zfs"
+   lappend supported_fs_types "hfs"
 
    return $supported_fs_types
 }

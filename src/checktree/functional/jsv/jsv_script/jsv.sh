@@ -154,6 +154,26 @@ jsv_on_verify()
       jsv_sub_add_param ac c
    fi
 
+   x=`jsv_get_env X`
+   enter=`echo "a\tb\nc\td"`
+   saved_ifs="$IFS"
+   IFS=","
+   if [ "$x" = "$enter" ]; then
+      IFS="$saved_ifs"
+      jsv_add_env ENV_RESULT TRUE
+   fi
+   IFS="$saved_ifs"
+
+   y=`jsv_get_env Y`
+   if [ "$y" = "1" ]; then
+      jsv_mod_env ENV_RESULT TRUE
+   fi
+
+   z=`jsv_get_env Z`
+   if [ "$z" = "1" ]; then
+      jsv_del_env Z 
+   fi
+
    if [ "$do_wait" = "true" ]; then
       jsv_reject_wait "Job is rejected. It might be submitted later."
    elif [ "$do_correct" = "true" ]; then

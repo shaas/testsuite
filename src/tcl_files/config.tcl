@@ -3651,7 +3651,7 @@ proc config_report_mail_to { only_check name config_array } {
          set only_check 1
       }
 
-   array set params { patterns "*@*.*" }
+   array set params { patterns "*" }
    set value [config_generic $only_check $name config $help_text "string" 1 1 "" params]
 
    # set global values
@@ -3694,7 +3694,7 @@ proc config_report_mail_cc { only_check name config_array } {
          set only_check 1
       }
 
-   array set params { patterns "*@*.*" }
+   array set params { patterns "*" }
    set value [config_generic $only_check $name config $help_text "string" 1 1 "" params]
 
    # set global values

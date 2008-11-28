@@ -1515,7 +1515,7 @@ proc get_ps_info { { pid 0 } { host "local"} { info_array ps_info } {additional_
          set time_pos    7
          set command_pos 8
       }
-     
+    
       "darwi*" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"command=_____args\"" prg_exit_state 60 0 "" myenvironment]
@@ -1531,6 +1531,21 @@ proc get_ps_info { { pid 0 } { host "local"} { info_array ps_info } {additional_
          set command_pos 8
       }
 
+      "fbsd*" {
+         set myenvironment(COLUMNS) "500"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state start vsz time args\"" prg_exit_state 60 0 "" myenvironment]
+         set index_names "  PID  PGID  PPID   UID STAT STARTED   VSZ      TIME COMMAND"
+         set pid_pos     0
+         set gid_pos     1
+         set ppid_pos    2
+         set uid_pos     3
+         set state_pos   4
+         set stime_pos   5
+         set vsz_pos     6
+         set time_pos    7
+         set command_pos 8
+      }
+ 
       "osf4" -
       "tru64" { 
          set myenvironment(COLUMNS) "500"

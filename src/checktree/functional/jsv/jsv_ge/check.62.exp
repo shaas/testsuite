@@ -63,6 +63,10 @@ set check_cleanup_function jsv_ge_cleanup
 # define test's procedure order
 set check_functions {}
 lappend check_functions "jsv_ge_parsing_in_client_or_master"
+lappend check_functions "jsv_ge_parsing_jsv_url_invalid_path"
+lappend check_functions "jsv_ge_parsing_jsv_url_user_in_client"
+lappend check_functions "jsv_ge_parsing_jsv_url_valid"
+lappend check_functions "jsv_ge_parsing_jsv_url_invalid_type"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -156,8 +160,8 @@ proc jsv_ge_cleanup {} {
    }
 }
 
-# This test will verify the parsing functionality which is used in qmaster
-# when client and server JSV's try to modify a job specification.
+# This test will verify the parsing functionality which is used in clients
+# and qmaster when server JSV's try to modify a job specification.
 # 
 # Scenario:
 #     A special JSV script is used to send valid and also invalid
@@ -200,4 +204,59 @@ proc jsv_ge_parsing_in_client_or_master {} {
       wait_for_job_end $job_id 20
    }
 }
+
+proc jsv_ge_parsing_jsv_url_invalid_type {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # invalid type
+      set submit_args "-jsv troete:${jsv_base_path}/jsv_test_modify.tcl "
+      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args" 0]
+      wait_for_job_end $job_id 20
+   }
+}
+
+proc jsv_ge_parsing_jsv_url_valid {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # valid type: script
+      set submit_args "-jsv script:${jsv_base_path}/jsv_test_modify.tcl "
+      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args" 1]
+      wait_for_job_end $job_id 20
+   }
+}
+proc jsv_ge_parsing_jsv_url_user_in_client {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # user specification not allowed in client url 
+      set submit_args "-jsv script:troete@${jsv_base_path}/jsv_test_modify.tcl "
+      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args" 0]
+      wait_for_job_end $job_id 20
+   }
+}
+proc jsv_ge_parsing_jsv_url_invalid_path {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # invalid path
+      set submit_args "-jsv script:troete "
+      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args" "0"]
+      wait_for_job_end $job_id 20
+   }
+}
+
 

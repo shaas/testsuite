@@ -1507,7 +1507,7 @@ proc open_remote_spawn_process { hostname
          if { $CHECK_DEBUG_LEVEL != 0 } {
             log_user 1
          }
-         if {$tmp_help || $ts_config(connection_type) == "ssh_with_password"} {
+         if {$tmp_help || $ts_config(connection_type) == "ssh_with_password" || $ts_config(connection_type) == "ssh"} {
             set ssh_binary [get_binary_path $ts_config(master_host) "ssh"]
             set pid [spawn $ssh_binary "-l" $connect_full_user $hostname] 
          } else {

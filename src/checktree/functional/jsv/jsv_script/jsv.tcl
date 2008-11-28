@@ -107,6 +107,22 @@ proc jsv_on_verify {} {
       jsv_sub_add_param "ac" "c"
    }
 
+   set x [jsv_get_env "X"]
+   set enter "a\\tb\\nc\\td"
+   if {"$x" == "$enter"} {
+      jsv_add_env "ENV_RESULT" "TRUE"
+   } 
+
+   set y [jsv_get_env "Y"]
+   if {"$y" == "1"} {
+      jsv_mod_env "ENV_RESULT" "TRUE"
+   } 
+
+   set z [jsv_get_env "Z"]
+   if {"$z" == "1"} {
+      jsv_del_env "Z"
+   } 
+
    if {$do_wait == 1} {
       jsv_reject_wait "Job is rejected. It might be submitted later."
    } elseif {$do_correct == 1} {
