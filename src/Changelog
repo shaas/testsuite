@@ -1,3 +1,6 @@
+TB-2008-11-28-0: Cleanup     o cleanup of Hedeby test slo/min_resource
+                 Review:     MG
+
 LP-2008-11-27-1: Bugfix:     Fixed else if syntax problem
                  Review:     EB
 
