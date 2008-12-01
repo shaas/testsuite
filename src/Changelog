@@ -1,3 +1,6 @@
+CR-2008-12-01-0: Bugfix:     Fixed TCL error in testsuite framework procedure
+                             "execute_test_preparation_procedure()"
+
 TB-2008-11-28-1: Bugfix:     o fixed Hedeby test slo/maxPendingJobs/withJobFilter,
                                architecture from host-config can be different
                                from arch of util/arch

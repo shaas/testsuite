@@ -4537,14 +4537,18 @@ proc delete_temp_script_files { } {
 #     2 - empty function name
 #
 #*******************************************************************************
-proc execute_test_preparation_procedure {func_name type {warning_counter "ts_warnings_counter_var"}} {
+proc execute_test_preparation_procedure {func_name type {warning_counter ""}} {
    global CHECK_ACT_LEVEL
    global CHECK_CUR_PROC_NAME 
    global check_category
    global check_errno
    global CHECK_CUR_PREPARATION_PROCEDURE
 
-   upvar $warning_counter warnings
+   if {$warning_counter != ""} {
+      upvar $warning_counter warnings
+   } else {
+      set warnings 0
+   }
    set ret 1
    set CHECK_CUR_PREPARATION_PROCEDURE ""
 
