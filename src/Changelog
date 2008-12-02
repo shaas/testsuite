@@ -1,3 +1,8 @@
+RH-2008-12-02-0: Bugfix:     open_remote_spawn_process could not handle germany
+                             password question. To match the password question
+                             the following regexp is now used: [Pp]asswor[dt]:
+                 Review:     CR
+
 JG-2008-12-02-0: Bugfix:     fixed 6.0 and 6.1 installation without jmx port set
 				     Review:     CR
 

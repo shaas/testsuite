@@ -1563,7 +1563,7 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   }
                }
-               -i $spawn_id "assword:" {
+               -i $spawn_id -re "\[Pp\]asswor\[dt\]:" {
                   if {$passwd == ""} {
                      ts_log_warning "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
@@ -1683,7 +1683,7 @@ proc open_remote_spawn_process { hostname
                   }
                   
                }
-               -i $spawn_id "assword:" {
+               -i $spawn_id -re "\[Pp\]asswor\[dt\]:" {
                   if {$passwd == ""} {
                      ts_log_warning "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
@@ -1822,7 +1822,7 @@ proc open_remote_spawn_process { hostname
                      ts_log_warning "${error_info}\ntimeout waiting for passwd question" $raise_error
                      set connect_errors 1
                   }
-                  -i $spawn_id "assword:" {
+                  -i $spawn_id -re "\[Pp\]asswor\[td\]:" {
                      log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
                      ts_log_finer "root password sent" 
