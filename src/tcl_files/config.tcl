@@ -3756,12 +3756,17 @@ proc config_enable_error_mails { only_check name config_array } {
    if { $value == "none" || $value == 0 } {
       set enabled 0
    }
+   set mail_cc ""
+   if {[string compare $CHECK_REPORT_EMAIL_CC "none"] != 0} {
+      set mail_cc $CHECK_REPORT_EMAIL_CC
+   }
+
 
    if { $enabled == 1 } {
       set CHECK_SEND_ERROR_MAILS 1
       set CHECK_MAX_ERROR_MAILS $value
       if { $only_check == 0 } {
-         send_mail $CHECK_REPORT_EMAIL_TO $CHECK_REPORT_EMAIL_CC "Welcome!" "Testsuite mail setup test mail"
+         send_mail $CHECK_REPORT_EMAIL_TO $mail_cc "Welcome!" "Testsuite mail setup test mail"
          puts "Have you got the e-mail? (y/n) "
          set input [wait_for_enter 1]
          if { $input != "y" }  {

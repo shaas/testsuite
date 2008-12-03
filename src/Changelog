@@ -1,3 +1,7 @@
+CR-2008-12-03-1: Bugfix:     - fixed error when setting up "sendmail" as default
+                               mailing application
+                 Review:     MD
+
 CR-2008-12-03-0: Bugfix:     - fixed unclear error message in wait_for_remote_file()
                              - increased timeouts when waiting for qmaster lock file
                                in shadowd/migrate test from 30 to 60 seconds.

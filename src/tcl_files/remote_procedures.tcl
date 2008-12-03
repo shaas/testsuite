@@ -918,7 +918,7 @@ proc sendmail { to subject thebody { send_html 0 } { cc "" } { bcc "" } { from "
    set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER "sendmail" $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
       ts_log_frame
-      ts_log_fine "COULD NOT SEND MAIL:\n$result"
+      ts_log_fine "COULD NOT SEND MAIL:\n$ts_config(mailx_host) as $CHECK_USER: sendmail $arguments returned exit state=$prg_exit_state\n$result"
       ts_log_frame
       return -1
    }
