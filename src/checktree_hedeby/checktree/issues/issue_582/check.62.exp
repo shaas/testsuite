@@ -1,0 +1,270 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_582"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Test that a SGE resource without executor becomes static"
+#set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue582_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue582_setup_level"
+set check_cleanup_level_function "hedeby_issue582_cleanup_level"
+
+lappend check_functions "hedeby_issue582_check"
+
+
+#****** issue_582/hedeby_issue582_init_level() ************************
+#  NAME
+#     hedeby_issue582_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue582_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue582_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_582/hedeby_issue582_setup_level() *********************************
+#  NAME
+#    hedeby_issue582_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue582_setup_level { } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue582_setup_level {} {
+   upvar #0 hedeby_issue582_ctx this
+   
+   set this(cleanup_actions) {}
+
+   # Uncomment the following line and the test will use always the same
+   # service and resource, this is handy for testing
+   # expr { srand(1) }
+
+   # get some global settings
+   get_hedeby_default_services service_names
+
+   set this(service) [pick_random $service_names(services)]  
+   set this(res)     [pick_random $service_names(moveable_execds,$this(service))]
+}
+
+#****** issue_582/hedeby_issue582_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue582_cleanup_level() -- cleanup level function
+#
+#  SYNOPSIS
+#    hedeby_issue582_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#   
+#    Removes the global context variable of this test (hedeby_issue582_ctx)
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue582_cleanup_level {} {
+   upvar #0 hedeby_issue582_ctx this
+
+   if {[lsearch $this(cleanup_actions) "start_executor"] >= 0} {
+      sdmadm_command_opt "suc -c executor -h $this(res)"
+
+      set ci(executor,$this(res),state) "STARTED"
+      wait_for_component_info_opt ci
+   }
+
+   if {[lsearch $this(cleanup_actions) "start_service"] >= 0} {
+      sdmadm_command_opt "sus -s $this(service)"
+
+      set si($this(service),cstate) "STARTED"
+      set si($this(service),sstate) "RUNNING"
+      wait_for_service_info si
+   }
+
+   if {[lsearch $this(cleanup_actions) "start_executor"] >= 0} {
+      # Just to be sure that the static flag is correct
+      set ri($this(res),service) $this(service)
+      set ri($this(res),flags)   "{}"
+      set ri($this(res),state)   "ASSIGNED" 
+
+      wait_for_resource_info ri
+   }
+   unset this
+}
+
+#****** issue_582/hedeby_issue582_check *****************************
+#  NAME
+#     hedeby_issue582_check() -- check that issue 582 is fixed
+#
+#  SYNOPSIS
+#     hedeby_issue582_check { } 
+#
+#  FUNCTION
+#
+#       This check tests that issue 582 is fixed.
+#
+#       issue 582 describes the problem that are resource assigned to
+#       an GE service did not become static if the executor on the
+#       host is shutdown.      
+#
+#       To check that the issue is fixed the following steps are performed:
+#
+#       Step 1: Shutdown service '$this(service)'"
+#       Step 2: Shutdown executor on the resource host"
+#       Step 3: Restart service '$this(service)'"
+#       Step 4: Wait until resource '$this(res)' becomes static"
+#       Step 5: Restart executor on host '$this(res)'"
+#       Step 6: Wait until resource '$this(res)' becomes non static"
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#**********************************************************************
+proc hedeby_issue582_check {} {
+   upvar #0 hedeby_issue582_ctx this
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 1: Shutdown service '$this(service)'"
+   # ------------------------------------------------------------------ 
+   sdmadm_command_opt "sds -s $this(service)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+   lappend this(cleanup_actions) "start_service"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 2: Shutdown executor on the resource host"
+   # ------------------------------------------------------------------ 
+   sdmadm_command_opt "sdc -c executor -h $this(res)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+   lappend this(cleanup_actions) "start_executor"
+
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 3: Restart service '$this(service)'"
+   # ------------------------------------------------------------------ 
+   sdmadm_command_opt "sus -s $this(service)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+   set i [lsearch -exact $this(cleanup_actions) "start_service"]
+   set this(cleanup_actions) [lreplace $this(cleanup_actions) $i $i]
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 4: Wait until resource '$this(res)' becomes static"
+   # ------------------------------------------------------------------ 
+   set ri($this(res),service) $this(service)
+   set ri($this(res),flags)   "S"
+   set ri($this(res),state)   "ASSIGNED" 
+
+   if {[wait_for_resource_info ri 60] != 0 } {
+      set msg    "It seems that we ran into issue 582 again!!!\n"
+      append msg "============================================\n"
+      append msg "\n"
+      append msg "This test stopped the executor on resource '$this(res)'\n"
+      append msg "while the owning service '$this(service)' was stopped.\n"
+      append msg "After restarting the service it was expected that resource\n"
+      append msg "is reported as static resource (because it has no executor)\n"
+      append msg "however it is not."
+      ts_log_severe $msg
+      return
+   }
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 5: Restart executor on host '$this(res)'"
+   # ------------------------------------------------------------------ 
+   set i [lsearch -exact $this(cleanup_actions) "start_executor"]
+   set this(cleanup_actions) [lreplace $this(cleanup_actions) $i $i]
+   sdmadm_command_opt "suc -c executor -h $this(res)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 6: Wait until resource '$this(res)' becomes non static"
+   # ------------------------------------------------------------------ 
+   set ri($this(res),service) $this(service)
+   set ri($this(res),flags)   "{}"
+   set ri($this(res),state)   "ASSIGNED" 
+
+   if {[wait_for_resource_info ri 60] != 0 } {
+      set msg    "It seems that we ran into issue 582 again!!!\n"
+      append msg "============================================\n"
+      append msg "\n"
+      append msg "After starting the executor on host '$this(res)'\n"
+      append msg "the static flag of the corresponding message did\n"
+      append msg "not disappear.\n!"
+      ts_log_severe $msg
+   }
+}

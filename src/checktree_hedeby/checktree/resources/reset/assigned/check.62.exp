@@ -48,15 +48,13 @@ set check_init_level_procedure "assigned_resource_reset_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_function "assigned_resource_reset_setup"
-set check_cleanup_function "assigned_resource_reset_cleanup"
+set check_setup_level_function "assigned_resource_reset_setup"
+set check_cleanup_level_function "assigned_resource_reset_cleanup"
 
 lappend check_functions "assigned_resource_reset_check"
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
-global assigned_resource_reset_current_cluster_config
-global assigned_resource_reset_executor_shutdown_host
 
 
 #****** assigned/assigned_resource_reset_init_level() ************************
@@ -94,10 +92,13 @@ proc assigned_resource_reset_init_level {} {
 #     assigned_resource_reset_setup { } 
 #
 #  FUNCTION
-#     This test may work with additional clusters. Therefore the current
-#     cluster nr is stored in a global variable. The cleanup procedure 
-#     assigned_resource_reset_cleanup() will reset the current active
-#     cluster again.
+#
+#     This method sets up the test for the runlevel. It performs the following
+#     actions:
+#
+#     o Store the original cluster number in the context (the test works with additional
+#       cluster config, cleanup must reset the cluster number).
+#     o Determine a GE service and an assigned resource which will be used for the test.
 #
 #  INPUTS
 #     no input values
@@ -105,13 +106,25 @@ proc assigned_resource_reset_init_level {} {
 #  RESULT
 #     no return values
 #
-#  SEE ALSO
-#     assigned/assigned_resource_reset_cleanup()
 #*******************************************************************************
 proc assigned_resource_reset_setup {} {
-   global assigned_resource_reset_current_cluster_config   
-   
-   set assigned_resource_reset_current_cluster_config [get_current_cluster_config_nr]
+   global assigned_resource_reset_ctx this
+
+   set this(cleanup_actions) {}
+   set this(cc_cnr) [get_current_cluster_config_nr]
+
+   # get some global settings
+   get_hedeby_default_services service_names
+
+   set this(service) [pick_random $service_names(services)]
+   set this(res)     [pick_random $service_names(moveable_execds,$this(service))]
+
+   # To choose always the same service and resource, uncomment the following
+   # two lines (handy for testing)   
+   # set this(service) [lindex $service_names(services) 0]
+   # set this(res)     [lindex $service_names(moveable_execds,$this(service)) 0]
+
+   set this(res_cluster_nr) $service_names(ts_cluster_nr,$this(res))
 }
 
 #****** assigned/assigned_resource_reset_cleanup() ***************************
@@ -122,10 +135,15 @@ proc assigned_resource_reset_setup {} {
 #     assigned_resource_reset_cleanup { } 
 #
 #  FUNCTION
-#     Restore the current active cluster value stored by 
-#     assigned_resource_reset_setup() procedure and perform hedeby reset.
-#     The hedeby reset is done by reset_hedeby() which will move all resources
-#     back to their original configured service.
+#
+#      This method performs according to the cleanup actions defined in
+#      assigned_resource_reset_ctx(cleanup_actions) the cleanup of this test.
+#      The following cleanup actions are known:
+#
+#      remove_resource --  issue 412 occurred and the reseted resource became ambiguous
+#                          The action removes the resource from the service where
+#                          it has been accidentally added.
+#      start_executor  --  Startup the executor running on the tested resource
 #
 #  INPUTS
 #     no input values
@@ -133,46 +151,32 @@ proc assigned_resource_reset_setup {} {
 #  RESULT
 #     no return values
 #
-#  SEE ALSO
-#     assigned/assigned_resource_reset_setup()
 #*******************************************************************************
 proc assigned_resource_reset_cleanup {} {
-   global assigned_resource_reset_current_cluster_config
-   global assigned_resource_reset_executor_shutdown_host
-   global hedeby_config
-   
-   get_component_info
-   set ex_state $component_info(executor,$assigned_resource_reset_executor_shutdown_host,state)
-   ts_log_fine "Executor component on host \"$assigned_resource_reset_executor_shutdown_host\" has state \"$ex_state\""
-   if { $ex_state != "STARTED"} {
-      ts_log_fine "Executor is in state \"$ex_state\", restart it!"
-   
-      # get some global settings
-      set pref_type [get_hedeby_pref_type]
-      set sys_name [get_hedeby_system_name]
-      set admin_user [get_hedeby_admin_user]
-      get_hedeby_default_services service_names
-      set exec_host $hedeby_config(hedeby_master_host)
-      
-      # prepare sdmadm command and start it ...
-      set sdmadm_command_line "-p $pref_type -s $sys_name suc -c executor -h $assigned_resource_reset_executor_shutdown_host"
-      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 1 table]
+   global assigned_resource_reset_ctx this
 
-      # check that exit state == 0 (executor was correctly started
-      ts_log_fine "executor start exit state: $prg_exit_state"
-      if { $prg_exit_state != 0 } {
-          ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", executor was not started, cleanup failed\n"
-          # perform hedeby reset
-          reset_hedeby 1
-      } else {
-          ts_log_fine "Executor startup was successfull\n"
-      }
-      set exp_component_info(executor,$assigned_resource_reset_executor_shutdown_host,state) "STARTED"
-      wait_for_component_info exp_component_info
+   if {[lsearch $this(cleanup_actions) "remove_resource"] >= 0} {
+       sdmadm_command_opt "rr -r $this(res) -s $this(accidental_resource_owner)"
+   }
+
+   if {[lsearch $this(cleanup_actions) "start_executor"] >= 0} {
+      sdmadm_command_opt "suc -c executor -h $this(res)"
+
+      set ci(executor,$this(res),state) "STARTED"
+      wait_for_component_info_opt ci
+
+   }
+
+   if {[llength $this(cleanup_actions)] > 0} {
+      # Just to be sure that the flags are correct
+      set exp_resource_info($this(res),state)   "ASSIGNED"
+      set exp_resource_info($this(res),service) $this(service)
+      set exp_resource_info($this(res),flags)   "{}"
+      wait_for_resource_info_opt exp_resource_info
    }
 
    # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $assigned_resource_reset_current_cluster_config
+   set_current_cluster_config_nr $this(cc_cnr)
 }
 
 #****** assigned/assigned_resource_reset_check() *****************************
@@ -188,15 +192,11 @@ proc assigned_resource_reset_cleanup {} {
 #     state, will shutdown an Executor on the resource and will trigger a reset on it.
 #
 #     actions:
-#        1) Find a host resource assigned to GE service
-#        2) Check that resource state is ASSIGNED
-#        3) Shutdown Executor on the resource
-#        4) Perform "sdmadm reset" on the GE resource
-#        5) Check that 
-#           a) EXECD is still running on the host resource
-#           b) resource state is still ASSIGNED
-#           c) exist status of the command is 0
-#           d) output message of the command is as expected    
+#
+#         Step 1: Shutting down executor on host '$this(res)'
+#         Step 2: Reseting resource '$this(res)'
+#         Step 3: Check that resource '$this(res)' goes into ASSIGNED state
+#         Step 4: Check stat execd is still running
 #
 #  INPUTS
 #     no input parameters
@@ -209,170 +209,95 @@ proc assigned_resource_reset_cleanup {} {
 #     assigned/assigned_resource_reset_cleanup()
 #*******************************************************************************
 proc assigned_resource_reset_check {} {
-   global hedeby_config
-   global CHECK_ACT_LEVEL
-   global assigned_resource_reset_executor_shutdown_host
+   global assigned_resource_reset_ctx this
 
-   # get some global settings
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set ge_hosts [get_hedeby_default_services service_names]
-   set exec_host $hedeby_config(hedeby_master_host)
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 1: Shutting down executor on host '$this(res)'"
+   # ---------------------------------------------------------------------------------------------
+   sdmadm_command_opt "sdc -c executor -h $this(res)"
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Could not shutdown executor on host '$this(res)', test can not continue"
+      return
+   }
+   lappend this(cleanup_actions) "start_executor"
 
-   # init text array for reporting errors
-   # (errors are logged at the end of the test)
-   set error_text ""
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 2: Reseting resource '$this(res)'"
+   # ---------------------------------------------------------------------------------------------
+   set opt(table_output) table
+   sdmadm_command_opt "rsr -r $this(res)" opt
+   unset opt
 
-   # initialize the subject of reset command
-   set rst ""
+   set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
+   set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
 
-   # initialize flag that carries info about executor state
-   set is_executor_running 1
-   
-
-   # find a resource that is assigned to GE service and is in ASSIGNED state and 
-   # is not STATIC and not AMBIGUOUS
-   set aservice [lindex $service_names(services) 0]
-   set rst [lindex $service_names(moveable_execds,$aservice) 0]
-
-   # check that resource state is correct
-   set retval [get_resource_info $exec_host $admin_user resource_info]
-   set rstate $resource_info($rst,state)
-   set rflags $resource_info($rst,flags)
-   ts_log_fine "res: $rst, state: $rstate, flags: $rflags"
-   if {[string match "$rstate" "ASSIGNED"] && [string match "$rflags" "{}"]} {
-      ts_log_fine "got a resource in ASSIGNED state: $rst"  
-   } else {
-      append error_text "No resource in ASSIGNED state has been found\n"
-      set rst ""
+   # compare the output with the expected output ...
+   if {$expected_output != $output_message} {
+      set    msg "Reset of resource '$this(res)' did not work, because 'sdmadm rsr' produced unexpected output:\n"
+      append msg "Expected output: \"$expected_output\"\n"
+      append msg "Received output: \"$output_message\"\n"
+      ts_log_severe $msg
+      return
    }
 
-   if { $rst != "" } {
-      # check the executor on the resource
-      set compos [get_component_info $exec_host $admin_user ci]
-      # check the executor state
-      set state $ci(executor,$rst,state)
-      # compare the output with the expected output ...
-      if {[string match "STARTED" $state]} {
-         ts_log_fine "shutting down STARTED executor component ..."
-         # prepare sdmadm command and start it ...
-         set sdmadm_command_line "-p $pref_type -s $sys_name sdc -c executor -h $rst"
-         set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-         # check that exit state == 0 (executor was correctly shutdown
-         ts_log_fine "executor shutdown exit state: $prg_exit_state"
-         if { $prg_exit_state != 0 } {
-            append error_text "Executor on $rst was not correctly shutdown, test can not continue\n"
-         } else {
-            ts_log_fine "Executor on $rst was shutdown, test can continue"
-            set assigned_resource_reset_executor_shutdown_host $rst
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 3: Check that resource '$this(res)' goes into ASSIGNED state"
+   # ---------------------------------------------------------------------------------------------
+   # With in the next step we check that the resource goes into ASSIGNED state and
+   # that the resource reset did not produce an ambiguous resource
+   set exp_resource_info($this(res),state) "ASSIGNED"
+   set opt(res_info) res_info
+   set opt(expect_no_ambiguous_resources) 1
+
+   set retval [wait_for_resource_info_opt exp_resource_info opt] 
+   unset exp_resource_info
+   unset opt
+
+   if { $retval != 0 } {
+      # it can be that we ran again into issue 471
+      # perform additional check 
+
+      if { [lsearch $res_info($this(res),flags) "A"] >= 0 } {
+         set    msg "It seems that we ran again into issue 412!!\n"
+         append msg "===========================================\n\n"
+         append msg "Service '$this(service)' rejected assigned resource '$this(res)' with a reset\n"
+         append msg "because the executor on this service is not active\n"
+         append msg "This is not the correct behaviour, the resource should simply stay at the service\n" 
+         ts_log_severe $msg
+
+         # Look for the new owner of the service, wait_for_resource info reports all owners in the service
+         # array element
+         set accidental_resource_owner ""
+         foreach service $res_info($this(res),service) {
+             if { $service != $this(service) } {
+                set accidental_resource_owner $service
+                break
+             }
          }
-
-         # 1. switch to correct cluster
-         set_current_cluster_config_nr $service_names(ts_cluster_nr,$rst)
-
-         # 2. check that execd is still running
-         if { [is_execd_alive $rst] == 1 } {
-            # execd is still running, so perform reset of the resource
-            # prepare sdmadm command and start it ...
-            set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
-            set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-            # build expected output message from bundle properties file ... 
-            set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
-            ts_log_fine "expected output: $expected_output"
-            # get sdmadm output message string ...
-            set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
-            ts_log_fine "output message is: $output_message"
-
-            # compare the output with the expected output ...
-            if {[string match "$expected_output" $output_message]} {
-               ts_log_fine "output is matching!"
-            } else {
-               append error_text "The output message doesn't match expected output\n"
-               append error_text "Expected output: \"$expected_output\"\n"
-               append error_text "Received output: \"$output_message\"\n"
-            }
-
-            if { $prg_exit_state != 0 } {
-               append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\"\n"
-            } else {
-               ts_log_fine "The exit state \"$prg_exit_state\" does match the expected exit state \"0\"\n"                    
-               # step 1: set expected resource information values   
-               set exp_resource_info($rst,state) "ASSIGNED"
-
-               # step 2: wait 15 seconds (It may take a while until service performs reset and wrongly sends
-               #                          an resource reject event to resource provider which results in
-               #                          doulbe assinged resources) 
-               after 15000
-
-               # step 3: now check resource informations
-               set retval [wait_for_resource_info exp_resource_info 45 0 rst_error "" "" res_info res_prop res_list res_list_not_uniq 1] 
-               if { $retval == 0 } {
-                  ts_log_fine "resource $rst should be in expected state \"ASSIGNED\" ..." 
-                  set rflags $res_info($rst,flags)
-                  set rstate $res_info($rst,state)
-                  if {[string match "$rflags" "{}"]} {
-                     ts_log_fine "resource $rst has correct flags: \"$rflags\""
-                  } else {
-                     append error_text "resource flags not matching: expected \"{}\" but got \"$rflags\"\n" 
-                  }
-                  if {[string match "$rstate" "ASSIGNED"]} {
-                     ts_log_fine "resource $rst has correct state: \"$rstate\""
-                  } else {
-                     append error_text "resource state not matching: expected \"ASSIGNED\" but got \"$rstate\"\n" 
-                  }
-               } else {
-                  append error_text "${rst_error}\n"
-                  set rst_error ""
-                  if { [lsearch -exact $res_list_not_uniq $rst] >= 0 } {
-                     append error_text "(found issue 412)\n"
-                     ts_log_fine "resource \"$rst\" was rejected by service (Issue: 412)"
-                     # remve resource at spare_pool
-                     # prepare sdmadm command and start it ...
-                     set sdmadm_command_line "-p $pref_type -s $sys_name rr -r $rst -s spare_pool"
-                     set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 1 table]
-                     unset exp_resource_info
-                     set exp_resource_info($rst,state) "ASSIGNED"
-                     
-                     set retval [wait_for_resource_info exp_resource_info 60 0 rst_error "" "" res_info res_prop res_list res_list_not_uniq 1]
-                     if { $retval != 0 } {
-                        ts_log_fine "cannot remove ambigous resource!"
-                        append error_text "ambigous state does not disapear after removing resource \"$rst\" from spare_pool\n$rst_error\n"
-                     }
-                  }
-               }
-               # step 4: check that execd is running
-               # 1. switch to correct cluster
-               set_current_cluster_config_nr $service_names(ts_cluster_nr,$rst)
-
-               # 2. check that execd is still running
-               if { [is_execd_alive $rst] == 1 } {
-                  ts_log_fine "execd IS running on reset resource $rst"
-               } else {
-                   append error_text "execd IS NOT running on reset resource $rst\n"
-               }
-                      
-               # step 5: restart executor
-               # prepare sdmadm command and start it ...
-               set sdmadm_command_line "-p $pref_type -s $sys_name suc -c executor -h $rst"
-               set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-               if { $prg_exit_state != 0 } {
-                  append error_text "restart of executor on host $rst failed with exit state $prg_exit_state:\nsdmadm -p $pref_type -s $sys_name suc -c executor -h $rst\n$output\nThis might be because of issue 416\n"
-               }
-            }
+         if {$accidental_resource_owner != "" } {
+            ts_log_fine "Resource '$this(res) moved due to issue 412 accidentally to service '$service'"
+            lappend this(cleanup_actions) "remove_resource"
+            set this(accidental_resource_owner) $accidental_resource_owner
          } else {
-            append error_text "The execd is not alive on host \"$rst\"\n"
+            set    msg "Strange, resource '$this(res)' is marked as ambiguous, however\n"
+            append msg "I can not find the second onwer of the resource"
+            ts_log_severe $msg
          }
-      } else {
-         append error_text "The executor component is not in state STARTED: state is \"$state\""
+         return 
       }
-   } else {
-      append error_text "Cannot run test, no matching resource found!"
    }
 
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 4: Check that execd is still running"
+   # ---------------------------------------------------------------------------------------------
+   # 1. switch to correct cluster
+   set_current_cluster_config_nr $this(res_cluster_nr)
+
+   # 2. check that execd is still running
+   if { [is_execd_alive $this(res)] != 1 } {
+       ts_log_severe "execd IS NOT running on reset resource '$this(res)'"
+   } else {
+       ts_log_fine "execd of resource '$this(res)' is active"
    }
 }
 

@@ -91,7 +91,7 @@ lappend check_functions "manage_admin_user_check"
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
-global manage_admin_user_current_cluster_config
+global manage_admin_user_ctx
 
 # (the init level procedure defines which runlevels are supported)
 # short  (   0 min - 15 min / run level   0 -  99 )"
@@ -104,6 +104,10 @@ proc manage_admin_user_init_level {} {
 
   # this test currently supports only runlevel "0"
   if { $CHECK_ACT_LEVEL == 0 } {
+      if { [get_hedeby_pref_type] == "user" } {
+         ts_log_config "Test 'manage_admin_user' is not supported if Hedeby is installed in user mode!" 
+         return -1
+      }
      return 0
   }
   return -1
@@ -112,47 +116,30 @@ proc manage_admin_user_init_level {} {
 # the setup function for this test is storing the current
 # cluster config nr in a global variable.
 proc manage_admin_user_setup {} {
-   global CHECK_OUTPUT
-   global manage_admin_user_current_cluster_config
+   global hedeby_config
+   upvar #0 manage_admin_user_ctx this
 
-   set pref_type [get_hedeby_pref_type]
-   if { $pref_type == "user" } {
-      ts_log_fine "skipping this test for \"user\" system!" 
-      return
-   }
-   
-   puts $CHECK_OUTPUT "doing setup ..."
-   set manage_admin_user_current_cluster_config [get_current_cluster_config_nr]
-   
+   set this(cc_cnr) [get_current_cluster_config_nr]
+   set this(master_host) $hedeby_config(hedeby_master_host)
+   set this(admin_user) [get_hedeby_admin_user]
 }
 
 # the cleanup function for this test will restore the
 # current cluster config nr from the global variable set 
 # be the setup function.
 proc manage_admin_user_cleanup {} {
-   global CHECK_OUTPUT hedeby_config
-   global manage_admin_user_current_cluster_config
+   upvar #0 manage_admin_user_ctx this
 
-   set pref_type [get_hedeby_pref_type]
-   if { $pref_type == "user" } {
-      ts_log_fine "skipping this test for \"user\" system!" 
-      return
-   }
-   set test_host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
 
-   puts $CHECK_OUTPUT "doing cleanup ..."
-
-   puts $CHECK_OUTPUT "check if user root has been removed from admin user list ..."
-   get_admin_user_list $test_host $admin_user user_list
+   ts_log_heading "Check that user root has been removed from admin user list ..."
+   get_admin_user_list $this(master_host) $this(admin_user) user_list
    if { [lsearch $user_list "root"] >= 0 } {
-      puts $CHECK_OUTPUT "user root is still in admin user list! Removing ..."
-      remove_user_from_admin_list $test_host $admin_user "root"
+      ts_log_fine "user root is still in admin user list! Removing ..."
+      remove_user_from_admin_list $this(master_host) $this(admin_user) "root"
    } else {
-      puts $CHECK_OUTPUT "user root is not in admin user list! - OK"
+      ts_log_fine "user root is not in admin user list! - OK"
    }
-   set_current_cluster_config_nr $manage_admin_user_current_cluster_config
- 
+   set_current_cluster_config_nr $this(cc_cnr)
 }
 
 
@@ -161,14 +148,7 @@ proc manage_admin_user_cleanup {} {
 # If the output does not show all components in the "started"
 # status the test will fail.
 proc manage_admin_user_check {} {
-   global CHECK_OUTPUT
-   global hedeby_config
-
-   set pref_type [get_hedeby_pref_type]
-   if { $pref_type == "user" } {
-      ts_log_info "skipping this test for \"user\" system! This test has to be enhanced. See TODO in test!!!" 
-      return
-   }
+   upvar #0 manage_admin_user_ctx this
 
    # TODO: Add support for "user" preference mode!
    #       root user must add bootstrap configuration in his home directory before running this test.
@@ -176,22 +156,20 @@ proc manage_admin_user_check {} {
    #       => If root password is not available (noroot GE testsuite mode) this test cannot run
 
    # setup master host expectations ...
-   set test_host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
    
    # Add root as admin user
 
-   if { [add_user_to_admin_list $test_host $admin_user "root"] != 0 } {
+   if { [add_user_to_admin_list $this(master_host) $this(admin_user) "root"] != 0 } {
       return
    }
    
    set user_list {}
-   if {[get_admin_user_list $test_host $admin_user user_list] != 0} {
+   if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
       return
    }
    
    if { [lsearch $user_list "root"] < 0} {
-      add_proc_error "manage_admin_user_check" -1 "user root has not been added to admin user list"
+      ts_log_severe "User root has not been added to admin user list"
       return
    }
 
@@ -199,44 +177,47 @@ proc manage_admin_user_check {} {
    # we really need the root password. If ssh access is configured we can also not
    # test it
    if { [have_ssh_access] == 0 && [have_root_passwd] == 0} {
-        # The RoleLoginModule caches information about roles
-        # The cache timeout is one minute
-        # We have to wait one minute to ensure that this cache timed out
-        wait_for_role_cache_timeout
+        restart_master_host_to_ensure_that_role_cache_is_cleared
 
         # now start scs interactive ...
         set tasks(username) "root"
         set tasks(password) "ROOTPW"
-        set argumentline "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] -ppw sc -h $test_host"
-        set tmp_output [sdmadm_command $test_host "root" $argumentline prg_exit_state tasks] 
+        set opt(interactive_tasks) tasks
+        sdmadm_command_opt "-ppw sc -h $this(master_host)" opt
         if { $prg_exit_state != 0 } {
-           add_proc_error "manage_admin_user_check" -1 "sdmadm as user root with prompt password option failed!"
+           ts_log_severe "sdmadm as user root with prompt password option failed!"
            return
         }
    } else {
-      puts $CHECK_OUTPUT "Skip execution sdm_adm command as user root, have no root password"
+      ts_log_info "Skip execution sdm_adm command as user root, have no root password"
    }
    
-   remove_user_from_admin_list  $test_host $admin_user "root"
-   wait_for_role_cache_timeout
+   remove_user_from_admin_list  $this(master_host) $this(admin_user) "root"
+   restart_master_host_to_ensure_that_role_cache_is_cleared
 }
 
-proc wait_for_role_cache_timeout {} {
-   global CHECK_OUTPUT
-   global hedeby_config
+proc restart_master_host_to_ensure_that_role_cache_is_cleared {} {
+   upvar #0 manage_admin_user_ctx this
 
-   set host $hedeby_config(hedeby_master_host)
    set user [get_hedeby_startup_user]
-   set admin_user [get_hedeby_admin_user]
-   
-   # Shutdown
-   puts $CHECK_OUTPUT "shutdown hedeby master host ..."
-   shutdown_hedeby_hosts "master" $host $user
-
-   puts $CHECK_OUTPUT "startup hedeby master host ..."
-   startup_hedeby_hosts "master" $host $user
  
-   wait_for_resource_state "ASSIGNED"
+   # Store the current resource info, we wait after the restart
+   # until all resources have reached again the original state 
+   set opt(res_list) res_list
+   get_resource_info_opt ri
+   # Shutdown
+   ts_log_fine "shutdown hedeby master host ..."
+   shutdown_hedeby_hosts "master" $this(master_host) $user
+
+   ts_log_fine "startup hedeby master host ..."
+   startup_hedeby_hosts "master" $this(master_host) $user
+  
+   foreach res $res_list {
+       set exp_ri($res,state) $ri($res,state)
+       set exp_ri($res,flags) $ri($res,flags)
+   }
+
+   wait_for_resource_info exp_ri
 }
 
 

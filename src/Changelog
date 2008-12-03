@@ -1,3 +1,10 @@
+RH-2008-12-03-0: Bugfix:     manage_admin_user and assigned_resource_reset did not 
+                             work with the fix of issue 582
+                 Enhancem.:  o check for issue 582 added 
+                             o new utility methods wait_for_resource_info_opt and
+                               get_component_info_opt
+                 Review:     TB
+
 HP-2008-12-03-0: Bugfix:     fixed error in architecture resolving in qhost test
                  Review:     MD
 

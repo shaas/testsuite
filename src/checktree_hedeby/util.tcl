@@ -3500,6 +3500,8 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    upvar $rp resource_properties
    upvar $da resource_ambiguous
    upvar $rl resource_list
+
+
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
    } else {
@@ -3610,6 +3612,105 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
       return 1
    }
    return 0
+}
+
+#****** util/wait_for_resource_info_opt() **************************************
+#  NAME
+#     wait_for_resource_info_opt() -- wait for resource info 
+#
+#  SYNOPSIS
+#     wait_for_resource_info_opt { exp_res_info { opt "" } } 
+#
+#  FUNCTION
+#
+#     This procedure calls get_resource_info() until the specified component
+#     information or a timeout occurs.
+#
+#     This method is the optional argument passing version of wait_for_resource_info.
+#
+#  INPUTS
+#     exp_res_info - see wait_for_resource_info
+#     { opt "" }    - options for this command. Besides the standard options
+#                     this command supports the following options:
+#
+#       opt(timeout)                         - timeout in seconds (default is 60)
+#       opt(res_info)                        - name of the tcl array (upvar) where the found
+#                                              resource info is stored 
+#       opt(error_var)                       - name of the upvar variable where error messages will 
+#                                              be stored
+#       opt(res_prop)                        - name of the tcl array where the resource properties for each
+#                                              found resource is stored  
+#       opt(res_list)                        - name of the variable (upvar) where the list of found resources
+#                                              is stored
+#       opt(res_list_not_uniq)               - name of the variable (upvar) where the list of non unique resources
+#                                              is stored
+#       opt(expect_not_ambiguous_resources)  - If set to 1 the command checks that no ambiguous resources are avaiable
+#                                              (default: 0)
+# 
+#  INPUTS
+#     exp_res_info - expected resource info (see wait_for_resource_info) 
+#     { opt "" }   - option array 
+#
+#  RESULT
+#     0 on success , 1 on error
+#
+#  EXAMPLE
+#
+#     set opt(timeout) 30
+#     set opt(res_info) res_info
+#     set opt(res_prop) res_prop
+#     set opt(res_list) res_list
+#     set opt(res_list_not_uniq) res_list_not_uniq
+#
+#     if {[wait_for_resource_info_opt exp_res_info opt] != 0 } {
+#        return
+#     }
+#     puts "     Found resources: $res_list"
+#     puts " Resource properties: [format_array res_prop]"
+#     puts "Not unique Resources: $res_list_not_uniq"
+#
+#  SEE ALSO
+#     util/wait_for_resource_info
+#     util/get_resource_info
+#     util/get_hedeby_proc_opt_arg 
+#*******************************************************************************
+proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
+
+   upvar $exp_res_info exp_info
+
+   set opts(timeout)    60
+   set opts(error_var)  ""
+   set opts(res_info)   ""
+   set opts(res_prop)    ""
+   set opts(res_list)    ""
+   set opts(res_list_not_uniq) ""
+   set opts(expect_no_ambiguous_resources) 0
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   if { $opts(error_var) != "" } {
+      upvar $opts(error_var) error_var
+   }
+
+   if { $opts(res_info) != "" } {
+      upvar $opts(res_info) res_info
+   }
+
+   if { $opts(res_prop) != "" } {
+      upvar $opts(res_prop) res_prop
+   }
+
+   if { $opts(res_list) != "" } {
+      upvar $opts(res_list) res_list
+   }
+
+   if { $opts(res_list_not_uniq) != "" } {
+      upvar $opts(res_list_not_uniq) res_lis_not_uniq
+   }
+
+   return [wait_for_resource_info exp_info  $opts(timeout) $opts(raise_error) error_var\
+                                  $opts(host) $opts(user) res_info res_prop res_list \
+                                  res_list_not_uniq $opts(expect_no_ambiguous_resources)]
 }
 
 #****** util/wait_for_service_info() *******************************************
@@ -5016,7 +5117,7 @@ proc produce_ambiguous_resource { ares asrv } {
       return 1
    }
 
-   # wait that resource dissapears at resource provider
+   # wait that resource disappears at resource provider
    unset exp_res_info
    set exp_res_info($aresource,state) "missing"
    if { [wait_for_resource_info exp_res_info 120] != 0 } {
@@ -5651,6 +5752,41 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
       }
    }
    return 0
+}
+
+
+#****** util/get_component_info_opt() ******************************************
+#  NAME
+#     get_component_info_opt() -- Opt version of get_component_info 
+#
+#  SYNOPSIS
+#     get_component_info_opt { ci opt} 
+#
+#  FUNCTION
+#
+#     This procedure starts an 'sdmadm sc' command and parses the output.
+#
+#  INPUTS
+#     ci     - tcl array where the component info is stored (see get_component_info) 
+#     opt    - name of the tcl array (upvar) containing the options for the
+#              command. The following options are supported:
+#
+#        opt(host)  - host where the sdmadm command is started (default: hedeby master host)
+#        opt(user)  - name of the user executing the sdmadm command (default: hedeby admin user)
+#        opt(raise_error) - If set to 1 errors will be reported with ts_log_severe (default: 1)
+#
+#  RESULT
+#     0  -- Success
+#     else "sdmadm sc" reported error
+#
+#*******************************************************************************
+proc get_component_info_opt { ci { opt "" } } {
+   upvar $ci u_ci
+
+   # set function default optional arguments
+   get_hedeby_proc_opt_arg $opt opts
+
+   return [get_component_info $opts(host) $opts(user) u_ci $opts(raise_error)]
 }
 
 #****** util/sdmadm_command() **************************************************
