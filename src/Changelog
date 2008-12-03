@@ -1,3 +1,6 @@
+HP-2008-12-03-0: Bugfix:     fixed error in architecture resolving in qhost test
+                 Review:     MD
+
 CR-2008-12-03-1: Bugfix:     - fixed error when setting up "sendmail" as default
                                mailing application
                  Review:     MD
