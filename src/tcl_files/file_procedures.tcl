@@ -2874,7 +2874,7 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
       }
       ts_log_progress
       set have_logged_a_dot 1
-      if {[timestamp] > $my_mytimeout} {
+      if {[timestamp] >= $my_mytimeout} {
          break
       }
       after 500
@@ -2885,17 +2885,20 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
    if {$is_ok == 1} {
       if {$to_go_away == 0} {
          ts_log_finer "ok - file exists on host $hostname"
-         set prg_exit_state 1
+         set prg_exit_state 101
          while {[timestamp] <= $my_mytimeout} {
             set output [start_remote_prog $hostname $user "cat" "$path > /dev/null" prg_exit_state 60 0 "" "" 0 0]
             if {$prg_exit_state == 0} {
                break
             }
             after 500
-            ts_log_newline
          }
-         if {$prg_exit_state != 0} {
-            ts_log_severe "$hostname: output of cat $path (on a file which was tested with test -f): \n$output"
+         if {$prg_exit_state == 101} {
+            ts_log_severe "$hostname: timeout while waiting for file $path"
+         } else {
+            if {$prg_exit_state != 0} {
+               ts_log_severe "$hostname: output of cat $path (on a file which was tested with test -f): \n$output\n$exit_state=$prg_exit_state"
+            }
          }
          if {$have_logged_a_dot} {
             ts_log_newline

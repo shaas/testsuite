@@ -333,7 +333,7 @@ proc shadowd_migrate_test {} {
       if {$CHECK_ACT_LEVEL == 2} {
          ts_log_fine "shutting down qmaster ..."
          
-         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 60 0 1] != 0} {
             ts_log_severe "found lock file after shutdown of old qmaster"
          }
 
@@ -365,7 +365,7 @@ proc shadowd_migrate_test {} {
             ts_log_progress FINE "\rtimeout in $todo seconds.    \r"
          }
 
-         if {[wait_for_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
+         if {[wait_for_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file 60 0 1] != 0} {
             ts_log_severe "found lock file after startup of new qmaster on host $new_act_qmaster"
          }
          wait_for_load_from_all_queues 120
@@ -375,7 +375,7 @@ proc shadowd_migrate_test {} {
          shutdown_system_daemon $new_act_qmaster "qmaster"
 
          # wait until the lock file is visible on our master host
-         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0] != 0} {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 60 0] != 0} {
             ts_log_severe "$new_act_qmaster didn't leave a lock file on shutdown"
          }
 
@@ -383,7 +383,7 @@ proc shadowd_migrate_test {} {
          startup_qmaster
 
          # wait for lock file to vanish (might be delayed due to slow NFS)
-         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 60 0 1] != 0} {
             ts_log_severe "found lock file after shutdown and restart of original qmaster on host $act_qmaster"
          }
          wait_for_load_from_all_queues 120
@@ -412,7 +412,7 @@ proc shadowd_migrate_test {} {
          wait_for_load_from_all_queues 120
 
 
-         if {[wait_for_remote_file $migrate_host $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
+         if {[wait_for_remote_file $migrate_host $CHECK_USER $qmaster_lock_file 60 0 1] != 0} {
             ts_log_severe "found lock file after -migrate on host $migrate_host"
          }
 
@@ -426,7 +426,7 @@ proc shadowd_migrate_test {} {
 
          wait_for_load_from_all_queues 120
 
-         if {[wait_for_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
+         if {[wait_for_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file 60 0 1] != 0} {
             ts_log_severe "found lock file after -migrate on host $act_qmaster"
          }
       }
@@ -441,7 +441,7 @@ proc shadowd_migrate_test {} {
          shutdown_system_daemon $ts_config(master_host) "qmaster"
 
          # check whether qmaster did write lock file
-         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 0 30] != 0} {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 0 60] != 0} {
             ts_log_severe "found no lock file after shutdown of qmaster"
          }
 
