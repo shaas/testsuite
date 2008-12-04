@@ -250,7 +250,7 @@ proc issue_2254 {} {
    set jobid7 [submit_job $job_args 1 30]
    set jobid8 [submit_job $job_args 1 30]
 
-   sleep 10
+   sleep 30
 
    # 8. check that the 2 pe jobs are running simultaneously
    qstat_plain_parse qstat_plain_output2

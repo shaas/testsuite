@@ -1369,7 +1369,7 @@ proc open_remote_spawn_process { hostname
    map_special_users $hostname $user $win_local_user
 
    # common part of all error messages
-   set error_info "connection to host \"$hostname\" as user \"$user\""
+   set error_info "connection to host \"$hostname\" as user \"$connect_full_user\""
 
    # if command shall be started as other user than CHECK_USER
    # we need root access

@@ -606,13 +606,16 @@ proc cl_throughput_run {} {
       set data(step_list) "$step_list"
 
       set last_row [expr $data(lines) - 2]
+      set parsed_gdi_clients $data($runs,$last_row,con_no)
+      set expected_gdi_clients [expr $host_count + $nr_event_clients]
+
       if {$nr_rgdi_clients != 0} {
-         if {$data($runs,$last_row,con_no) < [expr $host_count + $nr_event_clients]} {
-            ts_log_severe "only $data($runs,$last_row,con_no) of $host_count gdi clients connected during run!"
+         if {$parsed_gdi_clients < $expected_gdi_clients} {
+            ts_log_severe "only $parsed_gdi_clients of $expected_gdi_clients gdi clients connected during run!"
          }
       } else {
-         if {$data($runs,$last_row,con_no) != [expr $host_count + $nr_event_clients]} {
-            ts_log_severe "only $data($runs,$last_row,con_no) of $host_count gdi clients connected during run!"
+         if {$parsed_gdi_clients != $expected_gdi_clients} {
+            ts_log_severe "only $parsed_gdi_clients of $expected_gdi_clients gdi clients connected during run!"
          }
       }
       if {$data($runs,$last_row,evc_no) != $nr_event_clients} {

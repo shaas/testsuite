@@ -5401,7 +5401,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     parser/parse_qacct()
 #     sge_procedures/get_qacct_error()
 #*******************************
-proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_error 1}} {
+proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1}} {
    get_current_cluster_config_array ts_config
 
    upvar $variable qacctinfo
