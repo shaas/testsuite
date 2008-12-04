@@ -1,3 +1,8 @@
+EB-2008-12-04-0: Enhancemn.: - Added new test for which tests qalter in
+                               combination with JSV on server side
+                             - Added additional check for JSV URL parsing
+                 Review:     MD
+
 RH-2008-12-03-0: Bugfix:     manage_admin_user and assigned_resource_reset did not 
                              work with the fix of issue 582
                  Enhancem.:  o check for issue 582 added 

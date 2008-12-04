@@ -96,6 +96,7 @@ proc jsv_ge_init_level {} {
 # start different JSV shells and initialize variables the test expect
 proc jsv_ge_setup {} {
    global CHECK_ACT_LEVEL
+   global CHECK_USER
    global ts_config
    global jsv_org_global_conf
    global jsv_base_path
@@ -122,6 +123,16 @@ proc jsv_ge_setup {} {
    get_config jsv_org_global_conf
    set global_conf(load_report_time) "00:00:04"
    set global_conf(max_unheard) "00:00:15"
+   set_config global_conf
+
+   # test that user specification might be omitted 
+   # urls with valid users are acceped 
+   # but for the other scenarios reset the URL
+   set global_conf(jsv_url) "script:${jsv_base_path}/jsv_test_modify.tcl"
+   set_config global_conf
+   set global_conf(jsv_url) "script:$CHECK_USER@${jsv_base_path}/jsv_test_modify.tcl"
+   set_config global_conf
+   set global_conf(jsv_url) "NONE"
    set_config global_conf
 
    # change schedd config

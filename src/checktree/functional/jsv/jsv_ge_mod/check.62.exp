@@ -1,0 +1,438 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "jsv_ge_mod_init_level"
+
+# define test's name and run level descriptions
+set check_name            "jsv_ge_mod"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  ""
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function jsv_ge_mod_setup
+set check_cleanup_function jsv_ge_mod_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "jsv_ge_mod_a"
+lappend check_functions "jsv_ge_mod_ac"
+lappend check_functions "jsv_ge_mod_A"
+lappend check_functions "jsv_ge_mod_c"
+lappend check_functions "jsv_ge_mod_ckpt"
+lappend check_functions "jsv_ge_mod_cwd"
+lappend check_functions "jsv_ge_mod_dc"
+lappend check_functions "jsv_ge_mod_dl"
+lappend check_functions "jsv_ge_mod_e"
+lappend check_functions "jsv_ge_mod_hold_jid"
+lappend check_functions "jsv_ge_mod_hold_jid_ad"
+lappend check_functions "jsv_ge_mod_i"
+lappend check_functions "jsv_ge_mod_j"
+lappend check_functions "jsv_ge_mod_js"
+lappend check_functions "jsv_ge_mod_l_hard"
+lappend check_functions "jsv_ge_mod_l_soft"
+lappend check_functions "jsv_ge_mod_m"
+lappend check_functions "jsv_ge_mod_masterq"
+lappend check_functions "jsv_ge_mod_M"
+lappend check_functions "jsv_ge_mod_notify"
+lappend check_functions "jsv_ge_mod_N"
+lappend check_functions "jsv_ge_mod_o"
+lappend check_functions "jsv_ge_mod_ot"
+lappend check_functions "jsv_ge_mod_P"
+lappend check_functions "jsv_ge_mod_p"
+lappend check_functions "jsv_ge_mod_q_hard"
+lappend check_functions "jsv_ge_mod_q_soft"
+lappend check_functions "jsv_ge_mod_R"
+lappend check_functions "jsv_ge_mod_r"
+lappend check_functions "jsv_ge_mod_sc"
+lappend check_functions "jsv_ge_mod_S"
+lappend check_functions "jsv_ge_mod_v"
+lappend check_functions "jsv_ge_mod_V"
+lappend check_functions "jsv_ge_mod_wd"
+
+# global variables for this test. all of them are initiaized in the setup procedure
+global jsv_org_global_conf
+global jsv_enabled
+global jsv_job_id
+global jsv_hjob_id
+global jsv_enabled 
+global jsv_base_path 
+
+set jsv_enabled ""
+
+proc jsv_ge_mod_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+proc jsv_ge_mod_setup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_base_path
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+
+   # check if jsv is available
+   if {$jsv_enabled == ""} {
+      set jsv_enabled [ge_has_feature "job_submission_verify"]
+      if {$jsv_enabled == false} {
+         ts_log_config "Cannot run this test, jsv is not available for this GE version!"
+      }
+   }
+
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # get base path of scripts
+   set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_ge_mod
+
+   # create parallel environments
+   set pe(slots) 5
+   set pe(user_lists) none
+   set pe(xuser_lists) none
+   set pe(start_proc_args) none
+   set pe(stop_proc_args) none
+   set pe(allocation_rule) "\$round_robin"
+   set pe(control_slaves) TRUE
+   set pe(job_is_first_task) FALSE
+   add_pe "jsv_ge_mod_pe" pe
+
+   # create checkpointing object
+   set ckpt_param(ckpt_name) "jsv_ge_mod_ckpt"
+   set ckpt_param(interface) "CPR"
+   set ckpt_param(ckpt_command) "none"
+   set ckpt_param(migr_command) "/bin/true"
+   set ckpt_param(restart_command) "none"
+   set ckpt_param(clean_command) "none"   
+   set ckpt_param(ckpt_dir) "/tmp"
+   set ckpt_param(signal) "none"
+   set ckpt_param(when) "sx"
+   add_checkpointobj ckpt_param 
+
+   # create project
+   set prj_setup(name) "jsv_ge_mod_prj"
+   add_prj prj_setup
+
+   # change global config 
+   get_config jsv_org_global_conf
+   set global_conf(load_report_time) "00:00:04"
+   set global_conf(max_unheard) "00:00:15"
+   set_config global_conf
+
+   # change schedd config
+   set sched_conf(flush_submit_sec) "1"
+   set sched_conf(flush_finish_sec) "1"
+   set_schedd_config sched_conf
+
+   # submit one job which can be used for hold_jid test
+   append submit_args "-h -t 1-2 $ts_config(product_root)/examples/jobs/sleeper.sh 60"
+   set jsv_hjob_id [submit_job "$submit_args"]
+   set jsv_job_id [submit_job "$submit_args"]
+}
+
+proc jsv_ge_mod_cleanup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+ 
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # trigger and wait for job termination
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # reset configurations
+   set_config jsv_org_global_conf
+   reset_schedd_config
+
+   # delete pe and ckpt
+   del_pe "jsv_ge_mod_pe"
+   del_checkpointobj "jsv_ge_mod_ckpt"
+   del_prj "jsv_ge_mod_prj"
+
+   # unset our test's global variables
+   foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+# Scenario: check modification of jsv_ parameters in combination
+#           with attemps to modify a job with qalter
+#
+#  -  configure a JSV script to enable additional checking for allowed arguments in qmaster
+#  -  set configuration attribute to reject all modifications
+#  -  try to modify a job specification for a certain job attribute
+#  => check that this fails
+#  -  add the attribute to the list of allowed modifications
+#  -  try the modification again
+#  => this has to be successfull
+#  -  remove the global jsv script
+#  -  try this modification again
+#  => also this has to work
+proc jsv_ge_mod {param_name argument} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+   global jsv_enabled
+   global jsv_job_id
+
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
+      set global_conf(jsv_allowed_mod) "none"
+      set_config global_conf
+      set first_exit_state 0
+      set first_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER first_exit_state]
+
+      set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
+      set global_conf(jsv_allowed_mod) "w,$param_name"
+      set_config global_conf
+      set second_exit_state 0
+
+      set second_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER second_exit_state]
+
+
+      set global_conf(jsv_url) "none"
+      set global_conf(jsv_allowed_mod) "none"
+      set_config global_conf
+      set third_exit_state 0
+      set third_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER third_exit_state]
+
+      if {$first_exit_state != 1} {
+         ts_log_severe "first modification of \"$param_name\" should have been rejected but it was accepted by master. qalter returned with message: $first_message"
+      }
+      if {$second_exit_state != 0} {
+         ts_log_severe "second modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $second_message"
+      }
+      if {$third_exit_state != 0} {
+         ts_log_severe "third modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $third_message"
+      }
+   }
+}
+
+proc jsv_ge_mod_a {} {
+   jsv_ge_mod "a" "-a 203912141234"
+}
+
+proc jsv_ge_mod_ac {} {
+   jsv_ge_mod "ac" "-ac a=1"
+}
+
+proc jsv_ge_mod_A {} {
+   jsv_ge_mod "A" "-A jsv_ge_mod"
+}
+
+proc jsv_ge_mod_c {} {
+   jsv_ge_mod "c_occasion" "-c s"
+   jsv_ge_mod "c_interval" "-c 203012311234"
+}
+
+proc jsv_ge_mod_ckpt {} {
+   jsv_ge_mod "ckpt" "-ckpt jsv_ge_mod_ckpt"
+}
+
+proc jsv_ge_mod_cwd {} {
+   jsv_ge_mod "cwd" "-cwd"
+}
+
+proc jsv_ge_mod_dc {} {
+   # dc is mapped to ac parameter name
+   jsv_ge_mod "ac" "-dc a=1"
+}
+
+proc jsv_ge_mod_dl {} {
+   jsv_ge_mod "dl" "-dl 203012311234"
+}
+
+proc jsv_ge_mod_e {} {
+   jsv_ge_mod "e" "-e /tmp/jsv_ge_mod"
+}
+
+proc jsv_ge_mod_hold_jid {} {
+   global jsv_hjob_id 
+
+   jsv_ge_mod "hold_jid" "-hold_jid $jsv_hjob_id"
+}
+
+proc jsv_ge_mod_hold_jid_ad {} {
+   global jsv_hjob_id 
+
+   jsv_ge_mod "hold_jid_ad" "-hold_jid_ad $jsv_hjob_id"
+}
+
+proc jsv_ge_mod_i {} {
+   jsv_ge_mod "i" "-i /bin/true"
+}
+
+proc jsv_ge_mod_j {} {
+   jsv_ge_mod "j" "-j yes"
+}
+
+proc jsv_ge_mod_js {} {
+   jsv_ge_mod "js" "-js 3"
+}
+
+proc jsv_ge_mod_l_hard {} {
+   jsv_ge_mod "l_hard" "-hard -l h_vmem=1G"
+}
+
+proc jsv_ge_mod_l_soft {} {
+   jsv_ge_mod "l_soft" "-soft -l h_vmem=1G"
+}
+
+proc jsv_ge_mod_m {} {
+   jsv_ge_mod "m" "-m beas"
+}
+
+proc jsv_ge_mod_masterq {} {
+   jsv_ge_mod "masterq" "-masterq all.q"
+}
+
+proc jsv_ge_mod_M {} {
+   global ts_config
+
+   jsv_ge_mod "M" "-M root@$ts_config(master_host)"
+}
+
+proc jsv_ge_mod_notify {} {
+   jsv_ge_mod "notify" "-notify"
+}
+
+proc jsv_ge_mod_N {} {
+   jsv_ge_mod "N" "-N NewName"
+}
+
+proc jsv_ge_mod_o {} {
+   jsv_ge_mod "o" "-o /tmp/jsv_ge_mod"
+}
+
+proc jsv_ge_mod_ot {} {
+   jsv_ge_mod "ot" "-ot 10"
+}
+
+proc jsv_ge_mod_P {} {
+   jsv_ge_mod "P" "-P jsv_ge_mod_prj"
+}
+
+proc jsv_ge_mod_p {} {
+   jsv_ge_mod "p" "-p 0"
+}
+
+proc jsv_ge_mod_pe {} {
+   jsv_ge_mod "pe_name,pe_min,pe_max" "-pe jsv_ge_mod_pe 1-4"
+}
+
+proc jsv_ge_mod_q_hard {} {
+   jsv_ge_mod "q_hard" "-hard -q all.q"
+}
+
+proc jsv_ge_mod_q_soft {} {
+   jsv_ge_mod "q_soft" "-soft -q all.q"
+}
+
+proc jsv_ge_mod_R {} {
+   jsv_ge_mod "R" "-R yes"
+}
+
+proc jsv_ge_mod_r {} {
+   jsv_ge_mod "r" "-r yes"
+}
+
+proc jsv_ge_mod_sc {} {
+   # sc is mapped to ac parameter name
+   jsv_ge_mod "ac" "-sc a=1"
+}
+
+proc jsv_ge_mod_S {} {
+   jsv_ge_mod "S" "-S /bin/sh"
+}
+
+proc jsv_ge_mod_v {} {
+   jsv_ge_mod "v" "-v A=5"
+}
+
+proc jsv_ge_mod_V {} {
+   # -V is an abbreviation for -v ... -v ... -v ...
+   jsv_ge_mod "v" "-V"
+}
+
+proc jsv_ge_mod_wd {} {
+   # wd will be available as cwd parameter
+   jsv_ge_mod "cwd" "-wd /tmp/jsv_ge_mod_wd"
+}
+
