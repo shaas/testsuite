@@ -1,3 +1,10 @@
+RH-2008-12-05-0: Bugfix:     With checkin RH-2008-12-03-0 starting testsuite
+                             with hedeby checktree was no longer possible. 
+                             Never use the configuration of an additional checktree
+                             in an init level function.
+                 Review:     TB
+
+                             
 HP-2008-12-04-0: Bugfix:     Fixed wrong error messages in performance/commlib test
                  Review:     CR
 
