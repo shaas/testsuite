@@ -1,3 +1,7 @@
+CR-2008-12-08-1: Bugfix:     Fixed TS admin user mode installation
+                             (install GE without having root access)
+                 Review:     AF
+
 JG-2008-12-08-0: Enhancem.:  Added test for issue 2822. It turned out to not be
                              a SGE bug, but the scenario (tightly integrated
                              job with tasks in multiple queue instances per

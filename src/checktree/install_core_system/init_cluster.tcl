@@ -65,11 +65,18 @@ proc reread_bootstrap {} {
 # generating all testsuite cluster user keys and certificates
 proc make_user_cert {} {
    global check_use_installed_system
-  global CHECK_MAIN_RESULTS_DIR
-  global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO
-  global CHECK_USER CHECK_DEBUG_LEVEL
-  global ts_config
+   global CHECK_MAIN_RESULTS_DIR
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO
+   global CHECK_USER CHECK_DEBUG_LEVEL
+   global ts_config 
+   global CHECK_USER CHECK_ADMIN_USER_SYSTEM
 
+   if {$CHECK_ADMIN_USER_SYSTEM == 0 } {
+      set cert_user "root"
+   } else {
+      set cert_user $CHECK_USER
+   }
+  
    if { !$check_use_installed_system } {
       # create testsuite user certificates for csp mode
        if {$ts_config(product_feature) == "csp"} {
@@ -84,7 +91,7 @@ proc make_user_cert {} {
           flush $script
           close $script
          
-          set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
+          set result [ start_remote_prog "$ts_config(master_host)" $cert_user "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
           ts_log_fine $result
        
           ts_log_fine "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
@@ -104,7 +111,7 @@ proc make_user_cert {} {
          flush $script
          close $script
          ts_log_fine "creating certificates for testsuite users ..."
-         set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $file" prg_exit_state 60 0 $ts_config(product_root)]
+         set result [ start_remote_prog "$ts_config(master_host)" $cert_user "util/sgeCA/sge_ca" "-usercert $file" prg_exit_state 60 0 $ts_config(product_root)]
          ts_log_fine $result
        
  
@@ -117,7 +124,7 @@ proc make_user_cert {} {
          # encrypt keystores by specifing -kspwf file (file is a password file)
          ts_log_fine "creating keystore files for testsuite users ..."
          set my_env(JAVA_HOME) [get_java_home_for_host $ts_config(master_host) "1.5"]
-         set result [start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-userks -kspwf $file" prg_exit_state 60 0 $ts_config(product_root) my_env]
+         set result [start_remote_prog "$ts_config(master_host)" $cert_user "util/sgeCA/sge_ca" "-userks -kspwf $file" prg_exit_state 60 0 $ts_config(product_root) my_env]
          ts_log_fine $result
       } else {
          ts_log_fine "jmx ssl not enabled"

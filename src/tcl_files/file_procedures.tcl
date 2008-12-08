@@ -2540,7 +2540,7 @@ proc check_for_core_files {hostname path} {
 #*******************************************************************************
 proc remote_delete_directory {hostname path {win_local_user 0}} {
    global CHECK_USER
-   global CHECK_TESTSUITE_TRASH
+   global CHECK_TESTSUITE_TRASH CHECK_ADMIN_USER_SYSTEM
    get_current_cluster_config_array ts_config
 
    set return_value -1
@@ -2564,7 +2564,8 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
    # therefore we only accept pathes longer than 10 bytes
    if {[string length $path] > 10} {
 
-      if {[have_root_passwd] == 0} {
+      # If we have no admin user system and we have a root password then do a chown
+      if {[have_root_passwd] == 0 && $CHECK_ADMIN_USER_SYSTEM == 0 } {
          # make sure we actually can delete the directory with all its contents.
          start_remote_prog $hostname "root" chown "-R $CHECK_USER $path" prg_exit_state 60 0 "" "" 1 0 0
       }
