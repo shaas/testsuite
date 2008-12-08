@@ -197,13 +197,16 @@ proc issue_2254 {} {
    set jobid3 [submit_job $job_args_mpi 1 30]
    set jobid4 [submit_job $job_args_pvm 1 30]
    
-   sleep 10
+   
+   # wait for jobs startup
+   wait_for_jobstart $jobid1 "MPI" 60
+   wait_for_jobstart $jobid2 "PVM" 60
 
    # 6. check that the 2 pe jobs are running simultaneously
    qstat_plain_parse qstat_plain_output1
       
    ts_log_fine "qstat array with intelmpi, intelpvm .... \n"
-   parray qstat_plain_output1
+   #parray qstat_plain_output1
 
    set jobid_list $qstat_plain_output1(index)
 
@@ -224,8 +227,7 @@ proc issue_2254 {} {
       }
    }
  
-   if { ($running_jobs == 2) && ($MPI_jobs == 1) && \
-        ($PVM_jobs == 1) } {
+   if { ($running_jobs == 2) && ($MPI_jobs == 1) && ($PVM_jobs == 1) } {
         # We are ok
         ts_log_fine " ts_2254 first submit is OK \n"
         } else {
@@ -234,7 +236,6 @@ proc issue_2254 {} {
         ts_log_fine " and  $PVM_jobs are PVM jobs \n"
         ts_log_severe "first submit failed "
    }
-
 
    delete_job $jobid1 1
    delete_job $jobid2 1  
@@ -250,13 +251,16 @@ proc issue_2254 {} {
    set jobid7 [submit_job $job_args 1 30]
    set jobid8 [submit_job $job_args 1 30]
 
-   sleep 30
+    # wait for jobs startup
+   wait_for_jobstart $jobid5 "Either" 60
+   wait_for_jobstart $jobid6 "Either" 60
+
 
    # 8. check that the 2 pe jobs are running simultaneously
    qstat_plain_parse qstat_plain_output2
       
    ts_log_fine "qstat array with intel*  .... \n"
-   parray qstat_plain_output2
+#   parray qstat_plain_output2
 
    set jobid_list $qstat_plain_output2(index)
 
