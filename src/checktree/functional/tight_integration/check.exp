@@ -148,7 +148,7 @@ proc tight_integration_setup {} {
    set queue_conf(load_thresholds) "np_load_avg=11"
    set queue_conf(slots) 10 
    set queue_conf(rerun) "true"
-   add_queue tight.q "@allhosts" queue_conf
+   add_queue "tight.q" "@allhosts" queue_conf
 
    # assign queue with pe
    assign_queues_with_pe_object tight.q "" tight
@@ -195,9 +195,9 @@ proc tight_integration_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   unassign_queues_with_pe_object tight
-   del_pe tight
-   del_queue tight.q "" 0 1
+   unassign_queues_with_pe_object "tight"
+   del_pe "tight"
+   del_queue "tight.q" "" 0 1
 }
 
 # -------- local test procedures: initialization------------------------------
@@ -432,152 +432,6 @@ proc tight_integration_messages_check {scenario} {
 }
 
 # -------- local test procedures: utilities --------------------------
-proc tight_integration_monitor {id started_var finished_var jobid_var info_var {iz_578 0}} {
-   global tight_master_node
-
-   upvar $started_var  started
-   upvar $finished_var finished
-   upvar $jobid_var    jobid
-   upvar $info_var     info
-
-   set ret "unknown"
-
-   set sp_id [lindex $id 1]
-   set timeout 180
-
-   set unexpected_output ""
-   
-   expect_user {
-      -i $sp_id timeout {
-         ts_log_severe "timeout waiting for tasks output (tight integration)"
-         set ret "timeout"
-      }
-      -i $sp_id full_buffer {
-         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-         set ret "error"
-      }
-      -i $sp_id eof {
-         set ret "eof"
-      }
-      # workaround for a feature lacking in expect:
-      # We have to parse complete lines.
-      # expect_user ensures only that expect will parse input up to a newline,
-      # but there seems to be no way to tell expect we want to examine each
-      # individual line.
-      -i $sp_id "?*\n" {
-         #ts_log_fine "entered default branch, data: $expect_out(0,string)"
-         foreach line [string trim [split $expect_out(0,string) "\n"]] {
-            set line [string trim $line]
-            if {[string length $line] > 0} {
-               #ts_log_fine "processing line: $line"
-               switch -glob $line {
-                  "petask ??? with pid ???????? started on host*" {
-                     set task [lindex $line 1]
-                     lappend info(tasks) $task
-                     set info($task,pid) [lindex $line 4]
-                     set info($task,host) [lindex $line 8]
-                     incr started
-                     ts_log_fine "task $task started, total started: $started"
-                     set ret "task started"
-                  }
-                  "petask ??? with pid ???????? finished*" {
-                     set task [lindex $line 1]
-                     incr finished
-                     ts_log_fine "task $task finished, total finished: $finished"
-                     set ret "task finished"
-                  }
-                  "master task started with job id ?????? and pid*" {
-                     set jobid [lindex $line 6]
-                     lappend info(tasks) master
-                     set info(master,pid) [lindex $line 9]
-                     set info(master,host) $tight_master_node
-                     ts_log_fine "job $jobid started"
-                     set ret "master started"
-                  }
-                  "master task submitted all sub tasks*" {
-                     ts_log_fine "master task submitted all tasks"
-                     set ret "master submitted"
-                  }
-                  "master task exiting*" {
-                     ts_log_fine "job $jobid exited"
-                     set ret "master finished"
-                  }
-                  "NSLOTS ??? NHOSTS ??? NQUEUES*" {
-                     if {$iz_578} {
-                        set nslots  [lindex $line 1]
-                        set nhosts  [lindex $line 3]
-                        set nqueues [lindex $line 5]
-                        ts_log_fine "nslots = $nslots, nhosts = $nhosts, nqueues = $nqueues"
-                        if {$nslots == 0 || $nhosts == 0 || $nqueues == 0} {
-                           ts_log_severe "invalid environment setting for NSLOTS, NHOSTS, NQUEUES for pe task (Issue 578 present): $line"
-                           set ret "error"
-                           break
-                        }
-                     }
-                     set ret "task running"
-                  }
-
-                    
-                  "_start_mark_:(*)*" {
-                     ts_log_fine "got start mark from remote prog shell script"
-                  }
-                  "_exit_status_:(*)*" {
-                     ts_log_fine "got exit status from remote prog shell script"
-                  }
-                  "script done.*" {
-                     ts_log_fine "got \"script done.\" from remote prog shell script"
-                  }
-                  default {
-                     # something we didn't expect.
-                     # store all unexpected lines and send them in one mail
-                     # at the end
-                     if {$unexpected_output != ""} {
-                        append unexpected_output "\n"
-                     }
-                     append unexpected_output $line
-                     set ret "unexpected job output"
-                  }
-               }
-            }
-         }
-      }
-   }
-
-   # send unexpected output
-   if {$unexpected_output != ""} {
-      ts_log_info "unexpected job output:\n---\n$unexpected_output\n---\nPlease check our \".*\" login scripts for output lines!"
-   }
-
-   return $ret
-}
-
-proc tight_integration_job_finished {job_state} {
-   switch -exact $job_state {
-      "unknown" -
-      "timeout" -
-      "eof" -
-      "master finished" -
-      "error" {
-         set job_finished 1
-      }
-      
-      "task started" -
-      "task running" -
-      "task finished" -
-      "master started" -
-      "master submitted" -
-      "unexpected job output" {
-         set job_finished 0
-      }
-
-      default {
-         set job_finished 1
-      }
-   }
-
-   return $job_finished
-}
-
 proc tight_integration_wait_for_delete_state {jobid timeout} {
    set now [clock seconds]
    set end [expr $now + $timeout]
@@ -613,7 +467,7 @@ proc tight_integration_function {} {
    set jobid 0
    set job_finished 0
    while {$job_finished == 0} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
       set job_finished [tight_integration_job_finished $job_state]
    }
@@ -673,7 +527,7 @@ proc tight_integration_iz_1916 {} {
 
    # wait until all tasks are started
    while {$started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
       sleep 1
    }
@@ -775,7 +629,7 @@ proc tight_integration_iz_575 {} {
 
    # wait until all tasks are started
    while {$job_finished == 0 && $started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
       set job_finished [tight_integration_job_finished $job_state]
    }
@@ -822,7 +676,7 @@ proc tight_integration_iz_578 {} {
    set jobid 0
    set job_finished 0
    while {$job_finished == 0} {
-      set job_state [tight_integration_monitor $id started finished jobid info 1]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info 1]
       ts_log_fine "job state: $job_state"
       set job_finished [tight_integration_job_finished $job_state]
    }
@@ -857,7 +711,7 @@ proc tight_integration_master_killed {} {
 
    # wait until all tasks are started
    while {$job_finished == 0 && $started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
       set job_finished [tight_integration_job_finished $job_state]
    }
@@ -922,7 +776,7 @@ proc tight_integration_slave_killed {} {
 
       # wait until all tasks are started
       while {$job_finished == 0 && $started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
-         set job_state [tight_integration_monitor $id started finished jobid info]
+         set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
          ts_log_fine "job state: $job_state"
          set job_finished [tight_integration_job_finished $job_state]
       }
@@ -1008,7 +862,7 @@ proc tight_integration_massive {} {
    set job_finished 0
    
    while {$job_finished == 0} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       set job_finished [tight_integration_job_finished $job_state]
    }
 

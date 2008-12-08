@@ -1,0 +1,158 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+#set check_root_access_needs "yes"
+#set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2822_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2822"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test tightly integrated job with 2 qinstances on one host"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2822_setup
+set check_cleanup_function issue_2822_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2822_test"
+
+proc issue_2822_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2822_setup {} {
+   global ts_config
+   global issue_2822_hosts
+
+   # we need 2 test hosts
+   set issue_2822_hosts [host_conf_get_suited_hosts 2]
+
+   # create a pe
+   set pe(slots)              1000
+   set pe(user_lists)         none
+   set pe(xuser_lists)        none
+   set pe(start_proc_args)    none
+   set pe(stop_proc_args)     none
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   add_pe tight pe
+
+   # create 2 queues referencing the pe
+   set queue_conf(pe_list)    "tight"
+   set queue_conf(slots)      1
+   add_queue "tight1" $issue_2822_hosts queue_conf
+   add_queue "tight2" $issue_2822_hosts queue_conf
+}
+
+proc issue_2822_cleanup {} {
+   global ts_config
+   global issue_2822_hosts
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "tight1" "" 0 1
+   del_queue "tight2" "" 0 1
+   del_pe "tight"
+
+   # unset our test's global variables
+   foreach var "issue_2822_hosts" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc issue_2822_test {} {
+   global ts_config
+   global issue_2822_hosts
+
+   set master_node [lindex $issue_2822_hosts 0]
+   set master_queue [get_queue_instance "tight1" $master_node]
+
+   set id [submit_with_method "qsub" "-pe tight 4 -masterq $master_queue -cwd -N tight" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 20" $master_node]
+   set started 0
+   set finished 0
+   set jobid 0
+   set job_finished 0
+   while {$job_finished == 0} {
+      set job_state [tight_integration_monitor $id $master_node started finished jobid info]
+      ts_log_fine "job state: $job_state"
+      set job_finished [tight_integration_job_finished $job_state]
+   }
+
+   if {$started != 4} {
+      ts_log_severe "only $started tasks out of 4 were started successfully"
+   }
+
+   if {$finished != 4} {
+      ts_log_severe "only $finished tasks out of 4 ran through successfully"
+   }
+
+   set sp_id [lindex $id 1]
+   close_spawn_process $id
+
+   wait_for_jobend $jobid tight 60 0 1
+}
+

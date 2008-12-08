@@ -1,3 +1,9 @@
+JG-2008-12-08-0: Enhancem.:  Added test for issue 2822. It turned out to not be
+                             a SGE bug, but the scenario (tightly integrated
+                             job with tasks in multiple queue instances per
+                             host) was not yet tested in testsuite.
+                 Review:     MD
+
 CR-2008-12-08-0: Bugfix:     Fixed testsuite test 2254 which did not wait
                              for a jobstart
                  Review:     JG
