@@ -104,9 +104,7 @@ proc install_qmaster {} {
       append feature_install_options "-csp"
    }
 
-   if {$ts_config(jmx_port) == 0 && $ts_config(gridengine_version) >= 62} {
-      append feature_install_options " -no-jmx"
-   } elseif {$ts_config(jmx_port) > 0} {
+   if {$ts_config(jmx_port) > 0} {
       # For the JMX MBean Server we need java 1.5
       set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
       if {$java_home == ""} {

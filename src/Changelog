@@ -1,3 +1,6 @@
+LP-2008-12-09-0: Enhacem.:   Removed -no-jmx flag
+                 Review:     JO
+
 CR-2008-12-08-1: Bugfix:     Fixed TS admin user mode installation
                              (install GE without having root access)
                  Review:     AF
