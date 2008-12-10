@@ -67,6 +67,14 @@ lappend check_functions "jsv_ge_parsing_jsv_url_invalid_path"
 lappend check_functions "jsv_ge_parsing_jsv_url_user_in_client"
 lappend check_functions "jsv_ge_parsing_jsv_url_valid"
 lappend check_functions "jsv_ge_parsing_jsv_url_invalid_type"
+lappend check_functions "jsv_ge_restart_on_modify"
+lappend check_functions "jsv_ge_restart_after_kill"
+lappend check_functions "jsv_ge_restart_after_configuration_change"
+lappend check_functions "jsv_ge_restart_after_protocol_error"
+lappend check_functions "jsv_ge_start_user_specified"
+lappend check_functions "jsv_ge_start_user_admin_user"
+lappend check_functions "jsv_ge_start_user_unspecified"
+lappend check_functions "jsv_ge_do_not_block"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -74,6 +82,10 @@ global jsv_base_path
 global jsv_enabled
 set jsv_enabled ""
 set jsv_base_path ""
+
+proc file_touch {name} {
+   file mtime $name [clock seconds]
+}
 
 proc jsv_ge_init_level {} {
    global CHECK_ACT_LEVEL
@@ -243,6 +255,7 @@ proc jsv_ge_parsing_jsv_url_valid {} {
       wait_for_job_end $job_id 20
    }
 }
+
 proc jsv_ge_parsing_jsv_url_user_in_client {} {
    global CHECK_ACT_LEVEL
    global ts_config
@@ -256,6 +269,7 @@ proc jsv_ge_parsing_jsv_url_user_in_client {} {
       wait_for_job_end $job_id 20
    }
 }
+
 proc jsv_ge_parsing_jsv_url_invalid_path {} {
    global CHECK_ACT_LEVEL
    global ts_config
@@ -270,4 +284,382 @@ proc jsv_ge_parsing_jsv_url_invalid_path {} {
    }
 }
 
+proc jsv_ge_restart_on_modify {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will give us the pid of the JSV
+      # and the qmaster param will slow down
+      # the worker threads so that it is possible that each
+      # worker thread will be triggered by the TS
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid.sh"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+
+      # submit all jobs in hold state
+      set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+
+      # submit two jobs and store qstat -j output
+      set job_id1 [submit_job "$submit_args" "0"]
+      set job_id2 [submit_job "$submit_args" "0"]
+      set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
+      set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
+
+      # touch the JSV file to trigger restart
+      file_touch ${jsv_base_path}/jsv_get_pid.sh
+
+      # submit again two jobs and store the qstat -j output
+      set job_id3 [submit_job "$submit_args" "0"]
+      set job_id4 [submit_job "$submit_args" "0"]
+      set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
+      set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
+
+      # this sleep is extremely important this will
+      # give both worker threads the necessary time to continue
+      # if the sleep would be missing here then the next
+      # GDI operation below (configuration change) might
+      # fail due in testsuite timeout
+      sleep 5
+
+      # retrieve the pids from the qstat output
+      # the jsv script has written it to the job context
+      # of each job
+      set pid1 0
+      set pid2 1
+      set pid3 2
+      set pid4 3
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out1 match pid1
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out2 match pid2
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out4 match pid4
+
+      # reset the configuration changes
+      set global_conf(jsv_url) "none"
+      set global_conf(qmaster_params) "none"
+      set_config global_conf
+
+      # check the pids and make sure that each pid is unique
+      if {$pid1 == 0 || $pid1 == 0 ||
+          $pid2 == 0 || $pid2 == 0} {
+          ts_log_severe "Did not receive one or more of the JSV scripts pids"
+      } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
+                $pid2 == $pid3 || $pid2 == $pid4 ||
+                $pid1 == $pid2 || $pid3 == $pid4} {
+          ts_log_severe "At least one of the JSV scripts was not restarted after modify"
+      }
+   }
+}
+
+proc jsv_ge_restart_after_kill {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will give us the pid of the JSV
+      # and the qmaster param will slow down
+      # the worker threads so that it is possible that each
+      # worker thread will be triggered by the TS
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid.sh"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+
+      # submit all jobs in hold state
+      set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+
+      # submit two jobs and store qstat -j output
+      set job_id1 [submit_job "$submit_args"]
+      set job_id2 [submit_job "$submit_args"]
+      set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
+      set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
+
+      # kill both jsv scripts 
+      set pid1 0
+      set pid2 0
+      set pid3 0
+      set pid4 0
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out1 match pid1
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out2 match pid2
+
+      if {$pid1 > 1 && $pid2 > 1} {
+         start_remote_prog $ts_config(master_host) "root" "kill" "-9 $pid1"
+         start_remote_prog $ts_config(master_host) "root" "kill" "-9 $pid2"
+
+         # submit again two jobs and store the qstat -j output
+         set job_id3 [submit_job "$submit_args"]
+         set job_id4 [submit_job "$submit_args"]
+         set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
+         set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
+         regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
+         regexp "JSV_PID=(\[0-9\]*)" $qstat_out4 match pid4
+      }
+
+      # this sleep is extremely important this will
+      # give both worker threads the necessary time to continue
+      # if the sleep would be missing here then the next
+      # GDI operation below (configuration change) might
+      # fail due in testsuite timeout
+      sleep 5
+
+      # reset the configuration changes
+      set global_conf(jsv_url) "none"
+      set global_conf(qmaster_params) "none"
+      set_config global_conf
+
+      # check the pids and make sure that each pid is unique
+      if {$pid1 == 0 || $pid1 == 0 ||
+          $pid2 == 0 || $pid2 == 0} {
+          ts_log_severe "Did not receive one or more of the JSV scripts pids"
+      } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
+                $pid2 == $pid3 || $pid2 == $pid4 ||
+                $pid1 == $pid2 || $pid3 == $pid4} {
+          ts_log_severe "At least one of the JSV scripts was not restarted after modify"
+      }
+   }
+}
+
+proc jsv_ge_restart_after_configuration_change {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will give us the pid of the JSV and the qmaster param will slow down
+      # the worker threads so that it is possible that each worker thread will be triggered 
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid.sh"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+
+      # submit all jobs in hold state
+      set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+
+      # submit two jobs and store qstat -j output and find the pid in the job context
+      set job_id1 [submit_job "$submit_args"]
+      set job_id2 [submit_job "$submit_args"]
+      set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
+      set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
+      set pid1 0
+      set pid2 0
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out1 match pid1
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out2 match pid2
+
+      # this sleep is extremely important this will give both worker threads the necessary time 
+      # to continue if the sleep would be missing here then the next GDI operation below might
+      # fail due to timeout
+      sleep 5
+
+      # reset the configuration changes and submit to jobs and try to get new pid of JSV
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid2.sh"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+      set job_id3 [submit_job "$submit_args"]
+      set job_id4 [submit_job "$submit_args"]
+      set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
+      set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
+      set pid3 0
+      set pid4 0
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out4 match pid4
+
+      # this sleep is extremely important this will give both worker threads the necessary time 
+      # to continue if the sleep would be missing here then the next GDI operation below might
+      # fail due to timeout
+      sleep 5
+
+      # reset the configuration changes but slow down worker threads. submit again two jobs
+      # and try to jet JSV pids. Because there are no JSV scripts started the pid parsing
+      # should fail and the zero values for pid should not be overwritten
+      set global_conf(jsv_url) "none"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+      set job_id5 [submit_job "$submit_args"]
+      set job_id6 [submit_job "$submit_args"]
+      set qstat_out5 [start_sge_bin qstat "-j $job_id5"]
+      set qstat_out6 [start_sge_bin qstat "-j $job_id6"]
+      set pid5 0
+      set pid6 0
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out5 match pid5
+      regexp "JSV_PID=(\[0-9\]*)" $qstat_out6 match pid6
+
+      # this sleep is extremely important this will give both worker threads the necessary time 
+      # to continue if the sleep would be missing here then the next GDI operation below might
+      # fail due to timeout
+      sleep 5
+
+      # reset the configuration changes
+      set global_conf(jsv_url) "none"
+      set global_conf(qmaster_params) "none"
+      set_config global_conf
+
+      # the first 4 pids have to be available
+      if {$pid1 == 0 || $pid2 == 0 ||
+          $pid3 == 0 || $pid4 == 0} {
+          ts_log_severe "Did not receive one or more of the JSV scripts pids"
+      } 
+      # the last 2 have to be 0
+      if {$pid5 != 0 || $pid6 != 0} {
+          ts_log_severe "Setting JSV URL to NONE failed"
+      }
+      # all 4 pids have to be different
+      if {$pid1 == $pid3 || $pid1 == $pid4 ||
+          $pid2 == $pid3 || $pid2 == $pid4 ||
+          $pid1 == $pid2 || $pid3 == $pid4} {
+          ts_log_severe "At least one of the JSV scripts was not restarted after modify"
+      }
+   }
+}
+
+proc jsv_ge_restart_after_protocol_error {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will give us the pid of the JSV
+      # and the qmaster param will slow down
+      # the worker threads so that it is possible that each
+      # worker thread will be triggered by the TS
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsv_produce_protocol_error.sh"
+      set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
+      set_config global_conf
+
+      # submit all jobs in hold state
+      # and parse the JSV pid from the message
+      set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set message1 [start_sge_bin "qsub" "$submit_args" $ts_config(master_host) $CHECK_USER exit_state1]
+      set message2 [start_sge_bin "qsub" "$submit_args" $ts_config(master_host) $CHECK_USER exit_state2]
+      set pid1 0
+      set pid2 0
+      regexp "\"(\[0-9\]*)\"" $message1 match pid1
+      regexp "\"(\[0-9\]*)\"" $message2 match pid2
+
+      # submit again jobs in hold state
+      # and parse teh JSV pids again
+      set message3 [start_sge_bin "qsub" "$submit_args" $ts_config(master_host) $CHECK_USER exit_state3]
+      set message4 [start_sge_bin "qsub" "$submit_args" $ts_config(master_host) $CHECK_USER exit_state4]
+      set pid3 0
+      set pid4 0
+      regexp "\"(\[0-9\]*)\"" $message3 match pid3
+      regexp "\"(\[0-9\]*)\"" $message4 match pid4
+
+      # this sleep is extremely important this will
+      # give both worker threads the necessary time to continue
+      # if the sleep would be missing here then the next
+      # GDI operation below (configuration change) might
+      # fail due in testsuite timeout
+      sleep 5
+
+      # reset the configuration changes
+      set global_conf(jsv_url) "none"
+      set global_conf(qmaster_params) "none"
+      set_config global_conf
+
+      # check the pids and make sure that each pid is unique
+      if {$pid1 == 0 || $pid2 == 0 ||
+          $pid3 == 0 || $pid4 == 0} {
+          ts_log_severe "Did not receive one or more of the JSV scripts pids"
+      } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
+                $pid2 == $pid3 || $pid2 == $pid4 ||
+                $pid1 == $pid2 || $pid3 == $pid4} {
+          ts_log_severe "At least one of the JSV scripts was not restarted after protocol error"
+      }
+   }
+}
+
+proc jsv_ge_start_user {user jsv_url} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will give us the uid of the JSV
+      set expected_user $user
+      set expected_uid [get_uid $expected_user $ts_config(master_host)]
+      set global_conf(jsv_url) $jsv_url 
+      set_config global_conf
+
+      # submit all jobs in hold state
+      set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+
+      # submit jobs and store qstat -j output
+      set job_id1 [submit_job "$submit_args"]
+      set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
+
+      # kill both jsv scripts 
+      set uid1 0
+      regexp "JSV_UID=(\[0-9\]*)" $qstat_out1 match uid1
+
+      # reset the configuration changes
+      set global_conf(jsv_url) "none"
+      set_config global_conf
+
+      if {$uid1 != $expected_uid} {
+         ts_log_severe "JSV script was not started as correct user. Got uid $uid1 but expedted $expected_uid ($expected_user)"
+      }
+   }
+}
+
+proc jsv_ge_start_user_specified {} {
+   global ts_config
+   global ts_user_config
+   global jsv_base_path
+
+   # user didderent from admin user is used in JSV URL and this user should also be used as start user for the script
+   jsv_ge_start_user $ts_user_config(first_foreign_user) "script:$ts_user_config(first_foreign_user)@${jsv_base_path}/jsv_get_uid.sh"
+}
+   
+
+proc jsv_ge_start_user_unspecified {} {
+   global ts_config
+   global CHECK_USER
+   global jsv_base_path
+
+   # No user specified in JSV URL and therefore the admin used should be used as start user for the script
+   jsv_ge_start_user $CHECK_USER "script:${jsv_base_path}/jsv_get_uid.sh"
+}
+
+proc jsv_ge_start_user_admin_user {} {
+   global ts_config
+   global CHECK_USER
+   global jsv_base_path
+
+   # admin user is used in JSV URL and this should also be used as start user for the script
+   jsv_ge_start_user $CHECK_USER "script:${CHECK_USER}@${jsv_base_path}/jsv_get_uid.sh"
+}
+
+proc jsv_ge_do_not_block {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      # the JSV script will block the executing worker thread in master for a minute
+      set global_conf(jsv_url) "script:@${jsv_base_path}/jsv_sleep.sh" 
+      set_config global_conf
+
+      # submit a job. request will block until master detects that jsv is blocking. JSV will then be killed 
+      set qsub_out1 [start_sge_bin qsub "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3" $ts_config(master_host) $CHECK_USER exit_state 90]
+
+      # reset the configuration changes. submit another job. This should work correctly
+      # if this does not work correctly then the master is still blocked by JSV.
+      set global_conf(jsv_url) "none"
+      set_config global_conf
+      set qsub_out1 [start_sge_bin qsub "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3" $ts_config(master_host) $CHECK_USER exit_state 90]
+
+      # cleanup
+      delete_all_jobs
+      wait_for_end_of_all_jobs 60
+   }
+}
 
