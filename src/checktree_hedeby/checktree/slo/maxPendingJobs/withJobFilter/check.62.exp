@@ -117,17 +117,17 @@ proc with_job_filter_cleanup_level {} {
     global ge_adapter
     global service_names
 
+    # delete jobs first as active jobs on resource prohibit 
+    # resource movement to default service
+    delete_all_jobs
+    wait_for_end_of_all_jobs 60
+
     reset_default_slos "mod_config" $ge_adapter
     if {[move_resources_to_default_services] != 0} {
          reset_hedeby 1
     }
-    #enable queues of ge adapater service and delete all jobs in queues 
-    foreach host $service_names(execd_hosts,$ge_adapter) {
-      ts_log_fine "enabling queue on resource $host"
-      enable_queue [get_queue_instance all.q $host]
-    }
-    delete_all_jobs
-    wait_for_end_of_all_jobs 60
+    enable_queue {\\*}
+
     #reset saved active cluster configuration nr
     set_current_cluster_config_nr $with_job_filter_current_cluster_config
 }

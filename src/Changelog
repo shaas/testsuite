@@ -1,3 +1,10 @@
+RH-2008-12-10-0: Enhancem.:  o hedeby checktree checks after each test that
+                               no cluster has running jobs
+                             o the method check_hedeby_default_resources uses
+                               wait_for_resource_info to check the resources. This
+                               solves the problem with temporay static resources
+                 Review:     AF,TB
+
 EB-2008-12-10-0: Enhancemn.: - Added several tests for JSV
                  Review:     MD
 

@@ -1307,9 +1307,6 @@ proc get_all_spare_pool_resources {} {
 #*******************************************************************************
 proc get_all_default_hedeby_resources {} {
 
-   global hedeby_config
-   # figure out expected resources
-   
    # get all resources from the default services
    get_hedeby_default_services service_names
    set expected_resource_list {}
@@ -2839,105 +2836,67 @@ proc move_resources_to_default_services {} {
 #     util/hedeby_check_default_resources()
 #*******************************************************************************
 proc hedeby_check_default_resources {} {
-   global hedeby_config
-   global CHECK_OUTPUT 
-   global CHECK_USER
  
-   set ret [get_resource_info "" "" res_info reported_props]
-   if {$ret != 0} {
-      ts_log_severe "get_resource_info() returned $ret"
+
+   # if the executor of a tests has been shutdown 
+   # it can happen that some resources are for a short
+   # time static. We use wait_for_resource_info_opt to
+   # await that the resources have the correct state
+
+   get_hedeby_default_services service_names
+
+   foreach service $service_names(services) {
+      # All moveable resource must be assigned to the service
+      # they must be non static
+      foreach res $service_names(moveable_execds,$service) {
+         set ri($res,service) "$service" 
+         set ri($res,flags) "{}"
+         set ri($res,state) "ASSIGNED"
+      }
+      # The resource on master host must be static
+      set res $service_names(master_host,$service)
+      set ri($res,service) "$service" 
+      set ri($res,flags) "S"
+      set ri($res,state) "ASSIGNED"
+   }
+
+   # All spare_pool resource must be assigned to spare_pool
+   foreach res [get_all_spare_pool_resources] {
+      set ri($res,service) "spare_pool" 
+      set ri($res,flags) "{}"
+      set ri($res,state) "ASSIGNED"
+   } 
+
+   ts_log_fine "Waiting that all resources reach their default states .."
+
+   set opt(timeout)    60
+   set opt(res_prop)   reported_props
+   set opt(res_list)   res_list
+   set opt(res_list_not_uniq) res_list_not_uniq
+   wait_for_resource_info_opt ri opt
+
+   if {[info exists res_list_not_uniq] && [llength $res_list_not_uniq] > 0} {
+      ts_log_severe "got ambiguous resources: $res_list_not_uniq"
       return 1
    }
 
-   if {[llength $res_list_not_uniq] > 0} {
-      ts_log_severe "got not ambiguous resources"
-      return 1
-   }
-
-   set ge_hosts [get_hedeby_default_services service_names]
-
-   # figure out expected resources
-   set error_text ""
+   ts_log_fine "Checking for unexpected resources ..."
    set expected_resource_list [get_all_default_hedeby_resources]
+   set unexpected_resources {}
    foreach res $res_list {
-      ts_log_finer "examing reported resource \"$res\""
-      ts_log_finest "resources to find: $expected_resource_list"
-      set pos [lsearch -exact $expected_resource_list $res]
-      if { $pos >= 0} {
-         ts_log_finer "found resource \"$res\" in expected resource list"
-         set expected_resource_list [lreplace $expected_resource_list $pos $pos]
-      } else {
-         append error_text "Unexpected resource \"$res\" reported by hedeby!\n"
+      if {[lsearch -exact $expected_resource_list $res] < 0} {
+         lappend unexpected_resources $res
       }
    }
-   foreach res $expected_resource_list {
-      append error_text "Expected resource \"$res\" NOT reported by hedeby!\n"
-   }
-   if { $error_text != "" } {
-      ts_log_severe $error_text
+
+   if {[llength $unexpected_resources] != 0} {
+      ts_log_severe "The following resource(s) are not expected in the default setup\n$unexpected_resources"
       return 1
-   }
-
-   set error_text ""
-   foreach res $res_list {
-      ts_log_fine "checking resource \"$res\" ..."
-     
-      # check if we have more than one entry in lists
-      if {[llength $res_info($res,type)] != 1} {
-         append error_text "resource \"$res\" flag list should contain 1 elem, but it has [llength $res_info($res,type)] (\"$res_info($res,type)\")\n"
-      }
-
-      
-      # service
-      set service [lindex $res_info($res,service) 0]
-      ts_log_finer "   resource assigned to service \"$res_info($res,service)\""
-      if {[info exists service_names(service,$res)]} {
-         if { $service != $service_names(service,$res) } {
-            append error_text "resource \"$res\" should be assigned to \"$service_names(service,$res)\" but is assigned to \"$service\"\n"
-         }
-      } else {
-         # it might be an execd or spare_pool
-         if {[info exists service_names(execd_hosts,$service)]} {
-            # must be execd
-            set execd_list $service_names(execd_hosts,$service)
-            if {[lsearch -exact $execd_list $res] < 0} {
-               append error_text "wrong assignment of resource \"$res\" to service \"$service\"\n"
-            } else {
-               ts_log_finer "   found resource \"$res\" in execd list of service \"$service\": $execd_list"
-            }
-         } else {
-            # must be spare_pool
-            if { $service != "spare_pool" } {
-               append error_text "resource \"$res\" should be assigned to \"spare_pool\" but is assigned to \"$service\"\n"
-            }
-         }
-      }
-
-      # state ASSIGNED
-      set state [lindex $res_info($res,state) 0]
-      ts_log_finer "   resource has state \"$state\""
-      if {$state != "ASSIGNED"} {
-         append error_text "resource \"$res\" should have state \"ASSIGNED\" but it's state is \"$res_info($res,state)\"\n"
-      }
-
-      # flags "" or "S" (static) for services
-      set flags [lindex $res_info($res,flags) 0]
-      ts_log_finer "   resource has flags \"$flags\""
-      if {[lsearch -exact $ge_hosts $res] >= 0} {
-         # this is ge master host assume "S" for static flag
-         if {$flags != "S"} {
-            append error_text "resource \"$res\" should have flags \"S\", but it's flags are \"$res_info($res,flags)\"\n"
-         }
-      } else {
-         # this is regular resource expect no flag
-         if {$flags != ""} {
-            append error_text "resource \"$res\" should have empty flags, but it's flags are \"$res_info($res,flags)\"\n"
-         }
-      }
    }
 
    # now check resource properties
-   foreach res [get_all_default_hedeby_resources] {
+   set error_text ""
+   foreach res $expected_resource_list {
       ts_log_finer "checking resource properties of resource $res:"
       set osArch [resolve_arch $res]
       get_hedeby_ge_complex_mapping $osArch res_prop
@@ -2946,13 +2905,13 @@ proc hedeby_check_default_resources {} {
          ts_log_finer "   $name=$res_prop($name)"
          if {[info exists reported_props($res,$name)]} {
             if { $reported_props($res,$name) != $res_prop($name) } {
-               append error_text "resource \"$res\" reported property \"$name\" with\n"
-               append error_text "value \"$reported_props($res,$name)\", should be \"$res_prop($name)\"\n"
+               append error_text "resource '$res' reported property '$name' with\n"
+               append error_text "value '$reported_props($res,$name)', should be '$res_prop($name)'\n"
             } else {
-               ts_log_finer "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
+               ts_log_finer "resource '$res' has property '$name' set to '$res_prop($name)' - fine!"
             }
          } else {
-            append error_text "resource \"$res\" property \"$name\" is missing!\n"
+            append error_text "resource '$res' property '$name' is missing!\n"
          }
       }
    }
@@ -2963,9 +2922,6 @@ proc hedeby_check_default_resources {} {
    }
    return 0
 }
-
-
-
 
 #****** util/parse_table_output() **********************************************
 #  NAME
@@ -8219,8 +8175,9 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
    set_current_cluster_config_nr $sCluster
    set error_text ""
 
-   # delete sleeper job, do not wait for job end!
-   set result [delete_job $sleeper_job_id]
+   # delete sleeper job and wait for job end!
+   set result [delete_job $sleeper_job_id 1]
+
    set_current_cluster_config_nr $oldCluster
 
    if { $result != 0} {

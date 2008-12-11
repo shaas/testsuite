@@ -47,8 +47,8 @@ set check_init_level_procedure "unassigning_resource_reset_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_function "unassigning_resource_reset_setup"
-set check_cleanup_function "unassigning_resource_reset_cleanup"
+set check_setup_level_function "unassigning_resource_reset_setup"
+set check_cleanup_level_function "unassigning_resource_reset_cleanup"
 
 lappend check_functions "unassigning_resource_reset_check"
 

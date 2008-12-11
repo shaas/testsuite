@@ -158,7 +158,16 @@ proc si_setup {} {
 #*******************************************************************************
 proc si_cleanup {} {
    upvar #0 hedeby_si_ctx this
+
+   #enable all queues of all ge adapater service and delete all jobs in queues 
+   foreach adapter $this(adapters) {
+      set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+   }
    
+   set_current_cluster_config_nr $this(org_cluster_config_nr)
+
    #cleanup slos
    foreach adapter $this(adapters) {
       if {[reset_default_slos "mod_config" $adapter] != 0} {
@@ -179,12 +188,10 @@ proc si_cleanup {} {
       }
    }
 
-   #enable all queues of all ge adapater service and delete all jobs in queues 
+   #enable all queues of all ge adapater service
    foreach adapter $this(adapters) {
       set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
       enable_queue {\\*}
-      delete_all_jobs
-      wait_for_end_of_all_jobs
    }
    
    #reset saved active cluster configuration nr

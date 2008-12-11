@@ -162,35 +162,38 @@ proc hedeby_shutdown { }  {
 #  RESULT
 #     0 on success, 1 on error
 #*******************************************************************************
-global hedeby_test_run_start_time
-global hedeby_test_run_end_time
-set hedeby_test_run_start_time 0
-set hedeby_test_run_end_time 0
 proc hedeby_test_run_level_check { is_starting was_error } {
-   global env
-   global check_name hedeby_config
-   global hedeby_test_run_last_check_name
-   global hedeby_test_run_start_time
-   global hedeby_test_run_end_time
+   global env check_name hedeby_config
+   upvar #0 hedeby_test_run_start_time_ctx this
+
    if {$check_name == "hedeby_install"} {
       ts_log_fine "skip hedeby_install runlevel checking"
       return 0
    }
 
+   ts_log_fine "performing run level check ..."
+
    if {$is_starting != 0} {
-      # save test start time
-      set hedeby_test_run_start_time [timestamp]
-      # also report messages 1 minute before test start
-      incr hedeby_test_run_start_time -61   ;# This is a buffer for time difference between hosts TS allows 1 minute
+      # save test start time (consider possible time difference between hosts)
+      set this(start_time) [expr [timestamp] - 61]
    } else {
-      # set test end time and check if error occured
-      set hedeby_test_run_end_time [timestamp]
-      # also report messages 1 minute after test start
-      incr hedeby_test_run_end_time 61  ;# This is a buffer for time difference between hosts TS allows 1 minute
+      # This code is called after a test has finished
+      if {![info exists this(start_time)]} {
+         set    msg "Hit severe bug in testsuite framework!!!!\n"
+         append msg "=========================================\n"
+         append msg "\n"
+         append msg "It seems that the hedeby_test_run_level_check has not\n"
+         append msg "been called before executing test '$check_name', because\n"
+         append msg "the start_time is not set in the global variable 'hedeby_test_run_start_time_ctx'"
+         ts_log_severe msg
+         return 1
+      }
+      # set test end time (consider possible time difference between hosts)
+      set end_time [expr [timestamp] + 61]
       if {$was_error != 0} {
          ts_log_fine "--> test \"$check_name\" failed with error: $was_error"
-         set time_start_string [clock format $hedeby_test_run_start_time -format "%Y-%m-%d %H:%M:%S"]
-         set time_end_string [clock format $hedeby_test_run_end_time -format "%Y-%m-%d %H:%M:%S"]
+         set time_start_string [clock format $this(start_time) -format "%Y-%m-%d %H:%M:%S"]
+         set time_end_string [clock format $end_time -format "%Y-%m-%d %H:%M:%S"]
 
          ts_log_fine "--> creating merged hedeby log file for time range \"$time_start_string\" - \"$time_end_string\"" 
          if {[info exists env(TS_SKIP_COLLECT_LOG)] && $env(TS_SKIP_COLLECT_LOG) == 1} {
@@ -198,13 +201,37 @@ proc hedeby_test_run_level_check { is_starting was_error } {
             append msg "  Set environment variable TS_SKIP_COLLECT_LOG to zero (or delete it) to enable collection of log file information."
             ts_log_info $msg
          } else {
-            set path [get_all_log_files "root" "$hedeby_config(hedeby_product_root)/TS_LOG_FILES/" "" $hedeby_test_run_start_time $hedeby_test_run_end_time]
+            set path [get_all_log_files "root" "$hedeby_config(hedeby_product_root)/TS_LOG_FILES/" "" $this(start_time) $end_time]
             ts_log_info "tared logging files of test \"$check_name\" stored in archive:\n$path\n"
          }
       }
+      # Check that the test did cleanup all jobs from all clusters
+      ts_log_fine "Check that the test removed all jobs from all clusters" 
+      set ccnr [get_current_cluster_config_nr]
+
+      get_hedeby_default_services service_names
+
+      foreach service $service_names(services) {
+           set_current_cluster_config_nr $service_names(ts_cluster_nr,$service)
+           if {[get_job_count] != 0} {
+              get_current_cluster_config_array config
+              set msg "Test '$check_name' did not cleanup submitted jobs in cluster '$config(cluster_name)'\n"
+              append msg "\n"
+              append msg [start_sge_bin "qstat" "-f"]
+              append msg "\n"
+              ts_log_severe $msg
+           } 
+      }
+      set_current_cluster_config_nr $ccnr 
    }
 
-   ts_log_fine "performing run level check ..."
+
+   ts_log_fine "checking services ..."
+   # check correct startup of services
+   set ret_val [hedeby_check_default_services]
+   if { $ret_val != 0} {
+      return 1
+   }
 
    # check correct startup of resources
    ts_log_fine "checking resources ..."
@@ -213,12 +240,6 @@ proc hedeby_test_run_level_check { is_starting was_error } {
       return 1
    }
  
-   ts_log_fine "checking resources ..."
-   # check correct startup of services
-   set ret_val [hedeby_check_default_services]
-   if { $ret_val != 0} {
-      return 1
-   }
    return 0
 }
 
