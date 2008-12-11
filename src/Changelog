@@ -1,6 +1,6 @@
 EB-2008-12-11-0: Bugfix:     - fixed failing jsv_ge test which was sometimes
                              not able to find the tclsh
-                 Review:     TBD (CR)
+                 Review:     CR
 
 JG-2008-12-11-0: Enhancem.:  added test scenario for IZ 2393, check_function
                              tight_integration_massive_nfs_tmpdir in 
