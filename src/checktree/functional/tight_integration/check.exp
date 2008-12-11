@@ -73,6 +73,7 @@ lappend check_functions "tight_integration_slave_killed"
 lappend check_functions "tight_integration_iz_575";# wallclock limit for tasks
 lappend check_functions "tight_integration_iz_1916"
 lappend check_functions "tight_integration_massive"
+lappend check_functions "tight_integration_massive_nfs_tmpdir"
 
 # constants to be used by the tight integration test
 global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS 
@@ -589,7 +590,7 @@ proc tight_integration_iz_1916 {} {
 
    # reset global config
    set_config org_global_conf
-}   
+}
 
 # check if tasks are killed when they hit a wallclock limit
 proc tight_integration_iz_575 {} {
@@ -739,7 +740,6 @@ proc tight_integration_master_killed {} {
    # Check for new warning/error messages and write out.
    #
    tight_integration_messages_check master_killed
-
 }
 
 # slave task killed -> job has to be deleted
@@ -878,6 +878,68 @@ proc tight_integration_massive {} {
 
    wait_for_jobend $jobid tightm 300 0 1
    tight_integration_acct $jobid $total_slots
+}
+
+proc tight_integration_massive_nfs_tmpdir {} {
+   global ts_config
+   global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
+   global submit_command tight_masterq tight_master_node
+   ts_log_fine "tight_integration: massive parallel test with tmpdir on NFS"
+
+   # initialize checking of messages files
+   tight_integration_init_messages_check
+
+   # count the number of slots in the cluster to check if tests can be run
+   set tmpdir "$ts_config(product_root)/tight_tmpdir"
+   set total_slots 0
+   foreach host $ts_config(execd_nodes) {
+      set qinstance [get_queue_instance "tight.q" $host]
+      get_queue  $qinstance queue_conf
+      incr total_slots $queue_conf(slots)
+      unset queue_conf
+
+      # setup a tmpdir on NFS - an individual one per host
+      set host_tmpdir "$tmpdir/$host"
+      remote_file_mkdir $host $host_tmpdir
+      mqattr tmpdir $host_tmpdir $qinstance
+   }
+
+   ts_log_fine "running parallel job with $total_slots slots"
+
+   set id [submit_with_method $submit_command "-pe tight $total_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_MASSIVE_DURATION" $tight_master_node]
+
+   set started 0
+   set finished 0
+   set jobid 0
+   set job_finished 0
+   
+   while {$job_finished == 0} {
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
+      set job_finished [tight_integration_job_finished $job_state]
+   }
+
+   if {$started != $total_slots} {
+      ts_log_severe "only $started tasks out of $total_slots were started successfully"
+   }
+
+   if {$finished != $total_slots} {
+      ts_log_severe "only $finished tasks out of $total_slots ran through successfully"
+   }
+   set sp_id [lindex $id 1]
+   close_spawn_process $id
+
+   wait_for_jobend $jobid tightm 300 0 1
+   tight_integration_acct $jobid $total_slots
+
+   # reset queue settings
+   foreach host $ts_config(execd_nodes) {
+      set qinstance [get_queue_instance "tight.q" $host]
+      start_sge_bin "qconf" "-purge queue tmpdir $qinstance"
+   }
+   delete_directory $tmpdir
+
+   # now check if master or execd's reported any problems
+   tight_integration_messages_check massive_nfs_tmpdir
 }
 
 proc tight_integration_acct {job_id num_tasks} {
