@@ -468,14 +468,14 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
       -i $sp_id timeout {  
          set error 1
-         ts_log_warning "timeout - can't start vi"
+         ts_log_warning "timeout - can't start vi (1)"
       }
       -i $sp_id  "_start_mark_*\n" {
          ts_log_finest "starting now!"
       }
    }
 
-   set timeout 10
+   set timeout 30
    expect {
       -i $sp_id full_buffer {
          set error 1
@@ -498,7 +498,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
       -i $sp_id timeout {  
          set error 1
-         ts_log_warning "timeout - can't start vi"
+         ts_log_warning "timeout - can't start vi (2)"
       }
       -i $sp_id -- {[A-Za-z]*} {
          ts_log_finest "vi should run now ..."
@@ -905,7 +905,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    
    set BUFF_OVERFLOW "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
    set EOF_MSG "unexpected end of file"
-   set TMOUT_START "timeout - can't start vi"
+   set TMOUT_START "timeout - can't start vi (3)"
 
    set timeout 10
    expect {
