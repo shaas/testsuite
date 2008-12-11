@@ -87,6 +87,21 @@ proc file_touch {name} {
    file mtime $name [clock seconds]
 }
 
+proc jsv_script_get_script_file {shell_basename extension} {
+   global ts_config
+   global CHECK_USER
+
+   set jsv_base_path "$ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_ge"
+   set tmp_file [get_tmp_file_name $ts_config(master_host) "jsv_script" $extension]
+   set shell_path [get_binary_path $ts_config(master_host) $shell_basename]
+   read_file $jsv_base_path/jsv_test_modify.$extension script_file_contend
+   set script_file_contend(1) "#!$shell_path"
+   save_file $tmp_file script_file_contend
+   exec "chmod" "0755" $tmp_file
+
+   return $tmp_file
+}
+
 proc jsv_ge_init_level {} {
    global CHECK_ACT_LEVEL
    global ts_config
@@ -113,7 +128,6 @@ proc jsv_ge_setup {} {
    global jsv_org_global_conf
    global jsv_base_path
    global jsv_enabled
-
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
@@ -210,7 +224,6 @@ proc jsv_ge_cleanup {} {
 proc jsv_ge_parsing_in_client_or_master {} {
    global CHECK_ACT_LEVEL
    global ts_config
-   global jsv_base_path
    global jsv_enabled
 
    # if jsv is not available return
@@ -220,9 +233,10 @@ proc jsv_ge_parsing_in_client_or_master {} {
    }     
 
    if {$CHECK_ACT_LEVEL == 0} {
-      append submit_args "-jsv ${jsv_base_path}/jsv_test_modify.tcl "
-      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
-      set job_id [submit_job "$submit_args"]
+      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      append submit_args "-jsv ${jsv_script}"
+      append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args" 1 60 $ts_config(master_host)]
 
       wait_for_job_end $job_id 20
    }
@@ -231,12 +245,13 @@ proc jsv_ge_parsing_in_client_or_master {} {
 proc jsv_ge_parsing_jsv_url_invalid_type {} {
    global CHECK_ACT_LEVEL
    global ts_config
-   global jsv_base_path
+   global jsv_script
 
    if {$CHECK_ACT_LEVEL == 0} {
       # invalid type
-      set submit_args "-jsv troete:${jsv_base_path}/jsv_test_modify.tcl "
-      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set submit_args "-jsv troete:${jsv_script}"
+      append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 0]
       wait_for_job_end $job_id 20
    }
@@ -245,12 +260,12 @@ proc jsv_ge_parsing_jsv_url_invalid_type {} {
 proc jsv_ge_parsing_jsv_url_valid {} {
    global CHECK_ACT_LEVEL
    global ts_config
-   global jsv_base_path
 
    if {$CHECK_ACT_LEVEL == 0} {
       # valid type: script
-      set submit_args "-jsv script:${jsv_base_path}/jsv_test_modify.tcl "
-      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set submit_args "-jsv script:${jsv_script}"
+      append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 1]
       wait_for_job_end $job_id 20
    }
@@ -259,12 +274,12 @@ proc jsv_ge_parsing_jsv_url_valid {} {
 proc jsv_ge_parsing_jsv_url_user_in_client {} {
    global CHECK_ACT_LEVEL
    global ts_config
-   global jsv_base_path
 
    if {$CHECK_ACT_LEVEL == 0} {
       # user specification not allowed in client url 
-      set submit_args "-jsv script:troete@${jsv_base_path}/jsv_test_modify.tcl "
-      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set submit_args "-jsv script:troete@${jsv_script}"
+      append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 0]
       wait_for_job_end $job_id 20
    }
@@ -273,12 +288,11 @@ proc jsv_ge_parsing_jsv_url_user_in_client {} {
 proc jsv_ge_parsing_jsv_url_invalid_path {} {
    global CHECK_ACT_LEVEL
    global ts_config
-   global jsv_base_path
 
    if {$CHECK_ACT_LEVEL == 0} {
       # invalid path
-      set submit_args "-jsv script:troete "
-      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set submit_args "-jsv script:troete"
+      append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" "0"]
       wait_for_job_end $job_id 20
    }
@@ -346,8 +360,7 @@ proc jsv_ge_restart_on_modify {} {
           $pid2 == 0 || $pid2 == 0} {
           ts_log_severe "Did not receive one or more of the JSV scripts pids"
       } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
-                $pid2 == $pid3 || $pid2 == $pid4 ||
-                $pid1 == $pid2 || $pid3 == $pid4} {
+                $pid2 == $pid3 || $pid2 == $pid4} {
           ts_log_severe "At least one of the JSV scripts was not restarted after modify"
       }
    }
