@@ -867,11 +867,11 @@ proc tight_integration_massive {} {
    }
 
    if {$started != $total_slots} {
-      ts_log_severe "only $started tasks out of $total_slots were started successfully"
+      ts_log_severe "job $jobid: only $started tasks out of $total_slots were started successfully"
    }
 
    if {$finished != $total_slots} {
-      ts_log_severe "only $finished tasks out of $total_slots ran through successfully"
+      ts_log_severe "job $jobid: only $finished tasks out of $total_slots ran through successfully"
    }
    set sp_id [lindex $id 1]
    close_spawn_process $id
@@ -919,11 +919,11 @@ proc tight_integration_massive_nfs_tmpdir {} {
    }
 
    if {$started != $total_slots} {
-      ts_log_severe "only $started tasks out of $total_slots were started successfully"
+      ts_log_severe "job $jobid: only $started tasks out of $total_slots were started successfully"
    }
 
    if {$finished != $total_slots} {
-      ts_log_severe "only $finished tasks out of $total_slots ran through successfully"
+      ts_log_severe "job $jobid: only $finished tasks out of $total_slots ran through successfully"
    }
    set sp_id [lindex $id 1]
    close_spawn_process $id
@@ -957,12 +957,12 @@ proc tight_integration_acct {job_id num_tasks} {
    set num_acct [llength $qacct_info(exit_status)]
    if {$tight_integration_accounting_summary} {
       if {$num_acct != 1} {
-         ts_log_severe "expected only one accounting record with accounting_summary enabled, but got $num_qacct"
+         ts_log_severe "job $job_id: expected only one accounting record with accounting_summary enabled, but got $num_qacct"
       }
    } else { 
       set expected [expr $num_tasks + 1]
       if {$num_acct != $expected} {
-         ts_log_severe "expected $expected accounting records, but got $num_acct"
+         ts_log_severe "job $job_id: expected $expected accounting records, but got $num_acct"
       }
    }
 
@@ -979,7 +979,7 @@ proc tight_integration_acct {job_id num_tasks} {
          }
       }
       if {[expr $max - $min] > 300} {
-         ts_log_severe "tightly integrated job and tasks were not started within 5 minutes, or tasks accounting records do not contain correct submission time:\n$qacct_info(qsub_time)"
+         ts_log_severe "job $job_id: tightly integrated job and tasks were not started within 5 minutes, or tasks accounting records do not contain correct submission time:\n$qacct_info(qsub_time)"
       }
    }
 }
