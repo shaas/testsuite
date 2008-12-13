@@ -481,11 +481,12 @@ proc min_resource_check {} {
       }
 
       # spare_pool slo should be available every run ...
-      if {$res_req_info(spare_pool,PermanentRequestSLO,urgency) != 1} {
-         ts_log_severe "PermanentRequestSLO of spare_pool should have urgency=1, but is set to $res_req_info(spare_pool,PermanentRequestSLO,urgency)!"
+      if {![info exists res_req_info(spare_pool,PermanentRequestSLO,urgency)]} {
+         append error_text "PermanentRequestSLO of spare_pool should have urgency=1, but I found not such resource request!\n"
+      } elseif {$res_req_info(spare_pool,PermanentRequestSLO,urgency) != 1} {
+         append error_text "PermanentRequestSLO of spare_pool should have urgency=1, but is set to $res_req_info(spare_pool,PermanentRequestSLO,urgency)!\n"
          return
       }
-
 
       ####################################################################################################
       # check services slo reports (sdmadm show_slo)

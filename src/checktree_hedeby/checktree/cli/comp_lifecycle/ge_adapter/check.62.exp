@@ -120,35 +120,18 @@ proc ge_adapter_restart_test_check {} {
       set ge_adapters_stopped_expect($service_names(service,$host),$host,state) "STOPPED"
    }
 
-   set resources [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr" prg_exit_state ""  ]
- 
-   # get start time of test on testsuite host and remove 1 minute to be sure
-   # not to loose an event because of time differences between testsuite host
-   # and the hedeby admin host
-   
-   set unix_time_stamp [clock seconds]
-   incr unix_time_stamp -60
-   set time [clock format $unix_time_stamp -format {%H:%M}]
-
-   # Here we check if there are already some old events reported which must be
-   # taken into account
-   foreach host $ge_qmaster_hosts {
-      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
-      set start_shutdown_nr($service_names(service,$host)) $table(table_lines)
-      if {$table(table_lines)} {
-         ts_log_fine "found SERVICE_SHUTDOWN event for service $service_names(service,$host): $table(table_lines) times at test start"
-      }
-      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
-      set start_running_nr($service_names(service,$host)) $table(table_lines)
-      if {$table(table_lines)} {
-         ts_log_fine "found SERVICE_RUNNING event for service $service_names(service,$host): $table(table_lines) times at test start"
-      }
-   }
+   set resources [sdmadm_command_opt "sr"]
 
    #shutdown and startup of the ge_adapters 
    for {set i 0} {$i < $tries} {incr i} {
+
+      # get start time of test on testsuite host and remove 1 minute to be sure
+      # not to loose an event because of time differences between testsuite host
+      # and the hedeby admin host
+      set start_time [expr [clock seconds] - 60]
+
       foreach host $ge_qmaster_hosts {
-         sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdc -c $service_names(service,$host) -h $host" prg_exit_state "" 
+         sdmadm_command_opt "sdc -c $service_names(service,$host) -h $host"
       }
       
       # check if ge_adapter components are shutdown
@@ -158,9 +141,8 @@ proc ge_adapter_restart_test_check {} {
       }
       
       foreach host $ge_qmaster_hosts {
-          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suc -c $service_names(service,$host) -h $host" prg_exit_state "" 
-          set ret $prg_exit_state
-          if {$ret != 0} {
+          sdmadm_command_opt "suc -c $service_names(service,$host) -h $host"
+          if {$prg_exit_state != 0} {
             append error_text "The ge_adapter components start up was not successful.\n"
           }
       }
@@ -172,7 +154,7 @@ proc ge_adapter_restart_test_check {} {
       }
 
       #check if we have the the same resources on board
-      set new_resources [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr" prg_exit_state ""  ]
+      set new_resources [sdmadm_command_opt "sr"]
       if {$resources != $new_resources} {
         append error_text "The resource list for ge_adapters is different than expected.\n"
       }
@@ -180,22 +162,31 @@ proc ge_adapter_restart_test_check {} {
       if {$error_text != ""} {
          break
       }
-   }
 
-   # Now check the nr of events
-   foreach host $ge_qmaster_hosts {
-      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
-      set end_shutdown_nr($service_names(service,$host)) $table(table_lines)
-      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
-      set end_running_nr($service_names(service,$host)) $table(table_lines)
+      foreach host $ge_qmaster_hosts {
 
-      set new_event_logs [expr ( $end_shutdown_nr($service_names(service,$host)) - $start_shutdown_nr($service_names(service,$host)) )]
-      if {$new_event_logs != $tries} {
-         append error_text "Expected $tries SERVICE_SHUTDOWN events for service $service_names(service,$host), but got $new_event_logs"
+         ts_log_heading "Searching in history for all service events of service '$service_names(service,$host)' ..." 
+
+         set hist(0,type)    "SERVICE_GOING_DOWN"
+         set hist(0,service) $service_names(service,$host)
+         set hist(1,type)    "SERVICE_UKNOWN"
+         set hist(1,service) $service_names(service,$host) 
+         set hist(2,type)    "SERVICE_STARTING"
+         set hist(2,service) $service_names(service,$host) 
+         set hist(3,type)    "SERVICE_RUNNING"
+         set hist(3,service) $service_names(service,$host) 
+         set hist(count) 4
+         set err_hist(count) 0
+
+         set res [wait_for_notification $start_time hist err_hist 60]
+         unset hist err_hist
+     
+         if {$res != 0} {
+            append error_text "Its seems that we did not get all notifications for service '$service_names(service,$host)' running in '$host'\n"
+         }
       }
-      set new_event_logs [expr ( $end_running_nr($service_names(service,$host)) - $start_running_nr($service_names(service,$host)) )]
-      if {$new_event_logs != $tries} {
-         append error_text "Expected $tries SERVICE_RUNNING events for service $service_names(service,$host), but got $new_event_logs"
+      if {$error_text != ""} {
+         break
       }
    }
 

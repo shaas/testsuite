@@ -5065,7 +5065,7 @@ proc produce_ambiguous_resource { ares asrv } {
 
    # wait for shutdown of service (resource must be missing)
    set exp_service_info($aservice,cstate) "STARTED"
-   set exp_service_info($aservice,sstate) "STOPPED"
+   set exp_service_info($aservice,sstate) "UNKNOWN"
    if { [wait_for_service_info exp_service_info 120] != 0 } {
       set aresource ""
       set aservice ""

@@ -149,7 +149,7 @@ proc ge_stop_and_free_resources_cleanup {} {
 #
 #     actions:
 #        Step 1: Stop all ge services with the freeResource flag
-#        Step 2: Wait for all ge services that state is STOPPED
+#        Step 2: Wait for all ge services that state is UNKNOWN
 #        Step 3: Check that all nonstatic resource are moved to spare_pool
 #        Step 4: Start all ge services
 #        Step 5: Check that the static resources are assigned to the ge services
@@ -209,12 +209,12 @@ proc ge_stop_and_free_resources_ge_service_check {} {
 
 
    # ---------------------------------------------------------------------------
-   # Step 2: Wait that all services have service state STOPPED
+   # Step 2: Wait that all services have service state UNKNOWN
    # ---------------------------------------------------------------------------
    foreach service $service_names(services) {
-      ts_log_fine "Expecting service $service cstate=STARTED, sstate=STOPPED"
+      ts_log_fine "Expecting service $service cstate=STARTED, sstate=UNKNOWN"
       set exp_service_info($service,cstate) "STARTED"
-      set exp_service_info($service,sstate) "STOPPED"
+      set exp_service_info($service,sstate) "UNKNOWN"
    }
    set retval [wait_for_service_info exp_service_info 120 0 service_state_error]
    if { $retval != 0} {

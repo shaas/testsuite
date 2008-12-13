@@ -1,3 +1,9 @@
+RH-2008-12-13-0: Bugfix:     Hedeby: Fix of issue 595 required a couple of
+                             adjustments in testsuite.
+                 Review:     MB (I think Michal did the review, however I am not 100%
+                             sure, because I found no comments regarding TS in the review
+                             paper)
+
 JG-2008-12-12-0: Enhancem.:  improved error messages in tight_integration test
                  Review:     CR
 

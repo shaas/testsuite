@@ -213,7 +213,7 @@ proc hedeby_issue585_check {} {
    }
 
    set si($this(service),cstate) "STARTED"
-   set si($this(service),sstate) "STOPPED"
+   set si($this(service),sstate) "UNKNOWN"
    if {[wait_for_service_info si] != 0} {
       set    msg "After setting the static flag of resource '$this(resource)'\n"
       append msg "the owning service '$this(service)' could not be stopped\n"
@@ -221,7 +221,7 @@ proc hedeby_issue585_check {} {
       ts_log_severe $msg
       return
    }
-   ts_log_fine "Service '$this(service)' is now in state STOPPED"
+   ts_log_fine "Service '$this(service)' is now in state UNKNOWN"
 
    # ------------------------------------------------------------------ 
    ts_log_heading "Step 3: Startup the owning service"

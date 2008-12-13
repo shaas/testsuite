@@ -224,7 +224,7 @@ proc executor_reload_check {} {
       if { $output == "0" } {
          set error_text "It seems that settings keepFiles flag to true for executor on host $executor_reload_host has no effect\n"
          append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
-         ts_log_severe $error_test
+         ts_log_severe $error_text
       }
    }
    
@@ -255,7 +255,7 @@ proc executor_reload_check {} {
       if { $output != "0" } {
          set error_text "It seems that settings keepFiles flag to false for executor on host $executor_reload_host has no effect\n"
          append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
-         ts_log_severe $error_test
+         ts_log_severe $error_text
       }
    }
    

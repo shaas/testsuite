@@ -221,7 +221,7 @@ proc hedeby_issue554_check {} {
            return
        }
        set si($service,cstate) "STARTED"
-       set si($service,sstate) "STOPPED"
+       set si($service,sstate) "UNKNOWN"
    }
    # do the same for spare pool service
    set output [sdmadm_command_opt "sds -s spare_pool -fr"]

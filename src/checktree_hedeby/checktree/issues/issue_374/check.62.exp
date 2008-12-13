@@ -164,19 +164,40 @@ proc hedeby_issue_374_check {} {
    lappend services "spare_pool"
 
    foreach service $services {
+
       # step 1
       ts_log_heading "Testing service '$service' ..."
       ts_log_fine "Removing resource \"$this(res)\" ..."
+
+      set remove_time [get_remote_time $this(host)]
+
       sdmadm_command_opt "rr -r $this(res)"
-      wait_for_resource_removal $this(res)
+
+
+      ts_log_fine "Wait until resource '$this(res)' has been removed ..."
+      # We can not be sure that the resource has been removed from
+      # RP even if 'sdmadm sr' does not longer displays it
+      # => wait until report has received the RESOURCE_REMOVED event
+      #    It does also not guarantee that RP does not longer know the
+      #    resource, however we have a higher chances the it happened 
+      set hist(0,resource) $this(res)
+      set hist(0,type)     "RESOURCE_REMOVED"
+      set hist(count) 1
+      set err_hist(count) 0 
+
+      wait_for_notification $remove_time hist err_hist 60
+
+      unset hist
+      unset err_hist
 
       # step 2
-      ts_log_fine "Shutting down rp_vm on host \"$this(host)\" ..."
-      sdmadm_command_opt "sdj -j rp_vm -h $this(host)"
-
-      # step 3
       read_hedeby_jvm_pid_info pid_info $this(host) $this(user) "rp_vm"
       set pid $pid_info(pid)
+
+      # step 3
+      ts_log_heading "Shutting down rp_vm on host \"$this(host)\" (pid=$pid)..."
+      sdmadm_command_opt "sdj -j rp_vm -h $this(host)"
+
       set my_timeout [timestamp]
       incr my_timeout 60
       while { 1 } {
@@ -193,15 +214,23 @@ proc hedeby_issue_374_check {} {
       }
       
       # step 4
-      ts_log_fine "Startup rp_vm on host \"$this(host)\" ..."
+      ts_log_heading "Startup rp_vm on host \"$this(host)\" ..."
       sdmadm_command_opt "suj -j rp_vm"
 
       # ... wait until RP is STARTED
       set exp_comp_info(resource_provider,$this(host),state) "STARTED"
       wait_for_component_info exp_comp_info
 
-      ts_log_fine "Adding resource \"$this(res)\" to service '$service' ..."
+      ts_log_heading "Adding resource \"$this(res)\" to service '$service' ..."
       sdmadm_command_opt "ar -r $this(res) -s $service"
+      if { $prg_exit_state != 0 } {
+         set    msg "It seems that we ran into issue 374 again!!!!\n"
+         append msg "=============================================\n\n"
+         append msg "Resource $this(res) has been removed from the system before\n"
+         append msg "the jvm running RP has been stopped. After restarting this\n"
+         append msg "jvm it was readding the resource was not possible\n"
+         ts_log_severe $msg
+      }
 
       # Wait for resource to be added
       set exp_res_info($this(res),service) $service 

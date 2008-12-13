@@ -136,7 +136,7 @@ proc hedeby_issue527_cleanup_level {} {
       }
    } elseif {$hedeby_issue527_ctx(service_stopped) == "true"} {
       sdmadm_command $hedeby_issue527_ctx(service_host) $admin_user \
-        "-s $sys_name -p $pref_type sus -c $hedeby_issue527_ctx(service)"
+        "-s $sys_name -p $pref_type sus -s $hedeby_issue527_ctx(service)"
       if {$prg_exit_state != 0} {
          set has_error 1
       }
@@ -169,13 +169,13 @@ proc hedeby_issue527_cleanup_level {} {
 #
 #  FUNCTION
 #     this steps test hedeby issue 527: 
-#       Invalid state transition STOPPED -> SHUTDOWN @ GE-adapter shutdown
+#       Invalid state transition UNKNOWN -> SHUTDOWN @ GE-adapter shutdown
 #
 #      Executed steps:
 #        1. run sdmadm sds on a ge service
-#        2. check that the service is in STOPPED and component is in STARTED state
+#        2. check that the service is in UNKNOWN and component is in STARTED state
 #        3. run sdmadm sdc on the ge service
-#        4. check that the service is in STOPPED state and component is in STOPPED state
+#        4. check that the service is in UNKNOWN state and component is in STOPPED state
 #   
 #  INPUTS
 #     no input parameters
@@ -201,9 +201,9 @@ proc hedeby_issue527_check {} {
    
    set hedeby_issue527_ctx(service_stopped) "true"
 
-   # Step 2: check that the service is in STOPPED and component is in STARTED state
+   # Step 2: check that the service is in UNKNOWN and component is in STARTED state
    set exp_service_info($hedeby_issue527_ctx(service),cstate) "STARTED"
-   set exp_service_info($hedeby_issue527_ctx(service),sstate) "STOPPED"
+   set exp_service_info($hedeby_issue527_ctx(service),sstate) "UNKNOWN"
    if {[wait_for_service_info exp_service_info] != 0} {
       return
    }
@@ -217,9 +217,9 @@ proc hedeby_issue527_check {} {
    }
    set hedeby_issue527_ctx(component_stopped) "true"
    
-   # Step 4: check that the service is in STOPPED state and component is in STOPPED state
+   # Step 4: check that the service is in UNKNOWN state and component is in STOPPED state
    set exp_service_info($hedeby_issue527_ctx(service),cstate) "STOPPED"
-   set exp_service_info($hedeby_issue527_ctx(service),sstate) "STOPPED"
+   set exp_service_info($hedeby_issue527_ctx(service),sstate) "UNKNOWN"
    if {[wait_for_service_info exp_service_info] != 0} {
       return
    }
