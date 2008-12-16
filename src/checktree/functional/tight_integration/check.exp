@@ -98,7 +98,9 @@ proc tight_integration_init_level {} {
    }
 
    switch -- $CHECK_ACT_LEVEL {
-      0 -
+      0 {
+         return 0
+      }
       1 {
          return 0
       }
@@ -147,7 +149,7 @@ proc tight_integration_setup {} {
 
    # create a queue
    set queue_conf(load_thresholds) "np_load_avg=11"
-   set queue_conf(slots) 10 
+   set queue_conf(slots) 10
    set queue_conf(rerun) "true"
    add_queue "tight.q" "@allhosts" queue_conf
 
@@ -420,10 +422,10 @@ proc tight_integration_messages_check {scenario} {
    set sleep_time [expr $report_time - $zero_time]
 
    ts_log_fine "sleeping for $sleep_time seconds to let each execd report its final state ..."
-   sleep $sleep_time
+   after [expr ( $sleep_time * 1000 ) ]
 
    ts_log_fine "additional sleep of 5 seconds ..."
-   sleep 5
+   after 5000
 
    ts_log_fine "reading messages files ..."
    tight_integration_parse_execd_messages cleanup
@@ -448,7 +450,7 @@ proc tight_integration_wait_for_delete_state {jobid timeout} {
          }
       }
       set now [clock seconds]
-      sleep 1
+      after 1000
    }
 
    return 0
@@ -530,7 +532,7 @@ proc tight_integration_iz_1916 {} {
    while {$started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
       set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
-      sleep 1
+      after 1000
    }
 
    # wait for usage reports
@@ -564,7 +566,7 @@ proc tight_integration_iz_1916 {} {
          set now $end   
       } else {
          set now [clock seconds]
-         sleep 1
+         after 1000
       }
    }
 
@@ -943,17 +945,19 @@ proc tight_integration_massive_nfs_tmpdir {} {
 }
 
 proc tight_integration_acct {job_id num_tasks} {
-   global ts_config
    global tight_integration_accounting_summary
-
+   get_current_cluster_config_array ts_config
    # in level 2, we do the accounting summary
    # expect only one accounting record
    # else the number of tasks records
-   # on SGE >= 60, the accounting file is buffered - wait for all records being written
-   if {$ts_config(gridengine_version) >= 60} {
-      sleep 10
+   if {$tight_integration_accounting_summary} {
+      set expected 1
+   } else {
+      set expected [expr $num_tasks + 1]
    }
-   get_qacct $job_id
+   get_qacct $job_id qacct_info "" "" 1 $expected 30
+
+   # re-check
    set num_acct [llength $qacct_info(exit_status)]
    if {$tight_integration_accounting_summary} {
       if {$num_acct != 1} {

@@ -1,3 +1,21 @@
+CR-2008-12-16-0: Enhancem.:  o pe_job.sh (master task script) now supports
+                               additional sleep parameter
+                             o tight_integration test:
+                               - now does a workaround for open CR 6728379 
+                                 and reports info email about this.
+                                 The workaround is to add a sleep 10
+                                 to the master task job script. 
+                               - use new feature of get_qacct() procedure
+                             o set_config_and_propagate():
+                               if host "global" is changed now all execd hosts
+                               are checked to have the new configuration value
+                             o get_qacct():
+                               - new additonal parameter: expected_account
+                                 wait for a exact account records count
+                               - new additonal parameter: atimeout_value
+                                 set a fixed timeout
+                 Review:     AA
+
 RH-2008-12-13-0: Bugfix:     Hedeby: Fix of issue 595 required a couple of
                              adjustments in testsuite.
                  Review:     MB (I think Michal did the review, however I am not 100%

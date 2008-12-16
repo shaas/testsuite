@@ -2461,69 +2461,78 @@ proc set_config_and_propagate {config {host global}} {
    upvar $config my_config
 
    if {[array size my_config] > 0} {
-      set conf_host $host
+      set host_list {}
 
       # get host and spooldir of an execd - where to look for messages file
-      if {$conf_host == "global"} {
-         set conf_host [lindex $ts_config(execd_nodes) 0]
+      if {$host == "global"} {
+         set host_list $ts_config(execd_nodes)
+      } else {
+         lappend host_list $host
       }
-      set spool_dir [get_spool_dir $conf_host "execd"]
 
-      # Begin watching messages file for changes,
-      # consume the lines output immediately by tail -f
-      set messages_name "$spool_dir/messages"
-      set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) "/usr/bin/tail" "-f $messages_name"]
-      set sp_id [lindex $tail_id 1]
-      set timeout 5
-      expect {
-         -i $sp_id full_buffer {
-          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      foreach conf_host $host_list {
+         # Begin watching messages file for changes,
+         # consume the lines output immediately by tail -f
+         set spool_dir [get_spool_dir $conf_host "execd"]
+         set messages_name "$spool_dir/messages"
+         set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) "/usr/bin/tail" "-f $messages_name"]
+         set sp_id [lindex $tail_id 1]
+         set timeout 5
+         expect {
+            -i $sp_id full_buffer {
+             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            }
+            -i $sp_id timeout {
+            }
+            -i $sp_id "*\n" {
+            }
          }
-         -i $sp_id timeout {
-         }
-         -i $sp_id "*\n" {
-         }
+         set open_spawn_list($conf_host) $tail_id
+         set spawn_list($conf_host) $sp_id
       }
 
       # Make configuration change
       set_config my_config $host
 
-      # Wait for change to propagate
-      ts_log_fine "waiting for configuration change to propagate to execd"
-
-      # choose a config to wait for
-      # if it is an empty string (e.g. as we deleted an entry), use wildcards
-      set value ""
-      foreach name [array names my_config] {
-         if {$my_config($name) != ""} {
-            set value $my_config($name)
-            break
+      foreach conf_host $host_list {
+         # Wait for change to propagate
+         ts_log_fine "waiting for configuration change to propagate to execd $conf_host ..."
+         set sp_id $spawn_list($conf_host)
+         set tail_id $open_spawn_list($conf_host)
+         # choose a config to wait for
+         # if it is an empty string (e.g. as we deleted an entry), use wildcards
+         set value ""
+         foreach name [array names my_config] {
+            if {$my_config($name) != ""} {
+               set value $my_config($name)
+               break
+            }
          }
+         if {$value == ""} {
+            set name "*"
+            set value "*"
+         }
+
+         set timeout 90
+
+         expect {
+            -i $sp_id full_buffer {
+             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            }
+            -i $sp_id timeout {
+               ts_log_severe "setup failed (timeout waiting for config to change)"
+            }
+            -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
+               ts_log_fine "$conf_host: Configuration changed: $name = \"$value\""
+            }
+            -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
+               ts_log_fine "$conf_host: Configuration changed: $name = \"$value\""
+            }
+         }
+
+         # Stop watching
+         close_spawn_process $tail_id
       }
-      if {$value == ""} {
-         set name "*"
-         set value "*"
-      }
-
-      set timeout 90
-
-      expect {
-         -i $sp_id full_buffer {
-          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-         }
-         -i $sp_id timeout {
-            ts_log_severe "setup failed (timeout waiting for config to change)"
-         }
-         -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
-            ts_log_finest "Configuration changed: $name = \"$value\""
-         }
-         -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
-            ts_log_finest "Configuration changed: $name = \"$value\""
-         }
-      }
-
-      # Stop watching
-      close_spawn_process $tail_id
    }
 }
 
@@ -5368,6 +5377,8 @@ proc get_qacct_error {result job_id raise_error} {
 #     {on_host ""}            - execute qacct on this host
 #     {as_user ""}            - execute qacct as this user
 #     {raise_error 1}         - do add_proc error, or only output error messages
+#     {expected_account -1}   - expected account records (tasks)
+#     {atimeout_value 0}      - timeout waiting for accounting info
 #
 #  RESULT
 #     0, if job was found
@@ -5401,40 +5412,72 @@ proc get_qacct_error {result job_id raise_error} {
 #     parser/parse_qacct()
 #     sge_procedures/get_qacct_error()
 #*******************************
-proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1}} {
+proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_account -1} {atimeout_value 0}} {
    get_current_cluster_config_array ts_config
 
    upvar $variable qacctinfo
-  
-   # clear output variable
-   if {[info exists qacctinfo]} {
-      unset qacctinfo
-   }
+   set timeout_value $atimeout_value
 
+   
    # beginning with SGE 6.0, writing the accounting file may be buffered
    # accept getting errors for some seconds
-   set repeat 1
    if {$ts_config(gridengine_version) >= 60} {
-      set repeat 20
-      ts_log_finer "will repeat getting accounting info up to $repeat times!"
-   }
-   while {$repeat > 0} {
-      set ret 0
-      set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
-
-      # parse output or raise error
-      if {$prg_exit_state == 0} {
-         parse_qacct result qacctinfo $job_id
-         set repeat 0
-      } else {
-         if {$repeat > 1} {
-            ts_log_fine "waiting for job \"$job_id\" to appear in accounting file ..."
-         } else {
-            set ret [get_qacct_error $result $job_id $raise_error]
-         }
-         incr repeat -1
-         after 1500
+      if {$atimeout_value == 0} {
+         set timeout_value 30
+         ts_log_finer "get_qacct(): will repeat getting accounting info up to 30 seconds for GE versions >= 60!"
       }
+   }
+
+   # if qacct host is not master host we have also to add some NFS timeout
+   if {$on_host == ""} {
+      incr timeout_value 60
+      ts_log_finer "get_qacct(): increasing timeout to $timeout_value because qacct host might not be master host \"$ts_config(master_host)\"!"
+   }
+
+   set ret 0
+   set my_timeout [timestamp]
+   incr my_timeout $timeout_value
+   while { 1 } {
+      # clear output variable
+      if {[info exists qacctinfo]} {
+         unset qacctinfo
+      }
+      set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
+      if {$prg_exit_state == 0} {
+         if {$expected_account == -1} {
+            # we have the qacct info without errors
+            break
+         } else {
+            # we want to have $expected_account accounting data sets
+            parse_qacct result qacctinfo $job_id
+            set num_acct [llength $qacctinfo(exit_status)]
+            if {$num_acct == $expected_account} {
+               ts_log_fine "found all $num_acct expected accounting records!"
+               return 0
+            } else {
+               ts_log_fine "found $num_acct of $expected_account expected accounting records"
+            }
+            after 1000
+         }
+      } 
+      # check timeout
+      if {[timestamp] > $my_timeout} {
+         if {$expected_account == -1} {
+            ts_log_severe "timeout while waiting for qacct info for job $job_id! Timeout was $timeout_value" $raise_error
+         } else {
+            ts_log_severe "timeout while waiting for $expected_account accounting records for job $job_id! Timeout was $timeout_value" $raise_error
+         }
+         break
+      }
+      ts_log_fine "timeout in [expr ( $my_timeout - [timestamp] )] seconds!"
+      after 1000
+   }
+
+   # parse output or raise error
+   if {$prg_exit_state == 0} {
+      parse_qacct result qacctinfo $job_id
+   } else {
+      set ret [get_qacct_error $result $job_id $raise_error]
    }
 
    return $ret
@@ -7882,6 +7925,10 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
    foreach arg [lrange $args 1 end] {
       append job_args " $arg"
    }
+
+   # workaround sleep time after jobs have finished TODO: remove this sleep when CR 6728379 is fixed
+   ts_log_info "This is workaround for CR 6728379, master task will sleep for 10 seconds to account all task account informations!!!"
+   append job_args " 10"
   
    switch -exact $submit_method {
       qsub {

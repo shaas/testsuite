@@ -7,6 +7,7 @@
 script=$1
 instances=$2
 duration=$3
+sleep_after=$4
 
 start_tasks() 
 {
@@ -27,4 +28,9 @@ start_tasks()
 unset SGE_DEBUG_LEVEL
 printf "master task started with job id %6d and pid %8d\n" $JOB_ID $$
 cat $PE_HOSTFILE | start_tasks $1
+if [ "$sleep_after" != "" ]; then
+   echo "sleeping $sleep_after seconds ..."
+   sleep $sleep_after
+   echo "sleeping $sleep_after seconds finished"
+fi
 echo "master task exiting"

@@ -168,6 +168,9 @@ proc tight_integration_monitor {id master_node started_var finished_var jobid_va
                      set ret "task running"
                   }
 
+                  "sleeping ?? seconds*" {
+                     ts_log_fine "got sleep output of master task"
+                  }
                     
                   "_start_mark_:(*)*" {
                      ts_log_fine "got start mark from remote prog shell script"
