@@ -2523,10 +2523,10 @@ proc set_config_and_propagate {config {host global}} {
                ts_log_severe "setup failed (timeout waiting for config to change)"
             }
             -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
-               ts_log_fine "$conf_host: Configuration changed: $name = \"$value\""
+               ts_log_finer "$conf_host: Configuration changed: $name = \"$value\""
             }
             -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
-               ts_log_fine "$conf_host: Configuration changed: $name = \"$value\""
+               ts_log_finer "$conf_host: Configuration changed: $name = \"$value\""
             }
          }
 
