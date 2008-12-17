@@ -1,3 +1,9 @@
+AP-2008-12-16-0: Bugfix:     o Use unified method to leave testsuite menus with
+                               "OK" or "Cancel"
+                             o adjusting issue_2459 test
+                 Issue:      248
+                 Review:     CR
+
 CR-2008-12-17-0: Enhancem.:  o rework of error reporting for issue test 2459
                              o disabled 2 scenarios in functional/enforce_limits
                                tests which are failing because of CR 6786247

@@ -49,15 +49,16 @@ set check_init_level_procedure "issue_2459_init_level"
 # define test's name and run level descriptions
 set check_name            "issue_2459"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0 
+set check_highest_level   1
 set check_description(0)  "Testing the autoinstall and autobackup configfile checking "
+set check_description(1)  "Testing the autoinstall and autobackup configfile checking with JMX enabled"
 
 # define test's dependencies
 #set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function issue_2459_setup
-set check_cleanup_function issue_2459_cleanup
+set check_setup_level_function "issue_2459_setup"
+set check_cleanup_level_function "issue_2459_cleanup"
 
 # define test's procedure order
 set check_functions {}
@@ -65,11 +66,18 @@ lappend check_functions "issue_2459_parse_autoinstall"
 lappend check_functions "issue_2459_parse_autobackup"
 
 proc issue_2459_init_level {} {
-   global CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL ts_config
 
    switch -- $CHECK_ACT_LEVEL {
       0 {
          return 0
+      }
+      1 {
+         if { $ts_config(gridengine_version) > 61 && $ts_config(jmx_port) > 0 } {
+            return 0
+         } else {
+            return -1
+         }
       }
    }
 
@@ -79,9 +87,17 @@ proc issue_2459_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2459_setup {} {
-   global ts_config
+   global ts_config CHECK_ACT_LEVEL check_jmx_port
    global found_backup_entries found_install_entries
 
+   switch -exact $CHECK_ACT_LEVEL {
+   0 {
+      set check_jmx_port 0
+   }
+   1 {
+      set check_jmx_port 1
+   }
+   }
    init_found_install_entries
    init_found_backup_entries
    create_auto_config
@@ -276,7 +292,7 @@ proc issue_2459_parse_autobackup {} {
 
 #creating corrupt configuration
 proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
-   global CHECK_USER local_execd_spool_set
+   global CHECK_USER local_execd_spool_set check_jmx_port
    global ts_config
 
    set fdo [open $filename w]
@@ -289,7 +305,11 @@ proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
       puts $fdo "SGE_CLUSTER_NAME=\"1234\""
       if {$ts_config(jmx_port) > 0} {
          set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
-         puts $fdo "SGE_ENABLE_JMX=\"tue\""
+         if { $check_jmx_port == 0 } {
+            puts $fdo "SGE_ENABLE_JMX=\"tue\""
+         } else {
+            puts $fdo "SGE_ENABLE_JMX=\"true\""
+         }
          puts $fdo "SGE_JVM_LIB_PATH=\"\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
          puts $fdo "SGE_JMX_PORT=\"no number\""
@@ -386,7 +406,7 @@ proc create_auto_config {} {
 
 proc init_found_install_entries {} {
 
-   global found_install_entries ts_config
+   global found_install_entries ts_config check_jmx_port
 
    set found_install_entries(SGE_ROOT) 0  
    set found_install_entries(CELL_NAME) 0  
@@ -418,9 +438,15 @@ proc init_found_install_entries {} {
       } else {
          set found_install_entries(SGE_ENABLE_SMF) 1
       }
-      set found_install_entries(SGE_CLUSTER_NAME) 0 
-      set found_install_entries(SGE_ENABLE_JMX) 0  
-      set found_install_entries(SGE_JMX_PORT) 0  
+      set found_install_entries(SGE_CLUSTER_NAME) 0
+      if { $check_jmx_port == 0 } {
+         set found_install_entries(SGE_ENABLE_JMX) 0
+         # SGE doesn't validate this parameter if jmx not enabled, mark is as validated
+         set found_install_entries(SGE_JMX_PORT) 1
+      } else {
+         set found_install_entries(SGE_ENABLE_JMX) 1
+         set found_install_entries(SGE_JMX_PORT) 0
+      }
       set found_install_entries(SGE_JVM_LIB_PATH) 1
    } else {
       set found_install_entries(SERVICE_TAGS) 1  

@@ -101,8 +101,6 @@ proc arco_save_configuration { filename } {
    spool_array_to_file $filename $conf_name arco_config  
    ts_log_fine "new $conf_name saved"
 
-   wait_for_enter
-
    return 0
 }
 

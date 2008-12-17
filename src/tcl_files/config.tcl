@@ -348,39 +348,44 @@ proc edit_setup { array_name verify_func mod_string } {
          }
       }
 
-      puts -nonewline "Do you want to use your changes? (y/n) > "
-      set input [ wait_for_enter 1 ]
-      if { [ string compare $input "y" ] == 0 } {
-         # save values (modified, deleted)
-         set org_names [ array names org_config ]
-         foreach name $org_names {
-            if { [ info exists config($name) ] != 1 } {
-               unset org_config($name)
-               if { [ info exists config($name,onchange)] } {
-                  append onchange_values $config($name,onchange)
-               }
-               continue
-            }
-            if { [ string compare $config($name) $org_config($name)] != 0 } {
-               set org_config($name) $config($name)
-               if { [ info exists config($name,onchange)] } {
-                  append onchange_values $config($name,onchange)
-               }
-            }
+      while {1} {
+         puts -nonewline "Do you want to use your changes? (y/n) > "
+         set input [ wait_for_enter 1 ]
+         if { [string compare $input "n"] == 0 } {
+            break
          }
-         # save values (added)
-         set new_names [ array names config ]      
-         foreach name $new_names {
-            if { [ info exists org_config($name)] != 1 } {
-               set org_config($name) $config($name) 
-               if { [ info exists config($name,onchange)] } {
-                  append onchange_values $config($name,onchange)
+         if { [ string compare $input "y" ] == 0 } {
+            # save values (modified, deleted)
+            set org_names [ array names org_config ]
+            foreach name $org_names {
+               if { [ info exists config($name) ] != 1 } {
+                  unset org_config($name)
+                  if { [ info exists config($name,onchange)] } {
+                     append onchange_values $config($name,onchange)
+                  }
+                  continue
+               }
+               if { [ string compare $config($name) $org_config($name)] != 0 } {
+                  set org_config($name) $config($name)
+                  if { [ info exists config($name,onchange)] } {
+                     append onchange_values $config($name,onchange)
+                  }
                }
             }
-         }
+            # save values (added)
+            set new_names [ array names config ]
+            foreach name $new_names {
+               if { [ info exists org_config($name)] != 1 } {
+                  set org_config($name) $config($name)
+                  if { [ info exists config($name,onchange)] } {
+                     append onchange_values $config($name,onchange)
+                  }
+               }
+            }
 
 
-         return 0
+            return 0
+         }
       }
    } else {
       puts "Verify errros:"
@@ -594,6 +599,7 @@ proc modify_setup2 {} {
                }
                append change_level $tmp_string
             }
+            break
          } else {
             ts_log_fine "show_config $setup_hook($input,config_array)"
             show_config $setup_hook($input,config_array)
@@ -607,6 +613,7 @@ proc modify_setup2 {} {
                if { $do_save == 0 } {
                   $setup_hook(1,save_func) $addConfig($input,fullName) add_configuration
                }
+            break
          } else {
                puts "configuration for additional config file:\n$addConfig($input,fullName)"
                show_config add_configuration
