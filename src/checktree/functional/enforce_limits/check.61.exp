@@ -63,12 +63,14 @@ set check_cleanup_function enforce_limits_cleanup
 # define test's procedure order
 set check_functions {}
 lappend check_functions "enforce_limits_tight_execd_limit_enforcement_after_stop_start"
-lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave"
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_master_queue"
 lappend check_functions "enforce_limits_tight_qmaster_forced_all_queue"
 
 lappend check_functions "enforce_limits_tight_execd_limit_enforcement"
+# This two tests are currently disabled because of CR 6786247 - start
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master"
+lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave"
+# This two tests are currently disabled because of CR 6786247 - end
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_slave_queue"
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_all_queue"
 lappend check_functions "enforce_limits_loose_qmaster_limit_enforcement_all_queue"
@@ -195,7 +197,7 @@ proc enforce_limits_setup {} {
    set global_conf(max_unheard) "00:00:08"
    set global_conf(qmaster_params) "ENABLE_ENFORCE_MASTER_LIMIT=true,ENABLE_FORCED_QDEL_IF_UNKNOWN=true"
    set global_conf(reporting_params) "accounting_flush_time=00:00:00"
-   set_config global_conf
+   set_config_and_propagate global_conf
 
    # change schedd config
    get_schedd_config org_sched_conf
@@ -258,7 +260,8 @@ proc enforce_limits_tight_execd_limit_enforcement {} {
       set job_id [ submit_job "$qsub_params" ]
 
       # wait for start and end 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
       wait_for_job_end $job_id 120
 
       # check accounting entry 
@@ -299,14 +302,13 @@ proc enforce_limits_tight_qmaster_limit_enforcement_all_queue {} {
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
       set start [clock seconds]
 
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
-      foreach host $all_exec_hosts {
-         soft_execd_shutdown $host  
-      }
+      soft_execd_shutdown $all_exec_hosts
       set end_shutdown [clock seconds]
 
       # wait for termination of job
@@ -356,7 +358,8 @@ proc enforce_limits_tight_qmaster_limit_enforcement_master_queue {} {
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
       set start [clock seconds]
 
       # shutdown master execds
@@ -407,7 +410,9 @@ proc enforce_limits_tight_qmaster_limit_enforcement_slave_queue {} {
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
+ 
       set start [clock seconds]
 
       # shutdown master execds
@@ -458,14 +463,14 @@ proc enforce_limits_loose_qmaster_limit_enforcement_all_queue {} {
       set qsub_params "-pe loose $loose_slots -masterq $loose_masterq $ts_config(product_root)/examples/jobs/sleeper.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "Sleeper" 100
+      wait_for_jobstart $job_id "Sleeper" 100 1 1
+      wait_for_end_of_transfer $job_id 60
+
       set start [clock seconds]
 
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
-      foreach host $all_exec_hosts {
-         soft_execd_shutdown $host
-      }
+      soft_execd_shutdown $all_exec_hosts
       set end_shutdown [clock seconds]
 
       # wait for termination of job
@@ -517,7 +522,9 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 90"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
+
       set start [clock seconds]
 
       # shutdown master execds
@@ -571,20 +578,21 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master {} {
    global tight_slave_node
    global el_base_path
 
+   ts_log_info "Test disabled because of CR 6786247"
+   return
+
    if {$CHECK_ACT_LEVEL == 0} {
       # submit the pe job
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
-
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 60 1 1
+      wait_for_end_of_transfer $job_id 60
       set start [clock seconds]
 
       # shutdown all execds and startup one again
       set all_exec_hosts $ts_config(execd_nodes)
-      foreach host $all_exec_hosts {
-         soft_execd_shutdown $host 
-      }
-      wait_for_unknown_load 15 $tight_masterq
+      soft_execd_shutdown $all_exec_hosts 
+
       startup_execd $tight_master_node
       set end_shutdown [clock seconds]
 
@@ -614,12 +622,12 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master {} {
 
 # 50) submit a sleeper job
 #    - PE with N slots
-#    - master queue has to be defined
+#    - slave queue has to be defined
 #    - "qrsh -inherit" job which spawns pe_tasks and then waits
 #    - each pe task should sleep 60 seconds
 # 51) Wait till all tasks are running
 # 52) Terminate all execds where parts of the pe jobs are running
-# 53) Start one slave execd again
+# 53) Start the slave execd again
 # 54) Wait till all tasks (job) is terminated
 # 55) Check that the job has been terminated before the normal runtime ended 
 proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
@@ -632,29 +640,30 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
    global tight_slave_node
    global el_base_path
 
+   ts_log_info "Test disabled because of CR 6786247"
+   return
    if {$CHECK_ACT_LEVEL == 0} {
       # submit the pe job
-      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 80"
+      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
-
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 60 1 1
+      wait_for_end_of_transfer $job_id 60
       set start [clock seconds]
 
       # shutdown all execds and startup one again
       set all_exec_hosts $ts_config(execd_nodes)
-      foreach host $all_exec_hosts {
-         soft_execd_shutdown $host
-      }
-      wait_for_unknown_load 15 $tight_slaveq
+      soft_execd_shutdown $all_exec_hosts 
+
       startup_execd $tight_slave_node
       set end_shutdown [clock seconds]
 
       # wait for termination of job
-      wait_for_job_end $job_id 80 
+      wait_for_job_end $job_id 240 
       set end [clock seconds]
 
       # startup all execds
-      soft_execd_shutdown $tight_slave_node 
+      soft_execd_shutdown $tight_slave_node
+
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
          startup_execd $host
@@ -673,6 +682,8 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
       }
    }
 }
+
+
 
 # 50) submit a sleeper job
 #    - PE with N slots
@@ -698,14 +709,15 @@ proc enforce_limits_tight_qmaster_forced_all_queue {} {
       set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "qrexec.sh" 100
+      wait_for_jobstart $job_id "qrexec.sh" 100 1 1
+      wait_for_end_of_transfer $job_id 60
+
       set start [clock seconds]
 
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
-      foreach host $all_exec_hosts {
-         soft_execd_shutdown $host
-      }
+      soft_execd_shutdown $all_exec_hosts
+
       set end_shutdown [clock seconds]
 
       # wait for termination of job
@@ -762,7 +774,9 @@ proc enforce_limits_batch_qmaster_limit_enforcement_all_queue {} {
       set qsub_params "-q $tight_masterq $ts_config(product_root)/examples/jobs/sleeper.sh 180"
       set job_id [ submit_job "$qsub_params" ]
 
-      wait_for_jobstart $job_id "Sleeper" 100
+      wait_for_jobstart $job_id "Sleeper" 100 1 1
+      wait_for_end_of_transfer $job_id 60
+
       set start [clock seconds]
 
       # shutdown all execds

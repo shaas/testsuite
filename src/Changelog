@@ -1,3 +1,10 @@
+CR-2008-12-17-0: Enhancem.:  o rework of error reporting for issue test 2459
+                             o disabled 2 scenarios in functional/enforce_limits
+                               tests which are failing because of CR 6786247
+                             o soft_execd_shutdown() now supports a list of
+                               execds which should be shutdown
+                 Review:     EB
+
 CR-2008-12-16-0: Enhancem.:  o pe_job.sh (master task script) now supports
                                additional sleep parameter
                              o tight_integration test:

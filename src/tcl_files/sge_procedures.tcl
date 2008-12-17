@@ -3130,7 +3130,7 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #     soft_execd_shutdown() -- soft shutdown of execd
 #
 #  SYNOPSIS
-#     soft_execd_shutdown { host } 
+#     soft_execd_shutdown { host_list } 
 #
 #  FUNCTION
 #     This procedure starts a qconf -ke $host. If qconf reports an error,
@@ -3139,7 +3139,7 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #     host-queue ($host.q) is 99.99 the procedure returns without error.
 #     
 #  INPUTS
-#     host - execution daemon host to shutdown
+#     host - list containing all execution daemon hosts to shutdown
 #
 #  RESULT
 #     0 - success
@@ -3148,50 +3148,72 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #  SEE ALSO
 #     sge_procedures/shutdown_system_daemon()
 #*******************************************************************************
-proc soft_execd_shutdown {host {timeout 60}} {
+proc soft_execd_shutdown {host_list {timeout 60}} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   set execd_pid [get_execd_pid $host]
-   if {$execd_pid == 0} {
-      return -1
+   foreach host $host_list {
+      set execd_pid($host) [get_execd_pid $host]
+      if {$execd_pid($host) == 0} {
+         ts_log_severe "no execd pid for host $host"
+         return -1
+      }
    }
-   
-   ts_log_fine "shutdown execd pid=$execd_pid on host \"$host\""
-   set tries 0
-   while {$tries <= 8} {
-      incr tries 1
-      ts_log_finest "[start_remote_prog $host $CHECK_USER "date" ""]"
+
+   set error_text ""
+
+   # first shutdown the execds
+   foreach host $host_list {
+      ts_log_fine "shutdown execd pid=$execd_pid($host) on host \"$host\""
       set result [start_sge_bin "qconf" "-ke $host" $ts_config(master_host) $CHECK_USER]
       if {$prg_exit_state != 0} {
          ts_log_fine "qconf -ke $host returned $prg_exit_state, hard killing execd"
          shutdown_system_daemon $host execd
       }
+   }
+
+   # check loads
+   foreach host $host_list {
       if {$ts_config(gridengine_version) >= 60 } {
-	 set queue "*@$host"
+         set queue "*@$host"
       } else {
-	 set queue "${host}.q"
+         set queue "${host}.q"
       }
-      set load [wait_for_unknown_load 15 $queue 0]
+      set load [wait_for_unknown_load $timeout $queue 0]
       if {$load == 0} {
          ts_log_finer "execd on host $host reports 99.99 load value"
-	 #execd might not be down yet, let's check!
-	 set counter 0
-	 while {$counter < $timeout} {
-	    incr counter 1
-	    after 1000
-	    #Check if execd pid is gone
-	    if {[is_pid_with_name_existing $host $execd_pid "sge_execd" ] != 0} {
-	       ts_log_finer "Waited $counter secs for execd to disappear"
-	       return 0
-	    }
-	 }
-	 ts_log_severe "Timeout $counter secs: Could not shutdown execd (pid=$execd_pid) on host $host"
+         #execd might not be down yet, let's check!
+      } else {
+         ts_log_severe "timeout while waiting for unknown load for host $host"
+         break
          return -1
       }
    }
-   ts_log_severe "could not shutdown execd on host $host"
-   return -1
+
+   #execd might not be down yet, let's check!
+   set error_text ""
+   foreach host $host_list {
+      set counter 0
+      set is_ok 0
+      while {$counter < $timeout} {
+         incr counter 1
+         #Check if execd pid is gone
+         if {[is_pid_with_name_existing $host $execd_pid($host) "sge_execd" ] != 0} {
+            ts_log_finer "Waited $counter secs for execd to disappear"
+            set is_ok 1
+            break
+         }
+         after 1000
+      }
+      if {$is_ok != 1} {
+         append error_text "Timeout $counter secs: Could not shutdown execd ( pid=$execd_pid($host) ) on host $host\n"
+      }
+   }
+   if {$error_text != ""} {
+      ts_log_severe "could not shutdown all execds:\n$error_text"
+      return -1
+   }
+   return 0
 }
 
 #****** sge_procedures/wait_for_unknown_load() *********************************

@@ -204,25 +204,22 @@ proc issue_2459_parse_autoinstall {} {
       }
    }
 
+   set error_text ""
    if {$exit_val == 2} {
       set test_ok 1
       foreach index [array names found_install_entries] {
          if {$found_install_entries($index) == 0} {
-            ts_log_fine "No error received for configuration entry: $index"
+            append error_text "No error received for configuration entry: $index\n"
             set test_ok 0 
          }
       }
       if {$test_ok == 1} {
-         ts_log_fine $output
          ts_log_fine "test is ok!"
       } else {
-         ts_log_warning "autoinstall configfile check failed:\n$output"
+         ts_log_warning "autoinstall configfile check failed:\n$error_text\noutput was:\n$output"
       }
-      return
    } else { 
-      ts_log_fine "test failed, scripts exit code was != 2"
-      ts_log_warning "inst_sge" "-2" "autoinstall configfile check failed:\n$output"
-      return
+      ts_log_severe "autoinstall configfile check failed with exit code $exit_val != 2 !!!:\n$output"
    }
 }
 
@@ -382,6 +379,8 @@ proc create_auto_config {} {
    issue_2459_write_autoinst_config $inst_config_file $ts_config(master_host) 1
    issue_2459_write_autobackup_config $backup_config_file $ts_config(master_host) 1
    ts_log_fine "automatic install and backup config file successfully created ..."
+   ts_log_fine "inst_config_file: $inst_config_file"
+   ts_log_fine "backup_config_file: $backup_config_file"
 }
 
 
