@@ -1,3 +1,6 @@
+CR-2008-12-17-1: Cleanup:    changed logging level from fine to finer in
+                             set_config_and_propagate()
+
 AP-2008-12-16-0: Bugfix:     o Use unified method to leave testsuite menus with
                                "OK" or "Cancel"
                              o adjusting issue_2459 test
