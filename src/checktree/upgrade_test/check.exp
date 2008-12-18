@@ -1384,12 +1384,12 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
          }
 
          -i $sp_id $CA_RECREATE { 
-            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            ts_send $sp_id "$ANSWER_YES\n"
+            ts_send $sp_id "$ANSWER_NO\n"
             continue
          }
 
@@ -1472,5 +1472,6 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
 
    log_user 0
    close_spawn_process $id 
+   ts_log_fine "update script done"
    return 0
 }

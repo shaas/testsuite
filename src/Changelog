@@ -1,3 +1,10 @@
+CR-2008-12-18-0: Bugfix:     checktree/upgrade_test:
+                             Upgrade test answered with yes to re-create csp
+                             certificates, but did not copy it to all execds
+                             and submit hosts. Therfore the test failed on csp
+                             testsuite installations.
+                 Review:     MD
+
 CR-2008-12-17-1: Cleanup:    changed logging level from fine to finer in
                              set_config_and_propagate()
 
