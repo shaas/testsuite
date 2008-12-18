@@ -73,7 +73,7 @@ proc issue_2459_init_level {} {
          return 0
       }
       1 {
-         if { $ts_config(gridengine_version) > 61 && $ts_config(jmx_port) > 0 } {
+         if { $ts_config(gridengine_version) > 61 } {
             return 0
          } else {
             return -1
@@ -117,12 +117,18 @@ proc issue_2459_parse_autoinstall {} {
    global ts_config CHECK_USER
    global issue_2459_hosts
    global found_install_entries
+   global check_jmx_port
 
    set my_timeout 500
    set exit_val 0
 
-   ts_log_fine "inst_sge -m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   if {$check_jmx_port > 0} {
+      ts_log_fine "inst_sge -m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf"
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   } else {
+      ts_log_fine "inst_sge -m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   }
 
    set lines [split $output "\n"]
    foreach line $lines {
@@ -208,14 +214,26 @@ proc issue_2459_parse_autoinstall {} {
          "*SGE_CLUSTER_NAME*" {
                set found_install_entries(SGE_CLUSTER_NAME) 1  
          }
-         "*SGE_ENABLE_JMX*" {
-               set found_install_entries(SGE_ENABLE_JMX) 1  
-         }
          "*SGE_JMX_PORT*" {
                set found_install_entries(SGE_JMX_PORT) 1  
          }
+         "*SGE_JMX_SSL_CLIENT*" {
+               set found_install_entries(SGE_JMX_SSL_CLIENT) 1  
+         }
+         "*SGE_JMX_SSL*" {
+               set found_install_entries(SGE_JMX_SSL) 1  
+         }
+         "*SGE_JMX_SSL_KEYSTORE*" {
+               set found_install_entries(SGE_JMX_SSL_KEYSTORE) 1  
+         }
+         "*SGE_JMX_SSL_KEYSTORE_PW*" {
+               set found_install_entries(SGE_JMX_SSL_KEYSTORE_PW) 1  
+         }
          "*SGE_JVM_LIB_PATH*" {
                set found_install_entries(SGE_JVM_LIB_PATH) 1  
+         }
+         "*SGE_ADDITIONAL_JVM_ARGS*" {
+               set found_install_entries(SGE_ADDITIONAL_JVM_ARGS) 1  
          }
       }
    }
@@ -303,21 +321,22 @@ proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
    if {$ts_config(gridengine_version) > 61} {
       puts $fdo "SGE_ENABLE_SMF=\"fale\""
       puts $fdo "SGE_CLUSTER_NAME=\"1234\""
-      if {$ts_config(jmx_port) > 0} {
-         set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
-         if { $check_jmx_port == 0 } {
-            puts $fdo "SGE_ENABLE_JMX=\"tue\""
-         } else {
-            puts $fdo "SGE_ENABLE_JMX=\"true\""
-         }
+      if {$check_jmx_port > 0} {
+         puts $fdo "SGE_JMX_PORT=\"no number\""
+         puts $fdo "SGE_JMX_SSL=\"tue\""
+         puts $fdo "SGE_JMX_SSL_CLIENT=\"tue\""
+         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"Please enter absolute path of server keystore file\""
+         puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"Please enter the server keystore password\""
          puts $fdo "SGE_JVM_LIB_PATH=\"\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-         puts $fdo "SGE_JMX_PORT=\"no number\""
       } else {
-         puts $fdo "SGE_ENABLE_JMX=\"fase\""
+         puts $fdo "SGE_JMX_PORT=\"Please enter port\""
+         puts $fdo "SGE_JMX_SSL=\"false\""
+         puts $fdo "SGE_JMX_SSL_CLIENT=\"false\""
+         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"Please enter absolute path of server keystore file\""
+         puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"Please enter the server keystore password\""
          puts $fdo "SGE_JVM_LIB_PATH=\"\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-         puts $fdo "SGE_JMX_PORT=\"no number\""
       }
    } 
    puts $fdo "CELL_NAME=\"\""
@@ -439,22 +458,27 @@ proc init_found_install_entries {} {
          set found_install_entries(SGE_ENABLE_SMF) 1
       }
       set found_install_entries(SGE_CLUSTER_NAME) 0
-      if { $check_jmx_port == 0 } {
-         set found_install_entries(SGE_ENABLE_JMX) 0
-         # SGE doesn't validate this parameter if jmx not enabled, mark is as validated
-         set found_install_entries(SGE_JMX_PORT) 1
-      } else {
-         set found_install_entries(SGE_ENABLE_JMX) 1
+      if {$check_jmx_port > 0} {
          set found_install_entries(SGE_JMX_PORT) 0
+         set found_install_entries(SGE_JMX_SSL) 0  
+         set found_install_entries(SGE_JMX_SSL_CLIENT) 0  
+         set found_install_entries(SGE_JMX_SSL_KEYSTORE) 1 ;# not checked  
+         set found_install_entries(SGE_JMX_SSL_KEYSTORE_PW) 1 ;# not checked 
+         set found_install_entries(SGE_JVM_LIB_PATH) 0
+         set found_install_entries(SGE_ADDITIONAL_JVM_ARGS) 1 ;# not checked
+      } else {
+         set found_install_entries(SGE_JMX_PORT) 1
+         set found_install_entries(SGE_JMX_SSL) 1  
+         set found_install_entries(SGE_JMX_SSL_CLIENT) 1  
+         set found_install_entries(SGE_JMX_SSL_KEYSTORE) 1  
+         set found_install_entries(SGE_JMX_SSL_KEYSTORE_PW) 1  
+         set found_install_entries(SGE_JVM_LIB_PATH) 1
+         set found_install_entries(SGE_ADDITIONAL_JVM_ARGS) 1
       }
-      set found_install_entries(SGE_JVM_LIB_PATH) 1
    } else {
       set found_install_entries(SERVICE_TAGS) 1  
       set found_install_entries(SGE_ENABLE_SMF) 1  
       set found_install_entries(SGE_CLUSTER_NAME) 1  
-      set found_install_entries(SGE_ENABLE_JMX) 1  
-      set found_install_entries(SGE_JMX_PORT) 1  
-      set found_install_entries(SGE_JVM_LIB_PATH) 1
    }
 }
 
