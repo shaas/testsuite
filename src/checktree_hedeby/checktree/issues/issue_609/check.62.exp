@@ -1,0 +1,385 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_609"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests that reporter can handle empty lines in its history file"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue609_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue609_setup_level"
+set check_cleanup_level_function "hedeby_issue609_cleanup_level"
+
+lappend check_functions "hedeby_issue609_check"
+
+
+#****** issue_609/hedeby_issue609_init_level() ************************
+#  NAME
+#     hedeby_issue609_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue609_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue609_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_609/hedeby_issue609_setup_level() *********************************
+#  NAME
+#    hedeby_issue609_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue609_setup_level { } 
+#
+#  FUNCTION
+#    This function do setup of test in step
+#
+#       o Step 1: Shutdown rp_vm with reporter component
+#       o Step 2: Copy the reporter files to some temp directory
+#       o Step 3: Create new reporter file with empty lines
+#       o Step 4: Start up rp_vm with reporter component
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue609_setup_level {} {
+   upvar #0 hedeby_issue609_ctx this
+   global hedeby_config
+   set this(master) $hedeby_config(hedeby_master_host)
+   set this(rpdown) false
+   set this(admin) [get_hedeby_admin_user]
+   set this(filemoved) false
+   set this(dir) "rep[timestamp]"
+   set this(dircreated) false
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup 1 : Shutdown rp_vm jvm with reporter component on host $this(master)"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "sdj -j rp_vm -h $this(master)"]
+   set this(rpdown) true
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem shutting down rp_vm on host $this(master).\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+
+   set exp_ji(jvm_list) "" 
+   set err_ji(rp_vm,$this(master),state) "STARTED"
+   set err_ji(rp_vm,$this(master),state) "STARTING"
+   set ji_opts(jvm_name) "rp_vm"
+   set ji_opts(jvm_host) $this(master)
+   set ji_opts(error_jvm_info) err_ji
+
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg "Jvm rp_vm didnt stop"
+      ts_log_severe $msg
+      return 
+   }
+   unset exp_ji
+   set this(rpdown) true
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup 2 : Copy the original reporter files into /tmp/$this(dir) temp directory"
+   # ------------------------------------------------------------------ 
+   #we are getting the path to reporter files
+   set this(reppath) [sdmadm_command_opt "sbc -all | grep spool | sed -e \"s# *##g\" | sed -e \"s#spool=##g\""]
+   set this(reppath) "[string trim $this(reppath)]/spool/reporter"
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem with getting the path to reporter files\n"
+      append msg "Output was\n"
+      append msg $this(reppath)
+      ts_log_severe $msg
+      return
+   }
+   #create tmp directory for reporter original files
+   set output [start_remote_prog $this(master) $this(admin) "mkdir" "/tmp/$this(dir)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem with creating the temp directory for reporter files\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set this(dircreated) true
+   #move the original files to the tmp directory 
+   set output [start_remote_prog $this(master) $this(admin) "mv" "${this(reppath)}/* /tmp/$this(dir)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem with moving the reporter files to temp directory\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set this(filemoved) true
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup 3 : Create new reporter file and store it in reporter spool dir"
+   # ------------------------------------------------------------------ 
+   #preparation of the new special file with empty lines
+   set data(0) 21
+   set data(1) "1228827983629:NOTIFICATION:41225:REQUEST_QUEUED:30098:spare_pool:Request queued in resource provider."
+   set data(2) "1228827983629:NEED:41225:0:1:10:type = \"host\""
+   set data(3) "1228827983632:NOTIFICATION:41226:REQUEST_PROCESS:30099:spare_pool:Request is being processed in resource provider."
+   set data(4) "1228827983632:NEED:41226:0:1:10:type = \"host\""
+   set data(5) "1228827983632:NOTIFICATION:41227:REQUEST_QUEUED:30100:spare_pool:Request queued in resource provider."
+   set data(6) "1228827983632:NEED:41227:0:50:2:type = \"host\""
+   set data(7) "1228827983632:NOTIFICATION:41228:REQUEST_PENDING:30101:spare_pool:Request is pending in resource provider to be processed."
+   set data(8) "1228827983632:NEED:41228:0:1:10:type = \"host\""
+   set data(9) ""
+   set data(10) ""
+   set data(11) ""
+   set data(12) "1228827983632:NOTIFICATION:41229:REQUEST_PROCESS:30102:spare_pool:Request is being processed in resource provider."
+   set data(13) "1228827983632:NEED:41229:0:50:2:type = \"host\""
+   set data(14) "1228827983633:NOTIFICATION:41230:REQUEST_PENDING:30103:spare_pool:Request is pending in resource provider to be processed."
+   set data(15) "1228827983633:NEED:41230:0:50:2:type = \"host\""
+   set data(16) "                              "
+   set data(17) "1228827985106:NOTIFICATION:41231:RESOURCE_REQUEST:1703:p8420:Service \[p8420\] sent resource request that was triggered by \[fixed_usage\] SLO."
+   set data(18) "1228827985108:NOTIFICATION:41232:REQUEST_QUEUED:30104:p8420:Request queued in resource provider."
+   set data(19) ""
+   set data(20) "1228827985108:NOTIFICATION:41233:REQUEST_PROCESS:30105:p8420:Request is being processed in resource provider."
+   set data(21) "1228827985108:NOTIFICATION:41234:REQUEST_PROCESSED:30106:p8420:Request was processed by resource provider."
+
+   set output [write_remote_file $this(master) $this(admin) $this(reppath)/report-0.log data] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem with writing the new reporter files\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup 4 : Startup rp_vm jvm with reporter component on host $this(master)"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "suj -j rp_vm"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem starting rp_vm on host $this(master).\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set exp_ji(rp_vm,$this(master),state) "STARTED" 
+   set err_ji(rp_vm,$this(master),state) "STOPPED"
+   set err_ji(rp_vm,$this(master),state) "STOPPING"
+   set ji_opts(jvm_name) "rp_vm"
+   set ji_opts(jvm_host) $this(master)
+   set ji_opts(error_jvm_info) err_ji
+
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg "Jvm rp_vm didnt start"
+      ts_log_severe $msg
+      return 
+   }
+   set this(rpdown) false
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup : Setup for issue609 finished"
+   # ------------------------------------------------------------------
+}
+
+#****** issue_609/hedeby_issue609_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue609_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue609_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#   This function do following step: 
+#
+#    o Step 1: Shutdown rp_vm jvm with reporter component if started
+#    o Step 2: Move original files back to the reporter spool dir
+#    o Step 3: Startup rp_vm jvm with reporter componet if shutdown
+#    o Step 4: Delete temporary directory
+#    o Step 5: Removes the global context variable of this test (hedeby_issue609_ctx)
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue609_cleanup_level {} {
+   upvar #0 hedeby_issue609_ctx this
+   if { $this(filemoved) == "true" } {
+       if { $this(rpdown) == "false" } {
+           # ------------------------------------------------------------------ 
+           ts_log_heading "Cleanup 1 : Shutdown rp_vm jvm with reporter component on host $this(master)"
+           # ------------------------------------------------------------------ 
+           set output [sdmadm_command_opt "sdj -j rp_vm -h $this(master)"] 
+           if {$prg_exit_state != 0} {
+              set    msg "There was a problem shutting down rp_vm on host $this(master).\n"
+              append msg "Output was\n"
+              append msg $output
+              ts_log_severe $msg
+              return
+           }
+           set exp_ji(jvm_list) "" 
+           set err_ji(rp_vm,$this(master),state) "STARTED"
+           set err_ji(rp_vm,$this(master),state) "STARTING"
+           set ji_opts(jvm_name) "rp_vm"
+           set ji_opts(jvm_host) $this(master)
+           set ji_opts(error_jvm_info) err_ji
+
+           if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+              set msg "Jvm rp_vm didnt stop"
+              ts_log_severe $msg
+              return 
+           }
+           unset exp_ji
+           set this(rpdown) true
+       }
+       # ------------------------------------------------------------------ 
+       ts_log_heading "Cleanup 2 : Copy the original reporter files back to reporter spool directory"
+       # ------------------------------------------------------------------ 
+       set output [start_remote_prog $this(master) $this(admin) "mv" "/tmp/$this(dir)/* $this(reppath)"] 
+       if {$prg_exit_state != 0} {
+          set    msg "There was a problem with moving the reporter files back to origianl directory\n"
+          append msg "Output was\n"
+          append msg $output
+          ts_log_severe $msg
+          return
+       }
+   }
+   if { $this(rpdown) == "true" } {
+        # ------------------------------------------------------------------ 
+        ts_log_heading "Cleanup 3 : Startup rp_vm jvm with reporter component on host $this(master)"
+        # ------------------------------------------------------------------
+        set output [sdmadm_command_opt "suj -j rp_vm"] 
+        if {$prg_exit_state != 0} {
+          set    msg "There was a problem starting rp_vm on host $this(master).\n"
+          append msg "Output was\n"
+          append msg $output
+          ts_log_severe $msg
+          return
+        }
+       set exp_ji(rp_vm,$this(master),state) "STARTED" 
+       set err_ji(rp_vm,$this(master),state) "STOPPED"
+       set err_ji(rp_vm,$this(master),state) "STOPPING"
+       set ji_opts(jvm_name) "rp_vm"
+       set ji_opts(jvm_host) $this(master)
+       set ji_opts(error_jvm_info) err_ji
+
+       if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+          set msg "Jvm rp_vm didnt start"
+          ts_log_severe $msg
+          return 
+       }
+   }
+   if { $this(dircreated) == "true" } {
+       # ------------------------------------------------------------------ 
+       ts_log_heading "Cleanup 4 : Delete temp /tmp/$this(dir) directory"
+       # ------------------------------------------------------------------
+       set output [start_remote_prog $this(master) $this(admin) "rm" "-r /tmp/$this(dir)"] 
+       if {$prg_exit_state != 0} {
+          set    msg "There was a problem with deleting the reporter temp directory\n"
+          append msg "Output was\n"
+          append msg $output
+          ts_log_severe $msg
+          return
+       }
+   }
+   unset this
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Cleanup : Cleanup for issue609 finished"
+   # ------------------------------------------------------------------
+}
+
+#****** issue_609/hedeby_issue609_check *****************************
+#  NAME
+#     hedeby_issue609_check() -- check that issue 609 is fixed
+#
+#  SYNOPSIS
+#     hedeby_issue609_check { } 
+#
+#  FUNCTION
+#
+#    This test will check that reporter can handle empty lines in reporter file
+# 
+#    Test performs the following step:
+#
+#    o Step: Check that show history command prints out the data without problems
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#**********************************************************************
+proc hedeby_issue609_check {} {
+   upvar #0 hedeby_issue609_ctx this
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "TEST : Check that show history command prints out the data without problems even if file contain empty lines"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "shist"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem executing shist command.\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+}

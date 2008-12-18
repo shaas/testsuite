@@ -1,3 +1,6 @@
+MG-2008-12-18-0: Enhancem.:  Test for issue 609 added
+                 Review:     ?
+
 CR-2008-12-18-0: Bugfix:     checktree/upgrade_test:
                              Upgrade test answered with yes to re-create csp
                              certificates, but did not copy it to all execds
