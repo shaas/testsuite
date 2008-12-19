@@ -67,7 +67,10 @@ proc fork_posix_behaviour_init_level {} {
 }
 
 proc fork_posix_behaviour_setup {} {
-   shutdown_core_system
+   global ts_config
+   if {$ts_config(gridengine_version) >= 62} {
+      shutdown_core_system
+   }
 }
 
 #****** check.60/fork_posix_behaviour_run() ****************************************
@@ -87,6 +90,11 @@ proc fork_posix_behaviour_run {} {
    global CHECK_USER
    global CHECK_ACT_LEVEL
    
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not supported vor GE version < 62"
+      return
+   }
+
    set cs_user $CHECK_USER
    if {$ts_config(commd_port) < 1024} {
       set cs_user "root"
@@ -248,8 +256,11 @@ proc fork_posix_behaviour_run {} {
 }
 
 proc fork_posix_behaviour_cleanup {} {
-   startup_core_system
-   wait_for_load_from_all_queues 60
+   global ts_config
+   if {$ts_config(gridengine_version) >= 62} {
+      startup_core_system
+      wait_for_load_from_all_queues 60
+   }
 }
 
 
