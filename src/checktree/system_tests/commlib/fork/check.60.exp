@@ -1,0 +1,262 @@
+#!/vol2/TCL_TK/glinux/bin/expect --
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_highest_level
+global check_init_level_procedure check_category
+global check_root_access_needs check_need_running_system
+
+set check_init_level_procedure "fork_posix_behaviour_init_level"
+
+set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_name                "fork_posix_behaviour"
+set check_description(0)      "check fork posix behaviour with commlib threads"
+set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
+set check_root_access_needs   "yes"
+set check_need_running_system "no"   ;# setup procedure is doing shutdown of qmaster, we need the "no" here!
+
+# setup and cleanup functions
+set check_setup_function "fork_posix_behaviour_setup"
+set check_cleanup_function "fork_posix_behaviour_cleanup"
+
+# define test's procedure order
+set check_functions           ""
+lappend check_functions       "fork_posix_behaviour_run"
+set check_highest_level       0
+
+proc fork_posix_behaviour_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   # setup levels 
+   switch -- $CHECK_ACT_LEVEL {
+      "0"  { 
+         return 0  ;# client and server multi threaded
+      }
+   }
+   return -1
+}
+
+proc fork_posix_behaviour_setup {} {
+   shutdown_core_system
+}
+
+#****** check.60/fork_posix_behaviour_run() ****************************************
+#  NAME
+#     fork_posix_behaviour_run() -- test correct fork posix behaviour
+#
+#  SYNOPSIS
+#     fork_posix_behaviour_run { } 
+#
+#  FUNCTION
+#     Scenario:
+#     1) Startup test_cl_commlib in debug mode 4 and enable fork() calls
+#     2) check output that the process id is unique
+#*******************************************************************************
+proc fork_posix_behaviour_run {} {
+   global ts_config
+   global CHECK_USER
+   global CHECK_ACT_LEVEL
+   
+   set cs_user $CHECK_USER
+   if {$ts_config(commd_port) < 1024} {
+      set cs_user "root"
+   }
+
+   set error_text ""
+   set host_pos_list [get_all_hosts]
+
+   # we cannot test lx24 architecture this is a thread
+   # implementation based on processes
+   set host_list {}
+   foreach host $host_pos_list {
+      # here we use the arch script from the source code
+      set arch [resolve_arch $host 1]
+      ts_log_fine "host $host has arch $arch"
+      if {[string match "*lx24*" $arch]} {
+         ts_log_fine "skip host $host, it's lx24 arch which has \"process threads\""
+         continue
+      }
+      lappend host_list $host
+   }
+
+   # Test all hosts. We cannot skip same architectures since bug may occur on
+   # solaris 8 and solaris 9 but not on solaris 10 binaries.
+   foreach host $host_list {
+      # setup the test variables for the host
+      ts_log_fine "testing host $host ..."
+      set server_up_arch [resolve_build_arch $host]
+      set server_binary  $ts_config(source_dir)/$server_up_arch/test_cl_commlib
+
+      # we need debug level 4, using TCP connection
+      set server_args "4 TCP"
+
+      # set the environment needed for doing a fork() in the test_cl_commlib binary
+      set server_env(CL_PORT) $ts_config(commd_port)
+      set server_env(CL_RUNS) 3
+      set server_env(CL_FORK_SLEEP_CHILD) 3
+      set server_env(CL_FORK_SLEEP_PARENT) 1
+
+      # start the test binary
+      set server_sid     [open_remote_spawn_process $host $cs_user $server_binary $server_args 0 "" server_env]
+      set server_id [lindex $server_sid 1]
+      set in_loop 1
+      set server_exit_state -10
+      set server_started 0
+      set found_server_read_thread 0
+      set found_child 0
+      set server_output ""
+      set pid ""
+      while { $in_loop } {
+         set timeout 30
+         expect {
+            -i $server_id full_buffer {
+               ts_log_severe "$host: expect full_buffer error"
+               close_spawn_process $server_sid
+               return
+            }
+            -i $server_id timeout {
+               ts_log_fine "$host: ---->>>>>>>>> got timeout"
+               append error_text "$host: got timeout for host $host\n"
+               set in_loop 0   
+            }
+            -i $server_id eof {
+               ts_log_fine "$host: got eof for host $host\n"
+               append error_text "$host: got eof for host $host\n"
+               set in_loop 0   
+            }
+
+            -i $server_id -- "*\n" {
+               set output $expect_out(0,string) 
+               set output [ split $output "\n" ]
+               foreach line $output {
+                  set help [string trim $line]
+                  if {$help == ""} {
+                     continue
+                  }
+
+                  # here we log the output
+                  ts_log_finer "$host: $help"
+                  append server_output "$host: $help\n"
+
+                  # binary terminated? Check exit status
+                  if { [string match "*_exit_status_:(*)*" $help] } {
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set server_exit_state [string range $help $st $ed]
+                     ts_log_fine "$host: found exit status of server: ($server_exit_state)"
+                     if {$server_exit_state != 0} {
+                        append error_text "$host: exit state of host $host is not 0! Exit state is $server_exit_state\n"
+                     }
+                     set in_loop 0
+                  }
+
+                  # we found output from the commlib "server_read" thread
+                  if {[string match "*server_read*I*" $help]} {
+                     set found_server_read_thread 1
+                  }
+
+                  # we found output from the forked child
+                  if {[string match "*child - sleep*" $help]} {
+                     set found_child 1
+                  }
+
+                  # we found output from server_read thread and the commlib already supports the pid output
+                  # this is for versions >= 62 where the issue was found
+                  if {[string match "*server_read*pid=*I*" $help]} {
+                     if {$server_started == 0 && $pid == ""} {
+                        set pid [get_string_value_between "pid=" ")|" $help]
+                        ts_log_fine "$host: found server read thread which has pid $pid!"
+                     }
+                  }
+
+                  # server finally starts up ... check if we can test now
+                  if {[string match "*server running*" $help]} {
+                     ts_log_fine "$host: server started!"
+                     set server_started 1
+
+                     # if there was no thread output till now the binary isnot multithreaded
+                     if {$found_server_read_thread == 0} {
+                        ts_log_severe "$host: Commlib binary not running multithreaded!"
+                        close_spawn_process $server_sid
+                        return
+                     }
+                     # if we did not find the pid= logging this commlib version does not print it
+                     if {$pid == ""} {
+                        ts_log_config "$host: pid output not found in commlib debug output! Cannot run this test!"
+                        close_spawn_process $server_sid
+                        return
+                     }
+                  }
+
+                  # here we check if the pid= output of a thread has the correct pid and not a different which
+                  # must be from a forked thread which should not happen since posix thread only fork the thread
+                  # which is calling fork().
+                  if {$pid != "" && [string match "*pid=*I*" $help]} {
+                     set cur_pid [get_string_value_between "pid=" ")|" $help]
+                     if {$cur_pid != $pid} {
+                        ts_log_fine "$host: not posix compliant fork()!"
+                        append error_text "$host: found pid=$cur_pid output on $host. Expected only pid=$pid. The fork() implementation is not posix compliant:\n$host: $help\n"
+                        set in_loop 0
+                     }
+                  }
+               }
+            }
+         }
+      }
+      close_spawn_process $server_sid
+      # If we do not have found a child output the fork() mode is not implemented in test_cl_commlib binary
+      if {$found_child == 0} {
+         ts_log_fine "$host: found no child output on host $host!"
+         append error_text "found no child output on host $host!\n"
+      }
+   }
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+proc fork_posix_behaviour_cleanup {} {
+   startup_core_system
+   wait_for_load_from_all_queues 60
+}
+
+
+
+
+
+
+
+
+

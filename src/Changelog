@@ -1,3 +1,7 @@
+CR-2008-12-19-0: Enhancem.:  o added test for IZ 2837/ CR 6786152
+                               /checktree/system_tests/commlib/fork
+                 Review:     RD
+
 RD-2008-12-19-0: Bugfix:     added test if TMPDIR is cleaned after a tight
                              integration job exited
                  Review:     CR
