@@ -74,6 +74,8 @@ lappend check_functions "tight_integration_iz_575";# wallclock limit for tasks
 lappend check_functions "tight_integration_iz_1916"
 lappend check_functions "tight_integration_massive"
 lappend check_functions "tight_integration_massive_nfs_tmpdir"
+# This tests needs to be the last one
+lappend check_functions "tight_integration_check_tmpdir"
 
 # constants to be used by the tight integration test
 global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS 
@@ -155,6 +157,8 @@ proc tight_integration_setup {} {
 
    # assign queue with pe
    assign_queues_with_pe_object tight.q "" tight
+
+   cleanup_tmpdirs
 }
 
 proc tight_integration_setup_level {} {
@@ -987,3 +991,22 @@ proc tight_integration_acct {job_id num_tasks} {
       }
    }
 }
+
+proc tight_integration_check_tmpdir {} {
+   global CHECK_USER ts_config
+
+   set error ""
+   set tmpdir "/tmp/testsuite_$ts_config(commd_port)"
+
+   foreach host $ts_config(execd_nodes) {
+      set output [start_remote_prog $host $CHECK_USER ls "$tmpdir"]
+      set output [string trim $output] 
+      if { $output != "" } {
+         append error "Found IZ 2846: tmpdir was not cleaned on host $host for jobs: $output\n"
+      }
+   }
+   if { $error != "" } {
+      ts_log_severe "$error"
+   }
+}
+

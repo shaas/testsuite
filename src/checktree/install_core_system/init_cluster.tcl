@@ -1255,29 +1255,6 @@ proc setup_win_user_passwd {user} {
    close_spawn_process $id
 }
 
-proc cleanup_tmpdirs {} {
-   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
-
-   global ts_config
-
-   set tmpdir "/tmp/testsuite_$ts_config(commd_port)"
-
-   # in an admin user system (no root password available)
-   # we have to cleanup the tmpdir as CHECK_USER
-   # this shouldn't matter, as there shouldn't be subdirectories
-   # created by another user than CHECK_USER
-   if {$CHECK_ADMIN_USER_SYSTEM} {
-      set clean_user $CHECK_USER
-   } else {
-      set clean_user "root"
-   }
-
-   foreach node $ts_config(execd_nodes) {
-      ts_log_fine "cleaning tmpdir ($tmpdir) on node $node"
-      start_remote_prog $node $clean_user "rm" "-rf $tmpdir"
-   }
-}
-
 #****** init_cluster/setup_sge_aliases_file() **********************************
 #  NAME
 #     setup_sge_aliases_file() -- adds automounter prefixes to sge_aliases file
