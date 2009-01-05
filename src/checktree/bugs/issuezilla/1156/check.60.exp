@@ -87,37 +87,45 @@ proc issue_1156_setup {} {
    global CHECK_JOB_OUTPUT_DIR
    global script_name
    global report_name
+   global job_host_name
 
    # create a script file to be executed by qsh -S <script>
    ts_log_fine "creating a script file to be executed by qsh -S <script>"
    set script_name "$CHECK_JOB_OUTPUT_DIR/issue_1156_qsh.csh"
    set report_name "$CHECK_JOB_OUTPUT_DIR/issue_1156_report.txt"
-   set csh_path [get_binary_path $ts_config(master_host) "csh"]
+   set job_host_name [host_conf_get_suited_hosts]
+
+   ts_log_fine "submit host is: $ts_config(master_host)"
+   ts_log_fine "job host is:    $job_host_name"
+   set csh_path [get_binary_path $job_host_name "csh"]
    set f [open $script_name "w" "0755"]
    puts $f "#!$csh_path"
    puts $f "env >! $report_name"
    close $f
 
    # wait for host to appear on the remote host
-   set result [wait_for_remote_file $ts_config(master_host) $CHECK_USER $script_name]
-   if { $result != 0 } {
-      ts_log_severe "script file doesnt exist"
-      return -1
-   }
-
+   wait_for_remote_file $ts_config(master_host) $CHECK_USER $script_name
+   wait_for_remote_file $job_host_name $CHECK_USER $script_name
    return 0
 }
 
 proc issue_1156_cleanup {} {
+   global ts_config
    global script_name
    global report_name
    global proc_id
+   global job_host_name
+   global CHECK_USER
 
    # cleanup
+   close_spawn_process $proc_id
    ts_log_fine "cleaning up temporary files"
    file delete $script_name
    file delete $report_name
-   close_spawn_process $proc_id
+   wait_for_remote_file $ts_config(master_host) $CHECK_USER $script_name 60 1 1
+   wait_for_remote_file $job_host_name $CHECK_USER $script_name 60 1 1
+   wait_for_remote_file $ts_config(master_host) $CHECK_USER $report_name 60 1 1
+   wait_for_remote_file $job_host_name $CHECK_USER $report_name 60 1 1
 
    # delete jobs
    delete_all_jobs
@@ -170,6 +178,7 @@ proc issue_1156_test1 {} {
    global CHECK_USER
    global script_name
    global report_name
+   global job_host_name
    global proc_id
 
    if {$CHECK_ACT_LEVEL == 0} {
@@ -191,11 +200,11 @@ proc issue_1156_test1 {} {
 
       # execute "qsh -v hello=my=world,please=look=behind -display $CHECK_DISPLAY_OUTPUT -S $script_name"
       ts_log_fine "starting qsh with display $CHECK_DISPLAY_OUTPUT script $script_name"
-      set proc_id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER qsh "-v hello=my=world,please=look=behind -display $CHECK_DISPLAY_OUTPUT -S $script_name"]
+      set proc_id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER qsh "-l h=$job_host_name -v hello=my=world,please=look=behind -display $CHECK_DISPLAY_OUTPUT -S $script_name"]
       set sp_id [ lindex $proc_id 1 ]
 
       # wait for host to appear on the remote host
-      set result [wait_for_remote_file $ts_config(master_host) $CHECK_USER $report_name]
+      set result [wait_for_remote_file $job_host_name $CHECK_USER $report_name]
       if { $result != 0 } {
          ts_log_severe "script report file doesnt exist probably qsh failed (bad DISPLAY value, ...)"
          return -1
@@ -203,12 +212,13 @@ proc issue_1156_test1 {} {
 
       # read env report file
       ts_log_fine "reading env report file"
+
+      get_file_content $job_host_name $CHECK_USER $report_name file_array
       set report ""
-      set f [open $report_name "r"]
-      while {[gets $f line] >= 0} {
-         set report "$report\n$line"
-      }
-      close $f
+      for {set i 0} {$i < $file_array(0)} {incr i 1} {
+         append report "$file_array($i)\n"
+      } 
+      ts_log_finer "report file content:\n$report\nEOF\n"
 
       # check whether the output of env contains variable hello=my=world and please=look=behind
       set result [check_env_output $report]

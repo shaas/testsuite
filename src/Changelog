@@ -1,3 +1,6 @@
+CR-2008-01-05-0: Bugfix:     fixed test "issue_1156"
+                 Review:     JG
+
 JG-2008-01-05-0: Enhancem.:  extended tight_integration test to reliably
                              show IZ 2815.
                              Removed workarounds to avoid running into IZ 2815.
