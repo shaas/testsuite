@@ -5399,7 +5399,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     {on_host ""}            - execute qacct on this host
 #     {as_user ""}            - execute qacct as this user
 #     {raise_error 1}         - do add_proc error, or only output error messages
-#     {expected_account -1}   - expected account records (tasks)
+#     {expected_amount -1}    - expected amount of records (tasks)
 #     {atimeout_value 0}      - timeout waiting for accounting info
 #
 #  RESULT
@@ -5434,7 +5434,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     parser/parse_qacct()
 #     sge_procedures/get_qacct_error()
 #*******************************
-proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_account -1} {atimeout_value 0}} {
+proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_amount -1} {atimeout_value 0}} {
    get_current_cluster_config_array ts_config
 
    upvar $variable qacctinfo
@@ -5459,46 +5459,45 @@ proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_
    set ret 0
    set my_timeout [timestamp]
    incr my_timeout $timeout_value
-   while { 1 } {
+   while {1} {
       # clear output variable
       if {[info exists qacctinfo]} {
          unset qacctinfo
       }
       set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
       if {$prg_exit_state == 0} {
-         if {$expected_account == -1} {
+         if {$expected_amount == -1} {
             # we have the qacct info without errors
+            parse_qacct result qacctinfo $job_id
             break
          } else {
-            # we want to have $expected_account accounting data sets
+            # we want to have $expected_amount accounting data sets
             parse_qacct result qacctinfo $job_id
             set num_acct [llength $qacctinfo(exit_status)]
-            if {$num_acct == $expected_account} {
+            if {$num_acct == $expected_amount} {
                ts_log_fine "found all $num_acct expected accounting records!"
                return 0
             } else {
-               ts_log_fine "found $num_acct of $expected_account expected accounting records"
+               ts_log_finer "found $num_acct of $expected_amount expected accounting records"
             }
             after 1000
          }
-      } 
+      }
       # check timeout
       if {[timestamp] > $my_timeout} {
-         if {$expected_account == -1} {
+         if {$expected_amount == -1} {
             ts_log_severe "timeout while waiting for qacct info for job $job_id! Timeout was $timeout_value" $raise_error
          } else {
-            ts_log_severe "timeout while waiting for $expected_account accounting records for job $job_id! Timeout was $timeout_value" $raise_error
+            ts_log_severe "timeout while waiting for $expected_amount accounting records for job $job_id! Timeout was $timeout_value" $raise_error
          }
          break
       }
-      ts_log_fine "timeout in [expr ( $my_timeout - [timestamp] )] seconds!"
+      ts_log_finer "timeout in [expr $my_timeout - [timestamp]] seconds!"
       after 1000
    }
 
    # parse output or raise error
-   if {$prg_exit_state == 0} {
-      parse_qacct result qacctinfo $job_id
-   } else {
+   if {$prg_exit_state != 0} {
       set ret [get_qacct_error $result $job_id $raise_error]
    }
 
@@ -6250,7 +6249,7 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
          ts_log_finest "old scheduler pid is \"$old_schedd_pid\""
 
          ts_log_fine "starting up scheduler ..."
-         if { $schedd_debug != 0 } {
+         if {$schedd_debug != 0} {
             set xterm_path [get_binary_path $start_host "xterm"]
             ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
             ts_log_finest "starting schedd as $startup_user" 
@@ -6260,18 +6259,20 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
             set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
             ts_log_finest $result
          }
+
+         # wait for scheduler pid to be updated
+         set nr_of_checks 20
+         ts_log_finer "waiting for pidfile containing a new scheduler pid ..."
          set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
          ts_log_finest "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
-
-         set nr_of_checks 10
-         ts_log_finer "waiting for pidfile containing a new scheduler pid ..."
-         while { $current_schedd_pid == $old_schedd_pid } {
-            after 1000
+         while {$current_schedd_pid == $old_schedd_pid} {
             incr nr_of_checks -1
-            if { $nr_of_checks <= 0 } {
-               ts_log_severe "new scheduler pid not written"
+            if {$nr_of_checks <= 0} {
+               ts_log_severe "new scheduler pid not written: old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+wait_for_enter
                break
             }
+            sleep 1
             set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
             ts_log_finest "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
          }
@@ -7948,10 +7949,6 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
       append job_args " $arg"
    }
 
-   # workaround sleep time after jobs have finished TODO: remove this sleep when CR 6728379 is fixed
-   ts_log_info "This is workaround for CR 6728379, master task will sleep for 10 seconds to account all task account informations!!!"
-   append job_args " 10"
-  
    switch -exact $submit_method {
       qsub {
          ts_log_fine "submitting job using qsub, reading from job output file"

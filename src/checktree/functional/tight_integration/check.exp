@@ -74,6 +74,7 @@ lappend check_functions "tight_integration_iz_575";# wallclock limit for tasks
 lappend check_functions "tight_integration_iz_1916"
 lappend check_functions "tight_integration_massive"
 lappend check_functions "tight_integration_massive_nfs_tmpdir"
+lappend check_functions "tight_integration_massive_short"
 # This tests needs to be the last one
 lappend check_functions "tight_integration_check_tmpdir"
 
@@ -120,14 +121,12 @@ proc tight_integration_setup {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
-   global tight_masterq tight_master_node tight_global_config
+   global tight_masterq tight_master_node
+   global tight_global_config
 
    # we have to set a short load report time
    # to workaround CR 6728379
-   ts_log_info "setting 2 second load_report_time to workaround CR 6728379"
    get_config tight_global_config
-   set global_config(load_report_time) "0:0:2"
-   set_config_and_propagate global_config
 
    # for the functional test we want to schedule one task to each host
    # we set the allocation rule to round_robin and request as many slots
@@ -274,7 +273,7 @@ proc tight_integration_parse_execd_messages {mode} {
 }
 
 
-proc tight_integration_check_messages {mode1 mode2 scenario} {
+proc tight_integration_check_messages {mode1 mode2 scenario {expect_error 0}} {
    global TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
@@ -407,7 +406,11 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
    }
 
    if {$error_text != ""} {
-      ts_log_info "$error_text"
+      if {$expect_error} {
+         ts_log_info $error_text
+      } else {
+         ts_log_severe $error_text
+      }
       ts_log_fine "tight integration check produced error messages and/or warnings"
    } else {
       ts_log_fine "tight integration check produced no execd errors or warnings"
@@ -418,7 +421,7 @@ proc tight_integration_init_messages_check {} {
    tight_integration_parse_execd_messages startup
 }
 
-proc tight_integration_messages_check {scenario} {
+proc tight_integration_messages_check {scenario {expect_error 0}} {
    get_config global_config
    ts_log_fine "load_report_time is set to $global_config(load_report_time)"
    set report_time [transform_date_time $global_config(load_report_time)]
@@ -426,7 +429,7 @@ proc tight_integration_messages_check {scenario} {
    set sleep_time [expr $report_time - $zero_time]
 
    ts_log_fine "sleeping for $sleep_time seconds to let each execd report its final state ..."
-   after [expr ( $sleep_time * 1000 ) ]
+   after [expr $sleep_time * 1000]
 
    ts_log_fine "additional sleep of 5 seconds ..."
    after 5000
@@ -435,7 +438,7 @@ proc tight_integration_messages_check {scenario} {
    tight_integration_parse_execd_messages cleanup
 
    ts_log_fine "compare error messages ..."
-   tight_integration_check_messages startup cleanup $scenario
+   tight_integration_check_messages startup cleanup $scenario $expect_error
 }
 
 # -------- local test procedures: utilities --------------------------
@@ -504,7 +507,7 @@ proc tight_integration_iz_1916 {} {
    #
    tight_integration_init_messages_check
 
-   ts_log_fine "tight_integration: test iz 1916 (reschedule killes qmaster)"
+   ts_log_fine "tight_integration: test iz 1916 (reschedule kills qmaster)"
 
    if {$CHECK_ACT_LEVEL != 0} {
       ts_log_config "rescheduling not supported for qrsh"
@@ -592,7 +595,10 @@ proc tight_integration_iz_1916 {} {
    #
    # Check for warning/error messages and write out.
    #
-   tight_integration_messages_check reschedule_test
+   # we expect to have error messages in messages file
+   # probably will be fixed with CR 6244911: qmod -r does not delete the old instance
+   #                                         of a job before a new one is started
+   tight_integration_messages_check reschedule_test 1
 
    # reset global config
    set_config org_global_conf
@@ -959,7 +965,7 @@ proc tight_integration_acct {job_id num_tasks} {
    } else {
       set expected [expr $num_tasks + 1]
    }
-   get_qacct $job_id qacct_info "" "" 1 $expected 30
+   get_qacct $job_id qacct_info $ts_config(master_host) "" 1 $expected 30
 
    # re-check
    set num_acct [llength $qacct_info(exit_status)]
@@ -990,6 +996,48 @@ proc tight_integration_acct {job_id num_tasks} {
          ts_log_severe "job $job_id: tightly integrated job and tasks were not started within 5 minutes, or tasks accounting records do not contain correct submission time:\n$qacct_info(qsub_time)"
       }
    }
+}
+
+proc tight_integration_massive_short {} {
+   global ts_config
+   global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
+   global submit_command tight_masterq tight_master_node
+   ts_log_fine "tight_integration: massive parallel test"
+
+   # count the number of slots in the cluster to check if tests can be run
+   set total_slots 0
+   foreach host $ts_config(execd_nodes) {
+      get_queue [get_queue_instance "tight.q" $host] queue_conf
+      incr total_slots $queue_conf(slots)
+      unset queue_conf
+   }
+
+   ts_log_fine "running parallel job with $total_slots slots"
+
+   set id [submit_with_method $submit_command "-pe tight $total_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 1" $tight_master_node]
+
+   set started 0
+   set finished 0
+   set jobid 0
+   set job_finished 0
+   
+   while {$job_finished == 0} {
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
+      set job_finished [tight_integration_job_finished $job_state]
+   }
+
+   if {$started != $total_slots} {
+      ts_log_severe "job $jobid: only $started tasks out of $total_slots were started successfully"
+   }
+
+   if {$finished != $total_slots} {
+      ts_log_severe "job $jobid: only $finished tasks out of $total_slots ran through successfully"
+   }
+   set sp_id [lindex $id 1]
+   close_spawn_process $id
+
+   wait_for_jobend $jobid tightm 300 0 1
+   tight_integration_acct $jobid $total_slots
 }
 
 proc tight_integration_check_tmpdir {} {
