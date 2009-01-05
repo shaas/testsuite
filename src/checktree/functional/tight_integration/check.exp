@@ -598,6 +598,7 @@ proc tight_integration_iz_1916 {} {
    # we expect to have error messages in messages file
    # probably will be fixed with CR 6244911: qmod -r does not delete the old instance
    #                                         of a job before a new one is started
+   # TODO: if CR 6244911, test and remove the expect_error 1
    tight_integration_messages_check reschedule_test 1
 
    # reset global config
@@ -1002,7 +1003,11 @@ proc tight_integration_massive_short {} {
    global ts_config
    global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
    global submit_command tight_masterq tight_master_node
-   ts_log_fine "tight_integration: massive parallel test"
+
+   ts_log_fine "tight_integration: massive parallel test with short tasks"
+
+   # initialize checking of messages files
+   tight_integration_init_messages_check
 
    # count the number of slots in the cluster to check if tests can be run
    set total_slots 0
@@ -1038,6 +1043,7 @@ proc tight_integration_massive_short {} {
 
    wait_for_jobend $jobid tightm 300 0 1
    tight_integration_acct $jobid $total_slots
+   tight_integration_messages_check massive_short
 }
 
 proc tight_integration_check_tmpdir {} {

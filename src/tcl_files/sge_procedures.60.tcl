@@ -648,6 +648,10 @@ proc startup_bdb_rpc { hostname } {
 
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgebdb" "start"]
    ts_log_fine $output
+   # give the bdb server a few seconds to fully initialize
+   # starting sge_qmaster immediately after the bdb server can fail otherwise
+   sleep 5
+
    if { [string length $output] < 15  && $prg_exit_state == 0 } {
        return 0
    }
