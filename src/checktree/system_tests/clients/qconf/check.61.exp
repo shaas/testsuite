@@ -46,6 +46,7 @@ append_check_and_exclude_in_jgdi "qconf_rqs_rattr_qmaster_dump" "RQS file format
 append_check_and_exclude_in_jgdi "qconf_issue_2383" "-mc fails for maintrunk" ;# TS case for IZ 2383
 append_check_and_exclude_in_jgdi "qconf_issue_2445" "Test for IZ 2445" ; # TS case for IZ 2445
 append_check_and_exclude_in_jgdi "qconf_help" ; # TS case for qconf [-help] return values 
+append_check_and_exclude_in_jgdi "qconf_Aconf" ; # TS case for qconf -Aconf with already existing configuration
 
 global rqs_name_fast
 global rqs_name_cli
@@ -532,5 +533,37 @@ proc qconf_issue_2445 {} {
       ts_log_config  "Job did not switch into E state in qsub -S NONE scenario. E_state_ok was $E_state_ok, job_state was $job_state."
    } else {
       ts_log_fine  "qsub -S NONE negative test for IZ 2445 passed"
+   }
+}
+
+
+############# qconf/qconf_Aconf() *********************************************
+#  NAME
+#     qconf_Aconf() 
+#
+#  SYNOPSIS
+#     qconf_Aconf{} - tests if modification of already existing config is
+#                     possible through qconf -Aconf
+#
+#  FUNCTION
+#     Test adding already existing configuration through qconf -Aconf
+#
+#     After submitting a configuration from a file, we expect a warning
+#     message that the current configuration already exists. Furthermore, 
+#     this configuration should not be modified
+#
+#*******************************************************************************
+proc qconf_Aconf {} {
+   global ts_config
+  
+   # run qconf -Aconf with an already existing configuration
+   set result [start_sge_bin "qconf" "-Aconf $ts_config(master_host)"]
+
+   # check that we get the correct error message MSG_ANSWER_CONFIGXALREADYEXISTS_S
+   set expected_message [translate_macro MSG_ANSWER_CONFIGXALREADYEXISTS_S $ts_config(master_host)]
+   if {[string trim $result] != $expected_message} {
+      ts_log_severe "qconf_Aconf test failed.\nExpected qconf to fail, but got result:\n$result"
+   } else {
+      ts_log_fine "qconf_Aconf test passed"
    }
 }
