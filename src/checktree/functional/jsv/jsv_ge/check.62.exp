@@ -51,7 +51,6 @@ set check_name            "jsv_ge"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0 
 set check_description(0)  ""
-set check_description(1)  ""
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -107,8 +106,7 @@ proc jsv_ge_init_level {} {
    global ts_config
 
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
+      0 {
          if {$ts_config(gridengine_version) >= 62} {
             return 0
          }
@@ -410,6 +408,8 @@ proc jsv_ge_restart_after_kill {} {
          set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
          regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
          regexp "JSV_PID=(\[0-9\]*)" $qstat_out4 match pid4
+      } else {
+         ts_log_severe "One of the JSV pids is missing"
       }
 
       # this sleep is extremely important this will
@@ -429,8 +429,7 @@ proc jsv_ge_restart_after_kill {} {
           $pid2 == 0 || $pid2 == 0} {
           ts_log_severe "Did not receive one or more of the JSV scripts pids"
       } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
-                $pid2 == $pid3 || $pid2 == $pid4 ||
-                $pid1 == $pid2 || $pid3 == $pid4} {
+                $pid2 == $pid3 || $pid2 == $pid4} {
           ts_log_severe "At least one of the JSV scripts was not restarted after modify"
       }
    }
@@ -522,8 +521,7 @@ proc jsv_ge_restart_after_configuration_change {} {
       }
       # all 4 pids have to be different
       if {$pid1 == $pid3 || $pid1 == $pid4 ||
-          $pid2 == $pid3 || $pid2 == $pid4 ||
-          $pid1 == $pid2 || $pid3 == $pid4} {
+          $pid2 == $pid3 || $pid2 == $pid4} {
           ts_log_severe "At least one of the JSV scripts was not restarted after modify"
       }
    }
@@ -581,8 +579,7 @@ proc jsv_ge_restart_after_protocol_error {} {
           $pid3 == 0 || $pid4 == 0} {
           ts_log_severe "Did not receive one or more of the JSV scripts pids"
       } elseif {$pid1 == $pid3 || $pid1 == $pid4 ||
-                $pid2 == $pid3 || $pid2 == $pid4 ||
-                $pid1 == $pid2 || $pid3 == $pid4} {
+                $pid2 == $pid3 || $pid2 == $pid4} {
           ts_log_severe "At least one of the JSV scripts was not restarted after protocol error"
       }
    }

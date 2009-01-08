@@ -132,7 +132,7 @@ proc set_complex {change_array {raise_error 1}} {
          }
       } else {
          # if the config entry didn't exist in old config: append a new line
-         lappend vi_commands "A\n$elem  $newVal[format "%c" 27]"
+         lappend vi_commands "1Gi$elem  $newVal\n[format "%c" 27]"
       }
    }
 
@@ -152,8 +152,11 @@ proc set_complex {change_array {raise_error 1}} {
    set master_arch [resolve_arch $ts_config(master_host)] 
 
    set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF $NULL_URGENCY "___ABCDEFG___" $raise_error]
-   if {$result != 0 && $result != -2 && $result != -3 && $result != -4  && $result != -6} {
+   if {$result != 0 && $result != -2 && $result != -3 && $result != -4 && $result != -6} {
       ts_log_severe "could not modify complex: ($result)" $raise_error
+   } 
+   if {$result == -4} {
+      ts_log_fine "WARNING: could not modify complex: ($result)" $raise_error
    }
 
    return $result

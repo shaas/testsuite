@@ -1,3 +1,9 @@
+EB-2009-01-09-0: Bugfix:     - enabled enforce limit tests again
+                             - added some jsv/qalter related tests
+                             - changed the way how TS handles vi (caused
+									    problem with special vim plugins)
+                 Review:     CR
+
 MP-2009-01-07-0: Enhancem.:  added check for IZ 2752. qconf -Aconf should not
                              be able to modify an existing configuration
                  Review:     AP
