@@ -1,3 +1,6 @@
+JG-2009-01-12-0: Bugfix:     Fixed installation with windows hosts.
+                 Review:     DG
+
 EB-2009-01-09-0: Bugfix:     - enabled enforce limit tests again
                              - added some jsv/qalter related tests
                              - changed the way how TS handles vi (caused
