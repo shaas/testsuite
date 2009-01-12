@@ -51,7 +51,7 @@ set check_init_level_procedure "generic_module_tests_init_level"
 
 # define test's name and run level descriptions
 set check_name            "generic_module_tests"
-set check_category        "MODULE VERIFIED"
+set check_category        "MODULE VERIFIED COMMLIB"
 set check_highest_level   100
 set check_description(0)   "run all generic module tests on master host"
 set check_description(100) "run all generic module tests on all architectures"

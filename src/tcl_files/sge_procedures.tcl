@@ -409,7 +409,7 @@ proc ge_has_feature {feature {quiet 0}} {
             set result true
          }
       }
-      "job_submission_verify" {
+      "job-submission-verify" {
          if {[get_config global_config] == 0} {
             # check if there is a jsv_url in configuration
             set result false
@@ -424,6 +424,13 @@ proc ge_has_feature {feature {quiet 0}} {
             set result false
          }
       }
+      "job-consumable" {
+         if {$ts_config(gridengine_version) < 62} {
+            set result false
+         } else {
+            set result true
+         }
+      }
       default {
          ts_log_severe "unsupported feature string \"$feature\""
          return "unsupported"
@@ -432,7 +439,6 @@ proc ge_has_feature {feature {quiet 0}} {
 
    if {!$quiet} {
       ts_log_fine "**********************************************************************"
-      ts_log_fine "* Test depends on availability of a feature!"   
       if {$result == false} {
          ts_log_fine "* Feature \"$feature\" is NOT supported!"
       } else {
@@ -6590,7 +6596,7 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
 proc shutdown_master_and_scheduler {hostname qmaster_spool_dir} {
    get_current_cluster_config_array ts_config
 
-   if {[ge_has_feature "scheduler-thread"] == false} {
+   if {[ge_has_feature "scheduler-thread" 1] == false} {
       shutdown_scheduler $hostname $qmaster_spool_dir
    }
    shutdown_qmaster $hostname $qmaster_spool_dir

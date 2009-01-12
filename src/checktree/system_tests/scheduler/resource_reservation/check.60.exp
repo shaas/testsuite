@@ -182,7 +182,9 @@ proc resource_reservation_setup {} {
    set tmp_complex(license2)  "lic2       double   <=    YES         YES        0       100"   
    set tmp_complex(h_vmem)    "h_vmem     MEMORY   <=    YES         YES        100M    0.0000001"
    set tmp_complex(myslots)   "ms         INT      <=    YES         YES        0       100"
-   set tmp_complex(jobs)      "j          INT      <=    YES         JOB        0       0"
+   if {[ge_has_feature "job-consumable"]} {
+      set tmp_complex(jobs)      "j          INT      <=    YES         JOB        0       0"
+   }
 
    set result [ set_complex tmp_complex ]
 
@@ -237,7 +239,11 @@ proc resource_reservation_level_setup {} {
       set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=10,jobs=2"
+      if {[ge_has_feature "job-consumable"]} {
+         set queue_conf(complex_values)   "myslots=10,jobs=2"
+      } else {
+         set queue_conf(complex_values)   "myslots=10"
+      }
 
       if {$CHECK_ACT_LEVEL == 4} {
 
@@ -280,18 +286,30 @@ proc resource_reservation_level_setup {} {
       set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=100,jobs=100"
+      if {[ge_has_feature "job-consumable"]} {
+         set queue_conf(complex_values)   "myslots=100,jobs=100"
+      } else {
+         set queue_conf(complex_values)   "myslots=100"
+      }
      
       # setup needed resource quota sets
       set rqs_name              "no_pe"
       set rules                  ""
-      lappend rules                  "pes !* to myslots=10,jobs=2"
+      if {[ge_has_feature "job-consumable"]} {
+         lappend rules                  "pes !* to myslots=10,jobs=2"
+      } else {
+         lappend rules                  "pes !* to myslots=10" 
+      }
       set rqs_charray($rqs_name,limit)   "$rules"
       set rqs_charray($rqs_name,enabled) "true"
 
       set rqs_name              "pe"
       set rules                  ""
-      lappend rules              "pes * to slots=10,jobs=2"
+      if {[ge_has_feature "job-consumable"]} {
+         lappend rules              "pes * to slots=10,jobs=2"
+      } else {
+         lappend rules              "pes * to slots=10"
+      }
       set rqs_charray($rqs_name,limit)   "$rules"
       set rqs_charray($rqs_name,enabled) "true"
  
@@ -316,7 +334,11 @@ proc resource_reservation_level_setup {} {
       set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=100,jobs=100"
+      if {[ge_has_feature "job-consumable"]} {
+         set queue_conf(complex_values)   "myslots=100,jobs=100"
+      } else {
+         set queue_conf(complex_values)   "myslots=100"
+      }
    }
 
    ts_log_fine "Add queue $rr_queue_name"
@@ -351,7 +373,9 @@ proc resource_reservation_cleanup {  } {
    set tmp_complex(license2)  ""
    set tmp_complex(h_vmem)   $rr_h_vmem_complex
    set tmp_complex(myslots)   ""
-   set tmp_complex(jobs)   ""
+   if {[ge_has_feature "job-consumable"]} {
+      set tmp_complex(jobs)   ""
+   }
    ts_log_fine "result from set_comples: [set_complex tmp_complex]"
 
    # enable queues
@@ -424,7 +448,7 @@ proc get_job_descriptions { test1 test2 {ar_id 0} } {
    }
    
 
-   switch -exact $test1 { 
+   switch -exact $test1 {
       "license" {
          set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=8"
          set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,license=10"
@@ -460,25 +484,29 @@ proc get_job_descriptions { test1 test2 {ar_id 0} } {
          set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe pe_slots 10" 
          set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe pe_slots 2"
       }
-      "jobs" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1"
-         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1"
-      }
-      "rr_jobs" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe round_robin 2"
-         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe round_robin 2" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe round_robin 2"
-      }
-      "fu_jobs" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe fill_up 2"
-         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe fill_up 2" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe fill_up 2"
-      }
-      "ps_jobs" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe pe_slots 2"
-         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe pe_slots 2" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe pe_slots 2"
+   }
+   if {[ge_has_feature "job-consumable"]} {
+      switch -exact $test1 {
+         "jobs" {
+            set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1"
+            set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2" 
+            set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1"
+         }
+         "rr_jobs" {
+            set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe round_robin 2"
+            set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe round_robin 2" 
+            set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe round_robin 2"
+         }
+         "fu_jobs" {
+            set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe fill_up 2"
+            set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe fill_up 2" 
+            set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe fill_up 2"
+         }
+         "ps_jobs" {
+            set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe pe_slots 2"
+            set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe pe_slots 2" 
+            set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe pe_slots 2"
+         }
       }
    }
    
@@ -535,7 +563,11 @@ proc resource_reservation_basic { } {
       delete_all_ars
 
       set qname [get_queue_instance $rr_queue_name $rr_host]
-      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G,jobs=2 -d 360000"
+      if {[ge_has_feature "job-consumable"]} {
+         set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G,jobs=2 -d 360000"
+      } else {
+         set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G -d 360000"
+      }
 
       set ar_id [submit_ar "$ar_args -pe round_robin 10"]
       if { $ar_id <= 0} {
@@ -549,12 +581,18 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc
    get_job_descriptions "myslots" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "jobs" "backfill" $ar_id
-   drmaa_test "" $job_desc 
+
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "jobs" "backfill" $ar_id
+      drmaa_test "" $job_desc 
+   }
    get_job_descriptions "round_robin" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "rr_jobs" "backfill" $ar_id
-   drmaa_test "" $job_desc 
+
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "rr_jobs" "backfill" $ar_id
+      drmaa_test "" $job_desc 
+   }
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
       set ar_id [submit_ar "$ar_args -pe fill_up 10"]
@@ -565,8 +603,10 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "fill_up" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "fu_jobs" "backfill" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "fu_jobs" "backfill" $ar_id
+      drmaa_test "" $job_desc 
+   }
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
       set ar_id [submit_ar "$ar_args -pe pe_slots 10"]
@@ -578,8 +618,10 @@ proc resource_reservation_basic { } {
 
    get_job_descriptions "pe_slots" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "ps_jobs" "backfill" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "ps_jobs" "backfill" $ar_id
+      drmaa_test "" $job_desc 
+   }
    get_job_descriptions "array" "backfill" $ar_id
    drmaa_test "" $job_desc 
   
@@ -590,8 +632,10 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc 
    get_job_descriptions "myslots" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "jobs" "reservation" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "jobs" "reservation" $ar_id
+      drmaa_test "" $job_desc 
+   }
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
       set ar_id [submit_ar "$ar_args -pe round_robin 10"]
@@ -602,8 +646,10 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "round_robin" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "rr_jobs" "reservation" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "rr_jobs" "reservation" $ar_id
+      drmaa_test "" $job_desc 
+   }
 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
@@ -615,8 +661,10 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "fill_up" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "fu_jobs" "reservation" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "fu_jobs" "reservation" $ar_id
+      drmaa_test "" $job_desc 
+   }
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
       set ar_id [submit_ar "$ar_args -pe pe_slots 10"]
@@ -627,8 +675,10 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "pe_slots" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "ps_jobs" "reservation" $ar_id
-   drmaa_test "" $job_desc 
+   if {[ge_has_feature "job-consumable"]} {
+      get_job_descriptions "ps_jobs" "reservation" $ar_id
+      drmaa_test "" $job_desc 
+   }
    get_job_descriptions "array" "reservation" $ar_id
    drmaa_test "" $job_desc 
    if {$CHECK_ACT_LEVEL == 5} {

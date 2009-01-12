@@ -1,3 +1,12 @@
+CR-2009-01-12-0: Bugfix:     o ge_has_feature():
+                               - "job_submission_verify" renamed to
+                                 to "job-submission-verify"
+                               - new feature name "job-consumable"
+                             o fixed resource_reservation test for
+                               61_BRANCH
+                             o added testsuite "COMMLIB" category
+                 Review:     RD
+
 RD-2009-01-12-0: Enhancem.:  Added test for scheduler message check
                  Review:     CR
 

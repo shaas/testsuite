@@ -38,7 +38,7 @@ global check_root_access_needs
 
 set check_init_level_procedure "commlib_issues_init_level"
 
-set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "commlib_issues"
 set check_description(0)      "check commlib issue test module"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)

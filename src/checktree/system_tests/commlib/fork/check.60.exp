@@ -38,7 +38,7 @@ global check_root_access_needs check_need_running_system
 
 set check_init_level_procedure "fork_posix_behaviour_init_level"
 
-set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "fork_posix_behaviour"
 set check_description(0)      "check fork posix behaviour with commlib threads"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)

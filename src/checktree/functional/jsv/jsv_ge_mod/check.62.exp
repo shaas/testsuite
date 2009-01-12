@@ -135,7 +135,7 @@ proc jsv_ge_mod_setup {} {
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
-      set jsv_enabled [ge_has_feature "job_submission_verify"]
+      set jsv_enabled [ge_has_feature "job-submission-verify"]
       if {$jsv_enabled == false} {
          ts_log_config "Cannot run this test, jsv is not available for this GE version!"
       }

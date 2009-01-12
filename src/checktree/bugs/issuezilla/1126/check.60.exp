@@ -38,7 +38,7 @@ global check_root_access_needs
 
 set check_init_level_procedure "issue_1126_init_level"
 
-set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "issue_1126"
 set check_description(0)      "qmaster clients may not reconnect after qmaster outage"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)

@@ -37,7 +37,7 @@ global check_init_level_procedure check_category check_root_access_needs
 
 set check_init_level_procedure "commlib_perf_init_level"
 
-set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "commlib"
 set check_highest_level       2
 set check_description(0)      "run virtual qmaster/1 static gdi per host"
