@@ -45,13 +45,16 @@ global env
 # define test's name and run level descriptions
 set check_name            "scheduler_messages"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0
-set check_description(0)  "check qalter -w v messages"
+set check_highest_level   1
+set check_description(0)  "check scheduler messages without schedd_job_info"
+set check_description(1)  "check scheduler messages with schedd_job_info"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
+set check_setup_function scheduler_messages_setup
+set check_cleanup_function scheduler_messages_cleanup
 set check_setup_level_function scheduler_messages_level_setup
 set check_cleanup_level_function scheduler_messages_level_cleanup
 
@@ -61,6 +64,7 @@ set check_init_level_procedure "scheduler_messages_init_level"
 # define test's procedure order
 set check_functions ""
 lappend check_functions "scheduler_messages_check"
+#lappend check_functions "scheduler_messages_qmaster_crash"
 
 proc scheduler_messages_init_level {} {
    global ts_config
@@ -70,6 +74,9 @@ proc scheduler_messages_init_level {} {
       "0" { 
          return 0
       } 
+      "1" { 
+         return 0
+      } 
    } 
 
    return -1  ;# no other level 
@@ -77,13 +84,13 @@ proc scheduler_messages_init_level {} {
 
 # -------- local test procedures: initialization ------------------------------
 
-proc scheduler_messages_level_setup {} {
+proc scheduler_messages_setup {} {
    global ts_config
    global global_host_backup
    global first_host
    global second_host
 
-   ts_log_fine "scheduler_messages_level_setup" 
+   ts_log_fine "scheduler_messages_setup" 
 
    set pe(slots)             "0"
    set pe(allocation_rule)   "\$pe_slots"
@@ -145,14 +152,26 @@ proc scheduler_messages_level_setup {} {
    lappend rules "to h_rt=1::"
    set rqs_charray($rqs_name,limit) "$rules"
    add_rqs rqs_charray
-
 }
 
-proc scheduler_messages_level_cleanup {} {
+proc scheduler_messages_level_setup {} {
+   global CHECK_ACT_LEVEL
+
+   ts_log_fine "scheduler_messages_level_setup" 
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      set schedd_conf(schedd_job_info) "true"
+      set_schedd_config schedd_conf
+   }
+}
+
+proc scheduler_messages_cleanup {} {
 
    global global_host_backup
    global first_host second_host
    global ts_config
+
+   ts_log_fine "scheduler_messages_cleanup" 
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -185,6 +204,16 @@ proc scheduler_messages_level_cleanup {} {
    }
 }
 
+proc scheduler_messages_level_cleanup {} {
+   global CHECK_ACT_LEVEL
+
+   ts_log_fine "scheduler_messages_level_cleanup" 
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      reset_schedd_config
+   }
+}
+
 # -------- local test procedures: initialization ------------------------------
 
 proc scheduler_messages_check {} {
@@ -192,9 +221,9 @@ proc scheduler_messages_check {} {
    set errors "" 
 
    # no assignment due to queue pe_list missing PE association
-   append errors [scheduler_messages_single_check "queue" false "pe_slots20"]
-   append errors [scheduler_messages_single_check "queue" false "pe_slots1"]
-   append errors [scheduler_messages_single_check "queue" false "pe_slots"]
+   append errors [scheduler_messages_single_check "PE" false "pe_slots20"]
+   append errors [scheduler_messages_single_check "PE" false "pe_slots1"]
+   append errors [scheduler_messages_single_check "PE" false "pe_slots"]
 
    # no assignment due to queue/host/global h_rt limit
    append errors [scheduler_messages_single_check "queue" false "h_rt"]
@@ -232,6 +261,7 @@ proc scheduler_messages_check {} {
 proc scheduler_messages_single_check {resource_container via_quotas resource} {
    global first_host
    global second_host
+   global CHECK_ACT_LEVEL
 
    set ret ""
 
@@ -239,7 +269,8 @@ proc scheduler_messages_single_check {resource_container via_quotas resource} {
       set h_rt "2:00:0"
    } else {
       switch -- $resource_container {
-         "queue"  {
+         "PE" -
+         "queue" {
             set h_rt "6:30:0"
          }
          "host" {
@@ -272,19 +303,56 @@ proc scheduler_messages_single_check {resource_container via_quotas resource} {
       }
    }
 
-   # do the qalter -w v on it 
-   set jobid [submit_job "$job_args -q A,B -b y /bin/sleep 3600"]
-   set result [start_sge_bin "qalter" "-w v $jobid"]
-   ts_log_fine "result of qalter: #$result#"
-
-   # check output
    # TODO: this will not work for localized SGE versions L10N
-   if {[string match "*cannot run*$resource_container*$resource*" $result] == 1} {
+   if {$resource == "project" } {
+      # The project error message has a different format
+      set expected_string "*$resource_container*$resource*"
    } else {
-      set ret "test failed for $resource_container $via_quotas $resource\n"
+      set expected_string "*cannot run*$resource_container*$resource*"
+   }
+
+   # check the qsub messages
+   set result [start_sge_bin "qsub" "-w v $job_args -q A,B -b y /bin/sleep 3600"]
+   if {[string match $expected_string $result] == 1} {
+
+      # now test the qalter messages
+      set jobid [submit_job "$job_args -q A,B -b y /bin/sleep 3600"]
+      set result [start_sge_bin "qalter" "-w v $jobid"]
+      ts_log_fine "result of qalter: #$result#"
+
+      if {[string match $expected_string $result] == 1} {
+         # if enabled check qstat -j schedd_job_info messages
+         if {$CHECK_ACT_LEVEL == 1} {
+            # trigger scheduling to ensure messages are generated
+            trigger_scheduling
+            set result [start_sge_bin "qstat" "-j $jobid"]
+            ts_log_fine "result of qstat: #$result#"
+            if {[string match $expected_string $result] == 1} {
+            } else {
+               set ret "test failed for qstat with $resource_container $via_quotas $resource\n"
+               wait_for_enter
+               ts_log_fine "$ret"
+            }
+         }
+      } else {
+         set ret "test failed for qalter with $resource_container $via_quotas $resource\n"
+         ts_log_fine "$ret"
+      }
+      delete_job $jobid
+   } else {
+      set ret "test failed for qsub with $resource_container $via_quotas $resource\n"
       ts_log_fine "$ret"
    }
-   delete_job $jobid
 
    return $ret
+}
+
+proc scheduler_messages_qmaster_crash {} {
+   global ts_config
+
+   submit_job "-w e -l a=bla -b y /bin/sleep 3600" 0
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
+      ts_log_severe "qsub -w e crashed qmaster"
+      startup_qmaster 0
+   }
 }
