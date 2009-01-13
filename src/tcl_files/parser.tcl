@@ -2316,7 +2316,8 @@ proc qstat_r_plain_parse { output  } {
          } elseif { [string first "Soft" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,soft_resource) [lindex $single_white_space_string 2]
          } elseif { [string first "Hard requested queues" $single_white_space_string ] >= 0 } {
-            set qstat_output($jobid,hard_req_queue) [lindex $single_white_space_string 3]
+            set ind [string first [lindex $single_white_space_string 3] $single_white_space_string]
+            set qstat_output($jobid,hard_req_queue) [string range $single_white_space_string $ind end]
          } elseif { [string first "Requested PE" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,req_pe) [lindex $single_white_space_string 2]
             set qstat_output($jobid,req_pe_vlaue) [lindex $single_white_space_string 3]

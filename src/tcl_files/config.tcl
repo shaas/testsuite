@@ -2333,7 +2333,11 @@ proc config_source_dir { only_check name config_array } {
 
    if { $old_value != $value } {
       set config(source_dir) $value
-      set config(source_cvs_release) [$config(source_cvs_release,setup_func) $only_check source_cvs_release config]
+      # in case the source_cvs_release parameter was already set before (this is not a new configuration),
+      # change the source_cvs_release parameter according to the new source_dir
+      if { $config(source_cvs_release) != "" } {
+         set config(source_cvs_release) [$config(source_cvs_release,setup_func) $only_check source_cvs_release config]
+      }
    }
 
    return $value
