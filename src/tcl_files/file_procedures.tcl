@@ -2898,7 +2898,7 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
             ts_log_severe "$hostname: timeout while waiting for file $path"
          } else {
             if {$prg_exit_state != 0} {
-               ts_log_severe "$hostname: output of cat $path (on a file which was tested with test -f): \n$output\n$exit_state=$prg_exit_state"
+               ts_log_severe "$hostname: output of cat $path (on a file which was tested with test -f): \n$output\nexit_state=$prg_exit_state"
             }
          }
          if {$have_logged_a_dot} {

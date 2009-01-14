@@ -551,6 +551,8 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
          if {$failed != 100} {
             ts_log_severe "job $job_id died trough limit exceeding executed by the execution deamon. Therefore it should end with failed=100 but it failed with $failed"
          }
+      } else {
+         ts_log_severe "didn't find accounting entry of job $job_id"
       }
    }
 }

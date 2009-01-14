@@ -107,7 +107,12 @@ proc install_execd {} {
             if {$exec_host == $ts_config(master_host)} {
                continue
             }
-            copy_certificates $exec_host
+            set result [copy_certificates $exec_host]
+            if {$result != 0} {
+               # failed copying the certificates
+               # copy_certificates() already called ts_log_severe()
+               return
+            }
          }
       }
    }

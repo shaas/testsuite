@@ -986,7 +986,7 @@ proc set_passwd {user root_host win_host} {
 
                   # try to connect to host and execute "id"
                   ts_log_fine "--> testing $connect_full_user access to host $host ..."
-                  set result [start_remote_prog $host $user "id" "" prg_exit_state 20 0 "" "" 1 1 0 0 1]
+                  set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 0 0 1]
                   set result [string tolower $result]
                   ts_log_fine "--> id as $connect_full_user output:\n$result"
 
@@ -1007,7 +1007,7 @@ proc set_passwd {user root_host win_host} {
 
                      # try to connect to host and execute "id"
                      ts_log_fine "--> testing $connect_full_user local access to host $host ..."
-                     set result [start_remote_prog $host $user "id" "" prg_exit_state 20 0 "" "" 1 1 0 0 0]
+                     set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 0 0 0]
                      set result [string tolower $result]
                      ts_log_fine "--> id as $connect_full_user output:\n$result"
 

@@ -1195,7 +1195,9 @@ proc map_special_users {hostname user win_local_user} {
       set connect_user        $real_user
 
       if {$win_local_user} {
-         set connect_full_user   "$hostname+$real_user"
+         set list_hostname [split $hostname "."]
+         set short_hostname [lindex $list_hostname 0]
+         set connect_full_user   "$short_hostname+$real_user"
       } else {
          set connect_full_user   $real_user
       }

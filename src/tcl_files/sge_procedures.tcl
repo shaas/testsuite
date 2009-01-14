@@ -8127,6 +8127,10 @@ proc copy_certificates { host } {
             ts_log_finer "qstat -f works, fine!"
             break
          }
+         if {[string first "not found" $result]} {
+            ts_log_severe "$result"
+            return 1
+         }
          sleep 2
          if {[timestamp] > $my_timeout} {
             ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
@@ -8136,6 +8140,7 @@ proc copy_certificates { host } {
    } else {
       ts_log_warning "$host: can't copy certificate files as user $CHECK_USER"
    }
+   return 0
 }
 
 
