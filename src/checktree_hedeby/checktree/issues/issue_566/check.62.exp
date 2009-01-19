@@ -1,0 +1,247 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_566"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Spare pool service might end up in reloading state"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue566_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue566_setup_level"
+set check_cleanup_level_function "hedeby_issue566_cleanup_level"
+
+lappend check_functions "hedeby_issue566_check"
+
+
+#****** issue_566/hedeby_issue566_init_level() ************************
+#  NAME
+#     hedeby_issue566_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue566_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue566_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue566/hedeby_issue566_setup_level() *********************************
+#  NAME
+#    hedeby_issue566_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue566_setup_level { } 
+#
+#  FUNCTION
+#
+#    Stores in the global variable hedeby_issue566_ctx the following values:
+#
+#    hedeby_issue566_ctx(spare_pool)   -  name of the spare_pool component
+#    hedeby_issue566_ctx(master)       -  name of the master host
+#    hedeby_issue566_ctx(err)          -  determine if error occured and cleanup is needed
+#    hedeby_issue566_ctx(changed)      -  determine if configuration was changed and cleanup is needed
+#    
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue566_setup_level {} {
+   upvar #0 hedeby_issue566_ctx this
+   global hedeby_config
+
+   set this(spare_pool) "spare_pool"
+   set this(err) "false"
+   set this(changed) "false"
+   set this(master) $hedeby_config(hedeby_master_host)
+}
+
+#****** issue566/hedeby_issue566_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue566_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue566_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#
+#     Performs the cleanup. If error occured we will try to restart JVM with component
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue566_cleanup_level {} {
+   upvar #0 hedeby_issue566_ctx this
+   set reset "false"
+   if {$this(err) == "true"} {
+        #we will try to stop and start again JVM
+        ts_log_heading "CLEANUP 1. Stopping JVM with spare pool component"
+        #shutdown of the JVM
+        sdmadm_command_opt "sdj -j rp_vm -h $this(master)"
+        if {$prg_exit_state != 0} {
+            #error is already reported
+            set reset "true"
+        }
+        #we will check if the JVM is stopped
+        set exp_ji(rp_vm,$this(master),state) "STOPPED"
+        set err_ji(rp_vm,$this(master),state) "RELOADING"
+        set ji_opts(jvm_name) "rp_vm"
+        set ji_opts(jvm_host) $this(master)
+        set ji_opts(error_jvm_info) err_ji
+        if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+            ts_log_severe "CLEANUP Cannot stop JVM with spare pool component"
+            set reset "true"
+        }
+        ts_log_heading "CLEANUP 2. Starting JVM with spare pool component"
+        #starting of the JVM
+        sdmadm_command_opt "suj -j rp_vm -h $this(master)"
+        if {$prg_exit_state != 0} {
+            #error is already reported
+            set reset "true"
+        }
+        #we will check if the JVM is started
+        set exp_ji(rp_vm,$this(master),state) "STARTED"
+        if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+            ts_log_severe "CLEANUP Cannot start JVM with spare pool component"
+            set reset "true"
+        }
+   }
+   
+   if {$this(changed) == "true"} {
+       if {[reset_default_slos "mod_config" $this(spare_pool)] != 0} {
+            set reset "true"
+       }
+   }
+   
+   if {$reset == "true"} {
+      reset_hedeby 1
+   }
+   
+   unset this
+}
+
+#****** issue_566/hedeby_issue566_check *****************************
+#  NAME
+#     hedeby_issue566_check() -- check the issue 566 does not longer occur
+#
+#  SYNOPSIS
+#     hedeby_issue566_check { } 
+#
+#  FUNCTION
+#
+#  Checks for issue 566: Spare pool service might end up in reloading state
+#
+#  The following steps are performed:
+#
+#    Step 1: Change the configuration (add new slo) and update component
+#    Step 2: Check that component is in the STARTED state again
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue566_check {} {
+   upvar #0 hedeby_issue566_ctx this
+
+   # --------------------------------------------------------------------------
+   ts_log_heading "Step 1: Change the configuration (add new slo) and update component"
+   # --------------------------------------------------------------------------
+
+   #add PermanentRequestSLO with urgency 10 to the spare pool component
+   set permanent_request_slo [create_permanent_request_slo 10 "PermanentRequestSLO" "host"]
+   set slos {}
+   lappend slos $permanent_request_slo
+   if {[set_service_slos "mod_config" $this(spare_pool) $slos 1 "minutes" 1] != 0} {
+      ts_log_severe "Setting slos for service \"$service\" failed!"
+      set this(err) "true"
+      return
+   }
+   set this(changed) "true"
+
+   # --------------------------------------------------------------------------
+   ts_log_heading "Step 2: Check that component is in the STARTED state again and configuration was changed"
+   # --------------------------------------------------------------------------
+   set sp_expect(spare_pool,$this(master),state) "STARTED"
+   set ret [wait_for_component_info sp_expect]
+   if {$ret != 0} {
+      ts_log_severe "The spare pool component state is different than expected.\n"
+      set this(err) "true"
+      return
+   }
+
+   if {[get_service_slo_info] != 0} {
+      ts_log_severe "There is a problem with getting spare pool SLO information.\n"
+      set this(err) "true"
+      return
+   }
+   
+   if {$ser_slo_info($this(spare_pool),PermanentRequestSLO,urgency) != 10} {
+      ts_log_severe "SLO information from spare pool component is different than expected.\n"
+      set this(err) "true"
+      return
+   }
+}
+
