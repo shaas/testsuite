@@ -2126,6 +2126,13 @@ proc get_binary_path {nodename binary {raise_error 1}} {
       return $binary
    }
 
+   # For "sh" we always expect sh shell at /bin/sh
+   if {$binary == "sh"} {
+      set binary_path "/bin/sh"
+      set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
+      return $binary_path 
+   }
+
    # Try to find out the path from CHECK_USER user's environment
    set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
    set binary_path [string trim $binary_path]

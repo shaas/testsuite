@@ -1,3 +1,7 @@
+CR-2009-01-20-0: Cleanup:    get_binary_path() now is assuming
+                             "/bin/sh" path for "sh" binary
+                 Review:     DG
+
 DG-2009-01-19-0: Enhancem.:  Added test for IZ 1806. 
                  Review:     CR 
 
