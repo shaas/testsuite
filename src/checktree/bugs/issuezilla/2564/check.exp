@@ -111,7 +111,7 @@ proc issue_2564_setup {} {
 
    set queue_name "test.q"
 
-   set grace_period 15 
+   set grace_period 15
    #
    # Imporant note: we need to configure schedd FIFO mode
    # with projects defined by disabling functional shares.
@@ -179,7 +179,12 @@ proc issue_2564_check {} {
    #
    # Shutdown qmaster to make change in sequence file effective.
    #
+   # INFO:
+   # We kill scheduler also because restarting it is faster than
+   # waiting for its re-connect.
+   #
    shutdown_system_daemon $ts_config(master_host) qmaster
+   shutdown_system_daemon $ts_config(master_host) sched
    #
    # Next, push job sequence number to provoke JobID wraparound.
    # Save original sequence number file.
@@ -194,7 +199,14 @@ proc issue_2564_check {} {
    #
    # Restart qmaster and schedd.
    #
-   startup_qmaster 0
+   startup_qmaster
+
+   # If we have no scheduler the test will fail ...
+   if {[wait_for_connected_scheduler 90] != 0 } {
+      ts_log_severe "No scheduler connected to qmaster!"
+      return
+   }
+   
    #
    # Prepare dummy jobs.
    #

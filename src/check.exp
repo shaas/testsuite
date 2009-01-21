@@ -4198,21 +4198,8 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
          if {$runlevel_error_text == ""} {
             ts_log_fine "checking connected scheduler event client ..."
-            set mytimeout [timestamp]
-            incr mytimeout 60
-            while {1} {
-               if {[timestamp] > $mytimeout} {
-                  append runlevel_error_text "Timeout waiting for scheduler event client status information!\n"
-                  break
-               }
-               set ret [get_scheduler_status result1 "" "" 0]
-               if { [llength $result1] == 1 && $ret == 0 } {
-                  if { [host_list_compare $ts_config(master_host) $result1 0 1] == 0 } {
-                     break
-                  }
-               }
-               ts_log_fine "waiting for connected scheduler event client ..."
-               after 5000
+            if {[wait_for_connected_scheduler 90 0] != 0} {
+               append runlevel_error_text "Timeout waiting for scheduler event client status information!\n"
             }
          }
 

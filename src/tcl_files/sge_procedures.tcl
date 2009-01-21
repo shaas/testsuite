@@ -3045,6 +3045,60 @@ proc wait_for_load_from_all_queues { seconds } {
 }
 
 
+#****** sge_procedures/wait_for_connected_scheduler() **************************
+#  NAME
+#     wait_for_connected_scheduler() -- wait for scheduler connected to master
+#
+#  SYNOPSIS
+#     wait_for_connected_scheduler { {seconds 90} {raise_error 1} } 
+#
+#  FUNCTION
+#     This function tries to do a qconf -sss to get the scheduler status
+#     If getting scheduler status is reporting an error the scheduler is not
+#     connected. If the scheduler status is not available during the specified
+#     time the function fails.
+#
+#  INPUTS
+#     seconds - timeout waiting for connected scheduler
+#
+#  RESULT
+#     0 when there is a scheduler connected, 1 on error
+#*******************************************************************************
+proc wait_for_connected_scheduler { {seconds 90} {raise_error 1} } {
+   get_current_cluster_config_array ts_config
+   set mytimeout [timestamp]
+   incr mytimeout $seconds
+   set error_text ""
+   set result1 "unknown"   
+
+   while {1} {
+      after 1000
+      if {[timestamp] > $mytimeout} {
+         append error_text "Timeout waiting for scheduler event client status information!\n"
+         break
+      }
+
+      set ret [get_scheduler_status result1 "" "" 0]
+      if { [llength $result1] == 1 && $ret == 0 } {
+         if { [host_list_compare $ts_config(master_host) $result1 0 1] == 0 } {
+            break
+         }
+      }
+      set timeout_in [ expr $mytimeout - [timestamp]]
+      ts_log_fine "waiting for connected scheduler event client (timeout in $timeout_in seconds) ..."
+      after 4000
+   }
+
+   if { $error_text != ""} {
+      ts_log_severe $error_text $raise_error
+      return 1
+   }
+   ts_log_fine "scheduler connected to master \"$result1\""
+   return 0
+}
+
+
+
 #****** sge_procedures/wait_for_job_state() ************************************
 #  NAME
 #     wait_for_job_state() -- wait for job to become special job state

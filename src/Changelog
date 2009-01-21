@@ -1,3 +1,9 @@
+CR-2009-01-21-0: Bugfix:     o fixed test for issue 2564
+                             o fixed test for issue 2028
+                 Enhancem.:  New sge_procedures procedure:
+                             wait_for_connected_scheduler()
+                 Review:     RD
+
 MG-2009-01-21-0: Enhancem:   Test for hedeby issue 569 + some small fix to test issue 568
                  Review:     AF
 
