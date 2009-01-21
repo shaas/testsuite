@@ -1,0 +1,86 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_functions 
+
+#### define test's procedure order
+lappend check_functions "issue_2883"
+lappend check_functions "issue_2884"
+
+proc issue_2884 {} {
+   
+   set test_host [host_conf_get_suited_hosts 1]
+
+   set queue_settings(slots) 1
+   set qname "2.q"
+   add_queue "2.q" "none" queue_settings
+
+   set queue_settings(subordinate_list) "2.q"
+   add_queue "1.q" $test_host queue_settings
+
+   set job_id [submit_job "-q 1.q -b y /bin/sleep 1000"]
+   wait_for_jobstart $job_id "slee" 60 1 1
+
+   unset queue_settings
+   set queue_settings(hostlist) $test_host
+   mod_queue "2.q" $test_host queue_settings
+
+   wait_for_queue_state "2.q@$test_host" "S" 10
+
+   delete_job $job_id 1
+   del_queue "1.q" $test_host 0 1
+   del_queue "2.q" $test_host 0 1
+}
+
+proc issue_2883 {} {
+   global old_missing_slots
+   global CHECK_USER
+   global ts_config
+
+   ts_log_fine "running test issue_xxx"
+
+   set missing_slots 0
+   set MSG_QINSTANCE_MISSLOTS [translate_macro MSG_QINSTANCE_MISSLOTS_S "*"]
+   set messages [get_qmaster_messages_file]
+   get_file_content $ts_config(master_host) $CHECK_USER $messages 
+   for {set i 1} {$i <= $file_array(0)} {incr i} {
+      # ts_log_fine $file_array($i)
+      if {[string match "*$MSG_QINSTANCE_MISSLOTS*" $file_array($i)] != 0} {
+         incr missing_slots 1
+      } 
+   }
+   if {$missing_slots != $old_missing_slots} {
+      ts_log_severe "$MSG_QINSTANCE_MISSLOTS was wrongly logged in qmaster messages file"
+   }
+}

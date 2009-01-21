@@ -67,7 +67,8 @@ set check_setup_function subordinate_setup
 set check_cleanup_function subordinate_cleanup
 
 # define test's procedure order
-set check_functions "subordinate_test"
+set check_functions ""
+lappend check_functions "subordinate_test"
 
 global subordinate_test_hosts
 global subordinate_saved_slot_count
@@ -91,6 +92,19 @@ proc subordinate_setup {} {
    global subordinate_test_hosts
    global subordinate_saved_slot_count
    global consumable_complex_backup
+   global old_missing_slots
+   global CHECK_USER
+
+   # get old error messages
+   set old_missing_slots 0
+   set MSG_QINSTANCE_MISSLOTS [translate_macro MSG_QINSTANCE_MISSLOTS_S "*"]
+   set messages [get_qmaster_messages_file]
+   get_file_content $ts_config(master_host) $CHECK_USER $messages 
+   for {set i 1} {$i <= $file_array(0)} {incr i} {
+      if {[string match "*$MSG_QINSTANCE_MISSLOTS*" $file_array($i)] != 0} {
+         incr old_missing_slots 1
+      } 
+   }
 
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup

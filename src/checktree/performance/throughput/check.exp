@@ -367,6 +367,7 @@ proc throughput_setup {} {
       set submit_hosts $host_list
    }
    ts_log_fine "using [llength $submit_hosts] hosts to submit jobs"
+   ts_log_fine "submit_hosts $submit_hosts"
 
    # disable all default queues
    disable_queue "all.q"
@@ -633,7 +634,7 @@ proc throughput_setup_level {} {
       # and attach the pe to our test queues
       for {set i 0} {$i < $nr_queues} {incr i} {
          set qname "tp_${i}"
-         assign_queues_with_pe_object $qname $host_list "perfpe"
+         assign_queues_with_pe_object $qname "" "perfpe"
       }
    }
 
