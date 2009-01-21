@@ -40,26 +40,26 @@ global check_use_installed_system check_init_level_procedure
 
 # This file shows some check specific things
 set check_root_access_needs    "yes"
-set check_name                 "hedeby_issue_568"
+set check_name                 "hedeby_issue_569"
 set check_category             "COMPATIBILITY SYSTEM VERIFIED"
-set check_description(0)       "GE adapter may be stuck in RELOADING state if complex mapping is corrupted/not accessible"
+set check_description(0)       "GE adapter might end in STARTING/ERROR state if complex mapping is corrupted/not accessible"
 set check_needs                "hedeby_install"                  
-set check_init_level_procedure "hedeby_issue568_init_level"
+set check_init_level_procedure "hedeby_issue569_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_level_function "hedeby_issue568_setup_level"
-set check_cleanup_level_function "hedeby_issue568_cleanup_level"
+set check_setup_level_function "hedeby_issue569_setup_level"
+set check_cleanup_level_function "hedeby_issue569_cleanup_level"
 
-lappend check_functions "hedeby_issue568_check"
+lappend check_functions "hedeby_issue569_check"
 
 
-#****** issue_568/hedeby_issue568_init_level() ************************
+#****** issue_569/hedeby_issue569_init_level() ************************
 #  NAME
-#     hedeby_issue568_init_level() -- init level procedure for test
+#     hedeby_issue569_init_level() -- init level procedure for test
 #
 #  SYNOPSIS
-#     hedeby_issue568_init_level { } 
+#     hedeby_issue569_init_level { } 
 #
 #  FUNCTION
 #     Return the supported runlevel of this test. Currently only level 0
@@ -72,7 +72,7 @@ lappend check_functions "hedeby_issue568_check"
 #    -1 for all other levels
 #
 #*******************************************************************************
-proc hedeby_issue568_init_level {} {
+proc hedeby_issue569_init_level {} {
   global CHECK_ACT_LEVEL
 
   if {$CHECK_ACT_LEVEL == 0} {
@@ -81,23 +81,23 @@ proc hedeby_issue568_init_level {} {
   return -1
 }
 
-#****** issue568/hedeby_issue568_setup_level() *********************************
+#****** issue569/hedeby_issue569_setup_level() *********************************
 #  NAME
-#    hedeby_issue568_setup_level() -- setup level function
+#    hedeby_issue569_setup_level() -- setup level function
 #
 #  SYNOPSIS
-#    hedeby_issue568_setup_level { } 
+#    hedeby_issue569_setup_level { } 
 #
 #  FUNCTION
 #
-#    Stores in the global variable hedeby_issue568_ctx the following values:
+#    Stores in the global variable hedeby_issue569_ctx the following values:
 #
-#    hedeby_issue568_ctx(ge_name)      -  name of the ge adapter component
-#    hedeby_issue568_ctx(master)       -  name of the master host
-#    hedeby_issue568_ctx(err)          -  determine if error occured and cleanup is needed
-#    hedeby_issue568_ctx(changed)      -  determine if configuration was changed 
+#    hedeby_issue569_ctx(ge_name)      -  name of the ge adapter component
+#    hedeby_issue569_ctx(master)       -  name of the master host
+#    hedeby_issue569_ctx(err)          -  determine if error occured and cleanup is needed
+#    hedeby_issue569_ctx(changed)      -  determine if configuration was changed 
 #    hedeby_issue568_ctx(reppath)      -  path to the default complex mapping in spool dir
-#    hedeby_issue568_ctx(admin)        -  hedeby admin user
+#    hedeby_issue569_ctx(admin)        -  hedeby admin user
 #    
 #  INPUTS
 #     no input parameters
@@ -105,28 +105,28 @@ proc hedeby_issue568_init_level {} {
 #  RESULT
 #     no return values
 #*******************************************************************************
-proc hedeby_issue568_setup_level {} {
-   upvar #0 hedeby_issue568_ctx this
+proc hedeby_issue569_setup_level {} {
+   upvar #0 hedeby_issue569_ctx this
 
    global hedeby_config
    # get some global settings
    get_hedeby_default_services service_names
-   
+
    set this(master) $hedeby_config(hedeby_master_host)
    set this(reppath) "[get_hedeby_local_spool_dir $this(master)]/spool/cs/module/ge-service-adapter/complex_mapping/"
-   set this(ge_name) [pick_random $service_names(services)]  
+   set this(ge_name) [pick_random $service_names(services)]   
    set this(ge_host) $service_names(master_host,$this(ge_name))
    set this(err) "false"
    set this(changed) "false"
    set this(admin) [get_hedeby_admin_user]
 }
 
-#****** issue568/hedeby_issue568_cleanup_level() *******************************
+#****** issue569/hedeby_issue569_cleanup_level() *******************************
 #  NAME
-#    hedeby_issue568_cleanup_level() -- setup level function
+#    hedeby_issue569_cleanup_level() -- setup level function
 #
 #  SYNOPSIS
-#    hedeby_issue568_cleanup_level { } 
+#    hedeby_issue569_cleanup_level { } 
 #
 #  INPUTS
 #     no input parameters
@@ -138,8 +138,8 @@ proc hedeby_issue568_setup_level {} {
 #  RESULT
 #     no return values
 #*******************************************************************************
-proc hedeby_issue568_cleanup_level {} {
-   upvar #0 hedeby_issue568_ctx this
+proc hedeby_issue569_cleanup_level {} {
+   upvar #0 hedeby_issue569_ctx this
 
    if {$this(err) == "true" || $this(changed) == "true"} {
       reset_hedeby 1
@@ -148,30 +148,30 @@ proc hedeby_issue568_cleanup_level {} {
    unset this
 }
 
-#****** issue_568/hedeby_issue568_check *****************************
+#****** issue_569/hedeby_issue569_check *****************************
 #  NAME
-#     hedeby_issue568_check() -- check the issue 568 does not longer occur
+#     hedeby_issue569_check() -- check the issue 569 does not longer occur
 #
 #  SYNOPSIS
-#     hedeby_issue568_check { } 
+#     hedeby_issue569_check { } 
 #
 #  FUNCTION
 #
-#  Checks for issue 568: GE adapter may be stuck in RELOADING state if complex mapping is corrupted/not accessible
+#  Checks for issue 569: GE adapter may be stuck in RELOADING state if complex mapping is corrupted/not accessible
 #
 #  The following steps are performed:
 #
-#    Step 1: rename file "default.xml" in
+#    Step 1: Shutdown ge adapter component.
+#    Step 2: rename file "default.xml" in
 #            <hedeby_local_spool_on_cs_host>/spool/cs/module/ge-service-adapter/complex_mapping/
 #             to "default.bak"
-#    Step 2: Update ge adapter component with "sdmadm uc -c <ge_adapter_name>"
-#    Step 3: Check state of service "sdmadm ss -c <ge_adapter_name>". Component should be in STOPPED and 
-#            service in UNKNOWN state.
-#    Step 4: Fix the default mapping by changing the name of the file (see step 1) back to
+#    Step 3: Startup ge adapter component.
+#    Step 4: Check state of service "sdmadm ss -c <ge_adapter_name>". Component should be in STOPPED and 
+#            service in ERROR state.
+#    Step 5: Fix the default mapping by changing the name of the file (see step 1) back to
 #            "default.xml"
-#    Step 5: Check that default complex mapping is again visible with the command "sdmadm sgcm"
-#    Step 6: Startup ge adapter component.
-#    Step 7: Update ge adapter component.
+#    Step 6: Check that default complex mapping is again visible with the command "sdmadm sgcm"
+#    Step 7: Startup ge adapter component and check that everything is fine.
 #
 #  INPUTS
 #     no input parameters
@@ -180,11 +180,23 @@ proc hedeby_issue568_cleanup_level {} {
 #     no return values
 #
 #*******************************************************************************
-proc hedeby_issue568_check {} {
-   upvar #0 hedeby_issue568_ctx this
+proc hedeby_issue569_check {} {
+   upvar #0 hedeby_issue569_ctx this
+   
+   # --------------------------------------------------------------------------
+   ts_log_heading "Step 1: Shutdown ge adapter component"  
+   # --------------------------------------------------------------------------
+   sdmadm_command_opt "sdc -c $this(ge_name) -all"
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Shutdown of component failed"
+      return
+   }
+   if {[hedeby_issue569_wait_for_ss_cs_of_component "UNKNOWN" "STOPPED"] != 0} {
+      return
+   }
 
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 1: rename file \"default.xml\" in $this(reppath) to \"default.bak\""
+   ts_log_heading "Step 2: rename file \"default.xml\" in $this(reppath) to \"default.bak\""
    # --------------------------------------------------------------------------
    set output [start_remote_prog $this(master) $this(admin) "mv" "${this(reppath)}default.xml ${this(reppath)}default.bak"] 
    if {$prg_exit_state != 0} {
@@ -192,29 +204,31 @@ proc hedeby_issue568_check {} {
       append msg "Output was\n"
       append msg $output
       ts_log_severe $msg
+      set this(err) "true"
       return
    }
    set this(changed) "true"
 
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 2: Update ge adapter component with \"sdmadm uc -c <ge_adapter_name>\""  
+   ts_log_heading "Step 3: Startup ge adapeter component."  
    # --------------------------------------------------------------------------
-   sdmadm_command_opt "uc -c $this(ge_name)"
+   sdmadm_command_opt "suc -c $this(ge_name)"
    if {$prg_exit_state != 0} {
-      ts_log_severe "Update component command failed."
+      ts_log_severe "Startup of the component failed"
+      set this(err) "true"
       return
    }
    
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 3: Check state of ge adapter service and component. Component should be in STOPPED and 
-                   service in UNKNOWN state."  
+   ts_log_heading "Step 4: Check state of ge adapter service and component. Component should be in STOPPED and 
+                   service in ERROR state."  
    # --------------------------------------------------------------------------
-   if {[hedeby_issue568_wait_for_ss_cs_of_component "UNKNOWN" "STOPPED"] != 0} {
+   if {[hedeby_issue569_wait_for_ss_cs_of_component "ERROR" "STOPPED"] != 0} {
       return
    }
 
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 4: Fix the default mapping by changing the name of the file (see step 1) back to
+   ts_log_heading "Step 5: Fix the default mapping by changing the name of the file (see step 1) back to
                   \"default.xml\""  
    # --------------------------------------------------------------------------
    set output [start_remote_prog $this(master) $this(admin) "mv" "${this(reppath)}default.bak ${this(reppath)}default.xml"] 
@@ -223,13 +237,12 @@ proc hedeby_issue568_check {} {
       append msg "Output was\n"
       append msg $output
       ts_log_severe $msg
-      set this(err) "true"
       return
    }
    set this(changed) "false"
    
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 5: Check that default complex mapping is again visible with the command \"sdmadm sgcm\""  
+   ts_log_heading "Step 6: Check that default complex mapping is again visible with the command \"sdmadm sgcm\""  
    # --------------------------------------------------------------------------
    set output [sdmadm_command_opt "sgcm -output names -match default"]
    if {$prg_exit_state != 0 || [string trim $output] != "default"} {
@@ -239,7 +252,7 @@ proc hedeby_issue568_check {} {
    }
 
    # --------------------------------------------------------------------------
-   ts_log_heading "Step 6: Startup ge adapter component."  
+   ts_log_heading "Step 7: Startup ge adapter component."  
    # --------------------------------------------------------------------------
    sdmadm_command_opt "suc -c $this(ge_name)"
    if {$prg_exit_state != 0} {
@@ -247,30 +260,17 @@ proc hedeby_issue568_check {} {
       set this(err) "true"
       return
    }
-   if {[hedeby_issue568_wait_for_ss_cs_of_component "RUNNING" "STARTED"] != 0} {
-      return
-   }
-
-   # --------------------------------------------------------------------------
-   ts_log_heading "Step 7: Update ge adapter component."  
-   # --------------------------------------------------------------------------
-   sdmadm_command_opt "uc -c $this(ge_name)"
-   if {$prg_exit_state != 0} {
-      ts_log_severe "Update of the ge adapter component failed"
-      set this(err) "true"
-      return
-   }
-   if {[hedeby_issue568_wait_for_ss_cs_of_component "RUNNING" "STARTED"] != 0} {
+   if {[hedeby_issue569_wait_for_ss_cs_of_component "RUNNING" "STARTED"] != 0} {
       return
    }
 }
 
-#****** issue568/hedeby_issue568_wait_for_ss_cs_of_component() *******************************
+#****** issue569/hedeby_issue569_wait_for_ss_cs_of_component() *******************************
 #  NAME
-#    hedeby_issue568_helper() -- helper function
+#    hedeby_issue569_wait_for_ss_cs_of_component() -- helper function
 #
 #  SYNOPSIS
-#    hedeby_issue568_helper { service_state comp_state } 
+#    hedeby_issue569_wait_for_ss_cs_of_component { service_state comp_state } 
 #
 #  INPUTS
 #    service_state       - expected state of the service
@@ -283,8 +283,8 @@ proc hedeby_issue568_check {} {
 #  RESULT
 #     0 on success 1 on failure
 #*******************************************************************************
-proc hedeby_issue568_wait_for_ss_cs_of_component { service_state comp_state } {
-   upvar #0 hedeby_issue568_ctx this
+proc hedeby_issue569_wait_for_ss_cs_of_component { service_state comp_state } {
+   upvar #0 hedeby_issue569_ctx this
    
    # Setup expected service and component infos (used twice in this procedure)
    set exp_serv_info($this(ge_name),sstate) "$service_state"

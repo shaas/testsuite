@@ -1,3 +1,6 @@
+MG-2009-01-21-0: Enhancem:   Test for hedeby issue 569 + some small fix to test issue 568
+                 Review:     AF
+
 CR-2009-01-20-0: Cleanup:    get_binary_path() now is assuming
                              "/bin/sh" path for "sh" binary
                  Review:     DG
