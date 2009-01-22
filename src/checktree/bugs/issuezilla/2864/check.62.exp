@@ -43,26 +43,26 @@ global check_root_access_needs
 global env
 
 # define test's name and run level descriptions
-set check_name            "issue_2378"
+set check_name            "issue_2864"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0
-set check_description(0)  "check issue 2378 is fixed"
+set check_description(0)  "check issue 2864 is fixed"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function issue_2378_setup
-set check_cleanup_function issue_2378_cleanup
+set check_setup_function issue_2864_setup
+set check_cleanup_function issue_2864_cleanup
 
 # define a level initialization procedure:
-set check_init_level_procedure "issue_2378_init_level"
+set check_init_level_procedure "issue_2864_init_level"
 
 # define test's procedure order
 set check_functions ""
-lappend check_functions "issue_2378_check"
+lappend check_functions "issue_2864_check"
 
-proc issue_2378_init_level {} {
+proc issue_2864_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
 
@@ -81,11 +81,11 @@ proc issue_2378_init_level {} {
 
 # -------- local test procedures: initialization ------------------------------
 
-proc issue_2378_setup {} {
+proc issue_2864_setup {} {
    global ts_config
    global global_host_backup
 
-   ts_log_fine "issue_2378_setup" 
+   ts_log_fine "issue_2864_setup" 
 
    set pe(slots)             "2"
    set pe(allocation_rule)   "\$round_robin"
@@ -104,6 +104,7 @@ proc issue_2378_setup {} {
    set queue_conf(pe_list)          "round_robin fill_up"
    set queue_conf(load_thresholds)  "NONE"
    add_queue "A" "$first $second" queue_conf 1
+   set queue_conf(seq_no)           "10,\[$second=1\]"
    add_queue "B" "$first $second" queue_conf 1
 
    # enable resource reservation etc.
@@ -124,16 +125,17 @@ proc issue_2378_setup {} {
 }
 
 
-proc issue_2378_wait_for_pattern {case_name pattern {timeout 10}} {
+proc issue_2864_wait_for_pattern {case_name pattern {timeout 10}} {
    set output [logfile_wait $pattern $timeout 0]
    if {$logfile_wait_error != 0} {
-      ts_log_severe "case '$case_name': there were no pattern '$pattern' in the reporting file, got only\n$output"
+      ts_log_severe "case '$case_name': there was no pattern '$pattern' in the reporting file, got only\n$output"
+      wait_for_enter
       return 1
    }
    return 0
 }
 
-proc issue_2378_cleanup {  } {
+proc issue_2864_cleanup {  } {
 
    global global_host_backup
    global ts_config
@@ -153,70 +155,22 @@ proc issue_2378_cleanup {  } {
 # -------- local test procedures: initialization ------------------------------
 
 
-proc issue_2378_check { } {
+proc issue_2864_check { } {
    global ts_config
    set first [lindex $ts_config(execd_nodes) 0]
    set second [lindex $ts_config(execd_nodes) 1]
 
-   ts_log_fine "testing -masterq with -soft -q"
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-soft -q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-soft -q" ] != 0 } { return }
+   ts_log_fine "testing contradicting host preferences in queues A and B"
 
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-soft -q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-soft -q" ] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-soft -q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-soft -q" ] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-soft -q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-soft -q" ] != 0 } { return }
-
-   ts_log_fine "testing -masterq with -hard -q"
-
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-q" ] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-q" ] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-q" ] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-q" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-q" ] != 0 } { return }
-
-   ts_log_fine "testing -masterq and overlapping -q (IZ: 2736)"
-
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "A@$first" "-q" 1] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "A@$first" "-q" 1] != 0 } { return }
-
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "A" "-q" 1 ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "A" "-q" ] != 0 } { return }
-
-   ts_log_fine "testing -masterq without -q"
-
-   disable_queue "B A@$second"
-   if { [ issue_2378_single_check "fill_up"     "A@$first"] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first"] != 0 } { return }
-   enable_queue "B A@$second"
-
-   disable_queue "A B@$second"
-   if { [ issue_2378_single_check "fill_up"     "B@$first"] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first"] != 0 } { return }
-   enable_queue "A B@$second"
-
-   disable_queue "B A@$first"
-   if { [ issue_2378_single_check "fill_up"     "A@$second"] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second"] != 0 } { return }
-   enable_queue "B A@$first"
-
-   disable_queue "A B@$first"
-   if { [ issue_2378_single_check "fill_up"     "B@$second"] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second"] != 0 } { return }
-   enable_queue "A B@$first"
+   # master task to go into A@first when submitted with -q A
+   if { [ issue_2864_single_check "-pe round_robin 1 -q A" "wait for master in A@$first" "1:STARTING:*:*:Q:A@$first:slots:1.0*"] != 0 } { return }
+   if { [ issue_2864_single_check "-pe fill_up 1 -q A"     "wait for master in A@$first" "1:STARTING:*:*:Q:A@$first:slots:1.0*"] != 0 } { return }
+   # master task to go into B@second when submitted with -q B 
+   if { [ issue_2864_single_check "-pe round_robin 1 -q B" "wait for master in B@$second" "1:STARTING:*:*:Q:B@$second:slots:1.0*"] != 0 } { return }
+   if { [ issue_2864_single_check "-pe fill_up 1 -q B"     "wait for master in B@$second" "1:STARTING:*:*:Q:B@$second:slots:1.0*"] != 0 } { return }
 }
 
-proc issue_2378_single_check { pe_name master {slave ""} {slave_request ""} {handled_as_fillup 0} } {
+proc issue_2864_single_check { submission diagnosis dispatching } {
    global ts_config
 
    set SGE_ROOT $ts_config(product_root)
@@ -226,26 +180,14 @@ proc issue_2378_single_check { pe_name master {slave ""} {slave_request ""} {han
    # tail -f scheduling file
    init_logfile_wait $ts_config(master_host) $schedule
 
-   set jobid [submit_job "-pe $pe_name 2 -masterq $master $slave_request $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
-   if {$slave_request != "" && $handled_as_fillup == 0} {
-      set ret [issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*"]
+   set jobid [submit_job "$submission $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+   set ret [issue_2864_wait_for_pattern "$diagnosis" "${jobid}:${dispatching}"]
 
-      if {$ret == 0} {
-         set ret [issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}*:slots:1.0*"]
-      }
-   } else {
-      set ret [issue_2378_wait_for_pattern "wait for master and slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:2.0*"]
-   }
-
-   ts_log_fine "got master queue (${master}) and slave queue (${slave}) as expected"
-
-   # set lines_with_starting [exec grep "STARTING" $schedule]
-   # ts_log_fine "the lines with time are \n$lines_with_starting\n"
+   ts_log_fine "got job assignment as expected"
 
    close_logfile_wait
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
    return $ret
 }

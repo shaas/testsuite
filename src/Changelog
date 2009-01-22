@@ -1,4 +1,9 @@
-RD-2008-01-21-0: Enhancem.:  Added two subordinate tests
+AH-2009-01-22-0: Enhancem.:  Added new test bugs/issuezilla/2864
+                 Bugfix:     Removed disabling/enabling all.q workaround in 
+                             bugs/issuezilla/2378
+                 Review:     RD
+
+RD-2009-01-21-0: Enhancem.:  Added two subordinate tests
                  Review:     CR
 
 CR-2009-01-21-0: Bugfix:     o fixed test for issue 2564
