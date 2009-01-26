@@ -1,4 +1,4 @@
-#!/vol2/TCL_TK/glinux/bin/expect
+
 # expect script
 # test SGE/SGEEE System
 #___INFO__MARK_BEGIN__
@@ -290,6 +290,10 @@ global CHECK_LOADSENSOR_DIR_CONFIG_FILE ;# file for architecture specific loadse
 set CHECK_LOADSENSOR_DIR_CONFIG_FILE "loadsensor.conf" ;# $CHECK_CONFIG_DIR
 global CHECK_MAIL_OUTPUT_FILE
 set CHECK_MAIL_OUTPUT_FILE "all_test_mails.txt"
+
+global GET_PASSWORD_COMMAND
+set GET_PASSWORD_COMMAND ""         ;# Will be set with the command line option --get_pw_command.
+                                    ;# Defines the command which is used for querying passwords
 
 global check_use_installed_system   ;# used only for install_core_system test (noinst parameter)
 set check_use_installed_system 0    ;# set to 1 when installed system parameter is set
@@ -934,10 +938,7 @@ proc set_passwd {user root_host win_host} {
       } else {
          puts "please enter the password, or \"none\" to skip passwd entry and risk errors later on"
       }
-      puts "user $user's password: "
-      stty -echo
-      set passwd [wait_for_enter 1 0 1]
-      stty echo
+      set passwd [query_passwd $user]
 
       # evaluate passwd
       if {$passwd == ""} {
@@ -1030,6 +1031,66 @@ proc set_passwd {user root_host win_host} {
 
    # finally store the passwd
    set stored_passwd($user) $passwd
+}
+
+#****** check/query_passwd() ***************************************************
+#  NAME
+#     query_passwd() -- query a password for a user
+#
+#  SYNOPSIS
+#     query_passwd { user } 
+#
+#  FUNCTION
+#
+#     This functions queries the password of a user. It supports two different
+#     modes:
+#
+#     o Interactive mode:
+#
+#     If the global variable GET_PASSWORD_COMMAND is an empty string the password is read from
+#     stdin (interactive mode).
+#
+#     o Non interactive mode:
+#
+#     If the global variable GET_PASSWORD_COMMAND is not an empty string it assumes the the password
+#     can be retrieved by executing this command which is defined in the GET_PASSWORD_COMMAND variable.
+#     The command get one parameter, the name of the user. It must have an exit code 0 if
+#     the password for this user could be found. In this case the password must be printed
+#     to stdout. If the exit code is not 0 the query_password assumes that the command could
+#     not retrieve the password for the user. In this case testsuite_shutdown will be called.
+#
+#
+#  INPUTS
+#     user - the name of the user 
+#
+#  RESULT
+#     the password of the user. If the executed command in non interactive mode did not return 0 the
+#     result is an empty string.
+#
+#*******************************************************************************
+proc query_passwd {user} {
+   global GET_PASSWORD_COMMAND
+   if {$GET_PASSWORD_COMMAND != ""} {
+      set res [ catch { exec $GET_PASSWORD_COMMAND "$user" } wallet_output ]
+      if { $res == 0 } {
+         ts_log_fine "Got password for user '$user' from wallet"
+         return $wallet_output
+      } else {
+         set    msg "Could not retrieve the password of user '$user' with the command"
+         append msg "\n   '$GET_PASSWORD_COMMAND'"
+         append msg "\nThe command exited with status $res, the output was"
+         append msg "\n$wallet_output"
+         ts_log_warning $msg
+         testsuite_shutdown 1
+         return ""
+      }
+   } else { 
+       puts "user $user's password: "
+       stty -echo
+       set passwd [wait_for_enter 1 0 1]
+       stty echo
+       return $passwd
+   }
 }
 
 #****** check/get_passwd() *****************************************************
@@ -8392,6 +8453,13 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "mail_level <level>    do sending of mails up to log level <level>"
       puts "                      Valid levels are SEVERE, WARNING, CONFIG, INFO, FINE, FINER, FINEST"
       puts ""
+      puts "get_pw_command <cmd>  With this option the passwords for users are not read from stdin. Instead testsuite"
+      puts "                      executes command specified in <cmd> to get the password. The command will get as first"
+      puts "                      parameter the name of the user for which the password is needed. If the command could"
+      puts "                      retrieve the password correctly it should have an exit status 0 and the password should"
+      puts "                      be printed to stdout. On any non zero exit status the testsuite will write a warning"
+      puts "                      message which includes the output of the command." 
+      puts ""
       testsuite_shutdown 1
    }
 
@@ -8529,6 +8597,23 @@ for {set i 0} {$i < $argc} {incr i} {
       set ts_logging_file_name [file rootname $ts_logging_file_name]
       set ts_logging_file_name "$CHECK_CURRENT_WORKING_DIR/$ts_logging_file_name.ts.log"
       ts_log_fine "using log file \"$ts_logging_file_name\""
+      continue
+   }
+
+   if {([string compare [lindex $argv $i] "--get_pw_command"] == 0) || ([string compare [lindex $argv $i] "get_pw_command"] == 0)} {
+      global GET_PASSWORD_COMMAND
+      incr i
+      set help_var [lindex $argv $i]
+      set GET_PASSWORD_COMMAND [ string trim $help_var ]
+      if { [llength $GET_PASSWORD_COMMAND] != 1 } {
+         puts "Can't use \"--get_pw_command\" option without command!"
+         testsuite_shutdown 1
+      }
+
+      if {![file executable $GET_PASSWORD_COMMAND]} {
+         puts "cmd '$GET_PASSWORD_COMMAND' of --get_pw_command option is not executable!"
+         testsuite_shutdown 1
+      }
       continue
    }
 
