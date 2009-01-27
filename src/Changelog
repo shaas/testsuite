@@ -1,3 +1,6 @@
+RD-2009-01-27-0: Bugfix:     fixed client_ar test
+                 Review:     CR
+
 CR-2009-01-27-0: Enhancem.:  Enhanced scheduler reconnect test to also test
                              event client timeout
                  Review:     RD

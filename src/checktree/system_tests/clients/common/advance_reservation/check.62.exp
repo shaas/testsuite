@@ -185,6 +185,7 @@ proc test_qrsh_ar_switch {} {
 
 proc test_qlogin_ar_switch {} {
    global ts_config CHECK_USER  default_args
+   global qlogin_session
 
    # Test setup
    delete_all_ars   
@@ -208,9 +209,14 @@ proc test_qlogin_ar_switch {} {
    
    #delete the ar
    ts_log_fine "delete AR: $ar_id and job should ends soon"
-   delete_ar $ar_id
+   delete_ar $ar_id 1
+
+   ts_log_fine "close_spawn_process $qlogin_session\n"
+   close_spawn_process $qlogin_session
 
    set ret [qlogin_ar_call $ar_id $job_name]
+   ts_log_fine "close_spawn_process $qlogin_session\n"
+   close_spawn_process $qlogin_session
    if {$ret == 0} {
       ts_log_severe "submit of qlogin with not existing ar not failed!"
       return
@@ -221,12 +227,13 @@ proc test_qlogin_ar_switch {} {
 
 proc qlogin_ar_call {ar_id job_name} {
    global ts_config CHECK_USER  default_args
-   global local_arch
+   global qlogin_session
 
    # Submit qsh job with advance reservation 
    set args  "-ar $ar_id  -N $job_name $default_args"
-   set host $ts_config(master_host)
-
+   set host [host_conf_get_suited_hosts]
+   set arch [resolve_arch $host]
+   
    #The message must be presented in the result
    set messages(-2)     "*[translate_macro MSG_JOB_NOAREXISTS_U "*"]*"
    set messages(-1)     "*[translate_macro MSG_JOB_ARNOLONGERAVAILABE_U "*"]*"
@@ -236,12 +243,10 @@ proc qlogin_ar_call {ar_id job_name} {
       append messages(index) "$idx "
    }
    
-
    # Submit qlogin
    ts_log_fine "open_remote_spawn_process $host $CHECK_USER qlogin $args"
-#   set pr_id  [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
-   set pr_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
-   set sp_id  [lindex $pr_id 1]
+   set qlogin_session [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$arch/qlogin" "$args"]
+   set sp_id  [lindex $qlogin_session 1]
    set timeout 20
    set do_stop 0
    set output ""
@@ -271,8 +276,6 @@ proc qlogin_ar_call {ar_id job_name} {
          }
       }
    }  
-   ts_log_fine "close_spawn_process $pr_id\n"
-   close_spawn_process $pr_id
  
    ts_log_fine ">>> qlogin output start <<<"
    ts_log_fine $output
