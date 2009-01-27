@@ -1,3 +1,6 @@
+MG-2009-01-27-0: Enhancem:   Test for hedeby issue 570
+                 Review:     RH
+
 CR-2009-01-27-1: Enhancem.:  added verification code to install_core_system 
                              check that verifies the xterm binary path 
                              at execd host installation
