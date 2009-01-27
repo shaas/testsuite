@@ -591,6 +591,7 @@ proc setup_execd_conf {} {
    global CHECK_DEFAULT_DOMAIN
    global CHECK_INTERACTIVE_TRANSPORT check_use_installed_system
    global ts_config
+   global CHECK_USER
 
    foreach host $ts_config(execd_nodes) {
       ts_log_fine "get configuration for host $host ..."
@@ -658,7 +659,19 @@ proc setup_execd_conf {} {
                   }
                }
             }
-            "xterm" { continue }
+            "xterm" { 
+               ts_log_fine "host $host has xterm setting to \"$tmp_config($elem)\""
+               if {![is_remote_file $host $CHECK_USER $tmp_config($elem)]} {
+                  set config_xterm_path [get_binary_path $host "xterm"]
+                  ts_log_config "host \"$host\" xterm path \"$tmp_config($elem)\" not found!\nsetting xterm to \"$config_xterm_path\""
+                  set tmp_config($elem) $config_xterm_path
+               }
+               # TODO (CR): Activate this code when "xterm" is configured in TS host configuration
+               # if {[string trim $tmp_config($elem)] != [string trim [get_binary_path $host "xterm"]] } {
+               #    ts_log_fine "host \"$host\": xterm path \"$tmp_config($elem)\" is not set to configured xterm path \"[get_binary_path $host "xterm"]\""
+               #    set tmp_config($elem) [get_binary_path $host "xterm"]
+               # }
+            }
             "load_sensor" {
                # on windows, we have a load sensor, on other platforms not
                if {[host_conf_get_arch $host] == "win32-x86"} {

@@ -1,3 +1,8 @@
+CR-2009-01-27-1: Enhancem.:  added verification code to install_core_system 
+                             check that verifies the xterm binary path 
+                             at execd host installation
+                 Review:     RD
+
 RD-2009-01-27-0: Bugfix:     fixed client_ar test
                  Review:     CR
 
