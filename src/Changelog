@@ -1,5 +1,10 @@
-RH-2009-01-26-0: Enhancem.:  New cli option --get_pw_command added. With this option the
-                             testsuite will use an external command to query passwords
+CR-2009-01-27-0: Enhancem.:  Enhanced scheduler reconnect test to also test
+                             event client timeout
+                 Review:     RD
+
+RH-2009-01-26-0: Enhancem.:  New cli option --get_pw_command added. With this 
+                             option the testsuite will use an external command 
+                             to query passwords
                  Review:     JG
 
 AH-2009-01-22-0: Enhancem.:  Added new test bugs/issuezilla/2864

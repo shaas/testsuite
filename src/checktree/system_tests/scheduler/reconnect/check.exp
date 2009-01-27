@@ -66,6 +66,7 @@ set check_cleanup_function "schedd_reconnect_cleanup"
 # define test's procedure order
 set check_functions ""
 lappend check_functions "schedd_reconnect_test"
+lappend check_functions "schedd_reconnect_after_timeout_test"
 
 proc schedd_reconnect_init_level {} {
    global CHECK_ACT_LEVEL
@@ -85,10 +86,33 @@ proc schedd_reconnect_init_level {} {
 # -------- local test procedures: initialization------------------------------
 proc schedd_reconnect_setup  {} {
    global ts_config
+   global schedd_reconnect_test_globals
+
+   if {[info exists schedd_reconnect_test_globals]} {
+      unset schedd_reconnect_test_globals
+   }
+
+   get_config help
+   set schedd_reconnect_test_globals(org_qmaster_params) $help(qmaster_params)
+   set schedd_reconnect_test_globals(restart_master) true
 }
 
 proc schedd_reconnect_cleanup  {} {
    global ts_config
+   global schedd_reconnect_test_globals
+
+   set my_config(qmaster_params) $schedd_reconnect_test_globals(org_qmaster_params)
+   set_config my_config
+
+   if {$schedd_reconnect_test_globals(restart_master) == true} {
+      set spooldir [get_qmaster_spool_dir]
+      shutdown_master_and_scheduler $ts_config(master_host) $spooldir
+      startup_qmaster
+   }
+
+   if {[info exists schedd_reconnect_test_globals]} {
+      unset schedd_reconnect_test_globals
+   }
 }
 
 
@@ -105,6 +129,7 @@ proc schedd_reconnect_test {} {
    incr mytimeout 120
 
    while {1} {
+      after 1000
       if {[timestamp] > $mytimeout} {
          append error_text "timeout (120 seconds) waiting for connected scheduler!\n"
          break
@@ -116,10 +141,61 @@ proc schedd_reconnect_test {} {
             break
          }
       }
-      after 5000
+      after 4000
    }
 
    if {$error_text != ""} {
       ts_log_severe $error_text
    }
 }
+
+
+#****** check/schedd_reconnect_after_timeout_test() ****************************
+#  NAME
+#     schedd_reconnect_after_timeout_test() -- test scheduler ack timeout
+#
+#  SYNOPSIS
+#     schedd_reconnect_after_timeout_test { } 
+#
+#  FUNCTION
+#     Produce scheduler timeout which does a disconnect of the event client.
+#     => Scheduler should re-connect.
+#*******************************************************************************
+proc schedd_reconnect_after_timeout_test {} {
+   global schedd_reconnect_test_globals
+
+   get_current_cluster_config_array ts_config
+
+   # Get expected message text in qmaster messages file
+   set message_text [translate_macro MSG_COM_ACKTIMEOUT4EV_ISIS "*" "schedd" "*" "*"]
+
+   # do a "tail" for the qmaster messages file
+   ts_log_fine "tail -f to qmaster messages file"
+   set spooldir [get_qmaster_spool_dir]
+   init_logfile_wait $ts_config(master_host) "$spooldir/messages"
+
+   # set qmaster parameter SCHEDULER_TIMEOUT to 4 seconds
+   set my_config(qmaster_params) "SCHEDULER_TIMEOUT=4"
+   set_config my_config
+
+   # now we wait for the scheduler timeout message in the messages log file
+   set output [logfile_wait $message_text]
+
+   # If the message was found we check if scheduler reconnects
+   if {$logfile_wait_error == 0} {
+      ts_log_fine "found: \"$message_text\" in qmaster messages file!"
+      ts_log_fine "got scheduler timeout, checking if scheduler does a reconnect ..."
+      set my_config(qmaster_params) "none"
+      set_config my_config
+      after 5000
+      if {[wait_for_connected_scheduler] == 0 } { 
+         set schedd_reconnect_test_globals(restart_master) false
+      }
+   } else {
+      ts_log_severe "logfile_wait_error: $logfile_wait_error\noutput:\n$output"
+   }
+
+   # stop the tail command
+   close_logfile_wait
+}
+

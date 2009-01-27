@@ -2481,7 +2481,7 @@ proc set_config_and_propagate {config {host global}} {
          # consume the lines output immediately by tail -f
          set spool_dir [get_spool_dir $conf_host "execd"]
          set messages_name "$spool_dir/messages"
-         set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) "/usr/bin/tail" "-f $messages_name"]
+         set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) [get_binary_path $conf_host "tail"] "-f $messages_name"]
          set sp_id [lindex $tail_id 1]
          set timeout 5
          expect {
