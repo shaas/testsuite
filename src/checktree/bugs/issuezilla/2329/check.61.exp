@@ -1,0 +1,227 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2329_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2329"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "make sure pe tasks are killed when the master task exits"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2329_setup
+set check_cleanup_function issue_2329_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2329_test"
+
+proc issue_2329_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2329_setup {} {
+   global ts_config
+   global issue_2329_hosts
+
+   set issue_2329_hosts [host_conf_get_suited_hosts 2]
+
+   # create a tight pe
+   set pe(slots)              2
+   set pe(user_lists)         none
+   set pe(xuser_lists)        none
+   set pe(start_proc_args)    none
+   set pe(stop_proc_args)     none
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   add_pe "tight" pe
+
+   # create a queue referencing the tight pe
+   set queue(pe_list)         "tight"
+   set queue(slots)           1
+   add_queue "tight" $issue_2329_hosts queue
+}
+
+proc issue_2329_cleanup {} {
+   global ts_config
+   global issue_2329_hosts
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # delete queue and pe
+   del_queue "tight" "" 1 1
+   del_pe "tight"
+
+   # unset our test's global variables
+   foreach var "issue_2329_hosts"  {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc issue_2329_test {} {
+   global ts_config CHECK_USER
+   global issue_2329_hosts
+
+   # our test hosts
+   set master_host [lindex $issue_2329_hosts 0]
+   set slave_host [lindex $issue_2329_hosts 1]
+   ts_log_fine "master task will be running on $master_host"
+   ts_log_fine "slave host is $slave_host"
+
+   # start a tightly integrated parallel job
+   # we just start a sleeper and wait for it to startup
+   set options "-pe tight 2 -N IZ2329 -masterq [get_queue_instance "tight" $master_host]"
+   set script "$ts_config(product_root)/examples/jobs/sleeper.sh"
+   set script_options "30"
+   set job_id [submit_job "$options $script $script_options"]
+
+   if {$job_id <= 0} {
+      # must have been due to timeout or eof, error has already been raised
+      return
+   }
+  
+   # wait for the job to be running
+   trigger_scheduling
+   if {[wait_for_job_state $job_id "r" 30] == -1} {
+      # no use to continue if job is not running
+      delete_job $job_id 1
+      return
+   }
+
+   # start a task on the slave host, which is running longer than the master job script
+   set task_env(JOB_ID) $job_id
+   set task_env(SGE_TASK_ID) "undefined"
+   set task_script "$ts_config(testsuite_root_dir)/scripts/pe_task.sh"
+   set task_options "1 60"
+   set id [open_remote_spawn_process $master_host $CHECK_USER "qrsh" "-inherit $slave_host $task_script $task_options" 0 "" task_env]
+   set sp_id [lindex $id 1]
+
+   # no use to do certain tasks in case of errors
+   set error 0
+
+   # expect the task to start
+log_user 1
+   set timeout 20
+   expect {
+      -i $sp_id timeout {
+         ts_log_severe "timeout waiting for task to start"
+         set error 1
+      }
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         set error 1
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof while waiting for task to start"
+         set error 1
+      }
+      -i $sp_id "petask * with pid * started on host *" {
+         ts_log_fine "task started"
+      }
+   }
+
+   if {!$error} {
+      # expect the task to be killed
+      set timeout 70
+      expect {
+         -i $sp_id timeout {
+            ts_log_severe "timeout waiting for task to be killed"
+            set error 1
+         }
+         -i $sp_id full_buffer {
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            set error 1
+         }
+         -i $sp_id eof {
+            ts_log_severe "eof while waiting for task to be killed"
+            set error 1
+         }
+         -i $sp_id "petask * with pid * finished on host *" {
+            ts_log_severe "task regularly finished, but expected it to be killed"
+            set error 1
+         }
+         -i $sp_id "_exit_status_:(137)" {
+            ts_log_fine "task was killed as expected"
+         }
+      }
+   }
+log_user 0
+
+   close_spawn_process $id
+
+   if {!$error} {
+      # wait for job end
+      wait_for_jobend $job_id "IZ2329" 60 0 1
+
+      # expect 2 accounting records being written
+      if {[get_qacct $job_id qacct_info "" "" 1 2] == 0} {
+         # check exit status of task in qacct - it's the first reported record
+         if {[lindex $qacct_info(exit_status) 0] != 137} {
+            ts_log_severe "slave task isn't reported as killed in accounting"
+         }
+      }
+   }
+}
+

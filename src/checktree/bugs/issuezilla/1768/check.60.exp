@@ -60,7 +60,7 @@ proc issue_1768_init_level {} {
 
    # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  {
+      0 {
          return 0
       }
    }

@@ -5787,7 +5787,7 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
 #
 #  RESULT
 #     -1 - job is not running (timeout error)
-#      0 - job is running ( not in pending state)
+#      0 - job is running (not in pending state)
 #
 #  EXAMPLE
 #     foreach elem $jobs {
@@ -5804,45 +5804,44 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
 #     sge_procedures/wait_for_jobpending()
 #     sge_procedures/wait_for_jobend()
 #*******************************
-proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
-  get_current_cluster_config_array ts_config
+proc wait_for_jobstart {jobid jobname seconds {do_errorcheck 1} {do_tsm 0}} {
+   get_current_cluster_config_array ts_config
 
-  if { [is_job_id $jobid] != 1  } {
-     if { $do_errorcheck == 1 } {
-          ts_log_severe "got unexpected job id: $jobid"
-     }
-     return -1
-  }
+   if {[is_job_id $jobid] != 1} {
+      if {$do_errorcheck == 1} {
+         ts_log_severe "got unexpected job id: $jobid"
+      }
+      return -1
+   }
 
    if {$do_tsm == 1} {
       trigger_scheduling
    }
 
-  if { $do_errorcheck != 1 } {
-     ts_log_finest "error check is switched off"
-  }
-  
-  ts_log_fine "Waiting for start of job $jobid ($jobname)"
-  set time [timestamp]
-  after 500
-  while {1} {
-    set run_result [is_job_running $jobid $jobname]
-    if {$run_result == 1} {
-       break
-    } 
-    set runtime [expr ( [timestamp] - $time) ]
-    if { $runtime >= $seconds } {
-       if { $do_errorcheck == 1 } {
-          ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\""
-       }
-       return -1
-    }
-    ts_log_progress
-    after 500
-  }
-  return 0
+   if {$do_errorcheck != 1} {
+      ts_log_finest "error check is switched off"
+   }
+ 
+   ts_log_fine "Waiting for start of job $jobid ($jobname)"
+   set time [timestamp]
+   after 500
+   while {1} {
+      set run_result [is_job_running $jobid $jobname]
+      if {$run_result == 1} {
+         break
+      }
+      set runtime [expr [timestamp] - $time]
+      if {$runtime >= $seconds} {
+         if {$do_errorcheck == 1} {
+            ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\""
+         }
+         return -1
+      }
+      ts_log_progress
+      after 500
+   }
+   return 0
 }
-
 
 #                                                             max. column:     |
 #****** sge_procedures/wait_for_end_of_transfer() ******
@@ -6329,7 +6328,6 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
             incr nr_of_checks -1
             if {$nr_of_checks <= 0} {
                ts_log_severe "new scheduler pid not written: old pid: $old_schedd_pid, current pid: $current_schedd_pid"
-wait_for_enter
                break
             }
             sleep 1
