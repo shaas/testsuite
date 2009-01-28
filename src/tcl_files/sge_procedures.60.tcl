@@ -758,14 +758,16 @@ proc drmaa_redirect_lib {version host } {
    global CHECK_USER ts_config
    ts_log_fine "Using DRMAA version $version on $host"
 
-
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
    set lib_ext [get_current_drmaa_lib_extension $host]
-   start_remote_prog $ts_config(master_host) "root" "rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
-   start_remote_prog $host "root" "rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   ts_log_fine "delete $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext ..."
+   start_remote_prog $host                   "root" "rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   wait_for_remote_file $ts_config(master_host) "root" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 90 1 1
+ 
+   ts_log_fine "create link with to libdrmaa.$lib_ext.$version" 
    start_remote_prog $host "root" "ln" "-s libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
-   wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   wait_for_remote_file $ts_config(master_host) "root" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 90
 }
 
 #****** sge_procedures.60/get_current_drmaa_mode() *****************************
