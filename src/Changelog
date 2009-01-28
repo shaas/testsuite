@@ -1,4 +1,8 @@
-DG-2009-01-18-1: Cleanup:    DRMAA link redirection failed in rare cases.
+CR-2009-01-28-0: Bugfix:     - removed TS menu item 29
+                             - added error reporting to remote_file_mkdir()
+                 Review:     DG
+
+DG-2009-01-28-1: Cleanup:    DRMAA link redirection failed in rare cases.
                  Review:     CR
 
 DG-2009-01-28-0: Cleanup:    Installed new Java DRMAA Junit 0.5 lib. 

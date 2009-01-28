@@ -2315,65 +2315,6 @@ proc cleanup_spool_dir {topleveldir subdir} {
 }
 
 
-# interactive command called from testsuite menu
-# do not do any logging here, but use puts for output
-proc check_local_spool_directories {{do_delete 0}} {
-   global ts_host_config
-   get_current_cluster_config_array ts_config
-
-   if {[have_root_passwd] == -1} {
-      puts "need root access ..."
-      set_root_passwd
-   }
-
-   foreach host $ts_config(execd_nodes) {
-      puts "host ${host}:"
-      set my_spool_dir $ts_host_config($host,spooldir)
-      if {$my_spool_dir == ""} {
-         set my_spool_dir "no_spool_dir_defined"
-      }
-      puts "checking testsuite spool root dir ($my_spool_dir) ..."
-      set result [start_remote_prog $host "root" "du" "-k -s $my_spool_dir/" prg_exit_state 120]
-      puts $result
-      set testsuite($host,spooldir_size) [lindex $result 0]
-      set testsuite($host,spooldir_size,state) $prg_exit_state
-
-      foreach dir "execd qmaster spooldb" {
-         puts "checking testsuite \"$dir\" spool dir for port \"$ts_config(commd_port)\" ..."
-         set result [start_remote_prog $host "root" "du" "-k -s $my_spool_dir/$ts_config(commd_port)/$dir/" prg_exit_state 120]
-         puts $result
-         set testsuite($host,$dir,spooldir_size) [lindex $result 0]
-         set testsuite($host,$dir,spooldir_size,state) $prg_exit_state
-      }
-   }
-
-   foreach host $ts_config(execd_nodes) {
-      puts "$host: testsuite uses $testsuite($host,spooldir_size) bytes in $my_spool_dir"
-      if {$testsuite($host,spooldir_size) > 1000000 && $testsuite($host,spooldir_size,state) == 0} {
-         ts_log_info "!!! $host: testsuite uses $testsuite($host,spooldir_size) bytes in $my_spool_dir !!!"
-      }
-
-      foreach dir "execd qmaster spooldb" {
-         if {$testsuite($host,$dir,spooldir_size,state) != 0} {
-            puts "skipping \"$my_spool_dir/$ts_config(commd_port)/$dir\" (no directory found)"
-            continue
-         }
-         puts "$host ($dir): spool dir size is $testsuite($host,$dir,spooldir_size)"
-         if {$do_delete != 0 && $testsuite($host,$dir,spooldir_size) > 10} {
-            puts -nonewline "delete directory \"$my_spool_dir/$ts_config(commd_port)/$dir\" (y/n)? "
-            set input [ wait_for_enter 1]
-            if {$input == "y"} {
-               puts "deleting \"$my_spool_dir/$ts_config(commd_port)/$dir\" ..."
-               cleanup_spool_dir_for_host $host $my_spool_dir $dir
-               set result [start_remote_prog $host "root" "du" "-k -s $my_spool_dir/$ts_config(commd_port)/$dir"]
-               if {[lindex $result 0] > 10} {
-                  puts "!!! could not delete \"$my_spool_dir/$ts_config(commd_port)/$dir\" on host $host !!!"
-               }
-            }
-         }
-      }
-   }
-}
 
 
 #****** file_procedures/cleanup_spool_dir_for_host() ***************************
@@ -2408,7 +2349,7 @@ proc cleanup_spool_dir_for_host {hostname topleveldir subdir} {
    
    if {[remote_file_isdirectory $hostname $spooldir 1] == 1} {
       set spooldir "$spooldir/$ts_config(commd_port)"
-      if {[remote_file_isdirectory $hostname $spooldir 1] != 1} { 
+      if {[remote_file_isdirectory $hostname $spooldir 1] != 1} {
           ts_log_finer "creating directory \"$spooldir\""
           remote_file_mkdir $hostname $spooldir 1
           if {[remote_file_isdirectory $hostname $spooldir 1] != 1} {
@@ -2465,9 +2406,30 @@ proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
   return 0
 }
 
+#****** file_procedures/remote_file_mkdir() ************************************
+#  NAME
+#     remote_file_mkdir() -- creates remote directory path
+#
+#  SYNOPSIS
+#     remote_file_mkdir { hostname dir {win_local_user 0} } 
+#
+#  FUNCTION
+#     Remote mkdir -p $dir call
+#
+#  INPUTS
+#     hostname           - remote host where the mkdir command should be started
+#     dir                - full directory path
+#     {win_local_user 0} - optional parameter which goes into start_remote_prog
+#
+#  RESULT
+#     command output
+#*******************************************************************************
 proc remote_file_mkdir {hostname dir {win_local_user 0}} {
   global CHECK_USER
   set result [start_remote_prog $hostname $CHECK_USER "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user]
+  if {$prg_exit_state != 0} {
+     ts_log_severe "Cannot create directory $dir as user $CHECK_USER on host $hostname: $result"
+  }
   return $result
 }
 

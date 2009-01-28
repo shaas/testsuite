@@ -7434,7 +7434,6 @@ proc menu {} {
     puts " (26) enter testsuite setup"
     puts " (27) set command line options"
     puts " (28) restart cluster"
-    puts " (29) check spool directory content"
     puts " (30) re-read checktree and re-source tcl-files"
     puts " (31) search for old sge_processes on configured hosts"
     puts " (32) dump status of all rlogin connections"
@@ -7558,10 +7557,6 @@ proc menu {} {
     }
     "28" {
          startup_core_system 0 1
-         wait_for_enter
-    }
-    "29" {
-         check_local_spool_directories 1
          wait_for_enter
     }
     "30" {
