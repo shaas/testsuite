@@ -1,3 +1,6 @@
+RM-2009-01-28-0: Enhancem:   Test for hedeby issue 574
+                 Review:     MG
+
 CR-2009-01-28-0: Bugfix:     - removed TS menu item 29
                              - added error reporting to remote_file_mkdir()
                  Review:     DG

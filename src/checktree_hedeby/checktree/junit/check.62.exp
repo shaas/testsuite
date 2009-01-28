@@ -103,7 +103,7 @@ proc hedeby_junit_check {} {
    report_add_message report "java build host is \"$java_build_host\""
 
    # The timeout occurs if a junit does not output anything for 5 minutes 
-   set timeout 300
+   set timeout 900
    set ant_options ""
    
    set res [hedeby_build $java_build_host "test" report $ant_options $timeout]

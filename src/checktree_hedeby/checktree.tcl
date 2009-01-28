@@ -613,6 +613,8 @@ proc hedeby_compile_clean { compile_hosts a_report } {
 #                 printed (see report_XXXXXX procedures)
 #     { ant_options "" }           - optional ant options (default "")
 #     { hedeby_build_timeout 300 } - build timeout value (default 300 sec)
+#     { hedeby_source "" }         - choose the directory with sources which should be built
+#                                    by default the $hedeby_config(hedeby_source_dir) value is taken
 #
 #  RESULT
 #     0 - on success
@@ -621,7 +623,7 @@ proc hedeby_compile_clean { compile_hosts a_report } {
 #  SEE ALSO
 #     checktree_hedeby/hedeby_compile()
 #*******************************************************************************
-proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build_timeout 300 } } {
+proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build_timeout 300 } { hedeby_source "" } } {
    global CHECK_OUTPUT CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global ts_host_config hedeby_config
@@ -629,12 +631,15 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    upvar $a_report report
 
    set property_file "build_testsuite.properties"
-   set property_path $hedeby_config(hedeby_source_dir)/$property_file
+   if { "$hedeby_source" == "" } {
+      set hedeby_source $hedeby_config(hedeby_source_dir)
+    }
+   set property_path $hedeby_source/$property_file
 
    if { [create_testsuite_properties_file $property_path $build_host] != 0 } {
       return -1
    }
-   puts $CHECK_OUTPUT "starting $build_host:ant $target $ant_options in dir $hedeby_config(hedeby_source_dir)"
+   puts $CHECK_OUTPUT "starting $build_host:ant $target $ant_options in dir $hedeby_source"
    
    set task_nr [report_create_task report "hedeby_build_$target" $build_host]
    
@@ -658,7 +663,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    # Iterate over all build property files. The order is important
    foreach prop_file { build_testsuite.properties build_private.properties build.properties } { 
       set output [start_remote_prog $build_host $CHECK_USER \
-                      "grep" "'libs.junit.classpath=' $hedeby_config(hedeby_source_dir)/$prop_file"]
+                      "grep" "'libs.junit.classpath=' $hedeby_source/$prop_file"]
       if {$prg_exit_state == 0} {
          foreach line [split $output "\r\n"] {
             # this following regular expression matches against all lines containing
@@ -690,7 +695,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
       report_task_add_message report $task_nr "using ANT_OPTS = $env(ANT_OPTS)"
    }
 
-   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER "ant" "$target" 0 "$hedeby_config(hedeby_source_dir)" env]
+   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER "ant" "$target" 0 "$hedeby_source" env]
    set spawn_list [lindex $open_spawn 1]
    set timeout $hedeby_build_timeout
    set error -1
@@ -711,7 +716,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
       }
       -i $spawn_list "_start_mark_:(0)" {
          set use_output 1
-         report_task_add_message report $task_nr "cd $hedeby_config(hedeby_source_dir); ./build.sh $target"
+         report_task_add_message report $task_nr "cd $hedeby_source; ./build.sh $target"
          exp_continue
       }
       -i $spawn_list -re {^.*?\n} {

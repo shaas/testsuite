@@ -10354,4 +10354,148 @@ proc add_hedeby_ge_service { service_opts { opt "" } } {
 
    return $prg_exit_state
 }
-
+#****** util/hedeby_unzip() ***************************************************
+#  NAME
+#     hedeby_unzip() -- decompress with unzip the specified archive to destination directory
+#
+#  SYNOPSIS
+#     hedeby_unzip { archive target_dir { host "" } { user "" } } 
+#
+#  FUNCTION
+#     This procedure is used to decompress zip file.
+#
+#  INPUTS
+#     archive 		- path to the compressed zip file
+#     target_dir 	- destination directory where decompressed files should be put
+#     host 		- hostname on which decompression should be performed
+#     user 		- the owner of decompress operation
+#
+#  RESULT
+#     0  - success 
+#     -1 - on errors
+#
+#*******************************************************************************
+proc hedeby_unzip { archive target_dir { host "" } { user "" } } {
+   global hedeby_config CHECK_USER
+   if { "$archive" == "" } {
+      ts_log_severe "Path to the archive is not set"
+      return -1
+   }
+   if { "$target_dir" == "" } {
+      ts_log_severe "Target directory for unzipping is not set"
+      return -1
+   }
+   if { "$host" == "" } {
+      set host [fs_config_get_server_for_path $archive]
+      if { $host = "" } {
+         set host $hedeby_config(hedeby_master_host)
+      }
+   }
+   if { "$user" == "" } {
+      set user $CHECK_USER
+   }
+   set unzip [get_binary_path $host "unzip" 0]
+   start_remote_prog $host $user "$unzip" "$archive -d $target_dir" res
+   if { $res != 0 } {
+      ts_log_severe "Failed to unzip file: $archive into directory: $target_dir on host: $host as user $user"
+      return -1
+   }
+   return 0
+}
+#****** util/hedeby_gunzip() ***************************************************
+#  NAME
+#     hedeby_gunzip() -- decompress with gunzip the specified archive (gz file)
+#
+#  SYNOPSIS
+#     hedeby_gunzip { archive{ host "" } { user "" } } 
+#
+#  FUNCTION
+#     This procedure is used to decompress gz file.
+#
+#  INPUTS
+#     archive 		- path to the gzip file
+#     host 		- hostname on which decompression should be performed
+#     user 		- the owner of decompress operation
+#
+#  RESULT
+#     0  - success 
+#     -1 - on errors
+#     As a result operation of this procedure "gunzip filename.gz" is done. This means
+#     that result file will be filename
+#
+#*******************************************************************************
+proc hedeby_gunzip { archive { host "" } { user "" } } {
+   global hedeby_config CHECK_USER
+   if { "$archive" == "" } {
+      ts_log_severe "Path to the archive is not set"
+      return -1
+   }
+   if { "$host" == "" } {
+      set host [fs_config_get_server_for_path $archive]
+      if { "$host" == "" } {
+         set host $hedeby_config(hedeby_master_host)
+      }
+   }
+   if { "$user" == "" } {
+      set user $CHECK_USER
+   }
+   set gunzip [get_binary_path $host "gunzip" 0]
+   
+   start_remote_prog $host $user "$gunzip" "$archive" "res"
+   if { $res != 0 } {
+      ts_log_severe "Failed to unpack with gunzip file: $archive on host: $host as user $user"
+      return -1
+   }
+   return 0
+}
+#****** util/hedeby_guntar() ***************************************************
+#  NAME
+#     hedeby_guntar() -- decompress with gtar the specified archive to destination directory
+#
+#  SYNOPSIS
+#     hedeby_guntar { archive target_dir { host "" } { user "" } } 
+#
+#  FUNCTION
+#     This procedure is used to decompress tar file.
+#
+#  INPUTS
+#     archive 		- path to the compressed tar file
+#     target_dir 	- destination directory where decompressed files should be put
+#     host 		- hostname on which decompression should be performed
+#     user 		- the owner of decompress operation
+#
+#  RESULT
+#     0  - success 
+#     -1 - on errors
+#     As a result of this procedure "cd $target; gtar xvf file.tar" will be executed. 
+#
+#*******************************************************************************
+proc hedeby_guntar { archive target_dir { host "" } { user "" } } {
+   global hedeby_config CHECK_USER
+   if { "$archive" == "" } {
+      ts_log_severe "Path to the archive is not set"
+      return -1
+   }
+   if { "$target_dir" == "" } {
+      ts_log_severe "Target directory for untarring with gtar is not set"
+      return -1
+   }
+   if { "$host" == "" } {
+      set host [fs_config_get_server_for_path $archive]
+      if { "$host" == "" } {
+         set host $hedeby_config(hedeby_master_host)
+      }
+   }
+   if { "$user" == "" } {
+      set user $CHECK_USER
+   }
+   
+   set gtar [get_binary_path $host "gtar" 0]
+   
+   start_remote_prog $host $user "$gtar" "xvf $archive" "res" "60" "0" "$target_dir"
+   if { $res != 0 } {
+      ts_log_severe "Failed to unpack with gtar file: $archive into directory: $target_dir on host: $host as user $user"
+      return -1
+   }
+   return 0
+}
