@@ -1,3 +1,11 @@
+TB-2009-01-29-0: Bugfix:     - get_binary_path no longer logs ts_config
+                               messages when a binary cannot be found in the
+                               host config. Instead ts_info message are logged,
+                               which also lead (by default) to emails but no
+                               longer flag the test as unsupported.
+                             - fixed TCL error in checktree_hedeby/util.tcl
+                 Review:     CR
+
 RM-2009-01-28-0: Enhancem:   Test for hedeby issue 574
                  Review:     MG
 

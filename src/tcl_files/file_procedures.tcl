@@ -2117,7 +2117,7 @@ proc get_binary_path {nodename binary {raise_error 1}} {
          # The binary path is not configured in the host configuration, report config warning
          set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
          append config_text "Using \"$binary\" binary: \"$binary_path\"\n"
-         ts_log_config $config_text
+         ts_log_info $config_text
          # Now add the binary path to the cache
          set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
          return $binary_path 
@@ -2141,7 +2141,7 @@ proc get_binary_path {nodename binary {raise_error 1}} {
       # The binary path is not configured in the host configuration, report config warning
       set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
       append config_text "Using \"$binary\" binary from testsuite user`s environment path setting: \"$binary_path\"\n"
-      ts_log_config $config_text
+      ts_log_info $config_text
       # Now add the binary path to the cache
       set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
       return $binary_path
@@ -2155,7 +2155,7 @@ proc get_binary_path {nodename binary {raise_error 1}} {
             # The binary path is not configured in the host configuration, report config warning
             set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
             append config_text "Using \"$binary\" binary from root`s environment path setting: \"$binary_path\"\n"
-            ts_log_config $config_text
+            ts_log_info $config_text
             # Now add the binary path to the cache
             set cached_binary_path_array($hostname,$binary,root) $binary_path
             return $binary_path

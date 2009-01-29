@@ -10387,7 +10387,7 @@ proc hedeby_unzip { archive target_dir { host "" } { user "" } } {
    }
    if { "$host" == "" } {
       set host [fs_config_get_server_for_path $archive]
-      if { $host = "" } {
+      if { $host == "" } {
          set host $hedeby_config(hedeby_master_host)
       }
    }
