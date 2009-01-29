@@ -1,3 +1,6 @@
+RD-2009-01-29-0: Enhancem.:  new test for issue 2896
+                 Review:     AA
+
 TB-2009-01-29-0: Bugfix:     - get_binary_path no longer logs ts_config
                                messages when a binary cannot be found in the
                                host config. Instead ts_info message are logged,

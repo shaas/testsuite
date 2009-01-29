@@ -1,0 +1,155 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+# define test's name and run level descriptions
+set check_name            "issue_2896"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check issue 2896 is fixed"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2896_setup
+set check_cleanup_function issue_2896_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2896_check"
+
+# -------- local test procedures: initialization ------------------------------
+
+proc issue_2896_setup {} {
+   global ts_config
+   global global_host_backup
+
+   ts_log_fine "issue_2896_setup" 
+
+   # setup queues A and B each with one slot on a single host
+   set queue_conf(slots)            "1"
+   set queue_conf(load_thresholds)  "NONE"
+   add_queue "A" $ts_config(master_host) queue_conf 1
+   add_queue "B" $ts_config(master_host) queue_conf 1
+
+   # configure a global consumable F001 with a capacity of 1
+   set tmp_complex(F001)   "F001        INT      <=    YES         YES        0       100"
+   set_complex tmp_complex
+
+   get_exechost global_host_backup
+   set my_host_config(complex_values) "F001=1"
+   set_exechost my_host_config "global"
+
+   # enable resource reservation etc.
+   set schedconf(schedule_interval)          "0:0:05"
+   set schedconf(weight_urgency)             "0.000000"
+   set schedconf(weight_ticket)              "0.000000"
+   set schedconf(weight_priority)            "1.000000"
+   set schedconf(max_reservation)            "10"
+   set schedconf(flush_submit_sec)             1
+   set schedconf(flush_finish_sec)             1
+   set schedconf(job_load_adjustments)       "NONE"
+   set schedconf(load_adjustment_decay_time) "0:0:00"
+   set schedconf(load_adjustment_decay_time) "0:0:00"
+   set schedconf(default_duration)            "210"
+   # set schedconf(params)                     "MONITOR=true"
+   set result [ set_schedd_config schedconf ]
+}
+
+proc issue_2896_cleanup {  } {
+   global global_host_backup
+   global ts_config
+
+   # restore global host and revert F001 complex definition
+   set_exechost global_host_backup
+   set tmp_complex(F001)   ""
+   set_complex tmp_complex
+
+   # reset the scheduler configuration
+   reset_schedd_config
+
+   # remove the cqueues
+   del_queue "A" "" 1 1
+   del_queue "B" "" 1 1
+}
+
+
+# -------- local test procedures: initialization ------------------------------
+
+
+proc issue_2896_check { } {
+   global ts_config
+
+   # qsub -p 30 -q A -N RunInA  -b y /bin/sleep 180
+   # Job should start and run in queue A
+   set run_in_a [submit_job "-p 30 -q A -N RunInA $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+
+   # qsub -p 20 -q A -N WaitForA -l F001=1 -R n -b y /bin/sleep 180
+   # Job can not run in queue A because slot is occupied by first job
+   set wait_for_a [submit_job "-p 20 -q A -N WaitForA -l F001=1 -R n $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+
+   # qsub -p 10 -q A -N RsvForA -l F001=1 -R y -b y /bin/sleep 180 
+   # Job can not run in queue A because slot is occupied by first job, however a reservation should be made
+   set rsv_for_a [submit_job "-p 10 -q A -N RsvForA -l F001=1 -R y $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+
+   # qsub -p 0 -q B -N GrabF001 -l F001=1,h_rt=1:0:0 -b y /bin/sleep 3600
+   # Job can not run because consumable F001 is reserved in 210 seconds by third job
+   set grap_f001 [submit_job "-p 0 -q B -N GrabF001 -l F001=1,h_rt=1:0:0 $ts_config(product_root)/examples/jobs/sleeper.sh 3600"]
+
+   # no job other than 'run_in_a' may be in running state after qconf -tsm 
+   if {[wait_for_jobstart $run_in_a "" 45 1 1] == 0 } {
+      if { [is_job_running $wait_for_a ""] || [is_job_running $rsv_for_a ""] || [is_job_running $grap_f001 ""] } {
+         # ts_log_fine "no job other than $run_in_a may have started"
+         # wait_for_enter 1
+         ts_log_severe "no job other than $run_in_a may have started"
+      }
+   } else {
+      # ts_log_fine "job $run_in_a has not been started"
+      # wait_for_enter 1
+      ts_log_severe "job $run_in_a has not been started"
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+}
