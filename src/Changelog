@@ -1,3 +1,7 @@
+RH-2009-01-30-0: Bugfix:     Additional clusters did not work if user
+                             has not expect in PATH
+                 Review:     CR
+
 RD-2009-01-29-0: Enhancem.:  new test for issue 2896
                  Review:     AA
 
@@ -34,6 +38,7 @@ CR-2009-01-27-1: Enhancem.:  added verification code to install_core_system
                              at execd host installation
                  Review:     RD
 
+>>>>>>> 1.845
 RD-2009-01-27-0: Bugfix:     fixed client_ar test
                  Review:     CR
 
