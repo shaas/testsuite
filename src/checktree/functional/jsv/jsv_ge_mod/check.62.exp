@@ -62,42 +62,42 @@ set check_cleanup_function jsv_ge_mod_cleanup
 
 # define test's procedure order
 set check_functions {}
-lappend check_functions "jsv_ge_mod_a"                ;#
+lappend check_functions "jsv_ge_mod_a"                
 lappend check_functions "jsv_ge_mod_ac"
-lappend check_functions "jsv_ge_mod_A"                ;#
-lappend check_functions "jsv_ge_mod_c"                ;#
-lappend check_functions "jsv_ge_mod_ckpt"             ;#
-lappend check_functions "jsv_ge_mod_cwd"              ;#
+lappend check_functions "jsv_ge_mod_A"               
+lappend check_functions "jsv_ge_mod_c"               
+lappend check_functions "jsv_ge_mod_ckpt"             
+lappend check_functions "jsv_ge_mod_cwd"              
 lappend check_functions "jsv_ge_mod_dc"
-lappend check_functions "jsv_ge_mod_dl"               ;#
-lappend check_functions "jsv_ge_mod_e"                ;#
+lappend check_functions "jsv_ge_mod_dl"               
+lappend check_functions "jsv_ge_mod_e"                
 lappend check_functions "jsv_ge_mod_h"
 lappend check_functions "jsv_ge_mod_hold_jid"
 lappend check_functions "jsv_ge_mod_hold_jid_ad"
-lappend check_functions "jsv_ge_mod_i"                ;#
-lappend check_functions "jsv_ge_mod_j"
-lappend check_functions "jsv_ge_mod_js"
-lappend check_functions "jsv_ge_mod_l_hard"
-lappend check_functions "jsv_ge_mod_l_soft"
-lappend check_functions "jsv_ge_mod_m"
-lappend check_functions "jsv_ge_mod_masterq"
-lappend check_functions "jsv_ge_mod_M"
-lappend check_functions "jsv_ge_mod_notify"
-lappend check_functions "jsv_ge_mod_N"                ;#
-lappend check_functions "jsv_ge_mod_o"                ;#
-lappend check_functions "jsv_ge_mod_ot"
-lappend check_functions "jsv_ge_mod_P"
-lappend check_functions "jsv_ge_mod_p"                ;#
-lappend check_functions "jsv_ge_mod_pe_name_min_max"  ;#
-lappend check_functions "jsv_ge_mod_q_hard"
-lappend check_functions "jsv_ge_mod_q_soft"
-lappend check_functions "jsv_ge_mod_R"
-lappend check_functions "jsv_ge_mod_r"
+lappend check_functions "jsv_ge_mod_i"               
+lappend check_functions "jsv_ge_mod_j"               
+lappend check_functions "jsv_ge_mod_js"              
+lappend check_functions "jsv_ge_mod_l_hard"           
+lappend check_functions "jsv_ge_mod_l_soft"          
+lappend check_functions "jsv_ge_mod_m"                
+lappend check_functions "jsv_ge_mod_masterq"          
+lappend check_functions "jsv_ge_mod_M"                
+lappend check_functions "jsv_ge_mod_notify"           
+lappend check_functions "jsv_ge_mod_N"                
+lappend check_functions "jsv_ge_mod_o"                
+lappend check_functions "jsv_ge_mod_ot"               
+lappend check_functions "jsv_ge_mod_P"               
+lappend check_functions "jsv_ge_mod_p"               
+lappend check_functions "jsv_ge_mod_pe_name_min_max"  
+lappend check_functions "jsv_ge_mod_q_hard"          
+lappend check_functions "jsv_ge_mod_q_soft"           
+lappend check_functions "jsv_ge_mod_R"                
+lappend check_functions "jsv_ge_mod_r"                
 lappend check_functions "jsv_ge_mod_sc"
-lappend check_functions "jsv_ge_mod_S"                ;#
+lappend check_functions "jsv_ge_mod_S"                
 lappend check_functions "jsv_ge_mod_v"
 lappend check_functions "jsv_ge_mod_V"
-lappend check_functions "jsv_ge_mod_wd"               ;#
+lappend check_functions "jsv_ge_mod_wd"               
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf

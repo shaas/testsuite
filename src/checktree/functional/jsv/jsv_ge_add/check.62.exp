@@ -1,0 +1,746 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "jsv_ge_add_init_level"
+
+# define test's name and run level descriptions
+set check_name            "jsv_ge_add"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  ""
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function jsv_ge_add_setup
+set check_cleanup_function jsv_ge_add_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "jsv_ge_add_a"
+lappend check_functions "jsv_ge_add_A"
+lappend check_functions "jsv_ge_add_c"
+lappend check_functions "jsv_ge_add_ckpt"
+lappend check_functions "jsv_ge_add_cwd"
+lappend check_functions "jsv_ge_add_dl"
+lappend check_functions "jsv_ge_add_e"
+lappend check_functions "jsv_ge_add_i"
+lappend check_functions "jsv_ge_add_j"
+lappend check_functions "jsv_ge_add_js"
+lappend check_functions "jsv_ge_add_l_hard"
+lappend check_functions "jsv_ge_add_l_hard_wildcard"
+lappend check_functions "jsv_ge_add_l_soft"
+lappend check_functions "jsv_ge_add_l_soft_wildcard"
+lappend check_functions "jsv_ge_add_m"
+lappend check_functions "jsv_ge_add_M"
+lappend check_functions "jsv_ge_add_masterq"
+lappend check_functions "jsv_ge_add_N"
+lappend check_functions "jsv_ge_add_o"
+lappend check_functions "jsv_ge_add_notify"
+lappend check_functions "jsv_ge_add_q_hard"
+lappend check_functions "jsv_ge_add_q_soft"
+lappend check_functions "jsv_ge_add_P"
+lappend check_functions "jsv_ge_add_pe_name"
+lappend check_functions "jsv_ge_add_pe_min"
+lappend check_functions "jsv_ge_add_pe_max"
+lappend check_functions "jsv_ge_add_R"
+lappend check_functions "jsv_ge_add_r"
+lappend check_functions "jsv_ge_add_S"
+
+# global variables for this test. all of them are initiaized in the setup procedure
+global jsv_org_global_conf
+global jsv_enabled
+global jsv_job_id
+global jsv_hjob_id
+global jsv_enabled 
+global jsv_base_path 
+
+set jsv_enabled ""
+
+proc jsv_ge_add_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+proc jsv_ge_add_setup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_base_path
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+
+   # check if jsv is available
+   if {$jsv_enabled == ""} {
+      set jsv_enabled [ge_has_feature "job-submission-verify"]
+      if {$jsv_enabled == false} {
+         ts_log_config "Cannot run this test, jsv is not available for this GE version!"
+      }
+   }
+
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # get base path of scripts
+   set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_ge_add
+
+   # create parallel environments
+   set pe(slots) 5
+   set pe(user_lists) none
+   set pe(xuser_lists) none
+   set pe(start_proc_args) none
+   set pe(stop_proc_args) none
+   set pe(allocation_rule) "\$round_robin"
+   set pe(control_slaves) TRUE
+   set pe(job_is_first_task) FALSE
+   add_pe "jsv_ge_add_pe1" pe
+
+   set pe(slots) 5
+   set pe(user_lists) none
+   set pe(xuser_lists) none
+   set pe(start_proc_args) none
+   set pe(stop_proc_args) none
+   set pe(allocation_rule) "\$round_robin"
+   set pe(control_slaves) TRUE
+   set pe(job_is_first_task) FALSE
+   add_pe "jsv_ge_add_pe2" pe
+
+   # create checkpointing object
+   set ckpt_param(ckpt_name) "jsv_ge_add_ckpt1"
+   set ckpt_param(interface) "CPR"
+   set ckpt_param(ckpt_command) "none"
+   set ckpt_param(migr_command) "/bin/true"
+   set ckpt_param(restart_command) "none"
+   set ckpt_param(clean_command) "none"   
+   set ckpt_param(ckpt_dir) "/tmp"
+   set ckpt_param(signal) "none"
+   set ckpt_param(when) "sx"
+   add_checkpointobj ckpt_param 
+
+   set ckpt_param(ckpt_name) "jsv_ge_add_ckpt2"
+   set ckpt_param(interface) "CPR"
+   set ckpt_param(ckpt_command) "none"
+   set ckpt_param(migr_command) "/bin/true"
+   set ckpt_param(restart_command) "none"
+   set ckpt_param(clean_command) "none"   
+   set ckpt_param(ckpt_dir) "/tmp"
+   set ckpt_param(signal) "none"
+   set ckpt_param(when) "sx"
+   add_checkpointobj ckpt_param 
+
+   # create project
+   set prj_setup(name) "jsv_ge_add_prj1"
+   add_prj prj_setup
+
+   set prj_setup(name) "jsv_ge_add_prj2"
+   add_prj prj_setup
+
+   # create queue 
+   set q_param(load_thresholds) "np_load_avg=100.00"
+   set result [add_queue "all2.q" "@allhosts" q_param]
+
+   # change global config 
+   get_config jsv_org_global_conf
+   set global_conf(load_report_time) "00:00:04"
+   set global_conf(max_unheard) "00:00:15"
+   set global_conf(jsv_url) "script:${jsv_base_path}/jsv.sh"   
+   set_config global_conf
+
+   # change schedd config
+   set sched_conf(flush_submit_sec) "1"
+   set sched_conf(flush_finish_sec) "1"
+   set_schedd_config sched_conf
+}
+
+proc jsv_ge_add_cleanup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+ 
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # trigger and wait for job termination
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # reset configurations
+   set_config jsv_org_global_conf
+   reset_schedd_config
+
+   # delete queue, pe and ckpt
+   del_queue "all2.q" "@allhosts" 0 1
+   del_pe "jsv_ge_add_pe1"
+   del_pe "jsv_ge_add_pe2"
+   del_checkpointobj "jsv_ge_add_ckpt1"
+   del_checkpointobj "jsv_ge_add_ckpt2"
+   del_prj "jsv_ge_add_prj1"
+   del_prj "jsv_ge_add_prj2"
+
+   # unset our test's global variables
+   foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc jsv_ge_add_get_default_for_param {name} {
+   global ts_config
+   global CHECK_USER
+   set ret ""
+   set date_string "01/01/1970 01:00:00"
+   set seconds [clock scan $date_string] 
+   set sge_date_string [clock format $seconds -format "%Y%m%d%H%M.%S"]
+   switch $name {
+      "a" {
+         set ret $sge_date_string
+      }
+      "A" {
+         set ret "sge"
+      }
+      "c_interval" {
+         set ret $sge_date_string
+      }
+      "cwd" {
+         set ret [get_home_dir_path $CHECK_USER $ts_config(master_host)] 
+      }
+      "dl" {
+         set ret $sge_date_string
+      }
+      "R" {
+         set ret "false"
+      }
+   }
+   return $ret
+}
+
+proc jsv_ge_add_param_set {islist name value xml_value xml_node_name add_qsub_switch {list_op ""} {list_param ""}} {
+   global ts_config
+   global jsv_base_path 
+
+   # submit job and pass instructions for the JSV script
+   # by using the job context.
+   #
+   #  islist: is it a list parameters which should be handled
+   #  name: name of the job parameter (= qsub switch) 
+   #  value: new value which should be applied by JSV
+   set args "-h -ac islist=$islist,name=$name,value=$value,operation=$list_op,list_param=$list_param"
+   append args " $add_qsub_switch"
+   append args " $jsv_base_path/job.sh"
+
+   set job_id [submit_job "$args" 1 60 $ts_config(master_host)]
+
+   # parse the value from the qstat -xml output
+   set tag_list_string ""
+   set xml_out [start_sge_bin qstat "-xml -j $job_id"]
+   foreach tag $xml_node_name {
+      append tag_list_string "<$tag>"
+      set xml_out_next ""
+      regexp "<$tag>(.*)</$tag>" $xml_out match xml_out_next
+      set xml_out $xml_out_next 
+   } 
+
+   # check the result:
+   # if the qstat result is equivalent with the initial value we wanted to set
+   # then everything is fine. It is also ok when we wanted to delete the
+   # value if the qstat output contains the default value for the parameter.
+   if {$xml_value != $xml_out} {
+      if {$xml_value == ""} {
+         set default_value [jsv_ge_add_get_default_for_param $name]
+         if {$xml_out != $default_value} {
+            ts_log_severe "qstat XML output of tag <$xml_node_name> does not contain the default value \"$default_value\". Instead we got \"$xml_out\"."
+         }
+      } else {
+         ts_log_severe "qstat XML output of tag <$xml_node_name> contains the value \"$xml_out\" but the value of the JSV job parameter \"$name\" should have been changed to \"$xml_value\". Both values should be identical."
+      }
+   }
+}
+
+proc jsv_ge_add_a {} {
+   set date_string1 "01/02/2023 22:23:24"
+   set date_string2 "03/04/2025 21:22:23"
+   set seconds1 [clock scan $date_string1] 
+   set seconds2 [clock scan $date_string2] 
+   set sge_date_string1 [clock format $seconds1 -format "%Y%m%d%H%M.%S"]
+   set sge_date_string2 [clock format $seconds2 -format "%Y%m%d%H%M.%S"]
+
+   # set a time which was not provided by submitter
+   jsv_ge_add_param_set "false" "a" "$sge_date_string1" "$seconds1" "JB_execution_time" ""
+
+   # modify the time which was initially provided 
+   jsv_ge_add_param_set "false" "a" "$sge_date_string1" "$seconds1" "JB_execution_time" "-a $sge_date_string2"
+
+   # delete time which was initially set
+   jsv_ge_add_param_set "false" "a" "" "0" "JB_execution_time" "-a $sge_date_string2"
+}
+
+proc jsv_ge_add_A {} {
+   set string1 "account1"
+   set string2 "account2"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "A" "$string1" "$string1" "JB_account" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "A" "$string1" "$string1" "JB_account" "-A $string2"
+
+   # delete value which was initially set
+   jsv_ge_add_param_set "false" "A" "" "" "JB_account" "-A $string2"
+}
+
+proc jsv_ge_add_ckpt {} {
+   set string1 "jsv_ge_add_ckpt1"
+   set string2 "jsv_ge_add_ckpt2"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "ckpt" "$string1" "$string1" "JB_checkpoint_name" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "ckpt" "$string1" "$string1" "JB_checkpoint_name" "-ckpt $string2"
+
+   # delete value which was initially set
+   jsv_ge_add_param_set "false" "ckpt" "" "" "JB_checkpoint_name" "-ckpt $string2"
+}
+
+proc jsv_ge_add_N {} {
+   set string1 "name1"
+   set string2 "name2"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "N" "$string1" "$string1" "JB_job_name" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "N" "$string1" "$string1" "JB_job_name" "-N $string2"
+
+   # deletion of job name is not allowed. 
+}
+
+proc jsv_ge_add_pe_name {} {
+   set string1 "jsv_ge_add_pe1"
+   set string2 "jsv_ge_add_pe2"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "pe_name" "$string1" "$string1" "JB_pe" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "pe_name" "$string1" "$string1" "JB_pe" "-pe $string2 1-2"
+
+   # delete value which was initially set
+   jsv_ge_add_param_set "false" "pe_name" "" "" "JB_pe" "-pe $string2 1-2"
+}
+
+proc jsv_ge_add_P {} {
+   set string1 "jsv_ge_add_prj1"
+   set string2 "jsv_ge_add_prj2"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "P" "$string1" "$string1" "JB_project" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "P" "$string1" "$string1" "JB_project" "-P $string2"
+
+   # delete value which was initially set
+   jsv_ge_add_param_set "false" "P" "" "" "JB_pe" "-P $string2"
+}
+
+proc jsv_ge_add_pe_min {} {
+   set string1 "jsv_ge_add_pe1"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "pe_min" "2" "2" "JB_pe_range RN_min" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "pe_min" "2" "2" "JB_pe_range RN_min" "-pe $string1 1-2"
+
+   # deletion of pe_min is not allowed. Therefore no additional check...
+}
+
+proc jsv_ge_add_pe_max {} {
+   set string1 "jsv_ge_add_pe1"
+
+   # set value which was not provided by submitter
+   jsv_ge_add_param_set "false" "pe_max" "3" "3" "JB_pe_range RN_max" ""
+
+   # modify value which was initially provided 
+   jsv_ge_add_param_set "false" "pe_max" "3" "3" "JB_pe_range RN_max" "-pe $string1 1-2"
+
+   # deletion of pe_max is not allowed. Therefore no additional check...
+}
+
+proc jsv_ge_add_c {} {
+   set date_string1 "01/02/2003 22:23:24"
+   set date_string2 "03/04/2005 21:22:23"
+   set seconds1 [clock scan $date_string1] 
+   set seconds2 [clock scan $date_string2] 
+   set sge_date_string1 [clock format $seconds1 -format "%Y%m%d%H%M.%S"]
+   set sge_date_string2 [clock format $seconds2 -format "%Y%m%d%H%M.%S"]
+
+   # set time which was not provided by submitter
+   jsv_ge_add_param_set "false" "c_interval" "$sge_date_string1" "$seconds1" "JB_checkpoint_interval" "-ckpt jsv_ge_add_ckpt1"
+
+   # modify time which was initially provided 
+   jsv_ge_add_param_set "false" "c_interval" "$sge_date_string1" "$seconds1" "JB_checkpoint_interval" "-ckpt jsv_ge_add_ckpt1 -c $sge_date_string2"
+
+   # delete time which was initially set
+   jsv_ge_add_param_set "false" "c_interval" "" "0" "JB_execution_time" "-ckpt jsv_ge_add_ckpt1 -c $sge_date_string2"
+}
+
+proc jsv_ge_add_dl {} {
+   set date_string1 "01/02/2003 22:23:24"
+   set date_string2 "03/04/2005 21:22:23"
+   set seconds1 [clock scan $date_string1] 
+   set seconds2 [clock scan $date_string2] 
+   set sge_date_string1 [clock format $seconds1 -format "%Y%m%d%H%M.%S"]
+   set sge_date_string2 [clock format $seconds2 -format "%Y%m%d%H%M.%S"]
+
+   # set a time which was not provided by submitter
+   jsv_ge_add_param_set "false" "dl" "$sge_date_string1" "$seconds1" "JB_deadline" ""
+
+   # modify the start time which was initially provided 
+   jsv_ge_add_param_set "false" "dl" "$sge_date_string1" "$seconds1" "JB_deadline" "-dl $sge_date_string2"
+
+   # delete start time which was initially set
+   jsv_ge_add_param_set "false" "dl" "" "0" "JB_deadline" "-dl $sge_date_string2"
+}
+
+proc jsv_ge_add_e {} {
+   global ts_config
+
+   set path1 "/tmp/path1"
+   set path2 "/tmp/path2"
+
+   # set a time which was not provided by submitter
+   jsv_ge_add_param_set "false" "e" "$path1" "$path1" "JB_stderr_path_list PN_path" ""
+
+   # modify the start time which was initially provided 
+   jsv_ge_add_param_set "false" "e" "$path1" "$path1" "JB_stderr_path_list PN_path" "-e $path2"
+
+   # delete start time which was initially set
+   jsv_ge_add_param_set "false" "e" "" "" "JB_stderr_path_list PN_path" "-e $path2"
+}
+
+proc jsv_ge_add_i {} {
+   global ts_config
+
+   set path1 "/tmp/path1"
+   set path2 "/tmp/path2"
+
+   # set a path which was not provided by submitter
+   jsv_ge_add_param_set "false" "i" "$path1" "$path1" "JB_stdin_path_list PN_path" ""
+
+   # modify the path which was initially provided 
+   jsv_ge_add_param_set "false" "i" "$path1" "$path1" "JB_stdin_path_list PN_path" "-i $path2"
+
+   # delete path which was initially set
+   jsv_ge_add_param_set "false" "i" "" "" "JB_stdin_path_list PN_path" "-i $path2"
+}
+
+proc jsv_ge_add_j {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for -j is false)
+   jsv_ge_add_param_set "false" "j" "y" "true" "JB_merge_stderr" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "j" "n" "false" "JB_merge_stderr" "-j yes"
+
+   # deletion of boolean parameter is not allowed 
+}
+
+proc jsv_ge_add_m {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for -j is false)
+   jsv_ge_add_param_set "false" "m" "a" "262144" "JB_mail_options" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "m" "b" "524288" "JB_mail_options" "-m a"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "m" "" "0" "JB_mail_options" "-m a"
+}
+
+proc jsv_ge_add_js {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for -j is false)
+   jsv_ge_add_param_set "false" "js" "1234" "1234" "JB_jobshare" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "js" "5678" "5678" "JB_jobshare" "-js 1234"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "js" "" "0" "JB_jobshare" "-js 1234"
+}
+
+proc jsv_ge_add_M {} {
+   global ts_config
+
+   # set value which was not provided by submitter 
+   jsv_ge_add_param_set "false" "M" "a@sun.com" "a" "JB_mail_list mail_list MR_user" ""
+   jsv_ge_add_param_set "false" "M" "a@sun.com" "sun.com" "JB_mail_list mail_list MR_host" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "M" "b@sun.com" "b" "JB_mail_list mail_list MR_user" "-M a@sun.com"
+   jsv_ge_add_param_set "false" "M" "b@sun.com" "sun.com" "JB_mail_list mail_list MR_host" "-M a@sun.com"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "M" "" "" "JB_mail_list mail_list" "-M a@sun.com"
+}
+
+proc jsv_ge_add_q_hard {} {
+   global ts_config
+
+   # set value which was not provided by submitter 
+   jsv_ge_add_param_set "false" "q_hard" "all.q" "all.q" "JB_hard_queue_list QR_name" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "q_hard" "all2.q" "all2.q" "JB_hard_queue_list QR_name" "-hard -q all.q"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "q_hard" "" "" "JB_hard_queue_list QR_name" "-hard -q all.q"
+}
+
+proc jsv_ge_add_q_soft {} {
+   global ts_config
+
+   # set value which was not provided by submitter 
+   jsv_ge_add_param_set "false" "q_soft" "all.q" "all.q" "JB_soft_queue_list QR_name" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "q_soft" "all2.q" "all2.q" "JB_soft_queue_list QR_name" "-soft -q all.q"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "q_soft" "" "" "JB_soft_queue_list QR_name" "-soft -q all.q"
+}
+
+proc jsv_ge_add_l_hard {} {
+   global ts_config
+
+   # set value which was not provided by submitter. list will then contain one entry
+   jsv_ge_add_param_set "true" "l_hard" "123M" "123M" "JB_hard_resource_list qstat_l_requests CE_stringval" "" "add" "h_vmem"
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "true" "l_hard" "123M" "123M" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l h_vmem=456M" "add" "h_vmem"
+
+   # deletion of value so that the list will be empty 
+   jsv_ge_add_param_set "true" "l_hard" "" "" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l h_vmem=123M" "del" "h_vmem"
+
+   # job with following resource request will be submitted: -hard -l h_v mem=123M,h_fsize=6M
+   # then JSV will modify it to:  -hard -l h_fsize=6M
+   # so the value for the tag <JB_hard_resource_list><qstat_l_requests><CE_stringval> should 6M
+   jsv_ge_add_param_set "true" "l_hard" "" "6M" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l h_vmem=123M,h_fsize=6M" "del" "h_vmem"
+
+   # job with following resource request will be submitted: -hard -l h_v mem=123M,h_fsize=6M
+   # then JSV will modify it to:  -hard -l h_fsize=6M
+   # so the value for the tag <JB_hard_resource_list><qstat_l_requests><CE_stringval> should 6M
+   jsv_ge_add_param_set "true" "l_hard" "" "6M" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l h_vmem=123M,h_fsize=6M" "del" "h_vmem"
+}
+
+proc jsv_ge_add_l_hard_wildcard {} {
+   # add of new resource request with wildcard
+   jsv_ge_add_param_set "true" "l_hard" "\"(lx*|sol*)&*64*\"" "(lx*|sol*)&amp;*64*" "JB_hard_resource_list qstat_l_requests CE_stringval" "" "add" "arch"
+
+   # mod of resource request with wildcard
+   jsv_ge_add_param_set "true" "l_hard" "\"(lx*|sol*)&*64*\"" "(lx*|sol*)&amp;*64*" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l a=troete" "mod" "arch"
+
+   # del of resource request 
+   jsv_ge_add_param_set "true" "l_hard" "" "" "JB_hard_resource_list qstat_l_requests CE_stringval" "-hard -l a=\"(lx*|sol*)&*64*\"" "del" "arch"
+}
+
+proc jsv_ge_add_l_soft {} {
+   global ts_config
+
+   # set value which was not provided by submitter. list will then contain one entry
+   jsv_ge_add_param_set "true" "l_soft" "123M" "123M" "JB_soft_resource_list qstat_l_requests CE_stringval" "" "add" "h_vmem"
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "true" "l_soft" "123M" "123M" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l h_vmem=456M" "add" "h_vmem"
+
+   # deletion of value so that the list will be empty 
+   jsv_ge_add_param_set "true" "l_soft" "" "" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l h_vmem=123M" "del" "h_vmem"
+
+   # job with following resource request will be submitted: -soft -l h_v mem=123M,h_fsize=6M
+   # then JSV will modify it to:  -soft -l h_fsize=6M
+   # so the value for the tag <JB_soft_resource_list><qstat_l_requests><CE_stringval> should 6M
+   jsv_ge_add_param_set "true" "l_soft" "" "6M" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l h_vmem=123M,h_fsize=6M" "del" "h_vmem"
+
+   # job with following resource request will be submitted: -soft -l h_v mem=123M,h_fsize=6M
+   # then JSV will modify it to:  -soft -l h_fsize=6M
+   # so the value for the tag <JB_soft_resource_list><qstat_l_requests><CE_stringval> should 6M
+   jsv_ge_add_param_set "true" "l_soft" "" "6M" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l h_vmem=123M,h_fsize=6M" "del" "h_vmem"
+}
+
+proc jsv_ge_add_l_soft_wildcard {} {
+   # add of new resource request with wildcard
+   jsv_ge_add_param_set "true" "l_soft" "\"(lx*|sol*)&*64*\"" "(lx*|sol*)&amp;*64*" "JB_soft_resource_list qstat_l_requests CE_stringval" "" "add" "arch"
+
+   # mod of resource request with wildcard
+   jsv_ge_add_param_set "true" "l_soft" "\"(lx*|sol*)&*64*\"" "(lx*|sol*)&amp;*64*" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l \"a=(a*|b*)\"" "mod" "arch"
+
+   # del of resource request 
+   jsv_ge_add_param_set "true" "l_soft" "" "" "JB_soft_resource_list qstat_l_requests CE_stringval" "-soft -l a=\"(lx*|sol*)&*64*\"" "del" "arch"
+}
+
+proc jsv_ge_add_masterq {} {
+   global ts_config
+
+   # set value which was not provided by submitter 
+   jsv_ge_add_param_set "false" "masterq" "all.q" "all.q" "JB_master_hard_queue_list QR_name" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "masterq" "all2.q" "all2.q" "JB_master_hard_queue_list QR_name" "-masterq all.q"
+
+   # deletion of value 
+   jsv_ge_add_param_set "false" "masterq" "" "" "JB_master_hard_queue_list QR_name" "-masterq all.q"
+}
+
+proc jsv_ge_add_notify {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for -notify is false)
+   jsv_ge_add_param_set "false" "notify" "y" "true" "JB_notify" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "notify" "n" "false" "JB_notify" "-notify"
+
+   # deletion of boolean parameter is not allowed 
+}
+
+proc jsv_ge_add_o {} {
+   global ts_config
+
+   set path1 "/tmp/path1"
+   set path2 "/tmp/path2"
+
+   # set path which was not provided by submitter
+   jsv_ge_add_param_set "false" "o" "$path1" "$path1" "JB_stdout_path_list PN_path" ""
+
+   # modify path which was initially provided 
+   jsv_ge_add_param_set "false" "o" "$path1" "$path1" "JB_stdout_path_list PN_path" "-o $path2"
+
+   # delete path which was initially set
+   jsv_ge_add_param_set "false" "o" "" "" "JB_stdout_path_list PN_path" "-o $path2"
+}
+
+proc jsv_ge_add_R {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for R is false)
+   jsv_ge_add_param_set "false" "R" "y" "true" "JB_reserve" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "R" "n" "false" "JB_reserve" "-R y"
+
+   # deletion of boolean parameter is not allowed 
+}
+
+proc jsv_ge_add_r {} {
+   global ts_config
+
+   # set value which was not provided by submitter (default for R is false)
+   jsv_ge_add_param_set "false" "r" "y" "1" "JB_restart" ""
+
+   # overwrite value which was specified during submission
+   jsv_ge_add_param_set "false" "r" "n" "0" "JB_restart" "-R y"
+
+   # deletion of boolean parameter is not allowed 
+}
+
+proc jsv_ge_add_S {} {
+   global ts_config
+
+   set path1 "/tmp/path1"
+   set path2 "/tmp/path2"
+
+   # set a path which was not provided by submitter
+   jsv_ge_add_param_set "false" "S" "$path1" "$path1" "JB_shell_list PN_path" ""
+
+   # modify the path which was initially provided 
+   jsv_ge_add_param_set "false" "S" "$path1" "$path1" "JB_shell_list PN_path" "-S $path2"
+
+   # delete path which was initially set
+   jsv_ge_add_param_set "false" "S" "" "" "JB_shell_list PN_path" "-S $path2"
+}
+
+proc jsv_ge_add_cwd {} {
+   set path1 "/tmp/path1"
+   set path2 "/tmp/path2"
+
+   # set a path which was not provided by submitter
+   jsv_ge_add_param_set "false" "cwd" "$path1" "$path1" "JB_cwd" ""
+
+   # modify the path which was initially provided 
+   jsv_ge_add_param_set "false" "cwd" "$path1" "$path1" "JB_cwd" "-cwd"
+
+   # delete path which was initially set
+   jsv_ge_add_param_set "false" "cwd" "" "" "JB_cwd" "-cwd"
+}
+
+
+

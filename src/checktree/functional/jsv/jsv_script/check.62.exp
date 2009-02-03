@@ -112,12 +112,7 @@ proc jsv_script_get_script_file {shell_basename extension} {
    read_file $jsv_base_path/jsv.$extension script_file_contend
    set script_file_contend(1) "#!$shell_path"
    save_file $tmp_file script_file_contend
-   exec "chmod" "0755" $tmp_file
-
-#   write_remote_file $ts_config(master_host) $CHECK_USER $tmp_file script_file_contend
-#   wait_for_remote_file $ts_config(master_host) $CHECK_USER $tmp_file
-#   chmod for remote file ???
-# start_remote_prog "$CHECK_USER" "chmod" "0755" $tmp_file
+   start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "chmod" "0755 $tmp_file"
 
    return $tmp_file
 }

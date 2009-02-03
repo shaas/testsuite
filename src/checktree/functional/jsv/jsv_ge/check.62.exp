@@ -74,6 +74,10 @@ lappend check_functions "jsv_ge_start_user_specified"
 lappend check_functions "jsv_ge_start_user_admin_user"
 lappend check_functions "jsv_ge_start_user_unspecified"
 lappend check_functions "jsv_ge_do_not_block"
+lappend check_functions "jsv_ge_receive_stderr"
+lappend check_functions "jsv_ge_receive_log_info"
+lappend check_functions "jsv_ge_receive_log_warning"
+lappend check_functions "jsv_ge_receive_log_error"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -673,3 +677,103 @@ proc jsv_ge_do_not_block {} {
    }
 }
 
+proc jsv_ge_receive_stderr {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      set global_conf(jsv_url) "script:@${jsv_base_path}/jsv_write_stdout.sh"
+      set_config global_conf
+
+      #  submit a job 
+      set qsub_out1 [start_sge_bin qsub "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3" $ts_config(master_host) $CHECK_USER exit_state 90]
+
+      # reset the configuration changes. submit another job. This should work correctly
+      # if this does not work correctly then the master is still blocked by JSV.
+      set global_conf(jsv_url) "none"
+      set_config global_conf
+
+      # cleanup
+      delete_all_jobs
+      wait_for_end_of_all_jobs 60
+
+      # the jsv script writes to its stderr stream. This output has to be contained in the
+      # qsub output because this message should have been passed via GDI to the client
+      set full_message ""
+      regexp "(.*This message has to appear in the answer of the request.*)" $qsub_out1 match full_message 
+      if {$full_message == ""} {
+         ts_log_severe "Stderr of JSV script was not passed to client"
+      }
+   }
+}
+
+proc jsv_ge_receive_stderr {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # change the global configuration
+      set global_conf(jsv_url) "script:@${jsv_base_path}/jsv_write_stdout.sh"
+      set_config global_conf
+
+      #  submit a job 
+      set qsub_out1 [start_sge_bin qsub "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3" $ts_config(master_host) $CHECK_USER exit_state 90]
+
+      # reset the configuration changes. submit another job. This should work correctly
+      # if this does not work correctly then the master is still blocked by JSV.
+      set global_conf(jsv_url) "none"
+      set_config global_conf
+
+      # cleanup
+      delete_all_jobs
+      wait_for_end_of_all_jobs 60
+
+      # the jsv script writes to its stderr stream. This output has to be contained in the
+      # qsub output because this message should have been passed via GDI to the client
+      set full_message ""
+      regexp "(.*This message has to appear in the answer of the request.*)" $qsub_out1 match full_message 
+      if {$full_message == ""} {
+         ts_log_severe "Stderr of JSV script was not passed to client"
+      }
+   }
+}
+
+proc jsv_ge_receive_log {level} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      #  submit a job 
+      set qsub_out1 [start_sge_bin qsub "-ac level=$level -jsv script:@${jsv_base_path}/jsv_write_log.sh -h $ts_config(product_root)/examples/jobs/sleeper.sh 3" $ts_config(master_host) $CHECK_USER exit_state 90]
+
+      # cleanup
+      delete_all_jobs
+      wait_for_end_of_all_jobs 60
+
+      # check if log message is part of the output
+      set full_message ""
+      regexp "(.*JSV - $level - MESSAGE.*)" $qsub_out1 match full_message 
+      if {$full_message == ""} {
+         ts_log_severe "log $level of JSV script was not passed to client"
+      }
+   }
+}
+
+proc jsv_ge_receive_log_info {} {
+   jsv_ge_receive_log "info"
+}
+
+proc jsv_ge_receive_log_warning {} {
+   jsv_ge_receive_log "warning"
+}
+
+proc jsv_ge_receive_log_error {} {
+   jsv_ge_receive_log "error"
+}

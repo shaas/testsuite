@@ -1,3 +1,6 @@
+EB-2009-02-03-0: Enhancent.: Added additional JSV test
+                 Review:     MD
+
 RH-2009-01-30-0: Bugfix:     Additional clusters did not work if user
                              has not expect in PATH
                  Review:     CR
@@ -38,7 +41,6 @@ CR-2009-01-27-1: Enhancem.:  added verification code to install_core_system
                              at execd host installation
                  Review:     RD
 
->>>>>>> 1.845
 RD-2009-01-27-0: Bugfix:     fixed client_ar test
                  Review:     CR
 
