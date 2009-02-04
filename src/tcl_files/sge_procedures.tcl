@@ -830,6 +830,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     {timeout 60}              - timeout for command execution
 #     {cd_dir ""}               - directory to start command in
 #     {sub_path "bin"}          - component of binary path, e.g. "bin" or "utilbin"
+#     {env_list ""}             - users envlist
 #
 #  RESULT
 #     Output of called command.
@@ -839,10 +840,20 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     sge_procedures/start_sge_utilbin()
 #     remote_procedures/start_remote_prog()
 #*******************************************************************************
-proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} } {
-   global CHECK_USER CHECK_JGDI_ENABLED jgdi_config check_category
+proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} {env_list ""} } {
+   global CHECK_USER
+   global CHECK_JGDI_ENABLED
+   global jgdi_config
+   global check_category
+
    upvar $exit_var exit_state
    upvar $line_array line_buf
+
+   if {$env_list != ""} {
+      upvar $env_list envlist
+   } else {
+      set envlist ""
+   }
 
    get_current_cluster_config_array ts_config
 
@@ -899,7 +910,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
 
       ts_log_finest "executing $binary $args\nas user $user on host $host"
       # Add " around $args if there are more the 1 args....
-      set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
+      set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir envlist]
       ts_log_finer "result:\n\"$result\""
    }
    

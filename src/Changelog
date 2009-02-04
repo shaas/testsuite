@@ -1,3 +1,8 @@
+CR-2009-02-04-0: Enhancem.:  o Added new test for IZ 2897 / CR 6799088:
+                               system_tests/commlib/resolving/host_alias_file
+                 Enhancem.:  o added environment parameter to start_sge_bin()
+                 Review:     JG
+
 JG-2009-02-04-0: Bugfix:     Removed a wait_for_enter from scheduler_messages
                              test + cleanup.
                  Review:     RD
