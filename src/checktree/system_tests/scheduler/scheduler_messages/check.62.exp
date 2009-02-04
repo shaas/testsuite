@@ -64,22 +64,22 @@ set check_init_level_procedure "scheduler_messages_init_level"
 # define test's procedure order
 set check_functions ""
 lappend check_functions "scheduler_messages_check"
-#lappend check_functions "scheduler_messages_qmaster_crash"
+lappend check_functions "scheduler_messages_qmaster_crash"
 
 proc scheduler_messages_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      0 {
          return 0
-      } 
-      "1" { 
+      }
+      1 {
          return 0
-      } 
-   } 
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization ------------------------------
@@ -325,13 +325,12 @@ proc scheduler_messages_single_check {resource_container via_quotas resource} {
          if {$CHECK_ACT_LEVEL == 1} {
             # trigger scheduling to ensure messages are generated
             trigger_scheduling
+            sleep 3
             set result [start_sge_bin "qstat" "-j $jobid"]
             ts_log_fine "result of qstat: #$result#"
             if {[string match $expected_string $result] == 1} {
             } else {
                set ret "test failed for qstat with $resource_container $via_quotas $resource\n"
-               wait_for_enter
-               ts_log_fine "$ret"
             }
          }
       } else {
