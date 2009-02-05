@@ -851,8 +851,6 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
 
    if {$env_list != ""} {
       upvar $env_list envlist
-   } else {
-      set envlist ""
    }
 
    get_current_cluster_config_array ts_config
