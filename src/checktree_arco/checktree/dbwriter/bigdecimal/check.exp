@@ -262,7 +262,7 @@ proc bigdecimal_test {} {
    # run job
    array set job { }
    set job(j_job_name) "simple"
-   set job(args) "-P $Prj_Name1 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 5"
+   set job(args) "-P $Prj_Name1 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
    if { [arco_job_run job] != 0 } {
       return -1
@@ -305,11 +305,12 @@ proc bigdecimal_test {} {
 
    array set job { }
    set job(j_job_name) "simple"
-   set job(args) "-P $Prj_Name2 -q $Queue_Name2 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 5"
+   set job(args) "-P $Prj_Name2 -q $Queue_Name2 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
    # start a few jobs to make sure reporting data with higher id number are written to the database
    for {set i 0} {$i < $Num_Jobs} {incr i 1} {
-      if { [arco_job_run job 10 120 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] != 0 } {
+      ts_log_fine "job [expr ( $i + 1)] of $Num_Jobs ..."
+      if { [arco_job_run job 20 120 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] != 0 } {
          return -1
       }
 

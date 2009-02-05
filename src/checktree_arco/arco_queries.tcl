@@ -100,7 +100,7 @@ proc arco_job_to_string { job_object } {
 #
 #   set res [arco_job_run job 10 20]
 #*******************************************************************************
-proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } {on_host ""} {as_user ""} } {
+proc arco_job_run { job_object { start_timeout 20 } { end_timeout 120 } {on_host ""} {as_user ""} } {
    
    upvar $job_object job
    
