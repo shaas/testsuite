@@ -117,7 +117,16 @@ proc qrstat_help {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
+   # we submit an ar to test for issue 2903
+   set ar_id [submit_ar "-d 3600"]
+   if {$ar_id <= 0} {
+      # error has been raised in submit_ar
+      return
+   }
+
    set output [start_sge_bin "qrstat" "-help"]
+
+   delete_ar $ar_id
 
    ts_log_fine "qrstat output    : \n---"
    ts_log_fine "$output"
@@ -125,7 +134,7 @@ proc qrstat_help {} {
    ts_log_fine "qrstat exit state: $prg_exit_state"
 
    if {$prg_exit_state != 0} {
-      ts_log_severe "exit state is not 0"
+      ts_log_severe "qrstat -help exit state is not 0"
       return
    }
 
@@ -141,7 +150,7 @@ proc qrstat_help {} {
    ts_log_fine "Output has $nr_of_lines lines"
 
    if {$nr_of_lines != $qrstat_help_lines} {
-      ts_log_severe "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
+      ts_log_severe "help output has $nr_of_lines, but expected are $qrstat_help_lines lines:\n$output"
    }
 }
 
