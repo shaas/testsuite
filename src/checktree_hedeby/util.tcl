@@ -1217,6 +1217,49 @@ proc cleanup_hedeby_local_spool_dir { host } {
 }
 
 
+#****** util/get_current_non_static_resources() ************************************
+#  NAME
+#     get_current_non_static_resources()  -- get all current movable managed host resources
+#
+#  SYNOPSIS
+#     get_all_non_static_resource 
+#
+#  FUNCTION
+#     It determines the set of managed resources that are allowed to be moved 
+#     around in the system. The only resources that are not allowed to move are
+#     the static resources. The qmasters of the managed clusters are usually 
+#     defined static. 
+#
+#  INPUTS
+#
+#  RESULT
+#     list with host names that are non static resources
+#
+#  SEE ALSO
+#     
+#*******************************************************************************
+
+proc get_current_non_static_resources {} {
+   global hedeby_config
+   #these resources are non static by default
+   set host_list [get_all_spare_pool_resources]
+   
+   get_hedeby_default_services service_names
+   foreach service $service_names(services) {
+      # Store all moveable resources in mvr_list
+      # We will check later that all moveable resource are assigned to
+      # spare_pool
+      foreach res $service_names(moveable_execds,$service) {
+         if {[lsearch -exact $host_list $res] < 0} {
+            lappend host_list $res
+         }
+      } 
+   }
+   return $host_list
+}
+
+
+
 #****** util/get_all_movable_resources() ************************************
 #  NAME
 #     get_all_movable_resources() -- get all possible managed host names
@@ -1229,6 +1272,8 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #     the specified Grid Engine clusters including all hedeby (host) resources.
 #     ATTENTION: This list does not contain static resources.
 #     This are movable execd resources.
+#  WARNING THIS FUNCTION DOES !NOT! RETURN THE MOVABLE LIST BUT ALL HOSTS EXCEPT THE
+#  HEDEBY MASTER HOST!
 #
 #  INPUTS
 #
@@ -6489,7 +6534,7 @@ proc produce_error_resource { resource { method "soft" } } {
    # wait for resource go to error state
    ts_log_fine "resource \"$resource\" should go into error state now ..."
    set exp_res_info($resource,state) "ERROR"
-   wait_for_resource_info exp_res_info 120 0 error_text
+   wait_for_resource_info exp_res_info 300 0 error_text
    # Enhanced timeout to 120 seconds because on some architecures (LX24) with
    # old threading implementation it takes one minute till qmaster realize that
    # execd was killed:

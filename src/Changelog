@@ -1,3 +1,7 @@
+AF-2009-02-09-0: Enhancem.:  New test for issue 612
+                             slo/maxPendingJobs/parallelAndArrayJob
+                 Review:     RH, TB
+
 RD-2009-02-09-0: Bugfix:     - fixed qdel test
                              - removed wait_for_enter from IZ 2864
                  Enhancem.:  - soft_request test now uses queue seq_no

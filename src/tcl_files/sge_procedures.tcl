@@ -6164,6 +6164,8 @@ proc release_job { jobid } {
 #                                        removed from qmaster internal list)
 #                        if NOT 0:       wait for qmaster to remove job from
 #                                        internal list
+#     {raise_error 1}  - shall an error condition be raised, in case it is a
+#                        SEVERE, WARNING, or CONFIG message
 #
 #  RESULT
 #      0 - job stops running
@@ -6188,12 +6190,12 @@ proc release_job { jobid } {
 #     sge_procedures/wait_for_jobpending()
 #     sge_procedures/wait_for_jobend()
 #*******************************
-proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
+proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } { raise_err 1 } } {
    get_current_cluster_config_array ts_config
  
    if { $runcheck == 1 } {
       if { [is_job_running $jobid $jobname] != 1 } {
-         ts_log_severe "job \"$jobid\" \"$jobname\" is not running"
+         ts_log_severe "job \"$jobid\" \"$jobname\" is not running" $raise_err 
          return -2
       }
    }
@@ -6208,7 +6210,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
      } 
      set runtime [expr ( [timestamp] - $time) ]
      if { $runtime >= $seconds } {
-        ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\":\nis_job_running returned $run_result"
+        ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\":\nis_job_running returned $run_result" $raise_err
         return -1
      }
      ts_log_progress
@@ -6221,8 +6223,8 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
        ts_log_fine "waiting for jobend (2) (qstat -j $jobid)"
        while { [get_qstat_j_info $jobid ] != 0 } {
            if { [timestamp] > $my_timeout } {
-              ts_log_severe "timeout while waiting for jobend"
-              break
+              ts_log_severe "timeout while waiting for jobend" $raise_err
+              return -1 #TODO IS THIS OK?
            }
            after 1000
            ts_log_progress
@@ -8879,7 +8881,7 @@ proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user
 #
 #  INPUTS
 #     msg_var       - array of messages
-#     msg_code     - message code
+#     msg_code      - message code
 #     msg           - message
 #     {msg_desc ""} - message description
 #

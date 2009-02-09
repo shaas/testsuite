@@ -1,0 +1,505 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "mpjslo_parallel_and_array_job"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Max pending jobs SLO test array jobs"
+set check_description(1)       "Max pending jobs SLO test parallel jobs"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "mpjslo_parallel_and_array_job_init_level"
+set check_functions            {}   
+set check_highest_level        1
+
+set check_setup_level_function "mpjslo_parallel_and_array_job_setup_level"
+set check_cleanup_level_function "mpjslo_parallel_and_array_job_cleanup_level"
+
+lappend check_functions "mpjslo_parallel_and_array_job_check"
+
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_init_level() ************************
+#  NAME
+#     mpjslo_parallel_and_array_job_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     mpjslo_parallel_and_array_job_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 
+#     0 (parallel job test) and
+#     1 (array job test)
+#     are supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#     1 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_init_level {} {
+  global CHECK_ACT_LEVEL
+  switch -- $CHECK_ACT_LEVEL {
+     0 { return 0 }
+     1 { return 0 }
+     default { return -1 }
+  }
+}
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_setup_level() *********************************
+#  NAME
+#    mpjslo_parallel_and_array_job_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    mpjslo_parallel_and_array_job_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#     with run level 0 a parallel job environment is created
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_setup_level {} {
+   upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
+   global CHECK_ACT_LEVEL
+   
+   get_current_cluster_config_array ts_config
+   get_hedeby_default_services service_names
+    
+   #get a ge adapter
+   set this(ge_adapter) [pick_random $service_names(services)]
+   set this(moveable_execds_ge_adapter) $service_names(moveable_execds,$this(ge_adapter))
+   #save the cluster nr
+   set this(current_cluster_config) [get_current_cluster_config_nr]
+   #switch to the corresponding cluster
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(ge_adapter))
+   
+   set this(sge_root) $ts_config(product_root)
+   
+ 
+   #a run level dependent setup routine
+   switch -- $CHECK_ACT_LEVEL {
+     0 { 
+  
+        #create parallel environment
+        #the maximum amount of slots that are supported
+        set pe(slots) 1000
+        #this allows to split the reqired jobs onto the set of available machines
+        set pe(allocation_rule) "\$round_robin"
+        #Name of the pe environment 
+        set this(test_pe) "test_pe"
+        
+        add_pe $this(test_pe) pe
+        assign_queues_with_pe_object "all.q" "" $this(test_pe)
+       }
+     1 {
+        #No specific action for this runlevel
+       }
+   }
+   return 0
+}
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_cleanup_level() *******************************
+#  NAME
+#    mpjslo_parallel_and_array_job_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    mpjslo_parallel_and_array_job_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#     with run level 0 a previously created parallel job environment is removed
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_cleanup_level {} {
+    upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
+    global CHECK_ACT_LEVEL
+   
+    # delete jobs first as active jobs on resource prohibit 
+    # resource movement to default service
+    delete_all_jobs
+    wait_for_end_of_all_jobs 60
+
+    
+    #reset the slos!
+    reset_default_slos "mod_config" $this(ge_adapter)
+    
+    #move all resources to their original positions
+    if {[move_resources_to_default_services] != 0} {
+         reset_hedeby 1
+    }
+   
+    #a run level dependent clean up routine
+    switch -- $CHECK_ACT_LEVEL {
+     0 { 
+        #remove the parallel environment
+        #del_pe removes the test_pe and also removes all references to any queue
+        del_pe $this(test_pe) 
+        #no need to delete the queue as the queue is the all.q        
+     }
+     1 {
+        #No specific action for this runlevel
+     }
+   }
+   set_current_cluster_config_nr $this(current_cluster_config) 
+}   
+
+
+
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+
+
+
+
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_check *****************************
+#  NAME
+#     mpjslo_parallel_and_array_job_check() -- check if MaxPendingJobsSLO is working
+#
+#  SYNOPSIS
+#     mpjslo_parallel_and_array_job_check { } 
+#
+#  FUNCTION
+#     This test ensures that the MaxPendingJobSLO works with parallel and array  jobs
+#     A MaxPendingJobSlo will be created. Then a set of three jobs will be submitted and the 
+#     The expected request behaviour will be checked.
+#     Three key features are tested:
+#        1) A parallel or array job will result in the corresponding need for resources if the 
+#           Cluster is empty.
+#        2) A parallel or array job can run after the needs are met.
+#        3) A parallel or array job will ask for more resources if all available 
+#           resources are used.
+#     To ensure this the test does the following steps:
+#        1) Count all movable resources in the Hedeby system       
+#        2) Take an arbitrary GE service and move its movable resources to
+#           the spare pool
+#        3) Setup a MaxPendigJobSLO for the selected GE service that requests 
+#           resources if more than two jobs are pending
+#        4) Submit a single parallel or array job that requires 500 slots and that 
+#           needs exotic resources. The idea is to get resources because of 
+#           the MPJS. However job will not start because the new resources
+#           are not of the required exotic type. This makes it easy to check if 
+#           the quantity calculation is done correctly.
+#        5) Wait that all movable resources are moved to the GE service
+#        6) Check that the SLO still requests remaining needed resources
+#        7) Submit a quick single parallel or array job that requires $total_slots slots
+#           This test ensures that if the requested resources are suitable the job starts.
+#        8) Submit a 2 min lasting single parallel or array job that requires $total_slots slots
+#           This job ensures that all resources that are currently availabel are completely used
+#        9) Cluster is completely used! Check that the SLO takes the used slots into account.
+#           The first job submitted at 4) is still there and will now cause a request of 500 again 
+#           The second job submitted at 7) is finished and will not request any resource
+#           The last job submitted at 8) is running and will not request any resource
+#           
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_check {} {
+   
+   upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
+ 
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "1) Count all movable resources in the Hedeby system"
+   # -----------------------------------------------------------------------------------------------
+   #First we determine the set of resources that are free to move around (eg. not static)
+   set movable_res_list [get_current_non_static_resources]
+   set movable_res_count [llength $movable_res_list] 
+ 
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "2) Take an arbitrary GE service and move its movable resources to the spare pool"  
+   # -----------------------------------------------------------------------------------------------
+   set mov_exec_list ""
+   foreach mov_exec_host $this(moveable_execds_ge_adapter) {
+      append mov_exec_list "$mov_exec_host,"
+      set exp_resource_info($mov_exec_host,service) "spare_pool"
+      set exp_resource_info($mov_exec_host,flags) "{}"
+      set exp_resource_info($mov_exec_host,state) "ASSIGNED"
+   }
+ 
+   #move resources to the spare_pool
+   set output [sdmadm_command_opt "mvr -r $mov_exec_list -s spare_pool"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Executing command resource move failed while moving resource $moc_exec_host to spare_pool\n Output was: $output\n"
+      return
+   }
+
+   #check if resource was moved to spare pool
+   set retval [wait_for_resource_info exp_resource_info 300 1 mvr_error]
+   if {$retval != 0} {
+      ts_log_severe "Moving resource $mov_exec_host to spare_pool service failed with following error message: $mvr_error\n"
+      return
+   }   
+   
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "3) Setup a MaxPendigJobSLO that requests resources if more than two jobs are pending"
+   # -----------------------------------------------------------------------------------------------
+   #Setup SLOs
+   set slos {}
+  
+   #MaxPendingJobsSlo 
+   set urgency 65
+   set slo_name "MaxPendingJobsSLO"
+   set max_amount_of_pending_jobs 2
+   set slots_per_host 1
+   set max_wait_time_for_jobs 30; #minutes 
+   set max_pending_jobs_slo [create_max_pending_jobs_slo $urgency $slo_name "" "" "" $max_amount_of_pending_jobs $slots_per_host $max_wait_time_for_jobs]
+   lappend slos $max_pending_jobs_slo
+   
+   #Fixed_Usage SLO
+   set fixed_usage_slo [create_fixed_usage_slo 50 "fixed_usage"]
+   lappend slos $fixed_usage_slo
+   
+   #add the slos and update them every 10 seconds
+   if {[set_service_slos "mod_config" $this(ge_adapter) $slos 1 "seconds" 10] != 0} {
+      ts_log_severe "Setting slos (MaxPendingJob + FixedUsage) for service \"$this(ge_adapter)\" failed!\n"
+      return
+   }
+
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "4) Submit a single parallel or array job that requires exotic resources with 500 slots"
+   # -----------------------------------------------------------------------------------------------
+   #set up a parallel or array job that requires 500 slots and is not schedulable (-l num_proc=1000)
+   set task_amount_job_1 500
+   set arguments [mpjslo_parallel_and_array_job_construct_job $task_amount_job_1 10 "-l num_proc=1000"] 
+   set job_id  [submit_job $arguments]
+      
+   
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "5) Wait that all movable resources are moved to the GE service"
+   # -----------------------------------------------------------------------------------------------
+   #define which resources are expected
+   foreach mov_exec_host $movable_res_list {
+       set moved_resource_info($mov_exec_host,service) $this(ge_adapter)
+       set moved_resource_info($mov_exec_host,flags) "{}"
+       set moved_resource_info($mov_exec_host,state) "ASSIGNED"
+   }
+   #look for them
+   if {[wait_for_resource_info moved_resource_info 300 1 mvr_error] != 0} {
+      ts_log_severe "Moving resource $mov_exec_host to $this(ge_adapter) service failed with following error message: $mvr_error\n"
+      return
+   }
+
+
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "6) Check that the SLO still requests resources"
+   # -----------------------------------------------------------------------------------------------
+   #determine the amount of available slots for the cluster
+   #qstat_g_c_plain_output contains the plain qstat output in an assoc. array
+   qstat_g_c_plain_parse slot_info
+   #ts_log_info [format_array slot_info ]
+   if { ![info exists slot_info(all.q,avail)] } {
+      ts_log_severe "Could not determine the available slots for the all.q!\n"
+      return
+   }                          
+   set total_slots $slot_info(all.q,avail)  
+
+   set expected_quantity [expr $task_amount_job_1 - $total_slots]
+   if { [mpjslo_parallel_and_array_job_check_request $slo_name $expected_quantity] != 0 } {
+      #just exit, the subroutine allready logged severly
+      return
+   }
+
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "7) Submit a quick single parallel or array job that requires $total_slots slots"
+   # -----------------------------------------------------------------------------------------------
+   set arguments  [mpjslo_parallel_and_array_job_construct_job $total_slots 1 ""]
+   set job_id  [submit_job $arguments]
+
+   set time 300
+   if {[wait_for_jobend $job_id "Sleeper" $time 0 0 0] != 0 } {
+         ts_log_severe "Job $job_id has not ended jet. That should not happen because all required slots ($total_slots) are available.\n"
+         return
+   }
+
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "8) Submit a 2 min lasting single parallel or array job that requires $total_slots slots"
+   # -----------------------------------------------------------------------------------------------
+   set arguments [mpjslo_parallel_and_array_job_construct_job $total_slots 120 ""]
+   set job_id  [submit_job $arguments]
+  
+   #we start the job and wait half a minute. As the job requires a machine with 
+   #This job can be started but will not be finished as it lasts 120 secs
+   set time 60; #Check that the job starts...
+   if {[wait_for_jobstart $job_id "Sleeper" $time 0 1] != 0 } {
+         ts_log_severe "Job did not start within 60 sec, although enough slots should be available\n"
+         return
+   }
+   set time 20; #... but ensure that it does not end and wait more than 10 secs to ensure the mpjslo refresh!
+   if {[wait_for_jobend $job_id "Sleeper" $time 0 0 0] == 0 } {
+      ts_log_severe "Jobs finished. That should not happened, because the execution should last 120 seconds and we waited only $time seconds.\n"
+      return
+   }
+
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "9) Cluster is completely used! Check that the SLO takes the used slots into account."
+   # -----------------------------------------------------------------------------------------------
+   #The first job submitted at 4) is still there and will now cause a request of 500 again 
+   #The second job submitted at 7) is finished and will not request any resource
+   #The last job submitted at 8) is running and will not request any resource but uses the complete cluster
+   #==> The requested resources amount will be equal to 500 as the resources that are currently available
+   #are all used!
+   set expected_quantity $task_amount_job_1
+   mpjslo_parallel_and_array_job_check_request $slo_name $expected_quantity 
+
+   return    
+}
+
+
+
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_construct_job() ************************
+#  NAME
+#     mpjslo_parallel_and_array_job_construct_job() -- init level procedure for test
+#
+#  SYNOPSIS
+#     mpjslo_parallel_and_array_job_construct_job { slot_amount sleep_time extra_option  } 
+#
+#  FUNCTION
+#      Depending on the runlevel (0 or 1) a parallel or an array job is created.
+#      The constructed job definition string is later used to be appended to a qsub command.
+#      In all cases a Sleeper job is defined with variable sleep_time. The fuction upvars 
+#      the constructed string to arguments in the upper context.
+#  INPUTS
+#      slot_amount     - the amount of slots the job will require
+#      sleep_time      - the amount of time a running Sleeper will run
+#      extra_option    - here additional options for the job can be defined (eg. "-l num_proc=1000")      
+#  RESULT
+#      the suffix for a qsub command that will submit a parallel or an array job.
+#
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_construct_job {slot_amount sleep_time extra_option } {
+   upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
+   global CHECK_ACT_LEVEL
+
+   set my_outputs "-o /dev/null -e /dev/null"
+   #depending on the run level a parallel or an array job is needed  
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         #slot_amount defines the number of required slots for the job
+         set arguments "$my_outputs $extra_option -pe $this(test_pe) $slot_amount $this(sge_root)/examples/jobs/sleeper.sh $sleep_time"
+      }
+      
+      1 {
+         #slot_amount defines the number of required slots for the job
+         #Here the double amount of slots are defined because the defined array job iterator
+         #will skip every second task. 
+         set task_iterator 2
+         set task_range [expr $slot_amount * $task_iterator]   
+        
+         #"1-$task_range:$task_iterator" resolves to 1-100:2 
+         set arguments "$my_outputs $extra_option -t 1-$task_range:$task_iterator $this(sge_root)/examples/jobs/sleeper.sh $sleep_time"
+      }
+      default { 
+         ts_log_severe "Runlevel $CHECK_ACT_LEVEL is not supported for mpjslo_parallel_and_array_job_construct_job!"
+      }
+   }
+   return $arguments
+}
+
+
+
+
+#****** slo/maxPendingJobs/parallelAndArrayJob/mpjslo_parallel_and_array_job_check_request() ************************
+#  NAME
+#     mpjslo_parallel_and_array_job_check_request() -- Checks if an expected request can be found
+#
+#  SYNOPSIS
+#     mpjslo_parallel_and_array_job_check_request { slo_name expected_quantity  } 
+#
+#  FUNCTION
+#     1) check if resource request exists for the specified slo_name
+#     2) check if the request asks for the amount of slots specified with expected_quantity.
+#  INPUTS
+#      slo_name          - name of the SLO that caused the request
+#      expected_quantity - expected amount of slots the request should ask for  
+#  RESULT
+#     0 if the request could be found 
+#    -1 otherwise
+#
+#*******************************************************************************
+proc mpjslo_parallel_and_array_job_check_request { slo_name expected_quantity } {
+   upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
+   #Every Resource is now moved to the service but the parallel job still can not be 
+   #scheduled. The MaxPendingJobSLO should still produce needs
+   if { [get_show_resource_request_info] != 0 } {
+       ts_log_severe "get_show_resource_request_info() caused an error while looking for a MaxPendingJobSLO request!\n"
+       return -1
+   }
+
+   #check if the MaxPendingJobSLO request is still visible
+   if { ![info exists res_req_info($this(ge_adapter),$slo_name,requests)] } {
+       ts_log_severe "No requests are reported for the MaxPendingJobsSLO, although jobs are pending!\n"
+       return -1
+   }
+
+   set requests_value $res_req_info($this(ge_adapter),$slo_name,requests)
+   if { $requests_value != "true" } {
+       ts_log_severe "Expected for MaxPendingJobSLO request = true, however it was: request = $request_value!\n"
+       return -1
+   }
+   
+
+
+       
+   #check if the request quantity is reasonable and matches the expected value!
+   if { ![info exists res_req_info($this(ge_adapter),$slo_name,quantity)]} {
+       ts_log_severe "No request for res_req_info($this(ge_adapter),$slo_name,quantity) exists. A requested quantity of $expected_quantity was expected!\n"
+       return -1
+   }
+   set requested_quantity $res_req_info($this(ge_adapter),$slo_name,quantity)
+   if {$requested_quantity != $expected_quantity} {
+       ts_log_severe "Expected a MaxPendingJobSLO request of $expected_quantity but got a request of $requested_quantity!\n"
+       return -1
+   }
+   return 0;
+}
