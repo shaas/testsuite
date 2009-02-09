@@ -88,7 +88,7 @@ proc delete_by_job_name {{delete_name "test_job"} {testjob_count "10"}} {
    }
 
    # Now delete the jobs with name "$delete_name"
-   set output [start_sge_bin "qdel" $delete_name]
+   set output [start_sge_bin "qdel" "\"$delete_name\""]
    if {$prg_exit_state != 0} {
       ts_log_severe "qdel $delete_name failed:\n$output"
    }

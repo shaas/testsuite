@@ -1,3 +1,8 @@
+RD-2009-02-09-0: Bugfix:     - fixed qdel test
+                             - removed wait_for_enter from IZ 2864
+                 Enhancem.:  - soft_request test now uses queue seq_no
+                 Review:     JG
+
 JG-2009-02-06-0: Enhancem.:  enhanced qrstat -help test for testing IZ 2903.
                  Review:     RD
 

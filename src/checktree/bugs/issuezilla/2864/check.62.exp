@@ -129,7 +129,6 @@ proc issue_2864_wait_for_pattern {case_name pattern {timeout 10}} {
    set output [logfile_wait $pattern $timeout 0]
    if {$logfile_wait_error != 0} {
       ts_log_severe "case '$case_name': there was no pattern '$pattern' in the reporting file, got only\n$output"
-      wait_for_enter
       return 1
    }
    return 0
