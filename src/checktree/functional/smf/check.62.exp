@@ -127,6 +127,7 @@ proc smf_test_qmaster {} {
 
 proc smf_test_shadowd {} {
    global ts_config
+   global check_do_not_use_spool_config_entries
 
    if {[llength $ts_config(shadowd_hosts)] == 0} {
       ts_log_config "No shadowd hosts in your configuration"
@@ -137,7 +138,15 @@ proc smf_test_shadowd {} {
    set smf_hosts ""
    foreach host $ts_config(shadowd_hosts) {
       if {[is_smf_host $host] == 1} {
-	      lappend smf_hosts $host
+         if {[is_daemon_running $host "sge_shadowd"] == 0} {
+            if {$check_do_not_use_spool_config_entries == 1} {
+               ts_log_severe "shadowd \"$host\" is not running, but it should! The shadowd smf test would FAIL!"
+               return -1
+            } else {
+               ts_log_config "shadowd \"$host\" is not running. Restart the testsuite with no_local_spool and start smf test again!"
+            }
+         }
+         lappend smf_hosts $host
          smf_generic_test $host "shadowd" 30 0
          incr counter 1
       }

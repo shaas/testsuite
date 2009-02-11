@@ -1,3 +1,7 @@
+LP-2009-02-12-0: Enhancem.:  Enhanced "smf" test to detect that shadowds are not
+                             running (no no_local_spool) and skips shadowd smf
+                 Review:     ZG
+
 AP-2009-02-11-0: Bugfix:     - fixed arco tests, host_alias_file test
                              - moved qrsh_output_contains procedure to the testsuite
                                framework directory
