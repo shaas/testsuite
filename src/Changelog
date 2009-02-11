@@ -1,3 +1,7 @@
+JG-2009-02-11-0: Enhamcem.:  improve handling of slow nfs in tight_integration
+                             test
+                 Review:     RD
+
 AF-2009-02-09-0: Enhancem.:  New test for issue 612
                              slo/maxPendingJobs/parallelAndArrayJob
                  Review:     RH, TB

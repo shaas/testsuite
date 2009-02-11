@@ -631,7 +631,7 @@ proc tight_integration_iz_575 {} {
    set host_list [lrange $ts_config(execd_nodes) 1 end]
 
    set queue_conf(h_rt) "0:0:30"
-   set_queue "tight.q" "$host_list" queue_conf
+   set_queue "tight.q" $host_list queue_conf
 
    # submit job
    set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
@@ -895,6 +895,7 @@ proc tight_integration_massive {} {
 
 proc tight_integration_massive_nfs_tmpdir {} {
    global ts_config
+   global CHECK_USER
    global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
    global submit_command tight_masterq tight_master_node
    ts_log_fine "tight_integration: massive parallel test with tmpdir on NFS"
@@ -904,6 +905,8 @@ proc tight_integration_massive_nfs_tmpdir {} {
 
    # count the number of slots in the cluster to check if tests can be run
    set tmpdir "$ts_config(product_root)/tight_tmpdir"
+   set fileserver [fs_config_get_server_for_path $tmpdir]
+   remote_file_mkdir $fileserver $tmpdir
    set total_slots 0
    foreach host $ts_config(execd_nodes) {
       set qinstance [get_queue_instance "tight.q" $host]
@@ -913,7 +916,8 @@ proc tight_integration_massive_nfs_tmpdir {} {
 
       # setup a tmpdir on NFS - an individual one per host
       set host_tmpdir "$tmpdir/$host"
-      remote_file_mkdir $host $host_tmpdir
+      remote_file_mkdir $fileserver $host_tmpdir
+      wait_for_remote_dir $host $CHECK_USER $host_tmpdir
       mqattr tmpdir $host_tmpdir $qinstance
    }
 
