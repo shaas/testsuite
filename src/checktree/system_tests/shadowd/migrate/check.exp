@@ -235,6 +235,7 @@ proc shadowd_migrate_test {} {
 
          set my_env(SGE_TEST_HEARTBEAT_TIMEOUT) 600
          startup_qmaster 0 my_env
+         ts_log_fine "restart shadowd with SGE_TEST_HEARTBEAT_TIMEOUT env set to 600"
          startup_shadowd [lindex $ts_config(shadowd_hosts) 0] my_env
          startup_shadowd [lindex $ts_config(shadowd_hosts) 1] my_env
 
@@ -246,7 +247,6 @@ proc shadowd_migrate_test {} {
          while {$heartbeat <= 102} {
             set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
             set heartbeat [string trimleft [string trim $result] "0"]
-            after 1000
 ##            ts_log_fine -nonewline "."
             set todo [expr $my_timeout - [timestamp]]
             ts_log_progress FINE "\rtimeout in $todo seconds. Heartbeat = $heartbeat    \r"
@@ -254,13 +254,24 @@ proc shadowd_migrate_test {} {
                ts_log_severe "timeout waiting for shadowd to take over!"
                break
             }
+            if {[is_daemon_running [lindex $ts_config(shadowd_hosts) 0] "sge_shadowd"] == 0} {
+               ts_log_severe "shadowd \"[lindex $ts_config(shadowd_hosts) 0]\" is not running!"
+               break 
+            }
+            if {[is_daemon_running [lindex $ts_config(shadowd_hosts) 1] "sge_shadowd"] == 0} {
+               ts_log_severe "shadowd \"[lindex $ts_config(shadowd_hosts) 1]\" is not running!"
+               break 
+            }
+            after 5000
          }
          ts_log_newline
 
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
          set new_act_qmaster [string trim $result]
 
+         set test_failed 0
          if {$act_qmaster == $new_act_qmaster} {
+            set test_failed 1
             ts_log_severe "no qmaster took over!"
          } else {
             ts_log_fine "qmaster on host $new_act_qmaster took over!"
@@ -273,7 +284,7 @@ proc shadowd_migrate_test {} {
 
          set still_running 1
          set was_in_elem_loop 0
-         while { $still_running == 1 } {
+         while {$still_running == 1 && $test_failed == 0} {
             set still_running 0
             set was_in_elem_loop 0
             set found_p [ ps_grep "$ts_config(product_root)" $ts_config(master_host) ]

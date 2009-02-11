@@ -1,3 +1,7 @@
+CR-2009-02-11-0: Enhancem.:  Enhanced "shadowd_migrate" test to detect that
+                             a shadowd is not running anymore.
+                 Review:     MD
+
 JG-2009-02-11-0: Enhamcem.:  improve handling of slow nfs in tight_integration
                              test
                  Review:     RD
