@@ -754,20 +754,29 @@ proc get_sge_error_generic_vdep {messages_var} {
 #     sge_procedures.60/drmaa_redirect_lib()
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
-proc drmaa_redirect_lib {version host } {
+proc drmaa_redirect_lib {version host} {
    global CHECK_USER ts_config
    ts_log_fine "Using DRMAA version $version on $host"
 
-   set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
    set lib_ext [get_current_drmaa_lib_extension $host]
-   ts_log_fine "delete $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext ..."
-   start_remote_prog $host                   "root" "rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
-   wait_for_remote_file $ts_config(master_host) "root" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 90 1 1
- 
-   ts_log_fine "create link with to libdrmaa.$lib_ext.$version" 
-   start_remote_prog $host "root" "ln" "-s libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
-   wait_for_remote_file $ts_config(master_host) "root" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 90
+   set fileserver_host [fs_config_get_server_for_path "$ts_config(product_root)/lib/$install_arch/"]
+
+   # delete link on remote file server
+   if {[is_remote_file $fileserver_host "root" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"] == 1} {
+      start_remote_prog $fileserver_host "root" "rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   }
+   # check if file exists on client side because of NFS timing issues
+   if {[is_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"] == 1} {
+      # wait for link on client host to go away (because of timing issues)
+      wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 60 1 1 
+   }
+   # create link on fileserver 
+   start_remote_prog $fileserver_host "root" "ln" "-s $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+
+   # wait for link on client host
+   wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+
 }
 
 #****** sge_procedures.60/get_current_drmaa_mode() *****************************
@@ -843,10 +852,7 @@ proc get_current_drmaa_mode { host } {
 #*******************************************************************************
 proc get_current_drmaa_lib_extension { host } {
    global ts_config
-   
-   set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
-
    set files [get_file_names "$ts_config(product_root)/lib/$install_arch" "*drmaa*"]
    foreach file_base $files {
       set file "$ts_config(product_root)/lib/$install_arch/$file_base"
