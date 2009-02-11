@@ -1,3 +1,6 @@
+RD-2009-02-11-0: Enhancem.:  added jemalloc test
+                 Review:     JG
+
 CR-2009-02-11-0: Enhancem.:  Enhanced "shadowd_migrate" test to detect that
                              a shadowd is not running anymore.
                  Review:     MD

@@ -830,6 +830,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     {timeout 60}              - timeout for command execution
 #     {cd_dir ""}               - directory to start command in
 #     {sub_path "bin"}          - component of binary path, e.g. "bin" or "utilbin"
+#     {line_array output_lines} - ???
 #     {env_list ""}             - users envlist
 #
 #  RESULT
