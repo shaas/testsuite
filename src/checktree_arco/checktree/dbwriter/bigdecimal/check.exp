@@ -84,6 +84,7 @@ proc bigdecimal_setup {} {
    global Prj_Name1 Prj_Name2
    global Queue_Name1 Queue_Name2
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global DBWRITER_LOG_FNAME
 
    set sqlutil_id ""
    set sqlutil_sp_id ""
@@ -113,6 +114,11 @@ proc bigdecimal_setup {} {
    if {[set_config config] != 0} {
       ts_log_config "Can not set reporting_params"
       return -1
+   }
+
+   # Delete the dbwriter log file to make sure only errors raised during this test are logged
+   if { [file isfile "$DBWRITER_LOG_FNAME"] == 1 } {
+      delete_file $DBWRITER_LOG_FNAME
    }
 
    # start up dbwriter
@@ -329,9 +335,6 @@ proc bigdecimal_test {} {
       # check the record in sge_ar
       bigdecimal_record_exists "sge_ar" "WHERE ar_number='$ar_id'"
    }
-
-   # check the dbwriter.log file content for errors
-   check_dbwriter_log
 
 }
 

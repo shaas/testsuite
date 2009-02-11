@@ -100,7 +100,8 @@ proc host_aliases_file_setup {} {
    }
    set host_aliases_test_ip $ip
    set cur_nr 1
-   set my_alias_file($cur_nr) "$ip $host_aliases_test_host"
+   set host_aliases_test_host_long_name "${host_aliases_test_host}.${ts_config(dns_domain)}"
+   set my_alias_file($cur_nr) "$ip $host_aliases_test_host $host_aliases_test_host_long_name"
 
    ts_log_fine "ip of host $host_aliases_test_host is $ip"
 

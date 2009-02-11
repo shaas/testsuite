@@ -242,11 +242,7 @@ proc path_alias_main {} {
       set args "-cwd -l h=${elem} \"pwd\""
       ts_log_fine "qrsh $args"
       set output [start_remote_prog $elem $CHECK_USER "qrsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
-      set output [split $output "\n"]
-      set output [lindex $output 0]
-      set output [split $output "\r"]
-      set output [lindex $output 0]
-      if {[string first "$PATH_ALIAS_OUTPUT2" $output] < 0} {
+      if { ![qrsh_output_contains $output $PATH_ALIAS_OUTPUT2] } {
          ts_log_severe "host: $elem\nqrsh -cwd directory is\n\"$output\"\n instead of \n\"$PATH_ALIAS_OUTPUT2\""
       }
 

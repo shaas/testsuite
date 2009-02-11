@@ -122,13 +122,13 @@ proc arco_junit_check {} {
    append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.properties.template"
    append cmd_args " > $file_name"
 
-   set java_build_host [host_conf_get_java_compile_host]
+   set dbwriter_host $arco_config(dbwriter_host)
 
-   report_add_message report "java build host is \"$java_build_host\""
+   report_add_message report "java build host is \"$dbwriter_host\""
    report_add_message report "Creating junit config file $file_name"
-   report_add_message report "$java_build_host: $cmd $cmd_args"
+   report_add_message report "$dbwriter_host: $cmd $cmd_args"
 
-   set output [start_remote_prog $java_build_host $CHECK_USER $cmd "$cmd_args"]
+   set output [start_remote_prog $dbwriter_host $CHECK_USER $cmd "$cmd_args"]
    if { $prg_exit_state != 0 } {
       report_add_message report "sed of DBWriterTestConfig.properties.template failed, exit state $prg_exit_state"
       report_add_message report "$output"
@@ -141,7 +141,7 @@ proc arco_junit_check {} {
    append ant_options " -Duse.classpath.from.sge.root=true"
    append ant_options " -Dsge.root=$ts_config(product_root)"
 
-   set res [arco_build $java_build_host "test" report $ant_options 120 ]
+   set res [arco_build $dbwriter_host "test" report $ant_options 120 ]
    
    if { $res != 0 } {
       report_add_message report "ARCo junit tests failed"

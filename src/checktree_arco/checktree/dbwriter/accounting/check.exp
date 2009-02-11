@@ -125,6 +125,16 @@ proc accounting_cleanup {} {
    if {[info exists "accounting_backup"]} {
       unset "accounting_backup"
    }
+
+   if { [get_dbwriter_status 0] == 0 } {
+      if { [shutdown_dbwriter] != 0 } {
+         ts_log_severe "Can not stop dbwriter"
+         return -1
+}
+   }
+
+   # clean data from arco database
+   arco_clean_database
 }
 
 #****** accounting/abs_value() ******

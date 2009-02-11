@@ -1142,3 +1142,38 @@ proc perform_simple_l10n_test { } {
    return 0
 }
 
+#******* qet_text_procedures/qrsh_output_contains ******************************
+#
+#  NAME
+#     qrsh_output_contains -- checks if the qrsh output contains expected output
+#
+#  SYNOPSIS
+#     qrsh_output_contains { output expected_output }
+#
+#  FUNCTION
+#     Sometimes qrsh returns some additional error messages in addition to the
+#     expected output. This procedure checks if the expected output line can be
+#     found in the qrsh output. All lines are "trimmed" before comparison.
+#
+#  INPUTS
+#     output          - qrsh output
+#     expected_output - the expected output line
+#
+#  RESULT
+#     1 if output contains expected_output
+#     0 otherwise
+#
+#*******************************************************************************
+proc qrsh_output_contains { output expected_output } {
+   set expected_output [string trim $expected_output]
+
+   foreach line [split $output "\n"] {
+      set line [string trim $line]
+
+      if {[string compare $line $expected_output] == 0} {
+         return 1
+      }
+   }
+
+   return 0
+}

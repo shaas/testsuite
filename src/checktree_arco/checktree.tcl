@@ -66,6 +66,9 @@ set ts_checktree($arco_checktree_nr,required_hosts_hook)    "arco_get_required_h
 global ARCO_TABLES
 global ARCO_VIEWS
 global ts_config
+global DBWRITER_LOG_FNAME
+
+set DBWRITER_LOG_FNAME "$ts_config(product_root)\/$ts_config(cell)\/spool\/dbwriter\/dbwriter.log"
 
 set ARCO_TABLES { sge_job_usage sge_job_log sge_job_request sge_job
                   sge_queue_values sge_queue
@@ -199,14 +202,14 @@ proc arco_compile_clean { compile_hosts a_report } {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_timeout 60 } } {
+proc arco_build { compile_host target a_report { ant_options "" } { arco_build_timeout 60 } } {
    global CHECK_OUTPUT CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global ts_config ts_host_config arco_config
    
    upvar $a_report report
    
-   set build_host [host_conf_get_java_compile_host]
+   set build_host $compile_host
    
    set task_nr [report_create_task report "arco_build_$target" $build_host]
    
@@ -214,18 +217,20 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."
   
    # setup environment
-   if {$ts_config(gridengine_version) < 62} {
-      set env(JAVA_HOME) [get_java_home_for_host $build_host "1.4"]  
-   } else {
       set env(JAVA_HOME) [get_java_home_for_host $build_host "1.5"]
+   if { $env(JAVA_HOME) == "" } {
+      ts_log_config "Java 1.5. not found on $build_host!"
+      return -1
    }
+   set ind [string first "/java" $env(JAVA_HOME)]
+   set java_path [string range $env(JAVA_HOME) 0 $ind]
    set env(ARCH)      [resolve_arch $build_host]
-
+   set env(PATH)      "$java_path:\$PATH"
+   set env(CLASSPATH) "\$CLASSPATH:$ts_config(testsuite_root_dir)/lib/junit.jar"
    append ant_options " -Dsge.root=$ts_config(product_root)"
    append ant_options " -Dsge.srcdir=$ts_config(source_dir)"
    set env(ANT_OPTS) "$ant_options"
    
-
    if {[coverage_enabled "emma"]} {
       set open_spawn [open_remote_spawn_process $build_host $CHECK_USER "./build.sh" "-emma $target" 0 $arco_config(arco_source_dir) env]
    } else {
@@ -262,8 +267,7 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
          exp_continue
       }
    }
-
-   
+ 
    close_spawn_process $open_spawn
    report_finish_task report $task_nr $error
 
@@ -1159,12 +1163,11 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
 #*******************************************************************************
 proc check_dbwriter_log { } {
    global ts_config CHECK_USER
-
-   set dbwriter_log_file "$ts_config(product_root)\/$ts_config(cell)\/spool\/dbwriter\/dbwriter.log"
+   global DBWRITER_LOG_FNAME
 
    set return_value ""
 
-   get_file_content $ts_config(master_host) $CHECK_USER $dbwriter_log_file
+   get_file_content $ts_config(master_host) $CHECK_USER $DBWRITER_LOG_FNAME
    for { set i 1 } { $i <= $file_array(0) } { incr i 1 } {
        set line $file_array($i)
          if { [string first "|E|" $line] >= 0 } {
@@ -1173,10 +1176,10 @@ proc check_dbwriter_log { } {
    }
 
    if { $return_value != ""} {
-      ts_log_severe "Reading $dbwriter_log_file: some errors found."
+      ts_log_severe "Reading $DBWRITER_LOG_FNAME: some errors found."
       return -1
    } else {
-      ts_log_finest "Reading $dbwriter_log_file: no errors found."
+      ts_log_finest "Reading $DBWRITER_LOG_FNAME: no errors found."
       return 0
    }
 
