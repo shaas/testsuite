@@ -452,7 +452,7 @@ proc shadowd_migrate_test {} {
          shutdown_system_daemon $ts_config(master_host) "qmaster"
 
          # check whether qmaster did write lock file
-         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 0 60] != 0} {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 60 0] != 0} {
             ts_log_severe "found no lock file after shutdown of qmaster"
          }
 
