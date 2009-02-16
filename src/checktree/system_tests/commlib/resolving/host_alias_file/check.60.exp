@@ -40,7 +40,7 @@ set check_init_level_procedure "host_aliases_file_init_level"
 
 set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "host_aliases_file"
-set check_description(0)      "check fork posix behaviour with commlib threads"
+set check_description(0)      "check if deadlock occurs when ip address is used in host_aliases file"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
 set check_root_access_needs   "no"
 set check_need_running_system "no" 
