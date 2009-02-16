@@ -1,3 +1,6 @@
+CR-2009-02-16-1: Cleanup:    cleanup of test "issue_2743"
+                 Review:     RD
+
 CR-2009-02-16-0: Enhancem.:  o wait_for_load_from_all_queues():
                                new default parameter: raise_error
                              o host_conf_get_suited_hosts():

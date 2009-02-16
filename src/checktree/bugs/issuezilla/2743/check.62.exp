@@ -57,6 +57,7 @@ set check_description(0)  ""
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
+set check_setup_function issue_2743_setup
 set check_cleanup_function issue_2743_cleanup
 
 # define test's procedure order
@@ -77,10 +78,18 @@ proc issue_2743_init_level {} {
 
 # -------- local test procedures: initialization------------------------------
 
+proc issue_2743_setup {} {
+   set sched_conf(flush_submit_sec) 1
+   set sched_conf(flush_finish_sec) 1
+   set_schedd_config sched_conf
+}
+
 proc issue_2743_cleanup {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs
+
+   reset_schedd_config
 }
 
 
@@ -96,9 +105,11 @@ proc issue_2743_test {} {
 
    wait_for_jobstart $job_id "sleep" 100 1 1
 
-   shutdown_system_daemon $test_host "execd" 
-
+   soft_execd_shutdown $test_host 
+  
+   ts_log_fine "now sleeping for 30 seconds ..."
    sleep 30
+   ts_log_fine "wakeup!"
 
    startup_execd $test_host
 
