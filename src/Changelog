@@ -1,3 +1,8 @@
+CR-2009-02-16-0: Enhancem.:  o wait_for_load_from_all_queues():
+                               new default parameter: raise_error
+                             o host_conf_get_suited_hosts():
+                               new default parameter: exclude_qmaster
+
 CR-2009-02-13-0: Bugfix:     "shadowd_migrate" test: Fixed wrong parameter
                              sequence order in wait_for_remote_file() call in
                              "shadowd_migrate" test

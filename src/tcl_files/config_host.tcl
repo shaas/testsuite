@@ -2984,10 +2984,11 @@ proc host_get_id_a_command {host} {
 #     returned, that have not been used for the longest time period.
 #
 #  INPUTS
-#     {num_hosts 1}        - number of hosts to return.
-#     {preferred_archs {}} - if possible, select this architecture
-#     {selected_archs {}}  - select this architecture
-#     {excluded_archs {}}  - do not select this architecture
+#     { num_hosts_param 1  }  - number of hosts to return
+#     { preferred_archs {} }  - if possible, select this architecture
+#     { selected_archs  {} }  - select this architecture
+#     { excluded_archs  {} }  - do not select this architecture
+#     { exclude_qmaster 0  }  - if set to 1: exclude qmaster host
 #
 #  RESULT
 #     A list of hosts matching the criteria.
@@ -3021,10 +3022,15 @@ proc host_get_id_a_command {host} {
 #        return 4 hosts of any architecture, we prefer to get sol-sparc64 hosts,
 #        but cannot use Linux on Itanic.
 #*******************************************************************************
-proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}}} {
+proc host_conf_get_suited_hosts {{num_hosts_param 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}} {exclude_qmaster 0}} {
    global CHECK_PREFERRED_ARCHS
    get_current_cluster_config_array ts_config
 
+   set num_hosts $num_hosts_param
+   if {$exclude_qmaster != 0} {
+      ts_log_finer "exclude master host is selected, requesting one additional host ..."
+      incr num_hosts 1
+   }
    
    # preferred archs as option to the function call will override
    # globally defined preferred archs (through commandline option at testsuite start).
@@ -3044,6 +3050,27 @@ proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_ar
    }
 
    set hosts [host_conf_get_suited_hosts_select $num_hosts $preferred_hosts $remaining_hosts]
+
+   # check if qmaster is in returned list and check nr of hosts selected
+   if {$exclude_qmaster != 0} {
+      ts_log_finer "exclude master host is selected, check host list ..."
+      set nr_hosts 0
+      set new_host_list {}
+      set is_ok 0
+      set master_host [resolve_host $ts_config(master_host)]
+      foreach host $hosts {
+         if {$nr_hosts == $num_hosts_param} {
+            set is_ok 1
+            break
+         }
+         set hostA [resolve_host $host]
+         if {$hostA != $master_host} {
+            lappend new_host_list $host
+            incr nr_hosts 1
+         }
+      }
+      return $new_host_list
+   }
    return $hosts
 }
 

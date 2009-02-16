@@ -2974,7 +2974,8 @@ proc master_queue_of { job_id {qlist {}}} {
 #     to the qmaster.
 #
 #  INPUTS
-#     seconds - timeout value in seconds
+#     seconds         - timeout value in seconds
+#     {raise_error 1} - optional: report errors if set to 1
 #
 #  RESULT
 #     "-1" on error
@@ -2988,7 +2989,7 @@ proc master_queue_of { job_id {qlist {}}} {
 #     sge_procedures/wait_for_jobpending()
 #     sge_procedures/wait_for_jobend()
 #*******************************
-proc wait_for_load_from_all_queues { seconds } {
+proc wait_for_load_from_all_queues { seconds {raise_error 1} } {
    get_current_cluster_config_array ts_config
 
    set time [timestamp]
@@ -3048,7 +3049,7 @@ proc wait_for_load_from_all_queues { seconds } {
 
       set runtime [expr ( [timestamp] - $time) ]
       if { $runtime >= $seconds } {
-          ts_log_severe "timeout waiting for load values < 99"
+          ts_log_severe "timeout waiting for load values < 99" $raise_error
           return -1
       }
    }
