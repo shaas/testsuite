@@ -114,7 +114,8 @@ proc issue_2735_test {} {
    global ts_config 
    global CHECK_USER
 
-   set hosts [host_conf_get_suited_hosts 2]
+   # we want to have 2 different hosts, but not qmaster host
+   set hosts [host_conf_get_suited_hosts 2 {} {} {} 1]
    set host [lindex $hosts 0]
    set shepherd_host [lindex $hosts 1]
    set host_arch [resolve_arch $host]
@@ -126,7 +127,7 @@ proc issue_2735_test {} {
    set args "-l h=$shepherd_host > /dev/null"
    ts_log_fine "starting qlogin $args ..."
    set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$host_arch/qlogin" $args]
-
+   set job_output ""
    set qlogin_spawn_id [lindex $qlogin_id 1]
    set timeout 3
    set retries 10
@@ -140,7 +141,7 @@ proc issue_2735_test {} {
          set job_id_list {}
          set output [get_job_info -1]
          foreach line $output {
-            ts_log_finer $line
+            ts_log_fine "job_info: $line"
             set job_id_str [lindex $line 0]
             set state [lindex $line 7] 
             ts_log_fine "job state: \"$state\""
@@ -159,10 +160,31 @@ proc issue_2735_test {} {
          }
          ts_log_fine "job_id_list: $job_id_list"
       }
+
+      -i $qlogin_spawn_id "*\n" {
+         set output $expect_out(0,string) 
+         set output [ split $output "\n" ]
+         foreach line $output {
+            set help [string trim $line]
+            if {$help == ""} {
+               continue
+            }
+            append job_output "$help\n"
+            ts_log_fine $help
+            if {[string match "*_exit_status_:(*)*" $help]} {
+               append error_text "qlogin job did not start (job output test)!\n"
+            }
+         }
+         exp_continue
+      }
+   }
+
+   if {$error_text != ""} {
+      append error_text "$job_output"
    }
 
    if {[llength $job_id_list] == 0} {
-      append error_text "qlogin job did not start!\n"
+      append error_text "qlogin job did not start (job info test by qstats)!\n"
       set possible_sheperd_pid_list {}
    } else {
       set possible_sheperd_pid_list [get_shepherd_pid_list "$CHECK_USER root" $shepherd_host $job_id_list]

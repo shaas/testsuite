@@ -1,3 +1,7 @@
+CR-2009-02-17-0: Bugfix:     improved race condition in test "issue_2735"
+                             to recognize the issue always
+                 Review:     RD
+
 CR-2009-02-16-1: Cleanup:    cleanup of test "issue_2743"
                  Review:     RD
 
