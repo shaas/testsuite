@@ -135,7 +135,8 @@ if {$ts_config(gridengine_version) >= 62} {
 #*******************************************************************************
 proc arco_compile { compile_hosts a_report } {
    upvar $a_report report
-   return [arco_build $compile_hosts "all" report]
+   set java_build_host [host_conf_get_java_compile_host]
+   return [arco_build $java_build_host "all" report]
 }
 
 #****** checktree/arco_compile_clean() *****************************************
