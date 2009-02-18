@@ -73,7 +73,7 @@ proc jemalloc_test_init_level {} {
 proc jemalloc_verify {} {
    global ts_config CHECK_USER
    
-   set jemalloc_test_host [host_conf_get_suited_hosts 1 "lx24-amd64 lx26-amd64 lx24-x86 lx26-x86 lx24-ia64 lx26-ia64"]
+   set jemalloc_test_host [host_conf_get_suited_hosts 1 "lx24-amd64 lx26-amd64"]
    set binaries "qacct qconf qmod qping qrdel qrls qrstat qselect qstat sge_execd sge_qmaster sge_shepherd qalter qdel qhost qmon qquota qresub qrsh qrsub qsh qsub sge_coshepherd sgepasswd sge_shadowd"
    set errors ""
 
