@@ -4850,7 +4850,7 @@ proc wait_for_jvm_info { exp_jvm_info {opt ""}  } {
             # If the exp_info contains a condition for jvms in STOPPED state the exp_info
             # also matches if the jvms has not been found in the output of 'sdmadm sj'.
             # We assume in this case that the jvm is STOPPED
-            if {[regexp ",state$" $val] && $exp_info(val) == "STOPPED"} {
+            if {[regexp ",state$" $val] && $exp_info($val) == "STOPPED"} {
                ts_log_fine "jvm info '$val' matches to not existing jvm in output"
             } else {
                append not_matching "jvm info '$val' not available\n"
@@ -10543,4 +10543,26 @@ proc hedeby_guntar { archive target_dir { host "" } { user "" } } {
       return -1
    }
    return 0
+}
+
+#****** util/hedeby_master_jvm_name() ***************************************************
+#  NAME
+#     hedeby_master_jvm_name() -- return string which is representing master jvm name of current system
+#
+#  SYNOPSIS
+#     hedeby_master_jvm_name {} 
+#
+#  FUNCTION
+#     return string which is representing master jvm name of current system
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     string - name of master jvm (by default "cs_vm")
+#
+#*******************************************************************************
+proc hedeby_master_jvm_name { } {
+   #currently our system is supporting "cs_vm", names of jvm in hedeby should be accessed by utility functions
+   return "cs_vm"
 }

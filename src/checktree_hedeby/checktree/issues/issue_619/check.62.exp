@@ -1,0 +1,320 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_619"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests that a component can be added to cs_vm"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue619_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue619_setup_level"
+set check_cleanup_level_function "hedeby_issue619_cleanup_level"
+
+lappend check_functions "hedeby_issue619_check"
+
+
+#****** issue_619/hedeby_issue619_init_level() ************************
+#  NAME
+#     hedeby_issue619_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue619_init_level { }
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue619_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_619/hedeby_issue619_setup_level() *********************************
+#  NAME
+#    hedeby_issue619_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue619_setup_level { }
+#
+#  FUNCTION
+#    This function do setup of test in step
+#
+#    o Step: Add spare_pool to cs_vm on managed host
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue619_setup_level {} {
+   upvar #0 hedeby_issue619_ctx this
+   global hedeby_config
+   set this(reset) 0
+   set this(master) $hedeby_config(hedeby_master_host)
+   set this(jvm) [hedeby_master_jvm_name]
+   set this(admin) [get_hedeby_admin_user]
+   set this(managed) [pick_random [get_all_movable_resources]]
+   set this(spare) "new_spare"
+   set this(added) "false"
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup : Add a new spare_pool component with name: $this(spare) to master jvm: $this(jvm) on host $this(managed)"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "asps -j cs_vm -h $this(managed) -s new_spare"]
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem adding $this(spare) to jvm $this(jvm) on host $this(managed).\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set this(added) "true"
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup : Setup for issue619 finished"
+   # ------------------------------------------------------------------
+}
+
+#****** issue_619/hedeby_issue619_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue619_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue619_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#   This function do following step: 
+#
+#    o Step 1: Remove new spare_pool from system configuration
+#    o Step 2: If jvm was stopped - reset hedeby
+#    o Step 3: Removes the global context variable of this test (hedeby_issue619_ctx)
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue619_cleanup_level {} {
+   upvar #0 hedeby_issue619_ctx this
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Cleanup 0 : Stop master jvm on managed host"
+   # ------------------------------------------------------------------ 
+   if {$this(started)} {
+      set output [sdmadm_command_opt "sdj -j $this(jvm) -h $this(managed)"] 
+      if {$prg_exit_state != 0} {
+	 set    msg "There was a problem stopping master jvm on managed host.\n"
+	 append msg "Output was\n"
+	 append msg $output
+	 ts_log_fine $msg
+      } else {
+	 set exp_ji(jvm_list) "" 
+	 set err_ji($this(jvm),$this(managed),state) "STARTED"
+	 set err_ji($this(jvm),$this(managed),state) "STARTING"
+	 set ji_opts(jvm_name) $this(jvm)
+	 set ji_opts(jvm_host) $this(managed)
+	 set ji_opts(error_jvm_info) err_ji
+
+	 if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+            set msg "Jvm $this(jvm) didnt stop"
+	    ts_log_fine $msg	    
+	 } else {
+            set this(reset) 0
+	 }
+      }
+   }
+   
+   
+   if { $this(added) == "true" } {
+           # ------------------------------------------------------------------ 
+           ts_log_heading "Cleanup 1 : Remove spare_pool: $this(spare) defined in jvm $this(jvm) from system"
+           # ------------------------------------------------------------------ 
+           set output [sdmadm_command_opt "rs -s $this(spare)"] 
+           if {$prg_exit_state != 0} {
+              set    msg "There was a problem removing spare_pool $this(spare).\n"
+              append msg "Output was\n"
+              append msg $output
+              ts_log_severe $msg
+              set this(reset) 1
+           }
+           set this(added) "false" 
+   }
+   if {$this(reset)} {
+      reset_hedeby 1
+   }
+   unset this
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Cleanup : Cleanup for issue619 finished"
+   # ------------------------------------------------------------------
+}
+
+#****** issue_619/hedeby_issue619_check *****************************
+#  NAME
+#     hedeby_issue619_check() -- check that issue 619 is fixed
+#
+#  SYNOPSIS
+#     hedeby_issue619_check { } 
+#
+#  FUNCTION
+#
+#    This test will check that components can run in cs_vm on managed host.
+# 
+#    Test performs the following steps:
+#
+#    o Step1: Start cs_vm on managed host
+#    o Step2: Check sdmadm ss output
+#    o Step3: Stop spare_pool component
+#    o Step4: Check sdmadm sc output
+#    o Step5: Shutdown cs_vm on managed host
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#**********************************************************************
+proc hedeby_issue619_check {} {
+   upvar #0 hedeby_issue619_ctx this
+
+   
+  
+   # ------------------------------------------------------------------ 
+   ts_log_heading "TEST Step 1 : Start master jvm on managed host"
+   # ------------------------------------------------------------------ 
+   set opt(host) $this(managed)
+   set output [sdmadm_command_opt "suj -j $this(jvm)" opt] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem starting master jvm on managed host.\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set exp_ji($this(jvm),$this(managed),state) "STARTED" 
+   set err_ji($this(jvm),$this(managed),state) "STOPPED"
+   set err_ji($this(jvm),$this(managed),state) "STOPPING"
+   set ji_opts(jvm_name) $this(jvm)
+   set ji_opts(jvm_host) $this(managed)
+   set ji_opts(error_jvm_info) err_ji
+
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg "Jvm $this(jvm) didnt start"
+      ts_log_severe $msg
+      return 
+   }
+   unset exp_ji
+   set this(reset) 1
+   set this(started) 1
+   # ------------------------------------------------------------------ 
+   ts_log_heading "TEST Step 2 : Check if new spare_pool is running"
+   # ------------------------------------------------------------------ 
+   
+         
+      set si_exp($this(spare),cstate) "STARTED"  
+      set si_exp($this(spare),sstate) "RUNNING"
+      # check if service is running
+      set ret [wait_for_service_info si_exp]
+      if {$ret != 0} {
+        ts_log_severe "The new spare_pool service is not running.\n"
+	return
+      }
+   # ------------------------------------------------------------------ 
+   ts_log_heading "TEST Step 3 : Stop new spare_pool component"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "sdc -c $this(spare) -h $this(managed)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem stopping component $this(spare).\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+         
+      set ci_exp($this(spare),$this(managed),state) "STOPPED"     
+      # check if component stopped
+      set ret [wait_for_component_info ci_exp]
+      if {$ret != 0} {
+        ts_log_severe "The new spare_pool component didnt stop properly.\n"
+	return
+      }
+   # ------------------------------------------------------------------ 
+   ts_log_heading "TEST Step 4 : Stop master jvm on managed host"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "sdj -j $this(jvm) -h $this(managed)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem stopping master jvm on managed host.\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+   set exp_ji(jvm_list) "" 
+   set err_ji($this(jvm),$this(managed),state) "STARTED"
+   set err_ji($this(jvm),$this(managed),state) "STARTING"
+   set ji_opts(jvm_name) $this(jvm)
+   set ji_opts(jvm_host) $this(managed)
+   set ji_opts(error_jvm_info) err_ji
+
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg "Jvm $this(jvm) didnt stop"
+      ts_log_severe $msg
+      return 
+   }
+   set this(reset) 0
+   set this(started) 0
+}
