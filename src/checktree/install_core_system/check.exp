@@ -49,8 +49,9 @@ set check_needs         ""           ;# let the testsuite test run before this t
 set install_mode        $CHECK_TESTSUITE_INSTALL_MODE ;# sets the install mode. allowed are: automatic and manual
 set check_functions     ""                              ;# functions to call (in order)
 
-if { $install_mode == "automatic" } {
-   ts_source $CHECK_ACTUAL_TEST_PATH/automatic/bdb_rpc
+if {$install_mode == "automatic"} {
+   # in automatic installation, we still do a manual bdb rpc server installation
+   ts_source $CHECK_ACTUAL_TEST_PATH/interactive/bdb_rpc
    ts_source $CHECK_ACTUAL_TEST_PATH/automatic/qmaster
    ts_source $CHECK_ACTUAL_TEST_PATH/automatic/execd
    ts_source $CHECK_ACTUAL_TEST_PATH/automatic/shadowd

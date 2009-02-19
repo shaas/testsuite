@@ -102,7 +102,11 @@ proc qmake_setup {} {
    # create a qmake queue
    set queue(load_thresholds) "np_load_avg=11"
    set queue(slots)           10
-   add_queue qmake.q "@allhosts" queue
+   add_queue "qmake.q" "@allhosts" queue
+
+   # speedup scheduling
+   set schedd_conf(flush_submit_sec) 1
+   set_schedd_config schedd_conf
 }
 
 proc qmake_setup_level {} {
@@ -121,7 +125,7 @@ proc qmake_setup_level {} {
       } 
       1 {
          set arch [resolve_arch $qmake_host]
-         set qmake_options "-l a=$arch -cwd -v PATH --"
+         set qmake_options "-q qmake.q -l a=$arch -cwd -v PATH --"
          set pe_options "-pe make"
 
          # create a make pe
@@ -136,11 +140,11 @@ proc qmake_setup_level {} {
          add_pe "make" pe
 
          # assign pe with queue
-         assign_queues_with_pe_object qmake.q "" make
+         assign_queues_with_pe_object "qmake.q" "" make
       }
       2 {
          set arch [resolve_arch $qmake_host]
-         set qmake_options "-l a=$arch -cwd -v PATH --"
+         set qmake_options "-q qmake.q -l a=$arch -cwd -v PATH --"
          set pe_options ""
       }
    }
@@ -151,6 +155,9 @@ proc qmake_cleanup {} {
 
    # delete queue
    del_queue qmake.q "" 0 1
+
+   # reset the scheduler config
+   reset_schedd_config
 }
 
 proc qmake_cleanup_level {} {

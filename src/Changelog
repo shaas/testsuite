@@ -1,3 +1,10 @@
+JG-2009-02-19-0: Bugfix:     Minor fixes and cleanup to 
+                             - issue_1330 test with BDB RPC spooling
+                             - jsv_ge test
+                             - qmake test
+                             - sharetree test
+                 Review:     RD
+
 RM-2009-02-18-0: Enhancem.:  test for issue 619
                  Review:     MG
 

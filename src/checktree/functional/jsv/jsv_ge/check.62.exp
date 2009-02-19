@@ -235,7 +235,7 @@ proc jsv_ge_parsing_in_client_or_master {} {
    }     
 
    if {$CHECK_ACT_LEVEL == 0} {
-      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set jsv_script [jsv_script_get_script_file "expect" tcl]
       append submit_args "-jsv ${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 1 60 $ts_config(master_host)]
@@ -251,7 +251,7 @@ proc jsv_ge_parsing_jsv_url_invalid_type {} {
 
    if {$CHECK_ACT_LEVEL == 0} {
       # invalid type
-      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv troete:${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 0]
@@ -265,7 +265,7 @@ proc jsv_ge_parsing_jsv_url_valid {} {
 
    if {$CHECK_ACT_LEVEL == 0} {
       # valid type: script
-      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv script:${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 1]
@@ -279,7 +279,7 @@ proc jsv_ge_parsing_jsv_url_user_in_client {} {
 
    if {$CHECK_ACT_LEVEL == 0} {
       # user specification not allowed in client url 
-      set jsv_script [jsv_script_get_script_file "tclsh" tcl]
+      set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv script:troete@${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args" 0]
