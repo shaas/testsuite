@@ -1,3 +1,9 @@
+CR-2009-02-19-0: Enhancem.:  o added test for IZ 2895
+                             o additional string list parameter for
+                               logfile_wait() procedure
+                 Issue:      279
+                 Review:     MD
+
 JG-2009-02-19-0: Bugfix:     Minor fixes and cleanup to 
                              - issue_1330 test with BDB RPC spooling
                              - jsv_ge test

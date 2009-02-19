@@ -3215,6 +3215,12 @@ proc init_logfile_wait {hostname logfile} {
 #                              -2 : full expect buffer 
 #                              -3 : unexpected end of file
 #                              -4 : unexpected end of tail command
+#     {message_line_list {}} - list of messages which should be found in
+#                              the tail output file. This is a per line
+#                              message string search. All elements in the
+#                              list must be found in the tail output before
+#                              logfile_wait returns.
+#
 #
 #  RESULT
 #     This procedure returns the output of the tail command since the 
@@ -3224,7 +3230,7 @@ proc init_logfile_wait {hostname logfile} {
 #     file_procedures/init_logfile_wait()
 #     file_procedures/close_logfile_wait()
 #*******************************************************************************
-proc logfile_wait {{wait_string ""} {mytimeout 60} {close_connection 1} {add_errors 1} {return_err_code "logfile_wait_error"}} {
+proc logfile_wait {{wait_string ""} {mytimeout 60} {close_connection 1} {add_errors 1} {return_err_code "logfile_wait_error"} {message_line_list {}}} {
    global file_procedure_logfile_wait_sp_id
 
    upvar $return_err_code back_value
@@ -3234,61 +3240,95 @@ proc logfile_wait {{wait_string ""} {mytimeout 60} {close_connection 1} {add_err
    set sp_id [lindex $file_procedure_logfile_wait_sp_id 1]
    ts_log_finest "spawn id: $sp_id"
    set real_timeout [ expr [timestamp] + $mytimeout]
-   set timeout 1
+   set timeout 3
    set my_tail_buffer ""
    log_user 0
-   while {1} {
-      if {[timestamp] > $real_timeout} {
-          if {$wait_string != ""} {
-             if {$add_errors == 1} {
-                ts_log_severe "timeout waiting for logfile content"
-             }
-             set back_value -1
-          }
-          break
+
+   # init line list match memory array
+   foreach line $message_line_list {
+      set lines_ok($line) 0
+   }
+
+   ts_log_fine "starting log file wait ..."
+
+   expect {
+      -i $sp_id -- full_buffer {
+         if {$add_errors == 1} {
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         }
+         set back_value -2
       }
-      expect {
-         -i $sp_id -- full_buffer {
-            if {$add_errors == 1} {
-               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+
+      -i $sp_id eof {
+         if {$add_errors == 1} {
+            ts_log_severe "unexpected end of file"
+         }
+         set back_value -3
+      }
+      -i $sp_id -- "_exit_status_" { 
+         if {$add_errors == 1} {
+            ts_log_severe "unexpected end of tail command"
+         }
+         set back_value -4
+      }
+      -i $sp_id timeout {
+         if {[timestamp] > $real_timeout} {
+            if {$wait_string != "" || [llength $message_line_list] > 0} {
+               if {$add_errors == 1} {
+                  ts_log_severe "timeout waiting for logfile content"
+               }
+               set back_value -1
             }
-            set back_value -2
-            break
+         } else {
+            ts_log_progress
+            exp_continue
+         }
+      }
+      -i $sp_id -- "\n" {
+         ts_log_fine "\r$expect_out(buffer)"
+         append my_tail_buffer $expect_out(buffer)
+
+         set do_continue 1
+
+         # if we have a wait string ...
+         if {$wait_string != ""} {
+            if {[string match "*${wait_string}*" $my_tail_buffer] == 1} {
+               ts_log_fine "found expected wait string: $wait_string"
+               set do_continue 0
+            }
          }
 
-         -i $sp_id eof {
-            if {$add_errors == 1} {
-               ts_log_severe "unexpected end of file"
-            }
-            set back_value -3
-            break
-         }
-         -i $sp_id -- "_exit_status_" { 
-            if {$add_errors == 1} {
-               ts_log_severe "unexpected end of tail command"
-            }
-            set back_value -4
-            break
-         }
-         -i $sp_id timeout {
-            ts_log_progress
-         }
-         -i $sp_id -- "\n" {
-            ts_log_finest "\r$expect_out(buffer)"
-            append my_tail_buffer $expect_out(buffer)
-            if {$wait_string != ""} {
-               if {[string match "*${wait_string}*" $expect_out(buffer)] == 1} {
-                  break
+         # if we have a message list ...
+         if {[llength $message_line_list] > 0} {
+            foreach line [split $expect_out(buffer) "\n"] {
+               foreach exp_line $message_line_list {
+                  if {[string match "*$exp_line*" $line] == 1} {
+                     ts_log_fine "found expected line: $exp_line"
+                     set lines_ok($exp_line) 1
+                  } 
                }
             }
+            set do_leave 1
+            foreach line $message_line_list {
+               if {$lines_ok($line) == 0} { 
+                  set do_leave 0
+                  ts_log_fine "still missing: \"$line\""
+               } else {
+                  ts_log_fine "found string:  \"$line\""
+               }
+            }
+            if {$do_leave == 1} {
+               set do_continue 0
+            }
          }
 
-         -i $sp_id default {
-            break
+         if {$do_continue == 1} {
+            exp_continue
          }
-
       }
    }
+
+   ts_log_fine "log file wait returns now ..."
    if {$close_connection == 1} {
       close_spawn_process $file_procedure_logfile_wait_sp_id
    }
