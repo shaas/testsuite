@@ -240,14 +240,14 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    set job_id [submit_job $jobargs $submit_error_check 60 $host $user]
    if {$expect_submit_error} {
       if {$job_id > 0} {
-         ts_log_severe "submission of job \"$jobargs\" as user $user should have failed"
+         ts_log_severe "submission of job \"$jobargs\" as user $user on host \"$host\" should have failed"
          delete_job $job_id
       }
       # are done
       return 0
    } else {
       if {$job_id < 0} {
-         ts_log_severe "submission of job \"$jobargs\" as user $user failed:\nerror $job_id"
+         ts_log_severe "submission of job \"$jobargs\" as user $user on host \"$host\" failed:\nerror $job_id"
          return 0
       }
    }
