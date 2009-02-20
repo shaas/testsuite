@@ -98,7 +98,7 @@ proc migration_setup {} {
    set migration_pe_name "ckpt_mig_pe"
    set migration_ckpt_name "ckpt_mig_ckptobj"
    set checkpoint_job_id -1
-   setup_queues
+   migration_setup_queues
    setup_pe
    setup_checkpointing
 }
@@ -819,13 +819,13 @@ proc clean_up_pe {} {
 }
 
 #                                                             max. column:     |
-#****** migration/setup_queues() ******
+#****** migration/migration_setup_queues() ******
 # 
 #  NAME
-#     setup_queues -- ??? 
+#     migration_setup_queues -- ??? 
 #
 #  SYNOPSIS
-#     setup_queues { } 
+#     migration_setup_queues { } 
 #
 #  FUNCTION
 #     ??? 
@@ -847,7 +847,7 @@ proc clean_up_pe {} {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc setup_queues {} {
+proc migration_setup_queues {} {
   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
   global all_queue_list
 

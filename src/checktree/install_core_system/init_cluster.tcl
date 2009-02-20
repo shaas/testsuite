@@ -318,7 +318,7 @@ proc setup_queues {} {
 
    # check if qmaster can be accessed
    set result [start_sge_bin "qstat" ""]
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       ts_log_warning "error connecting qmaster: $result"
       return
    }
@@ -330,7 +330,7 @@ proc setup_queues {} {
    set result [mod_queue "all.q" "" new_values]
    switch -- $result { 
       -1 {
-         ts_log_severe "modify queue ${hostname}.q - got timeout"
+         ts_log_severe "modify queue all.q - got timeout"
       }
       -100 {
          ts_log_severe "could not modify queue"

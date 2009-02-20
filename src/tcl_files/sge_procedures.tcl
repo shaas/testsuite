@@ -491,7 +491,7 @@ proc seek_and_destroy_sge_processes {} {
    global ts_host_config CHECK_USER
 
    set answer_text ""
-   if { [info exists kill_list] } {
+   if {[info exists kill_list]} {
       unset kill_list
    }
 
@@ -499,7 +499,7 @@ proc seek_and_destroy_sge_processes {} {
       ts_log_fine "host $host ..."
 
       get_ps_info 0 $host ps_info
-      for {set i 0} {$i < $ps_info(proc_count) } {incr i 1} {
+      for {set i 0} {$i < $ps_info(proc_count)} {incr i 1} {
          if { [string match "*$CHECK_USER*" $ps_info(string,$i)] } {
             if { [string match "*sge_*" $ps_info(string,$i)]   || 
                  [string match "*qevent*" $ps_info(string,$i)] ||
@@ -514,14 +514,13 @@ proc seek_and_destroy_sge_processes {} {
             }
          }
       }
-
    }
 
-   if { $answer_text != "" } {
+   if {$answer_text != ""} {
       ts_log_fine "found matching processes:"
       ts_log_fine "$answer_text"
       foreach host $ts_host_config(hostlist) {
-         if { [info exists kill_list($host)] } {
+         if {[info exists kill_list($host)]} {
             foreach pid $kill_list($host) {
                ts_log_fine "killing pid $pid on host $host ..."
             }
@@ -531,6 +530,69 @@ proc seek_and_destroy_sge_processes {} {
    wait_for_enter
 }
 
+#****** sge_procedures/full_shutdown_and_csp_cleanup() *************************
+#  NAME
+#     full_shutdown_and_csp_cleanup() -- cleanup on all hosts
+#
+#  SYNOPSIS
+#     full_shutdown_and_csp_cleanup {}
+#
+#  FUNCTION
+#     Does a cleanup on all hosts in the host configuration file:
+#     - shutdown of SGE daemons
+#     - shutdown of Berkeley DB rpc server
+#     - delete CSP certificats of the current cluster
+#     - delete contents of local spooldirectories
+#*******************************************************************************
+proc full_shutdown_and_csp_cleanup {} {
+   global ts_host_config
+   global CHECK_USER
+
+   get_current_cluster_config_array ts_config
+
+   # we need root access for shutting down daemons
+   # and cleaning the /var/sgeCA
+   if {[have_root_passwd] == -1} {
+      set_root_passwd
+   }
+
+   # if we have windows hosts in the cluster, we need the passwd
+   # of the CHECK_USER - cleaning spool directories is done as local user
+   foreach host $ts_host_config(hostlist) {
+      if {[host_conf_get_arch $host] == "win32-x86"} {
+         set_passwd $CHECK_USER $ts_config(master_host) $host
+         break
+      }
+   }
+
+   # first do a regular shutdown of our cluster
+   shutdown_core_system
+
+   # for each host which is configured in the host config
+   # shutdown all sge daemons
+   # shutdown berkeleydb rpc server
+   # and cleanup csp certificates (/var/sgeCA/...)
+   # cleanup the local spool directories
+   # TODO: look for processes started with absolute path being our $SGE_ROOT
+   foreach host [lsort -dictionary $ts_host_config(hostlist)] {
+      # check if host is running and accessable
+      start_remote_prog $host $CHECK_USER "echo" "are you there?" prg_exit_state 60 0 "" "" 1 0 0 0
+      if {$prg_exit_state != 0} {
+         ts_log_info "host $host seems to be unavailable - no cleanup done on host $host"
+         continue
+      }
+
+      shutdown_system_daemon $host "execd sched qmaster shadowd"
+      shutdown_bdb_rpc $host
+
+      ts_log_fine "cleaning /var/sgeCA/port$ts_config(commd_port) on host $host"
+      start_remote_prog $host "root" "rm" "-rf /var/sgeCA/port$ts_config(commd_port)"
+
+      get_local_spool_dir $host qmaster 1
+      get_local_spool_dir $host execd 1
+      get_local_spool_dir $host hedeby_spool 1
+   }
+}
 
 #****** sge_procedures/check_messages_files() **********************************
 #  NAME
@@ -7839,7 +7901,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
          lappend proccess_names "commd"
       }
 
-      foreach host $hosts_to_check { 
+      foreach host $hosts_to_check {
          shutdown_system_daemon $host $proccess_names
       }
    }

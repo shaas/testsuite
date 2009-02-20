@@ -1,4 +1,3 @@
-
 # expect script
 # test SGE/SGEEE System
 #___INFO__MARK_BEGIN__
@@ -920,7 +919,6 @@ proc set_passwd {user root_host win_host} {
       ts_log_severe "No unix password host specified!"
       return
    }
-
 
    # repeat passwd question, until success, or
    # user explicitly requested other options
@@ -7438,6 +7436,7 @@ proc menu {} {
     puts " (31) search for old sge_processes on configured hosts"
     puts " (32) dump status of all rlogin connections"
     puts " (33) close all rlogin connections"
+    puts " (34) cluster shutdown and CSP cleanup on *all* hosts"
     puts " (40) initialize code coverage checking"
     puts " (41) delete code coverage data"
     puts " (42) dump code coverage analysis"
@@ -7573,6 +7572,10 @@ proc menu {} {
     }
     "33" {
          close_open_rlogin_sessions
+         wait_for_enter
+    }
+    "34" {
+         full_shutdown_and_csp_cleanup
          wait_for_enter
     }
     "40" {

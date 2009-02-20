@@ -1,3 +1,8 @@
+JG-2009-02-20-0: Enhancem.:  new menu item 34 cleaning all hosts known in the
+                             testsuite host configuration (kills SGE daemons,
+                             cleans /var/sgeCA, local spool directories ...)
+                 Review:     RD
+
 CR-2009-02-19-1: Enhancem.:  added more logging output for qsub test
                  Review:     MD
 
