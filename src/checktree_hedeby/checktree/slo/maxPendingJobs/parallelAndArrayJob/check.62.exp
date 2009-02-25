@@ -346,6 +346,7 @@ proc mpjslo_parallel_and_array_job_check {} {
    set expected_quantity [expr $task_amount_job_1 - $total_slots]
    if { [mpjslo_parallel_and_array_job_check_request $slo_name $expected_quantity] != 0 } {
       #just exit, the subroutine allready logged severly
+      wait_for_enter
       return
    }
 
@@ -468,38 +469,68 @@ proc mpjslo_parallel_and_array_job_construct_job {slot_amount sleep_time extra_o
 #
 #*******************************************************************************
 proc mpjslo_parallel_and_array_job_check_request { slo_name expected_quantity } {
+
    upvar #0 hedeby_mpjslo_parallel_and_array_job_ctx this
-   #Every Resource is now moved to the service but the parallel job still can not be 
-   #scheduled. The MaxPendingJobSLO should still produce needs
-   if { [get_show_resource_request_info] != 0 } {
-       ts_log_severe "get_show_resource_request_info() caused an error while looking for a MaxPendingJobSLO request!\n"
-       return -1
+
+   set last_request_quantity 0 
+   set last_request_quantity_not_changed_count 0
+
+   while { 1 } {
+
+      #Every Resource is now moved to the service but the parallel job still can not be 
+      #scheduled. The MaxPendingJobSLO should still produce needs
+      if { [get_show_resource_request_info] != 0 } {
+          ts_log_severe "get_show_resource_request_info() caused an error while looking for a MaxPendingJobSLO request!\n"
+          return -1
+      }
+
+      #check if the MaxPendingJobSLO request is still visible
+      if { ![info exists res_req_info($this(ge_adapter),$slo_name,requests)] } {
+          ts_log_severe "No requests are reported for the MaxPendingJobsSLO, although jobs are pending!\n"
+          return -1
+      }
+
+      set requests_value $res_req_info($this(ge_adapter),$slo_name,requests)
+      if { $requests_value != "true" } {
+          ts_log_severe "Expected for MaxPendingJobSLO request = true, however it was: request = $request_value!\n"
+          return -1
+      }
+      
+          
+      #check if the request quantity is reasonable and matches the expected value!
+      if { ![info exists res_req_info($this(ge_adapter),$slo_name,quantity)]} {
+          ts_log_severe "No request for res_req_info($this(ge_adapter),$slo_name,quantity) exists. A requested quantity of $expected_quantity was expected!\n"
+          return -1
+      }
+      set requested_quantity $res_req_info($this(ge_adapter),$slo_name,quantity)
+
+      if {$requested_quantity == $expected_quantity} {
+         return 0;
+      }
+
+      # The quantity of the resource request is yet not reached
+      # check that is has been changed since the last call of 'sdmadm srr'
+      if { $requested_quantity == $last_request_quantity } {
+         # The quantity of the resource request has not been changed since
+         # the last call of 'sdmadm srr'
+         incr last_request_quantity_not_changed_count 1
+
+         # If the last 5 tries the resource request quanitity has not been changed
+         # we give up
+         if { $last_request_quantity_not_changed_count >= 5 } {
+             ts_log_severe "Expected a MaxPendingJobSLO request of $expected_quantity but got a request of $requested_quantity!\n"
+             return -1
+         } else {
+             ts_log_fine "Resource request quantity for SLO '$slo_name' did not changed"
+             after 2000
+         }
+      } else {
+         set last_request_quantity $requested_quantity
+         set last_request_quantity_not_changed_count 0
+         ts_log_file "Resource request quantity changed to $requested_quantity"
+         after 2000
+      }
    }
 
-   #check if the MaxPendingJobSLO request is still visible
-   if { ![info exists res_req_info($this(ge_adapter),$slo_name,requests)] } {
-       ts_log_severe "No requests are reported for the MaxPendingJobsSLO, although jobs are pending!\n"
-       return -1
-   }
-
-   set requests_value $res_req_info($this(ge_adapter),$slo_name,requests)
-   if { $requests_value != "true" } {
-       ts_log_severe "Expected for MaxPendingJobSLO request = true, however it was: request = $request_value!\n"
-       return -1
-   }
-   
-
-
-       
-   #check if the request quantity is reasonable and matches the expected value!
-   if { ![info exists res_req_info($this(ge_adapter),$slo_name,quantity)]} {
-       ts_log_severe "No request for res_req_info($this(ge_adapter),$slo_name,quantity) exists. A requested quantity of $expected_quantity was expected!\n"
-       return -1
-   }
-   set requested_quantity $res_req_info($this(ge_adapter),$slo_name,quantity)
-   if {$requested_quantity != $expected_quantity} {
-       ts_log_severe "Expected a MaxPendingJobSLO request of $expected_quantity but got a request of $requested_quantity!\n"
-       return -1
-   }
-   return 0;
+   # Is never reached
 }

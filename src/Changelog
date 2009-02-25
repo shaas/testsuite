@@ -1,3 +1,9 @@
+RH-2009-02-25-0: Bugfix:     Hedeby: mpjslo_parallel_and_array_job failed if after
+                             the resource movement the resource request quantity was 
+                             not immediately correct.
+                             Implemented a cylce which polls the resource request.
+                 Review:     AF
+
 JG-2009-02-20-0: Enhancem.:  new menu item 34 cleaning all hosts known in the
                              testsuite host configuration (kills SGE daemons,
                              cleans /var/sgeCA, local spool directories ...)
