@@ -195,9 +195,12 @@ proc consumable_resources_setup {} {
    set pe(allocation_rule)   "\$round_robin"
    add_pe "round_robin" pe
 
+   set pe(allocation_rule)   "\$fill_up"
+   add_pe "fill_up" pe
+
    set queue_settings(slots) 1000
    set queue_settings(load_thresholds) "np_load_avg=11.75"
-   set queue_settings(pe_list)          "round_robin"
+   set queue_settings(pe_list)          "round_robin fill_up"
    set qname "res.q"
    add_queue $qname $consumable_resources_test_hosts queue_settings
    ts_log_fine "added queue $qname for hosts $consumable_resources_test_hosts"
@@ -226,9 +229,13 @@ proc consumable_resources_cleanup {} {
    set qname "res.q"
    del_queue $qname $consumable_resources_test_hosts 0 1
 
+   sleep 5
    if {[del_pe "round_robin" "" "" 0]} {
-      sleep 5
       del_pe "round_robin"
+   }
+
+   if {[del_pe "fill_up" "" "" 0]} {
+      del_pe "fill_up"
    }
 
    # restore complex
@@ -321,10 +328,10 @@ proc consumable_resources_submit_jobs_and_alter {job_arguments resource resource
    wait_for_end_of_all_jobs
 }
 
-proc consumable_resources_submit_pejobs_and_wait {job_arguments job_count run_job_count case} {
+proc consumable_resources_submit_pejobs_and_wait {job_arguments job_count run_job_count case pe_name} {
    global ts_config
 
-   set job_id [submit_job "-pe round_robin 1-$job_count $job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   set job_id [submit_job "-pe $pe_name 1-$job_count $job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
    while {1} {
       trigger_scheduling
@@ -483,7 +490,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 6
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a"
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "fill_up"
   
       # case b) 
       #           5 jobs run, 1 have to wait
@@ -492,7 +500,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "b" $GLOBALLY
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "fill_up"
    
       # case c)
       #           5 jobs run, 1 have to wait
@@ -504,7 +513,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "c" $GLOBALLY
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "fill_up"
 
       # case d)
       #           5 jobs run, 1 have to wait
@@ -513,7 +523,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 6
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "d" $GLOBALLY
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "fill_up"
 
       # case e)
       #        2 jobs run, 4 have to wait
@@ -529,7 +540,8 @@ proc consumable_resources_test {} {
 
       # this tests issue 1745.
       # if {$ts_config(gridengine_version) >= 62} {
-      #   consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e"
+      #   consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" "round_robin"
+      #   consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" "fill_up"
       # }
       
       # clean up
@@ -570,7 +582,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 6
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a"
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "fill_up"
 
       # case b) 
       #           5 jobs run, 1 have to wait
@@ -580,7 +593,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "b" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "fill_up"
      
       # case ba)
       #   issue : 1761
@@ -599,7 +613,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "c" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "fill_up"
    
       # case d)
       #           6 jobs run, 0 have to wait
@@ -608,7 +623,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 6
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "d" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "fill_up"
 
       # case e)
       #        2 jobs run, 4 have to wait
@@ -623,7 +639,8 @@ proc consumable_resources_test {} {
       set run_job_count 2
 
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "e" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" "fill_up"
 
       #clean up
       set queue_settings(load_thresholds) "np_load_avg=11.75"
@@ -658,7 +675,8 @@ proc consumable_resources_test {} {
       set job_count 11
       set run_job_count 11
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a"
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "fill_up"
 
       # case b
       set WRONGGLOBAL [translate_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS "*" "*"]
@@ -668,7 +686,8 @@ proc consumable_resources_test {} {
       set job_count 11
       set run_job_count 10
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "b" $RUNINQUEUE "" $WRONGGLOBAL
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "fill_up"
 
       # case c
       ts_log_fine "\ncase c)"
@@ -679,7 +698,8 @@ proc consumable_resources_test {} {
       set job_count 11
       set run_job_count 10
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "c" $RUNINQUEUE
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c" "fill_up"
 
       set RUNINQUEUE [translate_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS "*" "*" "*test3=2*"]
       #case d
@@ -688,7 +708,8 @@ proc consumable_resources_test {} {
       set job_count 11
       set run_job_count 2
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "d" $RUNINQUEUE
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "d" "fill_up"
 
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
@@ -733,7 +754,8 @@ proc consumable_resources_test {} {
       set job_count 3
       set run_job_count 2
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a" $RUNINQUEUE
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" "fill_up"
 
       #case aa
       ts_log_fine "\ncase aa)"
@@ -743,7 +765,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 3
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "aa" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "aa"      
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "aa" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "aa" "fill_up"
 
       #case ab
       ts_log_fine "\ncase ab)"
@@ -753,7 +776,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "ab" $GLOBALLY
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count  "ab"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count  "ab" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count  "ab" "fill_up"
 
       #case b
       ts_log_fine "\ncase b)"
@@ -763,7 +787,8 @@ proc consumable_resources_test {} {
       set job_count 4
       set run_job_count 3
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "b" $RUNATHOST
-      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "b" "fill_up"
 
       #case c
       ts_log_fine "\ncase c)"
@@ -772,7 +797,8 @@ proc consumable_resources_test {} {
       set job_count 6
       set run_job_count 5
       consumable_resources_submit_jobs_and_wait $job_arguments1 $job_count $run_job_count $job_arguments2 "c" $GLOBALLY
-      consumable_resources_submit_pejobs_and_wait $job_arguments2 $job_count $run_job_count "c" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments2 $job_count $run_job_count "c" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments2 $job_count $run_job_count "c" "fill_up"
 
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
@@ -808,7 +834,8 @@ proc consumable_resources_test {} {
       set job_count 1
       set run_job_count 0
       consumable_resources_submit_jobs_and_wait $job_arguments1 $job_count $run_job_count $job_arguments2 "a" $FORCED
-      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a" 
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a" "fill_up"
 
 
       # case b
@@ -818,7 +845,8 @@ proc consumable_resources_test {} {
       set job_count 1
       set run_job_count 1
       consumable_resources_submit_jobs_and_wait $job_arguments1 $job_count $run_job_count $job_arguments2 "b"
-      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "b"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "b" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "b" "fill_up"
 
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
@@ -864,7 +892,8 @@ proc consumable_resources_test {} {
       lappend queue_check "a"
 
       consumable_resources_submit_jobs_and_wait $job_arguments1 $job_count $run_job_count $job_arguments2 "" "a" $queue_check
-      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a"
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a" "round_robin"
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a" "fill_up"
 
       set queue_settings(load_thresholds) "np_load_avg=11.75"
       set queue_settings(complex_values) "NONE"

@@ -1,3 +1,6 @@
+RD-2009-02-26-0: Bugfix:     enhanced consumables_resources test
+                 Review:     CR
+
 RH-2009-02-25-0: Bugfix:     Hedeby: mpjslo_parallel_and_array_job failed if after
                              the resource movement the resource request quantity was 
                              not immediately correct.
