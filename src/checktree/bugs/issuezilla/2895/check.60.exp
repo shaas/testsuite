@@ -221,6 +221,9 @@ proc issue_2895_run {} {
       if {$ts_config(gridengine_version) >= 62} {
          set possible_error_text_2 [translate_macro MSG_COM_CANTREGISTER_SS "*" "*"]
          set possible_error_text_3 [translate_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SU "*" "*"]
+      } elseif {$ts_config(gridengine_version) <= 60} {
+         set possible_error_text_2 [translate_macro MSG_COM_CANTREGISTER_S "*"]
+         set possible_error_text_3 [translate_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SSSU "*" "*" "*" "*"]
       } else {
          set possible_error_text_2 [translate_macro MSG_COM_CANTREGISTER_S "*"]
          set possible_error_text_3 [translate_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SU "*" "*"]
