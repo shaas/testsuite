@@ -41,18 +41,19 @@ set check_init_level_procedure "issue_2895_init_level"
 set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
 set check_name                "issue_2895"
 set check_description(0)      "check that execd does not stop on access denied error from qmaster"
+set check_description(1)      "check that never ever connected execd does not stop on access denied error from qmaster"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
 set check_root_access_needs   "yes"
 set check_need_running_system "no" 
 
 # setup and cleanup functions
-set check_setup_function "issue_2895_setup"
-set check_cleanup_function "issue_2895_cleanup"
+set check_setup_level_function "issue_2895_setup"
+set check_cleanup_level_function "issue_2895_cleanup"
 
 # define test's procedure order
 set check_functions           ""
 lappend check_functions       "issue_2895_run"
-set check_highest_level       0
+set check_highest_level       1
 
 proc issue_2895_init_level {} {
    global CHECK_ACT_LEVEL ts_config
@@ -60,8 +61,12 @@ proc issue_2895_init_level {} {
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {
       "0"  { 
-         return 0  ;# client and server multi threaded
+         return 0
       }
+      "1"  { 
+         return 0
+      }
+
    }
    return -1
 }
@@ -153,7 +158,6 @@ proc issue_2895_cleanup {} {
       startup_qmaster
    }
 
-   # 
    if {[is_daemon_running $host_aliases_test_host "execd"] == 0} {
       ts_log_fine "execd on test host \"$host_aliases_test_host\" is not running anymore, restarting ..."
       startup_execd $host_aliases_test_host
@@ -240,33 +244,69 @@ proc issue_2895_run {} {
       # Shutdown the qmaster
       shutdown_system_daemon $ts_config(master_host) "sched"
       shutdown_system_daemon $ts_config(master_host) "qmaster"
- 
-
       ts_log_fine "qmaster should be down now"
 
-      # Restart qmaster (now the host_aliases file is used)
-      startup_qmaster
+      if {$CHECK_ACT_LEVEL == 1} {
+         # shutdown execd
+         shutdown_system_daemon $host_aliases_test_host "execd"
+         ts_log_fine "execd $host_aliases_test_host should be down now"
+                  
+         # move host_aliases file
+         set move_away_cmd "$ts_config(product_root)/$ts_config(cell)/common/host_aliases $ts_config(product_root)/$ts_config(cell)/common/host_aliases.tmp"
+         set move_back_cmd "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.tmp $ts_config(product_root)/$ts_config(cell)/common/host_aliases"
 
-      set wait_list {}
-      lappend wait_list $possible_error_text_2
-      set log_text [logfile_wait $possible_error_text_3 180 0 1 "logfile_wait_error" $wait_list]
+         start_remote_prog $host_aliases_test_host $CHECK_USER "mv" "$move_away_cmd"
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.tmp"
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" 60 1 1
 
-      if {[string match "*$possible_error_text_3*" $log_text] == 1} {
+         # restart execd
+         startup_execd $host_aliases_test_host
+
+         # re-move host_aliases file
+         start_remote_prog $host_aliases_test_host $CHECK_USER "mv" "$move_back_cmd"
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.tmp" 60 1 1
+
+         # close old logfile tail and re-init new one      
          close_logfile_wait
-         append error_text "found shutdown logging in execd messages file!\n"
-         ts_log_severe $error_text
-         return
+         init_logfile_wait $host_aliases_test_host $execd_messages_file
+
+         # Restart qmaster (now the host_aliases file is used)
+         startup_qmaster
+
+         # Here we have to wait for 120 seconds to give execd time to get access denied
+         # and do a exit to detect the issue
+         ts_log_fine "sleeping for 120 seconds ..."
+         after 120000
+         ts_log_fine "continue"
       }
 
-      # We have to check this 2 times to find the error !!!
-      # This is to be sure that execd get's it's time to shutdown. If we get no execd shutdown
-      # message during this time execd will not shutdown and issue is fixed
-      set log_text [logfile_wait $possible_error_text_3 120 0 0 "logfile_wait_error" $wait_list]
-      if {[string match "*$possible_error_text_3*" $log_text] == 1} {
-         close_logfile_wait
-         append error_text "found shutdown logging in execd messages file!\n"
-         ts_log_severe $error_text
-         return
+      if {$CHECK_ACT_LEVEL == 0} {
+
+         # Restart qmaster (now the host_aliases file is used)
+         startup_qmaster
+
+         set wait_list {}
+         lappend wait_list $possible_error_text_2
+         set log_text [logfile_wait $possible_error_text_3 180 0 1 "logfile_wait_error" $wait_list]
+
+         if {[string match "*$possible_error_text_3*" $log_text] == 1} {
+            close_logfile_wait
+            append error_text "found shutdown logging in execd messages file!\n"
+            ts_log_severe $error_text
+            return
+         }
+
+         # We have to check this 2 times to find the error !!!
+         # This is to be sure that execd get's it's time to shutdown. If we get no execd shutdown
+         # message during this time execd will not shutdown and issue is fixed
+         set log_text [logfile_wait $possible_error_text_3 120 0 0 "logfile_wait_error" $wait_list]
+         if {[string match "*$possible_error_text_3*" $log_text] == 1} {
+            close_logfile_wait
+            append error_text "found shutdown logging in execd messages file!\n"
+            ts_log_severe $error_text
+            return
+         }
       }
 
       ts_log_fine "now shutdown the master again ..."
