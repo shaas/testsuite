@@ -108,11 +108,9 @@ proc ambiguous_resource_reset_init_level {} {
 #     assigned/ambiguous_resource_reset_cleanup()
 #*******************************************************************************
 proc ambiguous_resource_reset_setup {} {
-   global ambiguous_resource_reset_current_cluster_config   
-   global ambiguous_resource_reset_is_set
-   
-   set ambiguous_resource_reset_current_cluster_config [get_current_cluster_config_nr]   
-   set ambiguous_resource_reset_is_set 0
+   upvar #0 ambiguous_resource_reset_ctx this
+  
+   set this(reset_is_set) 0
 }
 
 #****** assigned/ambiguous_resource_reset_cleanup() ***************************
@@ -139,17 +137,14 @@ proc ambiguous_resource_reset_setup {} {
 #     assigned/ambiguous_resource_reset_setup()
 #*******************************************************************************
 proc ambiguous_resource_reset_cleanup {} {
-   global ambiguous_resource_reset_current_cluster_config
-   global ambiguous_resource_reset_is_set
-   global hedeby_config
+   upvar #0 ambiguous_resource_reset_ctx this
    
    # reset ambiguous resource
-   if { $ambiguous_resource_reset_is_set != 0 } {
+   if { $this(reset_is_set) != 0 } {
         reset_produced_ambiguous_resource  ;# this procedore already calls reset if failed
    }
 
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $ambiguous_resource_reset_current_cluster_config
+   unset this
 }
 
 #****** assigned/ambiguous_resource_reset_check() *****************************
@@ -163,7 +158,7 @@ proc ambiguous_resource_reset_cleanup {} {
 #     This test will create an ambiguous resource and will trigger a reset on it.
 #
 #     actions:
-#        1) Produce an ambiguous resource
+#        Step 1: Produce an ambiguous resource
 #        2) Perform "sdmadm reset" on the resource
 #        3) Check that 
 #           a) all resource attributes are as before reset was triggered
@@ -181,95 +176,106 @@ proc ambiguous_resource_reset_cleanup {} {
 #     assigned/ambiguous_resource_reset_cleanup()
 #*******************************************************************************
 proc ambiguous_resource_reset_check {} {
-   global hedeby_config
-   global CHECK_ACT_LEVEL
-   global ambiguous_resource_reset_is_set
-   
-   # get some global settings
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set ge_hosts [get_hedeby_default_services service_names]
-   set exec_host $hedeby_config(hedeby_master_host)
+   upvar #0 ambiguous_resource_reset_ctx this
 
-   # init text array for reporting errors
-   # (errors are logged at the end of the test)
-   set error_text ""
-
+   # --------------------------------------------------------------------------------------
+   ts_log_heading "Step 1: Produces ambiguous resource"
+   # --------------------------------------------------------------------------------------
    # produce ambiguous resource
-   set retval [produce_ambiguous_resource rst srv]
-
-   if { $retval == 0 } {
-        ts_log_fine "got ambiguous resource $rst, test can continue"
-        set ambiguous_resource_reset_is_set 1
-
-        # check the resource attributes (to be sure it is ambiguous and for later comparison)
-        set retval_gri [get_resource_info $exec_host $admin_user resource_info1 rp1 rl1 amb1]
-        if { $retval_gri == 0 } {
-            set rflags $resource_info1($rst,flags)
-            if {[string match "$rflags" "A A"]} {
-                ts_log_fine "resource $rst has correct flags" 
-
-                # prepare sdmadm command and start it ...
-                set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
-                set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-
-                # build expected output message from bundle properties file ... 
-                set xyz(0) "$rst*"
-                set expected_output [create_bundle_string "rm.resr.non_unique_res" xyz]
-                ts_log_fine "expected output: $expected_output"
-                # get sdmadm output message string ...
-                set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
-                ts_log_fine "output message is: $output_message"
-
-                # compare the output with the expected output ...
-                if {[string match "$expected_output" $output_message]} {
-                    ts_log_fine "output is matching!"
-                } else {
-                    append error_text "The output message doesn't match expected output\n"
-                    append error_text "Expected output: \"$expected_output\"\n"
-                    append error_text "Received output: \"$output_message\"\n"
-                }
-
-                if { $prg_exit_state != 2 } {
-                    append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
-                } else {
-                    ts_log_fine "The exit state \"$prg_exit_state\" does match the expected exit state \"2\"\n"                    
-
-                    # get resource informations (updated), wait some time (we could use wait_for_resource_info, but it'd be more complicated)
-                    ts_log_fine "getting updated resource information"
-
-                    # we wait till resource info might be updated 
-                    # TODO: It would be nice to have a possibilty to wait that resource provider or any other service gets an expected event
-                    #       before continue the test, so that we don't have to wait to long and we always assume that updates are done within
-                    #       a specified timeout. Perhaps we should use the monitor component?
-                    after 15000
-
-                    set retval_gri [get_resource_info $exec_host $admin_user resource_info2 rp2 rl2 amb2]
-                    if { $retval_gri == 0 } {
-                        set ri_comparison [compare_resource_infos [array get resource_info1] [array get rp1] $rl1 $amb1 [array get resource_info2] [array get rp2] $rl2 $amb2 etext ]
-                        if { $ri_comparison == 0} {
-                            ts_log_fine "before/after reset resources information are the same"
-                        } else {
-                            append error_text $etext
-                        }
-                    } else {
-                        append error_text "getting an updated resource info failed, test can not continue\n"
-                    }                    
-                }
-            } else {
-                append error_text "resource $rst does not have correct flags: $rflags, test can not continue\n"
-            }
-        } else {
-            append error_text "getting a resource info failed, test can not continue\n"
-        }
-       
-   } else {
-      append error_text "producing a ambiguous resource failed, test can not continue\n"
+   if { [produce_ambiguous_resource rst srv] != 0 } {
+      ts_log_severe "Could not produce an ambiguous resource"
+      return
    }
-                  
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
+   set this(reset_is_set) 1
+   ts_log_fine "got ambiguous resource $rst, test can continue"
+
+   set opts(timeout)  60
+   set opts(res_info) ri1 
+   set opts(res_prop) rp1
+   set opts(res_list) rl1
+   set opts(res_list_not_uniq) amb1
+
+   if { [string compare $srv "spare_pool"] < 0 } {
+      set exp_ri($rst,service) "$srv spare_pool"
+      set exp_ri($rst,usage)   "50 1"
+   } else {
+      set exp_ri($rst,service) "spare_pool $srv"
+      set exp_ri($rst,usage)   "1 50"
+   }
+   set exp_ri($rst,flags)   "A A"
+   set exp_ri($rst,state)   "ASSIGNED ASSIGNED"
+   if { [wait_for_resource_info_opt exp_ri opts] != 0 } {
+      return
+   }
+   unset opts
+   unset exp_ri
+ 
+   # --------------------------------------------------------------------------------------
+   ts_log_heading "Step 2: Reseting ambiguous resource '$rst'"
+   # --------------------------------------------------------------------------------------
+   set opts(raise_error) 0 
+   set opts(table_output) table
+   sdmadm_command_opt "rsr -r $rst" opts
+   if { $prg_exit_state != 2 } {
+        ts_log_severe "'sdmadm rsr' on an ambigious resource must end up with exit state 2, got $prg_exit_state"
+        return
+   } 
+   unset opts
+
+   # build expected output message from bundle properties file ... 
+   set xyz(0) "$rst*"
+   set expected_output [create_bundle_string "rm.resr.non_unique_res" xyz]
+   ts_log_fine "expected output: $expected_output"
+   # get sdmadm output message string ...
+   set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+   ts_log_fine "output message is: $output_message"
+
+   # compare the output with the expected output ...
+   if {[string match "$expected_output" $output_message]} {
+       ts_log_fine "output is matching!"
+   } else {
+       set    msg "The output message of 'sdmadm rsr' on an ambiguous resource doesn't match expected output\n"
+       append msg "Expected output: \"$expected_output\"\n"
+       append msg "Received output: \"$output_message\"\n"
+       ts_log_sever $msg
+       return
+   }
+
+   # --------------------------------------------------------------------------------------
+   ts_log_heading "Step 3: Check that resource '$rst' goes into ASSIGNED state"
+   # --------------------------------------------------------------------------------------
+   set opts(timeout)  60
+   set opts(res_info) ri2 
+   set opts(res_prop) rp2
+   set opts(res_list) rl2
+   set opts(res_list_not_uniq) amb2
+
+   if { [string compare $srv "spare_pool"] < 0 } {
+      set exp_ri($rst,service) "$srv spare_pool"
+      set exp_ri($rst,usage)   "50 1"
+   } else {
+      set exp_ri($rst,service) "spare_pool $srv"
+      set exp_ri($rst,usage)   "1 50"
+   }
+   set exp_ri($rst,flags)   "A A"
+   set exp_ri($rst,state)   "ASSIGNED ASSIGNED"
+   if { [wait_for_resource_info_opt exp_ri opts] != 0 } {
+      return
+   }
+   unset opts
+   unset exp_ri
+
+   # --------------------------------------------------------------------------------------
+   ts_log_heading "Step 4: Check that reset did not changed the resource properties"
+   # --------------------------------------------------------------------------------------
+  
+   set ri_comparison [compare_resource_infos [array get ri1] [array get rp1] $rl1 $amb1 [array get ri2] [array get rp2] $rl2 $amb2 etext ]
+   if { $ri_comparison == 0} {
+      ts_log_fine "before/after reset resources information are the same"
+   } else {
+      set msg    "Reset on ambiguous resource '$rst' changed the resource properties:\n"
+      append msg "$etext"
+      ts_log_severe $msg
+      return
    }
 }

@@ -3706,7 +3706,7 @@ proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
    }
 
    if { $opts(res_list_not_uniq) != "" } {
-      upvar $opts(res_list_not_uniq) res_lis_not_uniq
+      upvar $opts(res_list_not_uniq) res_list_not_uniq
    }
 
    return [wait_for_resource_info exp_info  $opts(timeout) $opts(raise_error) error_var\
@@ -8062,7 +8062,7 @@ proc compare_resource_infos { resource_info1 rp1 res_list1 res_list_not_uniq1 re
         if {[string match "$res_info1($rst,usage)" "$res_info2($rst,usage)"]} {
             ts_log_finer "resource $rst has the same usage in both resource infos"                            
         } else {
-            append result_et "resource infos differ: $res_info1($rst,usage), $res_info2($rst,usage)\n"
+            append result_et "Resource $rst has different usage: $res_info1($rst,usage), $res_info2($rst,usage)\n"
             return -1
         }      
         if {[llength $res_prop1($rst,prop_list)] == [llength $res_prop2($rst,prop_list)]} {

@@ -527,7 +527,7 @@ proc mpjslo_parallel_and_array_job_check_request { slo_name expected_quantity } 
       } else {
          set last_request_quantity $requested_quantity
          set last_request_quantity_not_changed_count 0
-         ts_log_file "Resource request quantity changed to $requested_quantity"
+         ts_log_fine "Resource request quantity changed to $requested_quantity"
          after 2000
       }
    }

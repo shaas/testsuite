@@ -194,9 +194,22 @@ proc hedeby_issue537_check {} {
    set params(0) $ctx(spare_pool)
    set params(1) $fakehost
    set params2(0) $fakehost
-   if { ![string match "*WARNING: [create_bundle_string Hostname.ex.nr params2]*" $output] ||
-        ![string match "*Error: [create_bundle_string AddSparePoolCliCommand.failed.host params]*" $output] } {
-        ts_log_severe "There was not expected error message after adding service $ctx(spare_pool) to fake host\noutput=$output"
+
+   set exp_msg(0) "WARNING: [create_bundle_string Hostname.ex.nr params2]"
+   set exp_msg(1) "Error: [create_bundle_string AddSparePoolCliCommand.failed.host params]"
+
+   #
+   #  Two output messages are expected 
+   #  1. the warning from the Hostname class that the host is not resolvable
+   #  2. the error message fro mthe AddSparePoolCliCommand
+   #
+   if { ![string match "*$exp_msg(0)*" $output] ||
+        ![string match "*$exp_msg(1)*" $output] } {
+        set msg "There was not expected error message after adding service $ctx(spare_pool) to fake host\noutput=$output"
+        append msg "\nExpected was\n"
+        append msg "$exp_msg(0)\n"
+        append msg "or\n$exp_msg(1)\n"
+        ts_log_severe $msg
         return
    }
    

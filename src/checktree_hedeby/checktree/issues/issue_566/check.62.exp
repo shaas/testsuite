@@ -232,16 +232,12 @@ proc hedeby_issue566_check {} {
       return
    }
 
-   if {[get_service_slo_info] != 0} {
-      ts_log_severe "There is a problem with getting spare pool SLO information.\n"
-      set this(err) "true"
-      return
-   }
-   
-   if {$ser_slo_info($this(spare_pool),PermanentRequestSLO,urgency) != 10} {
+   set slo_info($this(spare_pool),PermanentRequestSLO,urgency) 10
+   if { [wait_for_service_slo_info slo_info] != 0 } {
       ts_log_severe "SLO information from spare pool component is different than expected.\n"
       set this(err) "true"
       return
    }
+
 }
 
