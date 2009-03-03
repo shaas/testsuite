@@ -188,7 +188,12 @@ proc schedd_reconnect_after_timeout_test {} {
       set my_config(qmaster_params) "none"
       set_config my_config
       after 5000
-      if {[wait_for_connected_scheduler] == 0 } { 
+      set my_timeout 90
+      if {$ts_config(gridengine_version) < "61"} {
+         set my_timeout [expr (240 + 30)]
+         ts_log_fine "using larger timeout for ge version < 61! ($my_timeout s)"
+      }
+      if {[wait_for_connected_scheduler $my_timeout] == 0 } { 
          set schedd_reconnect_test_globals(restart_master) false
       }
    } else {

@@ -106,7 +106,6 @@ proc execd_reconnect_init_level {} {
 #
 #*******************************************************************************
 proc execd_reconnect_cleanup_level {} {
-   global ts_config
    global execd_reconnect_cleanup_level_do_cleanup
    ts_log_fine "cleanup level function ..."
    
@@ -148,10 +147,10 @@ proc execd_reconnect_cleanup_level {} {
 #*******************************************************************************
 proc execd_reconnect_test {} {
    global check_description
-   global ts_config 
    global CHECK_ACT_LEVEL
    global CHECK_USER
    global execd_reconnect_cleanup_level_do_cleanup
+   get_current_cluster_config_array ts_config
 
    set execd_reconnect_cleanup_level_do_cleanup 1
 
@@ -205,7 +204,7 @@ proc execd_reconnect_test {} {
       ts_log_fine "Waiting for hard coded \"check qmaster alive\" timeout. Continue in $time_diff seconds ..."
       after 10000
    }
-   
+
    # 4) now restart qmaster and scheduler
    startup_qmaster
 
@@ -222,12 +221,25 @@ proc execd_reconnect_test {} {
       set execd_reconnect_cleanup_level_do_cleanup 0
    }
    
-   qhost_parse output jobs "-l h=$execd_name"
    set host_load "-"
-   if {[info exists output(host0,load_avg)]} {
-      set host_load $output(host0,load_avg)
+   if {$ts_config(gridengine_version) >= 61} {
+      qhost_parse output jobs "-l h=$execd_name"
+      if {[info exists output(host0,load_avg)]} {
+         set host_load $output(host0,load_avg)
+      }
+   } else {
+      qhost_parse output jobs
+      for {set i 0} {$i < $jobs} {incr i 1} {
+         if {[info exists output(host$i,load_avg)]} {
+            set host_name $output(host$i,name)
+            if {[resolve_host $execd_name] == [resolve_host $host_name]} {
+               set host_load $output(host$i,load_avg)
+               ts_log_fine "host: $output(host$i,name) has load $host_load"
+            }
+         }
+      }
    }
-
+   
    ts_log_fine "load of host $execd_name is \"$host_load\""
    if {$host_load >= 0.0} {
       ts_log_fine "load is ok!"

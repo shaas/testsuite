@@ -121,9 +121,9 @@ proc qresub_cleanup {} {
 #
 #*******************************************************************************
 proc qresub_minus_h_u_option { } {
-   global ts_config
    global nonadmin_user
-   
+   get_current_cluster_config_array ts_config
+
    # -h | -h {u|s|o|n|U|O|S}...
 
    # `u'  denotes a user hold.
@@ -164,9 +164,9 @@ proc qresub_minus_h_u_option { } {
 #
 #*******************************************************************************
 proc qresub_minus_h_s_option { } {
-   global ts_config
    global nonadmin_user
    global operator
+   get_current_cluster_config_array ts_config
 
    # `s'  denotes a system hold.
 
@@ -239,9 +239,10 @@ proc qresub_minus_h_s_option { } {
 #
 #*******************************************************************************
 proc qresub_minus_h_o_option { } {
-   global ts_config
    global nonadmin_user
    global operator
+   get_current_cluster_config_array ts_config
+
 
    # `o'  denotes an operator hold.
    # --------------------------------------------------------------------
@@ -313,20 +314,22 @@ proc qresub_minus_h_o_option { } {
 #
 #*******************************************************************************
 proc qresub_minus_help_option { } {
-   global ts_config
    global nonadmin_user
+   get_current_cluster_config_array ts_config
    
    set ret [resubmit_job "-help"]
    if { $ret != 2 } {
       ts_log_severe "Error code from qresub -help was: $ret"
    }
    
+   
    # check return code
    set output [start_sge_bin "qresub" "-help" $ts_config(master_host) $nonadmin_user]
-   
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "The return code of qresub -help was not 0 ($prg_exit_state)!"
-   }  
+   if {$ts_config(gridengine_version) >= "61"} {
+      if { $prg_exit_state != 0 } {
+         ts_log_severe "The return code of qresub -help was not 0 ($prg_exit_state)!"
+      }
+   }
    
    # check return code
    set output_no_option [start_sge_bin "qresub" "" $ts_config(master_host) $nonadmin_user]
@@ -357,10 +360,10 @@ proc qresub_minus_help_option { } {
 #
 #*******************************************************************************
 proc qresub_check_permissions { } {
-   global ts_config
    global ts_user_config
    global nonadmin_user
    global operator
+   get_current_cluster_config_array ts_config
 
    # -----------------------------------------------
    # submit as nonadmin_user and resubmit as manager  
@@ -416,9 +419,9 @@ proc qresub_check_permissions { } {
 #
 #*******************************
 proc qresub_issue_2726 { } {
-   global ts_config
    global qresub_queue
    global nonadmin_user
+   get_current_cluster_config_array ts_config
 
    # This jobs has to be long enough to survive the starting of the next jobs
    set job_id [submit_job "-o /dev/null -e /dev/null -q $qresub_queue -b y sleep 2" 1 60 $ts_config(master_host) $nonadmin_user]

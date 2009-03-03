@@ -1,3 +1,8 @@
+CR-2009-03-03-1: Bugfix:     fixed tests to support 60 version tests
+                             (qhost, qresub, execd reconnect, scheduler
+                              reconnect)
+                 Review:     RD
+
 CR-2009-03-03-0: Enhancem.:  o new test for IZ #505
                  Issue:      288
                              o shutdown_core_system(): also look for core 
