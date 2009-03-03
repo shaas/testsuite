@@ -591,6 +591,76 @@ proc startup_execd { hostname {envlist ""}} {
    return 0
 }
 
+#****** sge_procedures/startup_execd_with_fd_limit() ************************
+#  NAME
+#     startup_execd_with_fd_limit() -- startup execution daemon
+#
+#  SYNOPSIS
+#     startup_execd_with_fd_limit { host fd_limit {envlist ""} } 
+#
+#  FUNCTION
+#     This procedure is used to startup an execution daemon of grid engine 
+#     with special file descriptor limit settings.
+#
+#  INPUTS
+#     host         - host where to start an execd
+#     fd_limit     - file descriptor limit value
+#     {envlist ""} - additional user environment variables to set
+#
+#  RESULT
+#     The parsed output value of ulimit -Sn call which is the used
+#     soft file descriptor limit setting before starting the execd.
+#
+#  SEE ALSO
+#     sge_host/get_FD_SETSIZE_for_host()
+#     sge_host/get_shell_fd_limit_for_host()
+#     sge_procedures/startup_execd_with_fd_limit()
+#*******************************************************************************
+proc startup_execd_with_fd_limit { host fd_limit {envlist ""}} {
+   global CHECK_ADMIN_USER_SYSTEM
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
+   upvar $envlist my_envlist
+
+   set used_fd_limit -1
+   set arch [resolve_arch $host]
+   set execd_bin "$ts_config(product_root)/bin/$arch/sge_execd"
+
+
+   if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+      if {[have_root_passwd] != 0} {
+         ts_log_warning "no root password set or ssh not available"
+         return -1
+      }
+      set startup_user "root"
+   } else {
+      set startup_user $CHECK_USER
+   }
+
+   ts_log_fine "starting up execd on host \"$host\" as user \"$startup_user\" with file descriptor limit set to \"$fd_limit\" ..."
+   
+   set startup_arguments "-Hn $fd_limit ; ulimit -Sn $fd_limit ; echo \"--ulimit-output--\" ; ulimit -Sn ; $execd_bin ; sleep 2"
+   set output [start_remote_prog "$host" "$startup_user" "ulimit" $startup_arguments prg_exit_state 60 0 $ts_config(product_root) my_envlist]
+
+   if {$prg_exit_state != 0} {
+      ts_log_severe "starting execd on host $host as user $startup_user returned $prg_exit_state\noutput:\n$output"
+   }
+
+   set found 0
+   foreach line [split $output "\n"] {
+      if {$found == 1} {
+         set used_fd_limit [string trim $line]
+         break
+      }
+      if {[string match "*--ulimit-output--*" $line]} {
+         set found 1
+      }
+   }
+   ts_log_fine "execd started with fd soft limit set to \"$used_fd_limit\""
+
+   return $used_fd_limit
+}
+
 #                                                             max. column:     |
 #****** sge_procedures/startup_bdb_rpc() ******
 # 

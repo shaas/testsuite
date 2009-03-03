@@ -867,3 +867,101 @@ proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
    }
    return 0
 }
+
+#****** sge_host/get_FD_SETSIZE_for_host() *************************************
+#  NAME
+#     get_FD_SETSIZE_for_host() -- get FD_SETSIZE value for a host
+#
+#  SYNOPSIS
+#     get_FD_SETSIZE_for_host { host } 
+#
+#  FUNCTION
+#     Starts the test binary test_general on the specified host and parses
+#     the output. If FD_SETSIZE line is found return the value.
+#
+#  INPUTS
+#     host - host where to start "test_general" binary
+#
+#  RESULT
+#     parsed output of test_general -> FD_SETSIZE value
+#
+#  SEE ALSO
+#     sge_host/get_FD_SETSIZE_for_host()
+#     sge_host/get_shell_fd_limit_for_host()
+#     sge_procedures/startup_execd_with_fd_limit()
+#*******************************************************************************
+proc get_FD_SETSIZE_for_host { host } {
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
+   
+   set up_arch [resolve_build_arch $host]
+   set binary_path $ts_config(source_dir)/$up_arch/test_general
+
+   if {[is_remote_file $host $CHECK_USER $binary_path 1] == 0} {
+      ts_log_severe "binary \"$binary_path\" not found on host \"$host\""
+      return ""
+   }
+
+   set output [start_remote_prog $host $CHECK_USER $binary_path ""]
+   set fd_set_size ""
+   foreach line [split $output "\n"] {
+      if {[string match "*FD_SETSIZE*" $line]} {
+         set fd_set_size [string trim [lindex [split $line ":"] 1]]
+         break
+      }
+   }
+
+   if {$fd_set_size == ""} {
+      ts_log_severe "cannot get FD_SETSIZE for host \"$host\""
+   }
+   ts_log_finer "FD_SETSIZE=$fd_set_size on host \"$host\""
+   return $fd_set_size
+}
+
+
+#****** sge_host/get_shell_fd_limit_for_host() *********************************
+#  NAME
+#     get_shell_fd_limit_for_host() -- get /bin/sh limit setting of host
+#
+#  SYNOPSIS
+#     get_shell_fd_limit_for_host { host user {mode "soft"} } 
+#
+#  FUNCTION
+#     This procedure is starting ulimit in the /bin/sh shell to parse
+#     the file descriptor limit setting.
+#
+#  INPUTS
+#     host          - host of interest
+#     user          - user who starts the shell
+#     {mode "soft"} - if "soft": get soft limit
+#                     if "hard": get hard limit
+#
+#  RESULT
+#     the limit value of file descriptor limit
+#
+#  SEE ALSO
+#     sge_host/get_FD_SETSIZE_for_host()
+#     sge_host/get_shell_fd_limit_for_host()
+#     sge_procedures/startup_execd_with_fd_limit()
+#*******************************************************************************
+proc get_shell_fd_limit_for_host { host user {mode "soft"} } {
+
+   set command ""
+
+   if {$mode == "soft"} {
+      set command "-Sn"
+   } 
+   if {$mode == "hard"} {
+      set command "-Hn"
+   }
+   if {$command == ""} {
+      ts_log_severe "wrong argument: $mode\nSupported is \"hard\" or \"soft\""
+      return ""
+   }
+
+   set output [start_remote_prog $host $user "ulimit" $command]
+   set ret_val [string trim $output]
+   ts_log_finer "fd $mode limit on host $host for user $user is $ret_val"
+   return $ret_val
+}
+

@@ -1,3 +1,15 @@
+CR-2009-03-03-0: Enhancem.:  o new test for IZ #505
+                 Issue:      288
+                             o shutdown_core_system(): also look for core 
+                               files in product root (SGE_ROOT) directory
+                             o check_for_core_files(): new optional parameter
+                               for deleteing core files if found
+                             o new procedure: startup_execd_with_fd_limit()
+                             o new procedure: get_FD_SETSIZE_for_host()
+                               (requires update of test module binaries)
+                             o new procedure: get_shell_fd_limit_for_host()
+                 Review:     DG
+
 RH-2009-03-02-0: Bugfix:     Hedeby: adjustments issue 618
                  Review:     RM
 

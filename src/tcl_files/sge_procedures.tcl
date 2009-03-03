@@ -7923,6 +7923,8 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       check_for_core_files $host "$spooldir"
    }
 
+   check_for_core_files $ts_config(master_host) $ts_config(product_root)
+
    # we might have secondary Grid Engine clusters
    # shut them down as well
    if {$with_additional_clusters} {

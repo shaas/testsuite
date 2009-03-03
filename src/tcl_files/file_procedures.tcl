@@ -2433,14 +2433,35 @@ proc remote_file_mkdir {hostname dir {win_local_user 0}} {
   return $result
 }
 
-proc check_for_core_files {hostname path} {
+#****** file_procedures/check_for_core_files() *********************************
+#  NAME
+#     check_for_core_files() -- search for core files
+#
+#  SYNOPSIS
+#     check_for_core_files { hostname path {do_remove 0} } 
+#
+#  FUNCTION
+#     This procedure is searching for core files in the specified directory
+#     and subdirectories. If found the core is chowned to CHECK_USER and an
+#     info e-mail is generated.
+#
+#  INPUTS
+#     hostname      - hostname where the core search is done
+#     path          - directory path for starting the search
+#     {do_remove 0} - if 1: delete the core if found
+#
+#  RESULT
+#     integer value: nr of cores found
+#*******************************************************************************
+proc check_for_core_files {hostname path {do_remove 0}} {
    global CHECK_USER
 
+   set nr_of_cores_found 0
    ts_log_fine "looking for core files in directory $path on host $hostname"
 
    # if directory does not (yet) exist, there can be no cores
    if {![remote_file_isdirectory $hostname $path 1]} {
-      return
+      return $nr_of_cores_found
    }
 
    # try to find core files in path
@@ -2454,6 +2475,7 @@ proc check_for_core_files {hostname path} {
          # strip trailing empty lines
          set core [string trim $core]
          if {[string length $core] > 0} {
+            incr nr_of_cores_found 1
             ts_log_finer "found core $core"
 
             # we need root access to determine file type (file may belong root)
@@ -2476,9 +2498,15 @@ proc check_for_core_files {hostname path} {
             if {$prg_exit_state != 0} {
                ts_log_severe "changing owner of core file $core on host $hostname failed: $output"
             }
+
+            # remove if set
+            if {$do_remove} {
+               delete_remote_file $hostname $CHECK_USER $core
+            }
          }
       }
    }
+   return $nr_of_cores_found
 }
 
 #****** file_procedures/remote_delete_directory() ******************************
@@ -2644,7 +2672,7 @@ proc delete_file_at_startup {filename} {
 #  RESULT
 #     no results 
 #
-#  TODO: use remote_delete_file where ever possible
+#  TODO: use delete_remote_file where ever possible
 #  SEE ALSO
 #     file_procedures/delete_directory
 #*******************************

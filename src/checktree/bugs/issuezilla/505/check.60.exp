@@ -1,0 +1,161 @@
+#!/vol2/TCL_TK/glinux/bin/expect --
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_highest_level
+global check_init_level_procedure check_category
+global check_root_access_needs check_need_running_system
+
+set check_init_level_procedure "issue_505_init_level"
+
+set check_category            "COMPATIBILITY SYSTEM VERIFIED COMMLIB"
+set check_name                "issue_505"
+set check_description(0)      "check if execd core dumps when fd limit set to value > FD_SETSIZE"
+set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
+set check_root_access_needs   "yes"
+set check_need_running_system "yes" 
+
+# setup and cleanup functions
+set check_setup_level_function "issue_505_setup"
+set check_cleanup_level_function "issue_505_cleanup"
+
+# define test's procedure order
+set check_functions           ""
+lappend check_functions       "issue_505_run"
+set check_highest_level       0
+
+proc issue_505_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   # setup levels 
+   switch -- $CHECK_ACT_LEVEL {
+      "0"  { 
+         return 0
+      }
+   }
+   return -1
+}
+
+proc issue_505_setup {} {
+   get_current_cluster_config_array ts_config
+}
+
+proc issue_505_cleanup {} {
+   get_current_cluster_config_array ts_config
+
+   set hosts [get_all_execd_hosts]
+   soft_execd_shutdown $hosts
+   foreach host $hosts {
+      startup_execd $host
+   }
+   wait_for_load_from_all_queues 60
+}
+
+
+#****** check.60/issue_505_run() ****************************************
+#  NAME
+#     issue_505_run() -- test host alias file
+#
+#  SYNOPSIS
+#     issue_505_run { } 
+#     1) shutdown all execds
+#     2) startup all execds with a file descriptor limit > FD_SETSIZE
+#     3) execd will core dump when issue 505 is found
+#
+#  FUNCTION
+#*******************************************************************************
+proc issue_505_run {} {
+   global CHECK_ADMIN_USER_SYSTEM
+   get_current_cluster_config_array ts_config
+
+   set error_text ""
+
+   # get all execed hosts
+   set hosts [get_all_execd_hosts]
+
+   # shutdown all execds
+   soft_execd_shutdown $hosts
+
+   foreach host $hosts {
+      # foreach host find out FD_SETSIZE and current shell limit
+      # restart execds with limit setting >= 65536 so that FD_SETSIZE is < limit setting
+      set fd_setsize [get_FD_SETSIZE_for_host $host]
+      set hard_limit [get_shell_fd_limit_for_host $host "root" "hard"]
+
+      if {$hard_limit > $fd_setsize} {
+         set my_limit $hard_limit
+      } else {
+         set my_limit [expr ( $fd_setsize * 2 )]
+      }
+
+      if {$my_limit < 65536} {
+         set my_limit 65536
+      }
+
+      set used_fds [startup_execd_with_fd_limit $host $my_limit]
+
+      # analyse result: check if limit was set correctly > FD_SETSIZE and no core was written
+      ts_log_fine "Used limit for file descriptors: $used_fds (FD_SETSIZE=$fd_setsize)"
+      if {$used_fds < $fd_setsize} {
+         append error_text "Can not set fd limit to a value higher than FD_SETSIZE ($fd_setsize) on host \"$host\". Used value was $used_fds!\n"
+      }
+
+      if {[check_for_core_files $host $ts_config(product_root) 1]} {
+         append error_text "found a core file in \"$ts_config(product_root)\" after starting execd on host \"$host\" - this might be issue #505! Core removed!\n"
+      }
+   }
+
+   # After restart all execd must be connected (very fast on restart)
+   if {[wait_for_load_from_all_queues 30 0] != 0} {
+      append error_text "not all execd did start - this might be issue #505!\n"
+   }
+   
+   # Still any core files in product root ?
+   if {[check_for_core_files $ts_config(master_host) $ts_config(product_root) 1]} {
+      append error_text "found a core file in \"$ts_config(product_root)\" - this might be issue #505! Core removed!\n"
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+
+
+
+
+
+
+
+
+
