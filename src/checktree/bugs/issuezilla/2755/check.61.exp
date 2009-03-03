@@ -1,0 +1,196 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions
+global check_category check_root_access_needs check_highest_level
+global CHECK_ACTUAL_TEST_PATH
+
+set check_root_access_needs  "yes"
+
+set check_name           "issue_2755"
+set check_category       "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level  0
+set check_description(0) "test of correct exit code during failure of uninstall"
+set check_needs          "init_core_system "      ;# dependencies of this check (name of other check)
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2755_init_level"
+
+# setup and cleanup functions
+set check_setup_function "issue_2755_setup"
+set check_cleanup_function "issue_2755_cleanup"
+
+set check_functions      {}
+lappend check_functions  "test_uninst"     ;# functions to call (in order)
+
+
+proc issue_2755_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1
+}
+
+proc issue_2755_setup {} {
+   global check_execd
+   global ts_config
+
+   # choose an execd host
+   # get a execd other than the master host
+   set check_execd "unknown"
+   foreach tmp_check_execd $ts_config(execd_nodes) {
+      if { $tmp_check_execd != $ts_config(master_host) } {
+         set check_execd $tmp_check_execd
+         break
+      }
+   }
+}
+
+proc issue_2755_cleanup {} {
+   global ts_config
+   global check_execd
+
+   # we need to add the execd to admin host again
+   add_adminhost $check_execd $ts_config(master_host)
+}
+
+
+proc test_uninst {} {
+   global ts_config
+   global CHECK_DEBUG_LEVEL
+   global check_execd
+
+   read_install_list
+   if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
+      ts_log_severe "inst_sge - inst_sge file not found"
+      return
+   }
+
+   # translate all macros needed during uninstallation and installation
+   set HIT_RETURN_TO_CONTINUE       [translate $check_execd 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
+   set CHECK_AGAIN                  [translate $check_execd 0 1 0 [sge_macro DISTINST_CHECK_AGAIN] ]
+   set FAIL_AFTER                   [translate $check_execd 0 1 0 [sge_macro DISTINST_INSTALL_FAIL] "*" ]
+   
+
+   ts_log_fine "CHECK_AGAIN: $CHECK_AGAIN"
+   ts_log_fine "HIT_RETURN_TO_CONTINUE: $HIT_RETURN_TO_CONTINUE"
+   ts_log_fine "FAIL_AFTER: $FAIL_AFTER"
+   # send command to start the uninstall on chosen host
+   ts_log_fine "Trying to uninstall execution host: $check_execd"
+   ts_log_fine "inst_sge -ux -host $check_execd"
+
+   set id [open_remote_spawn_process "$check_execd" "root"  "./inst_sge" "-ux -host \"$check_execd\"" 0 $ts_config(product_root)]
+
+   set sp_id [ lindex $id 1 ] 
+
+   set timeout 300
+  
+   #set CHECK_DEBUG_LEVEL 2
+   set do_log_output 0 ;# 1 _LOG
+   if { $CHECK_DEBUG_LEVEL == 2 } {
+      set do_log_output 1
+   }
+   log_user 1
+
+   set unset 0
+   set exit_status 0
+   expect {
+      -i $sp_id timeout { 
+         ts_log_severe "uninstall_execd - timeout while waiting for output"; 
+      }
+
+      -i $sp_id -- $HIT_RETURN_TO_CONTINUE {
+         ts_log_fine "\n -->testsuite: sending >RETURN<"
+         
+         if {$do_log_output == 1} {
+            puts "-->testsuite: press RETURN"
+            set anykey [wait_for_enter 1]
+         }
+
+         # After the uninstal starts we delete the host from the admin host list
+         # just once though, or else the del_adminhost procedure will cause an error
+         if {$unset == 0} {
+            ts_log_fine "TS: now doing: qconf -dh $check_execd"
+            set result1 [del_adminhost $check_execd]
+            log_user 1
+            set unset 1
+         }
+         ts_send $sp_id "\n"
+         exp_continue
+      }
+
+      -i $sp_id -- $CHECK_AGAIN { 
+         ts_log_fine "\n -->testsuite: sending >ANSWER_YES<"
+         
+         if {$do_log_output == 1} {
+            puts "-->testsuite: press RETURN"
+            set anykey [wait_for_enter 1]
+         }
+
+         ts_send $sp_id "y\n"
+         exp_continue
+      }
+
+      -i $sp_id -- $FAIL_AFTER {
+         ts_log_fine "Installation failed with the following error: $FAIL_AFTER"
+         exp_continue
+      }
+
+      -i $sp_id "_exit_status_:(*)" {
+         set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
+      }
+
+      -i $sp_id default {
+         ts_log_severe "uninstall_execd - undefined behaiviour: $expect_out(buffer)"
+      }
+   }
+
+   close_spawn_process $id
+
+
+   # test the exit code of the inst_sge -x call. This should be non zero since an error occurred.
+   if { $exit_status == 0 } {
+      ts_log_severe "uninstall failed and should NOT have returned exit code 0"
+   } else {
+      ts_log_fine "test uninstall failed like expected. Exit state was $exit_status"
+   }
+
+   ts_log_fine "uninstall done"
+}
+

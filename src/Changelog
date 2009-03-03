@@ -1,3 +1,7 @@
+MP-2009-03-03-0: Enhancem.:  Added test for IZ 2755
+                 Issue:      2755
+                 Review:     CR
+
 CR-2009-03-03-1: Bugfix:     fixed tests to support 60 version tests
                              (qhost, qresub, execd reconnect, scheduler
                               reconnect)

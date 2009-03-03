@@ -68,6 +68,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_HIT_RETURN_TO_CONTINUE_BDB_RPC" { set value "Hit <RETURN> to continue!" }
       "DISTINST_HOSTNAME_KNOWN_AT_MASTER" { set value "\nThis hostname is known at qmaster as an administrative host.\n\nHit <RETURN> to continue >>" }
       "DISTINST_CHECK_AGAIN" { set value "Check again (y/n) ('n' will abort) \[y\] >> " }
+      "DISTINST_AUTO_BOOT_AT_STARTUP" { set value "Do you want to start execd automatically at machine boot?\nNOTE: If you select \"n\" SMF will be not used at all! (y/n) \[y\]" }
       "DISTINST_NOT_COMPILED_IN_SECURE_MODE" { set value "\n>sge_qmaster< binary is not compiled with >-secure< option!\n" }
       "DISTINST_ENTER_HOSTS" { set value "Host(s): " }
       "DISTINST_VERIFY_FILE_PERMISSIONS1" { set value "\nWe may now verify and set the file permissions of your Grid Engine\ndistribution.\n\nThis may be useful since due to unpacking and copying of your distribution\nyour files may be unaccessible to other users.\n\nWe will set the permissions of directories and binaries to\n\n   755 - that means executable are accessible for the world\n\nand for ordinary files to\n\n   644 - that means readable for the world\n\nDo you want to verify and set your file permissions (y/n) \[y\] >> " }
@@ -120,6 +121,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_STARTUP_RPC_SERVER" { set value "*is completed, continue with <RETURN>" }
       "DISTINST_DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS" { set value "Don't know how to test for local filesystem. Exit." }
       "DISTINST_CURRENT_GRID_ROOT_DIRECTORY" { set value "The Grid Engine root directory is:\n\n   \\\$SGE_ROOT = %s\n\nIf this directory is not correct (e.g. it may contain an automounter\nprefix) enter the correct path to this directory or hit <RETURN>\nto use default \[%s\] >> " }
+      "DISTINST_INSTALL_FAIL" { set value "Uninstallation  failed after %s retries" }
       "DISTINST_DATABASE_LOCAL_SPOOLING" { set value "Do you want to use a Berkeley DB Spooling Server? (y/n) \[n\] >> " }
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. You\nmust have the right to create this directory and to write into it.\n" }
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. User >%s<\nmust have the right to create this directory and to write into it.\n" }
