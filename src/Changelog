@@ -22,7 +22,6 @@ CR-2009-03-03-0: Enhancem.:  o new test for IZ #505
                              o new procedure: get_shell_fd_limit_for_host()
                  Review:     DG
 
->>>>>>> 1.879
 RH-2009-03-02-0: Bugfix:     Hedeby: adjustments issue 618
                  Review:     RM
 
