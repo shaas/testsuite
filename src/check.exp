@@ -8265,6 +8265,7 @@ proc testsuite_shutdown {exit_code} {
    if { $catch_return == 1 } {
       puts "testsuite_shutdown: $catch_error_message"
    }
+   ts_log_fine "testsuite_shutdown: exit_code = $exit_code"
    exit $exit_code
 }
 
