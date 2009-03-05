@@ -1,3 +1,20 @@
+CR-2009-03-05-0: Bugfix:     o wait_for_end_of_all_jobs():
+                               Wait until all jobs disappeared from spooling
+                               framework before returning
+                             o new procedure: get_spooled_jobs()
+                               Return currently spooled jobs (via spooling
+                               framework)
+                             o analyze_directory_structure(): 
+                               last parameter is now optional
+                             o fixed bug in scripts/analyze_dir.sh:
+                               if directory had no entries the script returned
+                               error message as directory name
+                             o refactoring: renamed submit_job() in file
+                               "submitter.tcl" to submitter_submit_job(). The
+                               procedure name "sumbit_job()" already exists
+                               in file "sge_procedures.tcl" 
+                 Review:     MD
+
 RH-2009-03-04-0: Enhancem.:  testsuite_shutdown method logs the exit code
                  Review:     CR
 

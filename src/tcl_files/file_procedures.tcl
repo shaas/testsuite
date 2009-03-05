@@ -190,7 +190,7 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
 #     dirs        - name of array where to store directory names
 #     files       - name of array where to store file names
 #     permissions - name of array for permissions of file names
-#     ignore      - list directories to ignore
+#     {ignore {}} - optional: list directories to ignore
 #
 #  RESULT
 #     undefined
@@ -206,7 +206,7 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
 #                      where $FILE is a entry from files array
 #
 #*******************************************************************************
-proc analyze_directory_structure {host user path dirs files permissions ignore} {
+proc analyze_directory_structure {host user path dirs files permissions {ignore {}}} {
    global ts_config 
    upvar $dirs spool_directories
    upvar $files spool_files

@@ -65,8 +65,8 @@ if [ "$3" != "" ]; then
    echo "usage: analyze_dir.sh path dirs|files|fileperm"
    exit 1
 fi
-
-dirs=`find $1/* -name "*"`
+cd $1
+dirs=`find . -name "*"`
 for file in $dirs; do
    if [ "$2" = "dirs" ]; then
       if [ -d $file  ]; then

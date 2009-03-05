@@ -45,7 +45,7 @@ proc set_script { opts } {
    puts "SCRIPT OK"
 }
 
-proc submit_job { num_jobs add_opts } {
+proc submitter_submit_job { num_jobs add_opts } {
    global sge_root arch
    global submit_options script
 
@@ -117,7 +117,7 @@ while { !$do_exit } {
          set_script [lrange $expect_out(0,string) 1 end]
       }
       "SUBMIT*\n" {
-         submit_job [lindex $expect_out(0,string) 1] [lrange $expect_out(0,string) 2 end]
+         submitter_submit_job [lindex $expect_out(0,string) 1] [lrange $expect_out(0,string) 2 end]
       }
       "*\n" {
          puts "ERROR: invalid input:  $expect_out(0,string)"

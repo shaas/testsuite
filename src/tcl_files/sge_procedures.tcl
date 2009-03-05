@@ -892,7 +892,9 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     {timeout 60}              - timeout for command execution
 #     {cd_dir ""}               - directory to start command in
 #     {sub_path "bin"}          - component of binary path, e.g. "bin" or "utilbin"
-#     {line_array output_lines} - ???
+#     {line_array output_lines} - array containing output lines 
+#                                 Note: nr of lines = $output_lines(0) 
+#                                       first line  = $output_lines(1)
 #     {env_list ""}             - users envlist
 #
 #  RESULT
@@ -3489,6 +3491,8 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #
 #  SEE ALSO
 #     sge_procedures/wait_for_jobend()
+#     sge_procedures/wait_for_end_of_all_jobs()
+#     sge_procedures/get_spooled_jobs()
 #*******************************
 #
 proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
@@ -3500,7 +3504,26 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
       set result [start_sge_bin "qstat" "-s pr"]
       if {$prg_exit_state == 0} {
          if {[string trim $result] == ""} {
-            return 0
+            ts_log_finer "qstat -s pr shows no jobs ..."
+            while {1} {
+               # to be sure we also check that no job is spooled somewere
+               set spooled_jobs [get_spooled_jobs] 
+               if {[llength $spooled_jobs] == 0} {
+                  return 0
+               } else {
+                  ts_log_fine "Following jobs are still spooled: $spooled_jobs"
+                  set result "Following jobs are still spooled: $spooled_jobs"
+               }
+               # check timeout
+               if {$seconds > 0} {
+                  set runtime [expr [timestamp] - $time]
+                  if {$runtime >= $seconds} {
+                      ts_log_severe "timeout waiting for end of all jobs:\n\"$result\"" $raise_error
+                      return -1
+                  }
+               }
+               after 2500
+            }
          }
 
          # split each line as listelement
@@ -3517,7 +3540,6 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
         return -1
       }
       ts_log_progress
-      after 500
       
       # check timeout
       if {$seconds > 0} {
@@ -3527,7 +3549,78 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
              return -1
          }
       }
+      after 500
    }
+}
+
+#****** sge_procedures/get_spooled_jobs() **************************************
+#  NAME
+#     get_spooled_jobs() -- check spooling framework for jobs 
+#
+#  SYNOPSIS
+#     get_spooled_jobs { } 
+#
+#  FUNCTION
+#     This procedure returns a list of job ids which are currently spooled
+#     at qmaster. The procedure is using spooledit tool or checking the
+#     spool directory in case of classic spooling. 
+#
+#  INPUTS
+#     no inputs
+#
+#  RESULT
+#     list of currently found jobs in spooling framework
+#
+#  SEE ALSO
+#     sge_procedures/wait_for_end_of_all_jobs()
+#     sge_procedures/get_spooled_jobs()
+#*******************************************************************************
+proc get_spooled_jobs {} {
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
+  
+   set spooled_jobs_list {}
+   set supported 0
+
+   # BDB implementation
+   if {$ts_config(spooling_method) == "berkeleydb" } {
+      ts_log_finer "we have berkeleydb spooling ..."
+      set supported 1
+      set execute_host $ts_config(master_host)
+      if {$ts_config(bdb_server) != "none"} {
+         ts_log_finer "we have a bdb server host $ts_config(bdb_server) ..."
+         set execute_host $ts_config(bdb_server)
+         # don't know if this is necessary (execute host = dbd server host)
+      }
+      start_sge_bin "spooledit" "list" $execute_host $CHECK_USER prg_exit_state 60 "" "utilbin" out ""
+      for {set i 0} {$i <= $out(0)} {incr i 1} {
+         if {[string match "*JOB*" $out($i)]} {
+            set job_id [string trim [lindex [split $out($i) ":"] 1]]
+            lappend spooled_jobs_list [string trimleft $job_id "0"]
+         }
+      }
+   }
+
+   # classic implementation
+   if {$ts_config(spooling_method) == "classic" } {
+      ts_log_finer "we have classic spooling ..."
+      set supported 1
+      set execute_host $ts_config(master_host)
+      set spooldir [get_qmaster_spool_dir]
+      
+      analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" dirs files permissions
+      foreach file $files {
+         set job_id [file tail $file]
+         lappend spooled_jobs_list [string trimleft $job_id "0"]
+      }
+
+   }
+ 
+   if {$supported != 1} {
+      ts_log_severe "spooling method not supported"
+   }
+  
+   return $spooled_jobs_list
 }
 
 #                                                             max. column:     |
@@ -6288,7 +6381,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } { r
        while { [get_qstat_j_info $jobid ] != 0 } {
            if { [timestamp] > $my_timeout } {
               ts_log_severe "timeout while waiting for jobend" $raise_err
-              return -1 #TODO IS THIS OK?
+              return -1
            }
            after 1000
            ts_log_progress
