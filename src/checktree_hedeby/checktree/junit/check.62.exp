@@ -96,15 +96,50 @@ proc hedeby_junit_init_level {} {
 #     checktree_hedeby/hedeby_build()
 #***************************************************************************************************
 proc hedeby_junit_check {} {
-   
+   global hedeby_config 
+   global ts_config
+
    set java_build_host [host_conf_get_java_compile_host]
    
    report_create "hedeby_junit_tests" report 1 0
    report_add_message report "java build host is \"$java_build_host\""
 
+   set cs_port 0
+ 
+   # Try to find a user reserved port for the cs jvm of dummy systems
+   # for the junit tests.
+   #
+
+   # If the java_build_host is not equal to the hedeby master host we can
+   # reuse the cs port of the hedeby system
+
+   if { $java_build_host != $hedeby_config(hedeby_master_host) } {
+      set cs_port $hedeby_config(hedeby_cs_port)
+      ts_log_fine "Using cs port of Hedeby for junit tests ($cs_port)"
+   } else {
+      # Go through the testsuite managed cluster and find the first system
+      # where the qmaster is not running in the java build host
+      # Use the SGE_QMASTER_PORT of this cluster as CS port for the dummy systems
+
+      foreach filename $ts_config(additional_config) {
+         get_additional_config $filename add_config
+         if { $java_build_host != $add_config(master_host) } {
+             set cs_port $add_config(commd_port)
+             ts_log_fine "Using qmaster port of cluster $add_config(cluster_name) for junit tests ($cs_p rt)"
+             break
+         }
+      }
+   }
+   
+   if { $cs_port == 0 } {
+      set cs_port 7778
+      ts_log_fine "Using default cs port for junit tests ($cs_port)"
+   }
+
    # The timeout occurs if a junit does not output anything for 5 minutes 
    set timeout 900
-   set ant_options ""
+
+   set ant_options "-Dcs_dummy_port=$cs_port"
    
    set res [hedeby_build $java_build_host "test" report $ant_options $timeout]
    if { $res != 0 } {
