@@ -1,3 +1,6 @@
+CR-2009-03-05-2: Bugfix:     fixed cleanup procedure of test "share_tree"
+                 Review:     RD
+
 CR-2009-03-05-1: Bugfix:     fixed scheduler reconnect test for 61 versions
                  Review:     MD
 

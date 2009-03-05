@@ -530,40 +530,33 @@ proc share_tree_cleanup  {} {
    global CHECK_PRODUCT_TYPE 
    global prj1_id_list prj2_id_list prj3_id_list
    global sharetree_stored_configuration test_host
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-
+ 
+   # reset the schedd config to enable schedule interval again
    reset_schedd_config
 
-   ts_log_fine "ensure that no jobs are referenced in qmaster any longer ..."
-   foreach job [concat $prj1_id_list $prj2_id_list $prj3_id_list] {
-      ts_log_progress
-      set my_timeout [timestamp]
-      incr my_timeout 120
-      while {[get_qstat_j_info $job] != 0} {
-          ts_log_progress
-          if {[timestamp] > $my_timeout} {
-             delete_job $job 1
-             break
-          }
-          sleep 1
-      }
-      ts_log_fine " done"
-   }
+   # delete all jobs
+   delete_all_jobs
 
+   # wait for real end of all jobs
+   wait_for_end_of_all_jobs 60
+
+   # enable all queues again
    foreach elem $ts_config(execd_nodes) {
       enable_queue [get_queue_instance "all.q" $elem]
    }  
 
+   # remote test quque
    del_queue test $test_host 0 1
 
+   # delete the sharetree
    del_sharetree
 
+   # delete projects
    del_prj "project1"
    del_prj "project2"
    del_prj "project3"
 
+   # reset configuration
    set_config sharetree_stored_configuration
 }
 
