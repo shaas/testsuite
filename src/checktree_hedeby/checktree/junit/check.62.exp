@@ -137,18 +137,20 @@ proc hedeby_junit_check {} {
    }
 
    # The timeout occurs if a junit does not output anything for 5 minutes 
-   set timeout 900
+   set timeout 2700 ;# 45 minutes
 
-   set ant_options "-Dcs_dummy_port=$cs_port"
+   set junit_result_dir "$ts_config(results_dir)/hedeby_junit_results/[clock seconds]"
+
+   set ant_options "-Dcs_dummy_port=$cs_port -Dtest.report.dir=\"$junit_result_dir\""
    
-   set res [hedeby_build $java_build_host "test" report $ant_options $timeout]
+   set res [hedeby_build $java_build_host "testAndReport" report $ant_options $timeout]
    if { $res != 0 } {
       report_add_message report "Hedeby junit tests failed"
       report_finish report -1
-      ts_log_severe "Hedeby junit tests failed"
+      ts_log_severe "Hedeby junit tests failed\nResults stored at $junit_result_dir/index.html"
       return
    } else {
-      report_add_message report "Hedeby junit successfully executed"
+      report_add_message report "Hedeby junit successfully executed\nResults stored at $junit_result_dir/index.html"
       report_finish report 0
       return
    }
