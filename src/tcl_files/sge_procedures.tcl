@@ -3606,7 +3606,7 @@ proc get_spooled_jobs {} {
       ts_log_finer "we have classic spooling ..."
       set supported 1
       set execute_host $ts_config(master_host)
-      set spooldir [get_qmaster_spool_dir]
+      set spooldir [get_local_spool_dir $ts_config(master_host) "qmaster" 0]
       
       analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" dirs files permissions
       foreach file $files {
