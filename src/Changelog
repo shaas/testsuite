@@ -1,3 +1,7 @@
+CR-2009-03-12-2: Bugfix:     fixed new verified test "project_access_lists"
+                             for ge versions >= 62
+                 Review:     MD
+
 CR-2009-03-12-1: Cleanup:    removed "antique" global sge_config variable
                              and re-adjusted locations where it was used
                  Review:     AA

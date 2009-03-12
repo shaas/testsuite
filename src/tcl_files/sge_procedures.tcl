@@ -4710,10 +4710,6 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       ts_log_finest "added submit argument: -e /dev/null"
    }
 
-   if {$show_args == 1} {
-      ts_log_fine "job args: \"$args\""
-   }
-
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
 
    set ret [handle_sge_errors "submit_job" "$qcmd $args" $output messages $raise_error]
@@ -4735,6 +4731,9 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       default {
          set ret_code $ret
       }
+   }
+   if {$show_args == 1} {
+      ts_log_fine "job \"$ret_code\" submitted as \"$user\" with args=\"$args\""
    }
 
    # return job id or error code

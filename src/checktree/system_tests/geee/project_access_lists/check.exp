@@ -136,6 +136,10 @@ proc project_access_lists_setup {} {
    if { $ts_config(gridengine_version) == 53 } {
       set my_schedd_config(sgeee_schedule_interval) "0:0:02"
    }
+   # in SGE >= 62, schedd_info is turned off by default
+   if {$ts_config(gridengine_version) >= 62} {
+      set my_schedd_config(schedd_job_info) "true"
+   }
    set_schedd_config my_schedd_config
 
    set group1 [lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0]
