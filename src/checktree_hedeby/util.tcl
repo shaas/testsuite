@@ -2623,6 +2623,51 @@ proc reset_hedeby {{force 0}} {
    return 0
 }
 
+
+#****** util/hedeby_check_order_store() ***********************************
+#  NAME
+#     hedeby_check_order_store() -- check order store 
+#
+#  SYNOPSIS
+#     hedeby_check_order_store { } 
+#
+#  FUNCTION
+#     Check whether there are some orders in order store in resource provider
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success
+#     1 on error
+#
+#*******************************************************************************
+proc hedeby_check_order_store {} {
+   global hedeby_config
+   set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   set host $hedeby_config(hedeby_master_host)
+   set startup_user [get_hedeby_startup_user]
+   set orderspool "${spool_dir}/spool/resource_provider/resource_provider/orders"
+   set output [start_remote_prog $host $startup_user "ls" "-Al $orderspool | wc -l"]
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem with listing files from order store directory\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return 1
+   }
+   if {$output > 1} {
+       set output [start_remote_prog $host $startup_user "rm" "-r $orderspool/*"] 
+           if {$prg_exit_state != 0} {
+              set    msg "There was a problem with deleting order files from order store directory\n"
+              append msg "Output was\n"
+              append msg $output
+              ts_log_severe $msg
+              return 1
+           }
+   }
+   return 0
+}
+
 #****** util/hedeby_check_default_services() ***********************************
 #  NAME
 #     hedeby_check_default_services() -- check default hedeby services

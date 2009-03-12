@@ -225,6 +225,12 @@ proc hedeby_test_run_level_check { is_starting was_error } {
       set_current_cluster_config_nr $ccnr 
    }
 
+   #we need to check that there is no orders left in orders directory
+   ts_log_fine "checking if order store is empty ..."
+   set ret_val [hedeby_check_order_store]
+   if { $ret_val != 0 } {
+      return 1
+   }
 
    ts_log_fine "checking services ..."
    # check correct startup of services

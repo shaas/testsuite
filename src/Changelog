@@ -1,3 +1,6 @@
+MG-2009-03-12-0: Bugfix:     file_permission_test adjusted for issue 584 + fix for more than one reporter file
+                 Review:     MB
+
 CR-2009-03-12-2: Bugfix:     fixed new verified test "project_access_lists"
                              for ge versions >= 62
                  Review:     MD

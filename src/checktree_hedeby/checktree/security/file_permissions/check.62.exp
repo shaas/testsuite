@@ -158,6 +158,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "spool/cs/module/ge-service-adapter/complex_mapping"
    lappend expected_dirs "spool/resource_provider"
    lappend expected_dirs "spool/resource_provider/resource_provider"
+   lappend expected_dirs "spool/resource_provider/resource_provider/orders"
    lappend expected_dirs "spool/resource_provider/spare_pool"
    foreach service $service_names(services) {
       lappend expected_dirs "spool/resource_provider/$service"
@@ -286,7 +287,14 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/cs/module/ge-service-adapter/complex_mapping/default.xml"
    lappend expected_files "spool/cs/component/reporter.xml"
    lappend expected_files "spool/reporter/report-0.log.lck"
-   lappend expected_files "spool/reporter/report-0.log"
+   
+   set ignore1 {}
+   analyze_directory_structure $host $startup_user "${spool_dir}/spool/reporter" spool_directories1 spool_files1 permissions1 $ignore1
+   for {set i 0} {$i < 4} {incr i} {
+        if { [lsearch -exact $spool_files1 "${spool_dir}/spool/reporter/report-${i}.log"] != -1 } {
+            lappend expected_files "spool/reporter/report-${i}.log"
+        }
+   }
 
    foreach managed_host [get_all_movable_resources] {
       lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"
