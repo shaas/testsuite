@@ -232,7 +232,7 @@ proc arco_dbwriter_performance_execute {} {
       }
    }
    
-   set cycle_time [expr 60 * 1000] ;# we sleep 60 seconds
+   set cycle_time [expr 60 * 1000]
    while { $test_time > 0 } {
       
       set res [time "arco_dbwriter_performance_query $sqlutil_sp_id"]

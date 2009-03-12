@@ -142,7 +142,7 @@ proc access_lists_setup  {} {
    add_project "aclprj" prj
 
    # run a test job
-   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 5"
    set id [submit_job $jobargs]
    wait_for_jobstart $id "leeper" 60 1 1
    wait_for_jobend $id "leeper" 60 0
@@ -213,7 +213,6 @@ proc run_user_denied_jobs {id_string jobargs A_ok B_ok {C_ok "-1" }} {
    ts_log_fine "jobargs are: $jobargs"
    ts_log_frame
 
-   sleep 2
    set job_id_A [submit_job $jobargs 0 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$A_ok == 1} {
       test_job_run "$id_string (A)" $job_id_A
@@ -253,7 +252,7 @@ proc check_user_job_info {job_id} {
 
    set had_error 0
 
-   # was the submit successfull?
+   # was the submit successful?
    if {[wait_for_jobpending $job_id "leeper" 30 1] != 0} {
       ts_log_severe "no pending job $job_id"
       set had_error 1
@@ -267,7 +266,7 @@ proc check_user_job_info {job_id} {
 
    if {$had_error == 0} {
       # if job is pending as expected, analyze scheduling info
-      set scheduling_info_text [get_scheduling_info $job_id]
+      set scheduling_info_text [get_scheduling_info $job_id 0]
 
       if {$CHECK_L10N == 1} {
          set HASNOPERMISSION [translate_macro MSG_SCHEDD_INFO_HASNOPERMISSION_SS "*" "*" ]
@@ -301,9 +300,11 @@ proc run_user_jobs {id_string jobargs A_ok B_ok {C_ok "-1"}} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global access_lists_queue
 
+   ts_log_frame
    ts_log_fine "id_string is $id_string"
    ts_log_fine "jobargs are: $jobargs"
-   sleep 2
+   ts_log_frame
+
    set job_id_A [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$A_ok == 1} {
       test_job_run "$id_string (A)" $job_id_A
@@ -331,7 +332,6 @@ proc run_user_jobs {id_string jobargs A_ok B_ok {C_ok "-1"}} {
       if {[check_user_job_info $job_id_A] == 1} {
          ts_log_severe "$id_string, job $job_id_A (A) should not run"
       }
-      wait_for_jobpending $job_id_A "leeper" 30
       delete_job $job_id_A 1 1
    }
  
@@ -339,7 +339,6 @@ proc run_user_jobs {id_string jobargs A_ok B_ok {C_ok "-1"}} {
       if {[check_user_job_info $job_id_B] == 1} {
          ts_log_severe "$id_string, job $job_id_B (B) should not run"
       }
-      wait_for_jobpending $job_id_B "leeper" 30
       delete_job $job_id_B 1 1
    }
 
@@ -352,7 +351,7 @@ proc run_user_jobs {id_string jobargs A_ok B_ok {C_ok "-1"}} {
    foreach job_id $job_ids {
       while {[get_qstat_j_info $job_id] != 0} {
          ts_log_fine "waiting for job $job_id to leave qmaster"
-         after 2000
+         after 1000
       }
    }
 }
@@ -370,11 +369,13 @@ proc access_lists_global_host {} {
    # testing user and group
    set access_lists "{userA_name userB_name 0} {userA_group userB_group 1}"
    foreach elem $access_lists {
+      ts_log_frame
       set A_USER [lindex $elem 0]
       set B_USER [lindex $elem 1]
       set group_test [lindex $elem 2]
       ts_log_fine "A_USER = $A_USER"
       ts_log_fine "B_USER = $B_USER"
+      ts_log_frame
 
       # case 1
       set my_global_host(xuser_lists) "$A_USER"
@@ -450,7 +451,7 @@ proc access_lists_global_host {} {
       set my_global_host(user_lists)  "NONE"
       set_exechost my_global_host "global"
    }
-
+  
 
    # test group/user combinations
    # userA_name userB_name userA_group userB_group

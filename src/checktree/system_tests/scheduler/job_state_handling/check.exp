@@ -168,7 +168,7 @@ proc job_state_handling_hold_pending_running_finished {} {
          set t_state_ok 1
          break
       }
-      sleep 1
+      after 1000
    }   
    if { $t_state_ok != 1 } {
       ts_log_severe "job state not \"t\": $job_state"  
@@ -213,7 +213,7 @@ proc job_state_handling_error_timehold_jobhold {} {
    wait_for_jobpending $time_job "leeper" 300
    wait_for_jobpending $waitjob_job "leeper" 300
 
-   sleep 2
+   after 2000
 
    trigger_scheduling
 
@@ -221,7 +221,7 @@ proc job_state_handling_error_timehold_jobhold {} {
    wait_for_jobpending $time_job "leeper" 300
    wait_for_jobpending $waitjob_job "leeper" 300
 
-   sleep 2
+   after 2000
 
    set scheduler_info_text [get_scheduling_info $error_job ]
    set correct_text [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_JOBINERROR_]]
@@ -256,7 +256,7 @@ proc job_state_handling_error_timehold_jobhold {} {
          continue
       }
       ts_log_fine "job $time_job is in state $job_state, continue in [expr ( $time_job_execution_time - [timestamp] ) ] seconds ...   "
-      sleep 1
+      after 1000
    } 
    ts_log_newline
    wait_for_jobstart $time_job    "leeper" 100

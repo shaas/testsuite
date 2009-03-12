@@ -2809,7 +2809,7 @@ proc wait_for_file {path_to_file seconds {to_go_away 0} {do_error_check 1}} {
            set wasok 0
            break
         }
-        sleep 1
+        after 1000
       }
       if {$wasok != 0 && $do_error_check == 1} {
          ts_log_severe "timeout error while waiting for deletion file \"$path_to_file\""

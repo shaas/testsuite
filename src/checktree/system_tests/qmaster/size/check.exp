@@ -251,7 +251,7 @@ proc qmaster_size_setup {} {
    set time [timestamp]
    while { 1 } {
       ts_log_fine "waiting for startup of qmaster (and scheduler if version < 62) ..."
-      sleep 5
+      after 5000
       set running [ are_master_and_scheduler_running $ts_config(master_host) $qmaster_spool_dir]
       if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
          set expected_ret_val 3
@@ -473,7 +473,7 @@ proc stabilize {text delay interval commands} {
             eval $i
          }
          monitor_size [get_job_count]
-         sleep $interval
+         after [expr $interval * 1000]
          set now [clock seconds]
       }
    }
@@ -508,7 +508,7 @@ proc monitor {text duration interval commands} {
             eval $i
          }
          set size [monitor_size [get_job_count]]
-         sleep $interval
+         after [expr $interval * 1000]
          set now [clock seconds]
       }
 
@@ -588,7 +588,7 @@ proc check_miniworm {} {
 
    while {[get_job_count] > 0} {
       exec "$CHECK_ACTUAL_TEST_PATH/sge_start.sh" "qdel" "-u" "$CHECK_USER"
-      sleep 5
+      after 5000
    }
    ts_log_fine "enabling queues $queue_list"
    enable_queue $queue_list
@@ -743,7 +743,7 @@ proc check_flood {} {
       set job_count [get_job_count]
       while { $job_count > 0 } {
          set size [monitor_size $job_count]
-         sleep $interval
+         after [expr $interval * 1000]
          set job_count [get_job_count]
       }
 

@@ -51,7 +51,7 @@ set check_init_level_procedure "issue_2743_init_level"
 set check_name            "issue_2743"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   9
-set check_description(0)  ""
+set check_description(0)  "h_rt limit enforcement gets delayed in case of execd restart"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -85,10 +85,8 @@ proc issue_2743_setup {} {
 }
 
 proc issue_2743_cleanup {} {
-
    delete_all_jobs
    wait_for_end_of_all_jobs
-
    reset_schedd_config
 }
 
@@ -108,7 +106,7 @@ proc issue_2743_test {} {
    soft_execd_shutdown $test_host 
   
    ts_log_fine "now sleeping for 30 seconds ..."
-   sleep 30
+   after 30000
    ts_log_fine "wakeup!"
 
    startup_execd $test_host

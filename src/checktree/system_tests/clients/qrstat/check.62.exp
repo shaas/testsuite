@@ -277,7 +277,7 @@ proc qrstat_option_explain {} {
    replace_attr "queue" "prolog" "non_existing_prolog" $qrstat_queue
    set job_id [submit_job "-ar $ar_id -o /dev/null -j y -b y echo test"]
    trigger_scheduling
-   sleep 3
+   after 3000
    set msg [translate_macro MSG_AR_RESERVEDQUEUEHASERROR_SS $queue $qerror]
    set check_values(state)   "E"
    set check_values(message) "$msg"

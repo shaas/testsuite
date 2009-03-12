@@ -280,7 +280,7 @@ proc urgency_check_values {jobs job_count value_names} {
    upvar $jobs tmp_jobs
    
    trigger_scheduling
-   sleep 5 
+   after 5000 
    
    set error_count 0
    for {set i 0} {$i < $job_count} {incr i 1} {

@@ -325,7 +325,7 @@ proc scheduler_messages_single_check {resource_container via_quotas resource} {
          if {$CHECK_ACT_LEVEL == 1} {
             # trigger scheduling to ensure messages are generated
             trigger_scheduling
-            sleep 3
+            after 3000
             set result [start_sge_bin "qstat" "-j $jobid"]
             ts_log_fine "result of qstat: #$result#"
             if {[string match $expected_string $result] == 1} {

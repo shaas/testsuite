@@ -118,13 +118,10 @@ proc soft_requests_cleanup  {} {
    global ts_config
    global soft_requests_test_hosts
 
-   # delete all jobs and trigger a scheduling run to make sure all jobs have really
-   # left qmaster
+   trigger_scheduling
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-   trigger_scheduling
-   sleep 5
-
+   
    # delete test queue and pe
    del_queue "res.q" $soft_requests_test_hosts  0 1
    del_pe "round_robin"

@@ -153,17 +153,7 @@ proc cleanup_system {} {
    delete_all_jobs
 
    # wait until cluster is empty
-   set my_time [ expr ( [timestamp] + 100 ) ]
-   while { [timestamp]< $my_time } {
-      set my_jobs [ get_standard_job_info 1 0 1 ]
-      foreach job_elem $my_jobs {
-         ts_log_fine $job_elem
-      }
-      if { [llength $my_jobs] <= 2 } {
-         break
-      }
-      sleep 1
-   } 
+   wait_for_end_of_all_jobs
 
    # SGEEE: remove sharetree
    if {[string compare $ts_config(product_type) "sgeee"] == 0} {

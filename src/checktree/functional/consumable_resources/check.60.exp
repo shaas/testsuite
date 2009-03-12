@@ -228,8 +228,6 @@ proc consumable_resources_cleanup {} {
 
    set qname "res.q"
    del_queue $qname $consumable_resources_test_hosts 0 1
-
-   sleep 5
    if {[del_pe "round_robin" "" "" 0]} {
       del_pe "round_robin"
    }
@@ -239,6 +237,7 @@ proc consumable_resources_cleanup {} {
    }
 
    # restore complex
+   ts_log_fine "restoring complex settings ..."
    set_complex consumable_complex_backup
 
    # we changed the schedd config - reset to defaults
@@ -365,7 +364,7 @@ proc consumable_resources_submit_pejobs_and_wait {job_arguments job_count run_jo
    delete_all_jobs  
    wait_for_end_of_all_jobs
    trigger_scheduling
-   sleep 1
+   after 1000
 }
 
 proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_count job_arguments2 case {schedd_info ""} {queue_state ""} {schedd_info_err ""}} {
@@ -448,7 +447,7 @@ proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_
                break
             }
             incr sched_info_tries -1
-            sleep 1
+            after 1000
          }
          if {$ok != 1} {
             ts_log_warning "case $case: can't find matching scheduler info:\nexpected: $schedd_info\ngot: $qstat_j_info(scheduling info)"
@@ -460,7 +459,6 @@ proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_
    delete_all_jobs  
    wait_for_end_of_all_jobs
    trigger_scheduling
-   sleep 1
 }
 
 proc consumable_resources_test {} {
@@ -1024,7 +1022,7 @@ proc consumable_resources_test {} {
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
-      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 10000 ;# wait at least 10 sec. so that execd knows that the file has changed via stat() command
 
       set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"]
       ts_log_fine "created link output: $output"
@@ -1051,7 +1049,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         sleep 5
+         after 5000
          incr retries -1
       }
 
@@ -1086,7 +1084,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         sleep 5
+         after 5000
          incr retries -1
       }
 
@@ -1123,7 +1121,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         sleep 5
+         after 5000
          incr retries -1
       }
 
@@ -1167,13 +1165,13 @@ proc consumable_resources_test {} {
       get_config execd_config_a_host $host_a
             
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
-      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 10000 ;# wait at least 10 sec. so that execd knows that the file has changed via stat() command
       set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh"]
       ts_log_fine "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
-      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 10000 ;# wait at least 10 sec. so that execd knows that the file has changed via stat() command
       set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh"]
       ts_log_fine "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
@@ -1204,7 +1202,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         sleep 5
+         after 5000
          incr retries -1
       }
       if {$ok != 1} {
@@ -1228,7 +1226,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         sleep 5
+         after 5000
          incr retries -1
       }
       if {$ok != 1} {
@@ -1262,7 +1260,7 @@ proc consumable_resources_test {} {
          ts_log_fine "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          ts_log_fine "$test_grep"
          incr retries -1
-         sleep 5
+         after 5000
       }
 
       if {[string match "*test1*" $test_grep]} {
@@ -1276,7 +1274,7 @@ proc consumable_resources_test {} {
          ts_log_fine "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          ts_log_fine "$test_grep"
          incr retries -1
-         sleep 5
+         after 5000
       }
 
       if {[string match "*test2*" $test_grep]} {

@@ -283,9 +283,8 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
          add_proc_error "set_exechost" -1 "could not modifiy exechost $host" $raise_error
          set ret -1
       } 
-
    }
-  return $ret
+   return $ret
 }
 
 #****** sge_host/set_exechost_error() ***************************************

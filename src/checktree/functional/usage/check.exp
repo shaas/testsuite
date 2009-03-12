@@ -196,8 +196,7 @@ proc usage_setup {} {
    # set global config params
    set new_config(load_report_time) "0:0:5"
    set new_config(execd_params) "$saved_config(execd_params) acct_reserved_usage=1 sharetree_reserved_usage=1"
-   set_config new_config
-   sleep 30
+   set_config_and_propagate new_config
 
    # create parallel environments
    set pe(slots)              5
@@ -233,14 +232,12 @@ proc usage_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # reset config
-   set_config saved_config
+   set_config_and_propagate saved_config
 
    if {$ts_config(gridengine_version) != 53} {
       reset_schedd_config;
    }
    
-   sleep 15
-
    del_queue usage.q "" 0 1
 
    # remove pe's
@@ -388,11 +385,9 @@ proc usage_check {jobid qstat_j_info slots acct_slots} {
    set online_cpu $online_info(cpu)
    set online_mem $online_info(mem)
 
-   # get accounting record
    # on SGE >= 60, the accounting file is buffered - wait for all records being written
-   if {$ts_config(gridengine_version) >= 60} {
-      sleep 10
-   }
+   wait_for_end_of_all_jobs
+
    get_qacct $jobid
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
@@ -503,7 +498,7 @@ proc usage_monitor_check {id test_name slots acct_slots} {
       wait_for_jobend $jobid usage 60 0 1
 
       # now wait for some time - accounting file might not be flushed yet
-      sleep 20
+      wait_for_end_of_all_jobs
 
       if {!$job_finished} {
          ts_log_severe "job terminated abnormally"

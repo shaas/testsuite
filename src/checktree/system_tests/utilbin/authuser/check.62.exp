@@ -102,7 +102,7 @@ proc test_authuser {} {
          exp_continue
       }
       -i $sp_id "assword:" {
-         sleep 1
+         after 1000
          set root_passwd [get_root_passwd]
          ts_log_fine "got password question, sending root passwd"
          ts_send $sp_id "${root_passwd}\n" $ts_config(master_host) 1

@@ -668,7 +668,7 @@ proc compile_source { { do_only_hooks 0} } {
       }
    
       # give NFS some rest after (probably massive) deletes
-      sleep $NFS_sleep_time
+      after [expr $NFS_sleep_time * 1000]
 
       # after an update, delete macro messages file to have it updated
       set macro_messages_file [get_macro_messages_file_name]
@@ -715,7 +715,7 @@ proc compile_source { { do_only_hooks 0} } {
       }
 
       # give NFS some rest after (probably massive) deletes
-      sleep $NFS_sleep_time
+      after [expr $NFS_sleep_time * 1000]
    }
 
    if {$error_count > 0} {
@@ -733,8 +733,8 @@ proc compile_source { { do_only_hooks 0} } {
          ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
       if {$error_count == 0} {
-         # depend was successfull - sleep a bit so let nfs settle down
-         sleep $NFS_sleep_time
+         # depend was successfull - wait a bit so let nfs settle down
+         after [expr $NFS_sleep_time * 1000]
 
          # start build process
          if {$do_only_hooks == 0} {

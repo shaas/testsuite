@@ -322,7 +322,7 @@ proc are_jobs_deleted {job_list} {
       if {$runtime >= 120} {
          return -1
       }
-      sleep 1
+      after 1000
    }
 }
 
@@ -356,12 +356,12 @@ proc are_jobs_deleted {job_list} {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {array_job ""} {check_job_state 1}} {
+proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {array_job ""} {check_job_state 1} {my_job_name "qdel_check"}} {
    global ts_config CHECK_USER
    global qdel_qinstance hold_state pending_state
 
    set joblist {}
-   set jobargs "$array_job -o /dev/null -e /dev/null -N qdel_check"
+   set jobargs "$array_job -o /dev/null -e /dev/null -N $my_job_name"
 
    if {$pending_state == 1} {
       set in_a_year [clock scan "1 year"]
@@ -391,7 +391,7 @@ proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {ar
       if {$pending_state == 0} {
          # wait for all job to run
          foreach elem $joblist {
-            wait_for_jobstart  $elem "qdel_check" 400
+            wait_for_jobstart  $elem $my_job_name 400
          }
 
          if {$hold_state == 1} {
@@ -403,7 +403,7 @@ proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {ar
       } else {
          # wait for all job to get in pending state
          foreach elem $joblist {
-            wait_for_jobpending $elem "qdel_check" 400
+            wait_for_jobpending $elem $my_job_name 400
          }
       }
    }
@@ -535,8 +535,8 @@ proc qdel_iz_125_case_2 {} {
    # fourth delete
    if {$do_continue} {
       # Sleep a little - then the job should no longer be there
-      sleep 10
-      
+      after 10000
+
       set output [start_sge_bin "qdel" $job_list]
 
       # Check that we get a response
@@ -563,6 +563,7 @@ proc qdel_iz_125_case_2 {} {
    }
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 #*******************************
@@ -620,7 +621,7 @@ proc qdel_iz_125_case_3 {} {
 
    # wait some time for the already deleted tasks to vanish
    # at least the load_report interval
-   sleep 15
+   after 15000
 
    # Delete here tasks 2 - 5 ; only task 4 should be reported, error state=0
    set delete_list_2_5 "$job.2 $job.3 $job.4 $job.5"
@@ -727,7 +728,7 @@ proc qdel_iz_125_case_5 {} {
    set jobs [submit_testjobs "" "" $num_jobs "" 0]
 
    # Sleep a little
-   sleep 10
+   after 10000
 
    # Now delete all of them
    set output [start_sge_bin "qdel" $jobs]
@@ -743,8 +744,8 @@ proc qdel_iz_125_case_5 {} {
       }
    }
 
-   # Clean up the queues
-   delete_all_jobs
+   # check that all jobs are done
+   wait_for_end_of_all_jobs
 }
 
 #                                                             max. column:     |
@@ -785,6 +786,7 @@ proc qdel_delete_task_range {} {
 
    # Now delete all 10 of them
    set output [start_sge_bin "qdel" $job_range]
+   ts_log_fine $output
    if {[string first [qdel_translate_message DELETED_TASKS   $CHECK_USER "1-10:1" $job] $output] >= 0 || 
        [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job 1] $output] >= 0           } {
       ts_log_fine "deletion of $job_range succeeded"
@@ -792,8 +794,7 @@ proc qdel_delete_task_range {} {
       ts_log_severe "deletion of $job_range failed:\n$output"
    }
 
-   # Sleep a little
-   sleep 10
+   wait_for_end_of_all_jobs
 
    # Now check with qstat that there are no more jobs
    set output [start_sge_bin "qstat" ""]
@@ -1206,7 +1207,7 @@ proc qdel_all {} {
          break
       }
       ts_log_progress
-      sleep 1
+      after 1000
    }
 
    # now check if user2 has still his jobs
@@ -1245,7 +1246,7 @@ proc qdel_all {} {
          break
       }
       ts_log_progress
-      sleep 1
+      after 1000
    }
 
    # now check if user1 has still his jobs
@@ -1281,7 +1282,7 @@ proc qdel_all {} {
          ts_log_severe "timeout while waiting for end of testjobs $job_list_user1"
          break
       }
-      sleep 1
+      after 1000
       ts_log_progress
    }
 }
@@ -1378,7 +1379,7 @@ proc qdel_uall {} {
          ts_log_severe "timeout while waiting for end of testjobs $all_jobs"
          break
       }
-      sleep 1
+      after 1000
    }
 }
 
@@ -1590,7 +1591,7 @@ proc qdel_force {} {
    if {$pending_state == 0} {
       # when jobs were in running state
       ts_log_fine "running jobs must still be in the queue"
-      sleep 10
+      after 10000
       # now test if his jobs still running or pending
       set all_jobs "$job_list_user1 $job_list_user2"
       foreach job_id $all_jobs {
@@ -1656,7 +1657,7 @@ proc qdel_force {} {
       }
    } else {
       ts_log_fine "running jobs of user $CHECK_FIRST_FOREIGN_SYSTEM_USER must still be in the queue"
-      sleep 10
+      after 10000
       # if jobs were running the submituser (user2) can't use the force flag!
       # now test if his jobs still running or pending
       foreach job_id $job_list_user2 {
@@ -1729,14 +1730,17 @@ proc qdel_delete_large_array {} {
    set job [submit_testjobs "" "" 1 "-t 1-5000"]
    set job_range "$job.1-5000"
 
+   # Trigger scheduler
    trigger_scheduling
-   sleep 10
+
+   # Wait for some tasks to run
+   after 10000
 
    # Now delete all of the tasks within the job
    set output [start_sge_bin "qdel" $job_range]
 
-   # Sleep a little
-   sleep 30
+   # no job should run anymore
+   wait_for_end_of_all_jobs
 
    # Now check with qstat that there are no more jobs
    set output [start_sge_bin "qstat" ""]

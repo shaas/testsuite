@@ -116,7 +116,7 @@ proc issue_1933_test {} {
          ts_log_severe "timeout waiting for queue ${queue_name}@$host to get in error state"
          break
       }
-      sleep 1
+      after 1000
    }
 
    delete_job $job_id

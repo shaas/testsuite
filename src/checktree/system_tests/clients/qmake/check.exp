@@ -167,9 +167,6 @@ proc qmake_cleanup_level {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   # make sure all jobs left qmaster - we remove config objects
-   trigger_scheduling ; sleep 1
-
    if {$CHECK_ACT_LEVEL == 1} {
       # unassign pe with queue
       unassign_queues_with_pe_object make

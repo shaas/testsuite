@@ -3308,7 +3308,7 @@ proc host_conf_sort_suited {a b} {
    }
 }
 
-proc test_host_conf_get_suited_host {} {
+proc private_test_host_conf_get_suited_host {} {
    # any host(s) - increase number of hosts until it failes
    set num_hosts 1
    while {1} {
@@ -3317,7 +3317,7 @@ proc test_host_conf_get_suited_host {} {
       if {$hosts == {}} {
          break
       }
-      sleep 1
+      after 1000
       incr num_hosts
    }
 

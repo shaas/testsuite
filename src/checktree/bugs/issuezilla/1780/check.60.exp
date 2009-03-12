@@ -137,8 +137,6 @@ proc issue_1780_run  {} {
       ts_log_severe "qconf -Mconf with huge amout of host entries broken:\n$result"
    }
    
-   sleep 5
-   
    set qstat_timeout 10
    # Start now qstat with a qstat_timeout seconds timeout
    set qstat_result [start_sge_bin "qstat" "" "" $CHECK_USER "" $qstat_timeout]

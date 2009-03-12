@@ -112,7 +112,7 @@ proc issue_1096_run {} {
                ts_log_fine "ok"
                break
             } else {
-               sleep 1
+               after 1000
             }
          }
 

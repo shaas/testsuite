@@ -255,7 +255,7 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    # wait for job accounting record and expect 1 or 2 ($output_files) output/error files
    set time [expr [timestamp] + 300] 
    while {[timestamp] < $time}  {
-      sleep 1
+      after 1000
       set back [was_job_running $job_id 0]
       if {$back != -1} {
          set back [del_job_files $job_id $job_output_dir $output_files]
@@ -369,7 +369,7 @@ proc qsub_starter_method {} {
 
    # check output file, should contain output from starter method
    if {$ok} {
-      sleep 2
+      after 2000
       set outfilename "$job_output_dir/Sleeper.o$result"
       ts_log_fine "checking output file $outfilename"
 
@@ -745,7 +745,7 @@ proc check_option_ac {} {
 
    set time [expr [timestamp] + 300]
    while {[timestamp] < $time}  {
-      sleep 1
+      after 1000
       set back [was_job_running $result 0]
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
@@ -1492,7 +1492,7 @@ proc check_option_now_yes {} {
       } else {
          ts_log_info "bugtraq id: 4938859 ->\nqsub -now yes returned job could not be scheduled, try later - error - trying again ... (try $i)"
          ts_log_fine "sleeping 5 sec ..."
-         sleep 5
+         after 5000
       }
    }
  
@@ -1506,7 +1506,7 @@ proc check_option_now_yes {} {
    set time [expr [timestamp] + 300]
 
    while {[timestamp] < $time} {
-      sleep 1
+      after 1000
       set back [was_job_running $result 0]
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
@@ -2544,7 +2544,7 @@ proc check_qsub_ts_iz_72 {} {
    delete_all_jobs
       
    # 1. submit an array job in hold
-   submit_job "-h -t 1-2 -o /dev/null -j y -N TS_IZ_72 $ts_config(product_root)/examples/jobs/sleeper.sh 30"
+   submit_job "-h -t 1-2 -o /dev/null -j y -N TS_IZ_72 $ts_config(product_root)/examples/jobs/sleeper.sh 15"
 	
    # Get the jobid with qstat_plain_parse
    # qstat_plain_output contains the plain qstat output in an assoc. array
@@ -2565,7 +2565,26 @@ proc check_qsub_ts_iz_72 {} {
    start_sge_bin "qalter" "-h n $jobid.2"
 	
    # 4. wait until the task has finished
-   sleep 60
+   # TODO: wait_for_end_of_task ???
+   # TODO: I don't understand this test at all!
+   trigger_scheduling
+
+   set my_timeout [timestamp]
+   incr my_timeout 60
+   while { [timestamp] < $my_timeout } {
+      set states [get_job_state $jobid 1 task_id]
+      set nr_of_tasks [llength $states]
+      for {set i 0} {$i < $nr_of_tasks} {incr i 1} {
+         ts_log_fine "task $task_id($i,task) state is \"$task_id($i,state)\""
+      }
+      if {$nr_of_tasks == 1} { 
+         ts_log_fine "task 2 finished"
+         break
+      }
+      after 2500
+   }
+
+   after 5000   ;# wait some extra time
 	
    # 5. check, if the task in system hold is still there.
    qstat_plain_parse qstat_plain_output1

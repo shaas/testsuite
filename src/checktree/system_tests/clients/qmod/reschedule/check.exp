@@ -861,7 +861,7 @@ proc reschedule_pe_jobs {} {
              set run 0
              ts_log_severe "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
           }
-          sleep 1
+          after 1000
        }
 
        if {[string first $rerun_queue $master_queue] != 0} {
@@ -886,7 +886,7 @@ proc reschedule_pe_jobs {} {
           set output [start_sge_bin "qmod" "-r $slave_queue"]
           ts_log_fine $output
 
-          sleep 10          
+          after 10000
 
           ts_log_fine "job $job should still run ..."
           wait_for_jobstart $job "Sleeper" 60
@@ -940,7 +940,7 @@ proc reschedule_pe_jobs {} {
                 set run 0
                 ts_log_severe "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
              }
-             sleep 1
+             after 1000
           }
        } else {
           ts_log_severe "job $job does not start, pe $pe"

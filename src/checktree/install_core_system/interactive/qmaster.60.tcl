@@ -670,10 +670,10 @@ proc install_qmaster {} {
             # Otherwise the last command executed (infotext)
             # will leave a lockfile lying around.
             if {[coverage_enabled]} {
-               sleep 1
+               after 1000
                # inst_sge expects a RETURN
                install_send_answer $sp_id ""
-               sleep 5
+               after 5000
             }
             continue
          }

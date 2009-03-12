@@ -221,12 +221,13 @@ proc check_option_v {} {
       ts_log_severe "-v option failed, equal sign within variable values not supported"
    }
 
-   # JG: TODO: instead of starting the example sleeper job, we should output the environment and sleep for some
-   # time. Then we could check, if the passed environment variables are really set in the job environment.
+   # JG: TODO: instead of starting the example sleeper job, we should output the environment in the job. 
+   # Then we could check, if the passed environment variables are really set in the job environment.
+   # CR: Don't we have already a test for checking the job environment? We can do this in the job_environment test!
 
    set time [expr [timestamp] + 300]
    while {[timestamp] < $time} {
-      sleep 1
+      after 1000
       set back [was_job_running $result 0]
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
@@ -568,7 +569,7 @@ proc check_deadline {} {
       if {$dlcontr > $dlcontr_max} {
          set dlcontr_max $dlcontr
       }
-      sleep 5
+      after 5000
    }
 
    # now the job is done - delete job files

@@ -355,7 +355,7 @@ proc issue_1914_check_host_state {host} {
 
    set state 0
    # delay so the queue state would be updated
-   sleep 2
+   after 2000
 
    get_queue_list queues
    foreach queue $queues {

@@ -1773,6 +1773,10 @@ proc qhost_q_xml_parse { output_var } {
 proc qstat_gdr_xml_parse { output } {
    upvar $output xml
    
+   if {[info exists xml]} {
+      unset xml
+   }
+
    set xmloutput [start_sge_bin "qstat" "-g d -r -xml"]
    set doc [dom parse $xmloutput]
    set root [$doc documentElement]
@@ -1883,6 +1887,7 @@ proc qstat_j_xml_par { output job_id xmloutput} {
    set jobNumber [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_number/text()]
    set project [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_project/text()]
    set stderrPath [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_stderr_path_list/path_list/PN_path/text()]
+   set stdoutPath [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_stdout_path_list/path_list/PN_path/text()]
    set execFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_exec_file/text()]
    set subTime [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_submission_time/text()]
    set owner [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_owner/text()]
@@ -1926,6 +1931,7 @@ proc qstat_j_xml_par { output job_id xmloutput} {
       }
    }
    set jobArgs [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_args/element/ST_name/text()]
+   set xml(job_args) [$jobArgs nodeValue]
    set scriptFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_script_file/text()]
    set hardQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_queue_list/destin_ident_list/QR_name/text()]
    set softQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_queue_list/destin_ident_list/QR_name/text()]
@@ -1943,6 +1949,8 @@ proc qstat_j_xml_par { output job_id xmloutput} {
    } else {
       set xml(merge) [$merge nodeValue]
    }
+   set xml(stdout_path_list) [$stdoutPath nodeValue]
+
    set xml(exec_file) [$execFile nodeValue]
    set xml(submission_time) [$subTime nodeValue]
    set xml(owner) [$owner nodeValue]

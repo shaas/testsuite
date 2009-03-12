@@ -156,7 +156,7 @@ proc set_complex {change_array {raise_error 1}} {
       ts_log_severe "could not modify complex: ($result)" $raise_error
    } 
    if {$result == -4} {
-      ts_log_fine "WARNING: could not modify complex: ($result)" $raise_error
+      ts_log_fine "INFO: could not modify complex: ($result) (unchanged settings)" $raise_error
    }
 
    return $result
@@ -723,7 +723,7 @@ proc startup_bdb_rpc { hostname } {
    ts_log_fine $output
    # give the bdb server a few seconds to fully initialize
    # starting sge_qmaster immediately after the bdb server can fail otherwise
-   sleep 5
+   after 5000
 
    if { [string length $output] < 15  && $prg_exit_state == 0 } {
        return 0

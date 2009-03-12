@@ -142,13 +142,15 @@ proc issue_2202_test {} {
    # submit test jobs
    set jobargs   "-o /dev/null -j y -ac SGE_MULTI_SUBMIT=$num_jobs"
    set jobscript "$ts_config(product_root)/examples/jobs/sleeper.sh 600"
-   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_USER
-   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
-   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   set job_list {}
+   lappend job_list [submit_job "$jobargs $jobscript" 1 60 "" $CHECK_USER]
+   lappend job_list [submit_job "$jobargs $jobscript" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   lappend job_list [submit_job "$jobargs $jobscript" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
 
-   # trigger scheduling of the jobs and wait some time for them to be delivered
-   trigger_scheduling
-   sleep 10
+   # trigger scheduler and wait for jobs running
+   foreach job $job_list {
+      wait_for_jobstart $job "leeper" 60 1 1
+   }
 
    # now modify one of the rules and measure the time
    set rule_no [expr $num_queues / 2 + 1]

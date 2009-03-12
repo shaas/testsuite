@@ -124,10 +124,9 @@ proc issue_1803_setup {} {
    set myconfig(execd_params) "$my_execd_params"
    set myconfig(load_report_time) "00:00:01"
    ts_log_fine "setting execd_params to \"$my_execd_params\" ..."
-   set_config myconfig
 
-   # wait some time for config to be known at exec hosts
-   sleep 15
+   # This procedure waits till all execd gets global config
+   set_config_and_propagate myconfig
 }
 
 proc issue_1803_cleanup {} {
@@ -139,7 +138,7 @@ proc issue_1803_cleanup {} {
 
    ts_log_fine "restoring original configuration ..."
    reset_schedd_config
-   set_config issue_1803_stored_configuration
+   set_config_and_propagate issue_1803_stored_configuration
 
    set my_conf(prolog) "none"
    set my_conf(epilog) "none"

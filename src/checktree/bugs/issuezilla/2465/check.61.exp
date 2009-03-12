@@ -94,7 +94,8 @@ proc issue_2465_setup {} {
 
 
 proc issue_2465_cleanup {} {
-   
+   delete_all_jobs
+   wait_for_end_of_all_jobs
    del_rqs "issue_2465"   
 }
 
@@ -104,11 +105,14 @@ proc issue_2465 {} {
    # submit 3 sleeper.sh jobs for fill up the users slots
    set arguments "-o /dev/null -j y"
 
-   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   set job_list {}
+   lappend job_list [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   lappend job_list [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   lappend job_list [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
-   wait_for_jobstart $job_id "Sleeper" 60 1 1
+   foreach job_id $job_list {
+      wait_for_jobstart $job_id "Sleeper" 60 1 1
+   }
    
    # Get a parallel environment to use for submitting a job
    set prlE ""
@@ -124,17 +128,17 @@ proc issue_2465 {} {
    # setup arguments and submit parallel job
    set arguments "-pe $prlE 3 -b y -o /dev/null -j y"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 30"]
-   sleep 10
+   trigger_scheduling
 
    # Get the scheduling information from the qstat -j output
-   set schedInfo [start_sge_bin "qstat" "-j $job_id | grep \"scheduling info\""]   
+   set schedInfo [start_sge_bin "qstat" "-j $job_id"]
+   set schedInfo [get_string_value_between "scheduling info:" -1 $schedInfo]
+   ts_log_fine "scheduling info: $schedInfo"
    
+
    # Check to see that the scheduling info does not include the unwanted message
    if {[string first "-l slots=1" $schedInfo] != -1} {
       ts_log_severe "Error message should not have been displayed"
    }
-   
-   delete_all_jobs 
-
 }
 

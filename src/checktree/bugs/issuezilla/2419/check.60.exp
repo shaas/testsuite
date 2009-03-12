@@ -158,7 +158,7 @@ proc issue_2419_test {} {
          set job_ok 1
          break
       }
-      sleep 1
+      after 1000
    }
 
    if {!$job_ok} {

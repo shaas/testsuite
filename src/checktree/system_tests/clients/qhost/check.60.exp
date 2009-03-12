@@ -114,7 +114,13 @@ proc test_issue132 {} {
 
    # for each host test that the xml and plain outpus are the same
    for {set ind 0} {$ind < $job} {incr ind 1} {
-      foreach attrib "name arch_string num_proc load_avg mem_total mem_used swap_total swap_used" {
+      if {[string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
+         ts_log_severe "outputs do not match from plain and xml for \"name\":\nxml: [string trim $xml(host$ind,name)]\nplain: [string trim $plain(host$ind,name)]\nThis is issue #2948"
+         # We continue here
+      }
+
+
+      foreach attrib "arch_string num_proc load_avg mem_total mem_used swap_total swap_used" {
          if {[string compare [string trim $xml(host$ind,$attrib)] [string trim $plain(host$ind,$attrib)]] != 0} {
             ts_log_severe "outputs do not match from plain and xml for $attrib:\nxml: [string trim $xml(host$ind,$attrib)]\nplain: [string trim $plain(host$ind,$attrib)]"
             return
@@ -160,8 +166,7 @@ proc test_issue132_h {} {
    # for each host test that the xml and plain outpus are the same
    for {set ind 0} {$ind < 2} {incr ind 1} {
       if {[string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
-         ts_log_severe "outputs do not match from plain and xml for name."      
-         return
+         ts_log_severe "outputs do not match from plain and xml for name.\nThis is issue #2948"      
       }
       if {[string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
          ts_log_severe "outputs do not match from plain and xml for arch_string."      
@@ -204,13 +209,15 @@ proc test_issue132_j {} {
       return
    }
 
-   delete_all_jobs
-   sleep 5
+   set host [host_conf_get_suited_hosts]
+   ts_log_fine "host $host selected for test"
+
    # qhost -j
    # submit job
-   set jobid [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh"]
-   sleep 15
-   
+   set jobid [submit_job "-l h=$host $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   wait_for_jobstart $jobid "leeper" 60 1 1
+
+
    set result1 [qhost_u_xml_parse xml "-j"]
    set result1 [qhost_u_parse plain "-j"]  
 
@@ -243,6 +250,8 @@ proc test_issue132_j {} {
       ts_log_severe "outputs do not match from plain and xml for pe_master."      
       return
    }      
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 proc test_issue132_u {} {
@@ -255,11 +264,13 @@ proc test_issue132_u {} {
       return
    }
 
-   delete_all_jobs
-   sleep 5
+   set host [host_conf_get_suited_hosts]
+   ts_log_fine "host $host selected for test"
+
+
    # submit job
-   set jobid [submit_job "-u $CHECK_USER $ts_config(product_root)/examples/jobs/sleeper.sh"]
-   sleep 15
+   set jobid [submit_job "-l h=$host -u $CHECK_USER $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   wait_for_jobstart $jobid "leeper" 60 1 1
    
    set params "-u $CHECK_USER"
    set result1 [qhost_u_xml_parse xml $params]
@@ -294,6 +305,8 @@ proc test_issue132_u {} {
       ts_log_severe "outputs do not match from plain and xml for pe_master."      
       return
    }      
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 proc test_issue132_l {} {
@@ -321,8 +334,7 @@ proc test_issue132_l {} {
    # for each host test that the xml and plain outpus are the same
    for {set ind 0} {$ind < $job} {incr ind 1} {
       if {[string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
-         ts_log_severe "outputs do not match from plain and xml for name."      
-         return
+         ts_log_severe "outputs do not match from plain and xml for name.\nThis is issue #2948"      
       }
       if {[string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
          ts_log_severe "outputs do not match from plain and xml for arch_string."      

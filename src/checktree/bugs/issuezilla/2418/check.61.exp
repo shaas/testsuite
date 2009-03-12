@@ -152,8 +152,12 @@ proc issue_2418_test {} {
    start_remote_prog $qrsh_submithost $CHECK_USER "kill" "-9 $pid"
    close_spawn_process $qrsh_id
 
+   ts_log_fine "qrsh killed, wait ..."
+
    # wait a little bit, expect the job to be still there
-   sleep 5
+   after 15000
+   ts_log_fine "qrsh killed, wait ...DONE"
+
    get_extended_job_info $job_id
    if {![info exists job_info(state)] || $job_info(state) != "qw"} {
       ts_log_severe "qrsh job vanished when qrsh client was killed"
@@ -165,7 +169,8 @@ proc issue_2418_test {} {
    trigger_scheduling
 
    # wait for the job to fail and to be deleted
-   sleep 15
+   wait_for_end_of_all_jobs
+
    get_extended_job_info $job_id
    if {[info exists job_info(state)]} {
       ts_log_severe "qrsh job $job_id is still arround - expected it to have vanished"

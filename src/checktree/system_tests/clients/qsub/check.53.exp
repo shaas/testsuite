@@ -83,7 +83,7 @@ proc check_option_qs_args {} {
    set time [expr [timestamp] + 300]
 
    while {[timestamp] < $time} {
-      sleep 1
+      after 1000
       set back [was_job_running $result 0] 
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]

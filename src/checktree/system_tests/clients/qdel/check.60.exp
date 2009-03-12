@@ -36,164 +36,104 @@ global qdel_help_lines
 
 set qdel_help_lines 11
 
-lappend check_functions "qdel_delete_by_job_name"                ;# Add another case 1
-lappend check_functions "qdel_delete_by_job_wildcard"            ;# Add another case 2
 
-#                                                             max. column:     |
-#****** qdel/delete_by_job_name() ******
-# 
+# check job name and wildcard deletion tests
+
+lappend check_functions "qdel_delete_by_job_name"        
+lappend check_functions "qdel_delete_by_job_wildcard1"
+lappend check_functions "qdel_delete_by_job_wildcard2"
+lappend check_functions "qdel_delete_by_job_wildcard3"
+lappend check_functions "qdel_delete_by_job_wildcard4"
+lappend check_functions "qdel_delete_by_job_wildcard5"
+lappend check_functions "qdel_delete_by_job_wildcard6"
+
+
+
+#****** check.60/delete_by_job_name() ******************************************
 #  NAME
-#     delete_by_job_name -- ??? 
+#     delete_by_job_name() -- test helper function for qdel test
 #
 #  SYNOPSIS
-#     delete_by_job_name { { delete_name "test_job" } { testjob_count "10" } } 
+#     delete_by_job_name { submit_name delete_name } 
 #
 #  FUNCTION
-#    Impliment new qdel scenarios:
-#     Submit $testjob_count jobs with name $delete_name
-#     delete by calling qdel $delete_name .
+#     1) submit jobs with -N $submit_name
+#     2) submit jobs with name -N "no_delete"
+#     3) do qdel $delete_name
+#     4) check that -N "no_delete" jobs still available
+#     5) check that -N $submit_name jobs are done
 #
 #  INPUTS
+#     submit_name - name of jobs to submit (which are deleted by qdel $delete_name)
+#     delete_name - argument of qdel command
 #
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc delete_by_job_name {{delete_name "test_job"} {testjob_count "10"}} {
+#*******************************************************************************
+proc delete_by_job_name {submit_name delete_name} {
    global ts_config
 
-   # submit jobs to delete
-   set job_args "-o /dev/null -e /dev/null"
+   set testjob_count 2  ;# 2*2*2 = 8 Jobs
+   set not_del_name "no_delete"
 
-   # submit jobs with name "test_job" 
+   set job_del_list {}
+   set job_alive_list {}
    for {set i 0} {$i < $testjob_count} {incr i} {
-      submit_job "$job_args -N test_job $ts_config(product_root)/examples/jobs/sleeper.sh 3000"
-   }
-
-   # submit jobs with name "test_do_not_delete"
-  
-   for {set i 0} {$i < $testjob_count} {incr i} {
-      submit_job "$job_args -N test_do_not_delete $ts_config(product_root)/examples/jobs/sleeper.sh 3000"
+      # submit jobs with name "test_job" 
+      set job_list [submit_testjobs "" "" 2 "" 1 $submit_name]
+      foreach job $job_list {
+         lappend job_del_list $job
+      }
+      # submit jobs with name "no_delete"
+      set job_list [submit_testjobs "" "" 2 "" 1 $not_del_name]
+      foreach job $job_list {
+         lappend job_alive_list $job
+      }
    }
 
    # Now delete the jobs with name "$delete_name"
    set output [start_sge_bin "qdel" "\"$delete_name\""]
+   ts_log_fine "qdel \"$delete_name\""
+   ts_log_fine $output
    if {$prg_exit_state != 0} {
       ts_log_severe "qdel $delete_name failed:\n$output"
    }
 
-   # Sleep a little
-   sleep 10
-
-   # Now check what the qstat looks like
-   set output [start_sge_bin "qstat" ""]
-
-   # Check that no jobs with name "$delete_name" are still around, but that
-   # jobs with name "test_do_not_delete" are
-   if {[string first $delete_name $output] < 0 &&
-       [string first "test_do_no" $output] >= 0} {
-      return 0
-   } else {
-      return -1
+   # Wait for deletion of correct jobs
+   foreach job $job_del_list {
+      wait_for_jobend $job $submit_name 60 0 1
    }
+ 
+   # Other jobs must still be here
+   get_extended_job_info ""
+   foreach job $job_alive_list {
+      if {[info exists job_info($job,state)]} {
+         ts_log_fine "job $job (name=\"$job_info($job,name)\") has state \"$job_info($job,state)\""
+      } else {
+         ts_log_severe "job $job not found after deleting!"
+      }
+   }
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
-#****** qdel/qdel_delete_by_job_name() ******
-#
-#  NAME
-#     qdel_delete_by_job_name -- ???
-#
-#  SYNOPSIS
-#     qdel_delete_by_job_name {}
-#     invoke delete_by_job_name with "test_job"
-#
-#  FUNCTION
-#    Impliment new qdel scenarios:
-#     1) Submit 10 jobs with name "test_job",
-#     delete by calling qdel "test_job". 10 is the default
-#     number of jobs
-#
-#  INPUTS
-#
-#  RESULT
-#     ???
-#
-#  EXAMPLE
-#     ???
-#
-#  NOTES
-#     ???
-#
-#  BUGS
-#     ???
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
+
 proc qdel_delete_by_job_name {} {
-   global ts_config
-
-   set delete_by_job_name_return [delete_by_job_name]
-
-   if {$delete_by_job_name_return != 0} {
-      ts_log_severe "Extended case 1 of qdel failed"
-   }
-
-   delete_all_jobs
+   delete_by_job_name "test_job" "test_job"
 }
-
-#                                                             max. column:     |
-#****** qdel/qdel_delete_by_job_wildcard() ******
-# 
-#  NAME
-#     qdel_delete_by_job_wildcard -- ??? 
-#
-#  SYNOPSIS
-#     qdel_delete_by_job_wildcard { } 
-#     invoke delete_by_job_name with "test_j*"
-#
-#  FUNCTION
-#
-#     2) Submit some jobs with name "test_job", some with name "test_do_not_delete",
-#     delete "test_j*", make sure all "test_job" are gone,
-#     test_do_not_delete" still there. ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc qdel_delete_by_job_wildcard {} {
-   global ts_config
-
-   set delete_by_job_wildcard_return [delete_by_job_name "test_j*"]
-
-   if {$delete_by_job_wildcard_return != 0} {
-      ts_log_severe "Extended case 2 of qdel failed"
-   }
-
-   delete_all_jobs
+proc qdel_delete_by_job_wildcard1 {} {
+   delete_by_job_name "test_job" "t*_job"
+}
+proc qdel_delete_by_job_wildcard2 {} {
+   delete_by_job_name "test_job" "*j*"
+}
+proc qdel_delete_by_job_wildcard3 {} {
+   delete_by_job_name "test_job" "*job"
+}
+proc qdel_delete_by_job_wildcard4 {} {
+   delete_by_job_name "test_job" "test_*"
+}
+proc qdel_delete_by_job_wildcard5 {} {
+   delete_by_job_name "test_job" "tes?_job"
+}
+proc qdel_delete_by_job_wildcard6 {} {
+   delete_by_job_name "test_job" "????????"
 }

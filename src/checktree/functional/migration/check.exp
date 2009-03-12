@@ -75,6 +75,15 @@ proc migration_init_level {} {
    return -1  ;# no other level else
 }
 
+
+
+
+
+
+# TODO: (CR) This test should get an overwork because of file operations which might be done better on the remote host
+#            Also some timeout settings or (wait settings) should be checked (after, sleep, etc.)
+
+
 proc migration_setup {} {
    global ts_config CHECK_PROTOCOL_DIR
    global checkpoint_hosts checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
@@ -563,7 +572,7 @@ proc clean_up_checkpoint_job {} {
 
    # wait for job to start running
    wait_for_end_of_transfer $checkpoint_job_id 60
-   sleep 2
+   after 2000
 
    set result [delete_job $checkpoint_job_id 1]
    

@@ -550,8 +550,10 @@ proc process_named_record {input output delimiter {index ""} {id ""}
             if { $index == "" || $idpart == "" } {
                append idx "$record($idxpart),"
             } else {
-               if {[string compare $idpart $record($idxpart)] != 0} {
-                  set parse_record 0
+               if {[info exists record($idxpart)]} {
+                  if {[string compare $idpart $record($idxpart)] != 0} {
+                     set parse_record 0
+                  }
                }
             }
          }
@@ -575,8 +577,9 @@ proc process_named_record {input output delimiter {index ""} {id ""}
                }
             }
          }
-
-         unset record      
+         if {[info exists record]} {
+            unset record      
+         }
       } else {
          # read record element
          if {$field_delimiter == ""} {
@@ -3934,6 +3937,9 @@ proc plain_r_parse { output_var } {
 proc plain_j_parse { output_var jobId plainoutput } {
    upvar $output_var plain
    
+   if {[info exists plain]} {
+      unset plain
+   }
    # split plain output based on each new line
    set plain_split [ split $plainoutput "\n" ]   
    
@@ -3967,7 +3973,7 @@ proc plain_j_parse { output_var jobId plainoutput } {
             set key [string trim $param]
             incr cnt 1
          } else {
-            set val [string trim $param]
+            set val [lindex [string trim $param] 0]  ;# remove GBs from mem 
             incr cnt -1
          }
       }

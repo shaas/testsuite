@@ -435,7 +435,7 @@ proc auto_reschedule_unknown_check_master {} {
 
          set to_go [expr $my_timeout - [timestamp]]
          ts_log_fine "job $job_id2 and $job_id3 still running, continue in $to_go seconds ... "
-         sleep 10
+         after 10000
       }
    }
 
@@ -525,7 +525,7 @@ proc auto_reschedule_unknown_check {} {
             set to_go [expr $my_timeout - [timestamp]]
             ts_log_fine "job $job_id2 still running, continue in $to_go seconds ... "
          }
-         sleep 10
+         after 10000
       }
    }
 

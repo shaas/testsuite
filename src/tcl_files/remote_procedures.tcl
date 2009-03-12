@@ -1623,9 +1623,9 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
                   # interix (windows) rlogind doesn't let us login
-                  # sleep a while and retry
+                  # wait a while and retry
                   ts_log_progress FINE "x"
-                  sleep 10
+                  after 10000
                   exp_continue
                }
                -i $spawn_id -re $CHECK_SHELL_PROMPT {
@@ -1717,9 +1717,9 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
                   # interix (windows) rlogind doesn't let us login
-                  # sleep a while and retry
+                  # wait a while and retry
                   ts_log_progress FINE "x"
-                  sleep 10
+                  after 10000
                   continue
                }
             }
@@ -2007,7 +2007,7 @@ proc open_remote_spawn_process { hostname
       set back_time 15 ;# let background process time to do his initialization
       while {$back_time > 0} {
          ts_log_progress
-         sleep 1
+         after 1000
          incr back_time -1
       }
       ts_log_fine "hope background process is initalized now!"
@@ -3190,7 +3190,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       # some time to finish writing coverage data
       # hopefully one second is enough
       if {[coverage_enabled]} {
-         sleep 2
+         after 2000
       }
 
       # stop still remaining running processes and wait for shell prompt
@@ -3452,7 +3452,7 @@ proc ping_daemon {host port name {max_tries 10}} {
       if {$prg_exit_state == 0 || $tries >= $max_tries} {
          break
       } else {
-         sleep 1
+         after 1000
       }      
    }
 

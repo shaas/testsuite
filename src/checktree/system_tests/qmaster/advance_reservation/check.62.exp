@@ -868,7 +868,7 @@ proc test_job_runtime_limit {} {
    set ar_id [submit_ar "-d 150"]
    set job_id [submit_job "-ar $ar_id $default_args"]
    trigger_scheduling
-   sleep 20
+   after 20000
    set run_result [is_job_running $job_id "leeper"]
    if {$run_result != 1} {
        ts_log_severe "job was wrongly killed or not scheduled"
@@ -880,10 +880,10 @@ proc test_job_runtime_limit {} {
    # 2)
    # wait 30 seconds for job submit after AR creation.
    set ar_id [submit_ar "-d 180"]
-   sleep 30
+   after 30000
    set job_id [submit_job "-ar $ar_id $default_args"]
    trigger_scheduling
-   sleep 20
+   after 20000
    set run_result [is_job_running $job_id "leeper"]
    if {$run_result != 1} {
        ts_log_severe "job was wrongly killed or not scheduled"

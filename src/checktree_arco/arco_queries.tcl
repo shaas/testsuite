@@ -239,7 +239,7 @@ proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
          }
          return $res
       }
-      sleep 1
+      after 1000
    }
 }
 
@@ -352,7 +352,7 @@ proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
                set job($event) $count
                break
             }
-            sleep 1
+            after 1000
          }
       }
    }
@@ -460,7 +460,7 @@ proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
             }
             break
          }
-         sleep 1
+         after 1000
       }
    }
 

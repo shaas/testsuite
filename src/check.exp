@@ -4034,9 +4034,9 @@ proc lock_testsuite {} {
        catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
        if {$file_size == 0} {
            ts_log_fine "file size is 0, deleting lockfile..."
-           sleep 60  ;# wait for NFS to update file
+           after 60000  ;# wait for NFS to update file
            unlock_testsuite
-           sleep 60  ;# wait for NFS to update file
+           after 60000  ;# wait for NFS to update file
            return [lock_testsuite]
        }
        if {$result != 0} {
@@ -4076,7 +4076,7 @@ proc lock_testsuite {} {
     set failed 0
     set file_size 0
     while {$ok != 1} {
-       sleep 1
+       after 1000
        catch { set input [ open $CHECK_TESTSUITE_LOCKFILE "r" ]
                gets $input data
                close $input }
@@ -4156,7 +4156,7 @@ proc unlock_testsuite {} {
        }
        while { [ file isfile $CHECK_TESTSUITE_LOCKFILE ] == 1 } {
           ts_log_fine "file still existing"
-          sleep 1
+          after 1000
        }
     }
     ts_log_fine "testsuite unlocked!"
@@ -6195,7 +6195,7 @@ proc wait_for_start_time { substring } {
       if { [string compare $date_output $substring] == 0 } {
          break;
       }
-      sleep 30
+      after 30000
    }
    puts ""
 }
@@ -7076,7 +7076,8 @@ proc update_source { a_report do_only_hooks } {
                break
             }
             if { $update_ok == 0 } {
-               sleep 60
+               # Wait for NFS ???
+               after 60000
             }
          }
 
@@ -7230,7 +7231,7 @@ proc do_wait { time } {
        }
        puts -nonewline "."
        flush stdout
-       sleep 1
+       after 1000
    }
 }
 

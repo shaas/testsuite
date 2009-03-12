@@ -354,7 +354,7 @@ proc complex_loadsensor_test {} {
             break
          }
          incr time 1
-         sleep 1
+         after 1000
          get_qconf_se_info $complex_host
       }
    

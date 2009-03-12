@@ -219,7 +219,7 @@ proc file_parsing_N_option {} {
       set timeout_time [timestamp]
       incr timeout_time 120
       while { 1 } {
-         sleep 1
+         after 1000
          ts_log_fine "try to get accounting info for job $elem ..."
          set result [get_qacct $elem qacct_info "" "" 0]
          ts_log_fine "result: $result"
@@ -373,7 +373,7 @@ proc file_parsing_long_option {} {
       set timeout_time [timestamp]
       incr timeout_time 120
       while { 1 } {
-         sleep 1
+         after 1000
          ts_log_fine "try to get accounting info for job $elem ..."
          set result [get_qacct $elem qacct_info "" "" 0]
          ts_log_fine "result: $result"

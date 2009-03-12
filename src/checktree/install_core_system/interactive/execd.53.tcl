@@ -203,7 +203,7 @@ proc install_execd {} {
             puts $CHECK_OUTPUT "please copy this file manually!!"
             puts $CHECK_OUTPUT "if not, you will get no load values from this host (=$exec_host)"
             puts $CHECK_OUTPUT "installation will continue in 15 seconds!!"
-            sleep 15
+            after 15000
          }
       }
 
@@ -377,7 +377,7 @@ proc install_execd {} {
                puts $CHECK_OUTPUT "Hostname resolving problem - use a host alias file for host $exec_host" 
                puts $CHECK_OUTPUT "**********************************************************************"
                puts $CHECK_OUTPUT "installation will continue in 15 seconds ..."
-               sleep 15
+               after 15000
             }
 
             -i $sp_id "There is still no service for" {

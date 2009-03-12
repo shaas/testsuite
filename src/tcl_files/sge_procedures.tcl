@@ -2555,6 +2555,7 @@ proc set_config_and_propagate {config {host global}} {
          # consume the lines output immediately by tail -f
          set spool_dir [get_spool_dir $conf_host "execd"]
          set messages_name "$spool_dir/messages"
+         ts_log_fine "starting tail -f $messages_name on host $conf_host ..."
          set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) [get_binary_path $conf_host "tail"] "-f $messages_name"]
          set sp_id [lindex $tail_id 1]
          set timeout 5
@@ -2574,25 +2575,33 @@ proc set_config_and_propagate {config {host global}} {
       # Make configuration change
       set_config my_config $host
 
+      # choose a config to wait for
+      # if it is an empty string (e.g. as we deleted an entry), use wildcards
+      set value ""
+      foreach name [array names my_config] {
+         if {$my_config($name) != ""} {
+            set value $my_config($name)
+            break
+         }
+      }
+      if {$value == ""} {
+         set name "*"
+         set value "*"
+      }
+
+      if {[string length $value] >= 99} {
+         ts_log_fine "=> changed value is to long - using only the first 100 characters"
+         set value [string range $value 0 99]
+      }
+      ts_log_fine "searching for value \"$value\" for name \"$name\""
+
+
       foreach conf_host $host_list {
          # Wait for change to propagate
          ts_log_fine "waiting for configuration change to propagate to execd $conf_host ..."
          set sp_id $spawn_list($conf_host)
          set tail_id $open_spawn_list($conf_host)
-         # choose a config to wait for
-         # if it is an empty string (e.g. as we deleted an entry), use wildcards
-         set value ""
-         foreach name [array names my_config] {
-            if {$my_config($name) != ""} {
-               set value $my_config($name)
-               break
-            }
-         }
-         if {$value == ""} {
-            set name "*"
-            set value "*"
-         }
-
+ 
          set timeout 90
 
          expect {
@@ -2857,8 +2866,7 @@ proc was_job_running {jobid {do_errorcheck 1} } {
   set mytime [timestamp]
 
   if {$mytime == $check_timestamp} {
-     ts_log_fine "was_job_running - waiting for job ..."
-     after 1000
+     after 500
   }
   set check_timestamp $mytime
 
@@ -3213,7 +3221,7 @@ proc wait_for_job_state {jobid state wait_timeout} {
          ts_log_severe "timeout waiting for job $jobid to get in \"$state\" state"
          return -1
       }
-      sleep 1
+      after 1000
    }
 
    return $job_state
@@ -4829,7 +4837,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    }
 
    if {$show_args == 1} {
-      ts_log_fine "job submit args:\n$args"
+      ts_log_fine "job args: \"$args\""
    }
 
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
@@ -5484,6 +5492,10 @@ proc get_qstat_j_info {jobid {variable qstat_j_info}} {
    get_current_cluster_config_array ts_config
    upvar $variable jobinfo
 
+   if {[info exists jobinfo]} {
+      unset jobinfo
+   }
+
    set result [start_sge_bin "qstat" "-j $jobid"]
    if { $prg_exit_state == 0 } {
       set result "$result\n"
@@ -5666,6 +5678,9 @@ proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_
    upvar $variable qacctinfo
    set timeout_value $atimeout_value
 
+   if {[info exists qacctinfo]} {
+      unset qacctinfo
+   }
    
    # beginning with SGE 6.0, writing the accounting file may be buffered
    # accept getting errors for some seconds
@@ -5990,10 +6005,9 @@ proc wait_for_jobstart {jobid jobname seconds {do_errorcheck 1} {do_tsm 0}} {
  
    ts_log_fine "Waiting for start of job $jobid ($jobname)"
    set time [timestamp]
-   after 500
    while {1} {
-      set run_result [is_job_running $jobid $jobname]
-      if {$run_result == 1} {
+      set is_job_running_result [is_job_running $jobid $jobname]
+      if {$is_job_running_result == 1} {
          break
       }
       set runtime [expr [timestamp] - $time]
@@ -6003,8 +6017,26 @@ proc wait_for_jobstart {jobid jobname seconds {do_errorcheck 1} {do_tsm 0}} {
          }
          return -1
       }
+      # check if job was already running (only if job is not in qstat output)
+      if {$is_job_running_result == -1} {
+         set result [was_job_running $jobid 0]
+         if {$result != -1} {
+            ts_log_fine "job $jobid was already running, checking accounting ..."
+            get_qacct $jobid
+            if {[info exists qacct_info(exit_status)]} {
+               if {$qacct_info(exit_status) == 0} {
+                  ts_log_fine "job \"$jobid\" already executed with exit status \"$qacct_info(exit_status)\""
+                  break
+               }
+               if {$do_errorcheck == 1} {
+                  ts_log_severe "job \"$jobid\" already finished with exit status \"$qacct_info(exit_status)\" and is not shown by qstat command!" 
+               }
+               return -1
+            } 
+         }
+      }
       ts_log_progress
-      after 500
+      after 1000
    }
    return 0
 }
@@ -6498,7 +6530,7 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
                ts_log_severe "new scheduler pid not written: old pid: $old_schedd_pid, current pid: $current_schedd_pid"
                break
             }
-            sleep 1
+            after 1000
             set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
             ts_log_finest "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
          }
@@ -8353,7 +8385,7 @@ proc copy_certificates { host } {
             ts_log_severe "$result"
             return 1
          }
-         sleep 2
+         after 3000
          if {[timestamp] > $my_timeout} {
             ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
             break

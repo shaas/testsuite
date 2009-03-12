@@ -156,8 +156,6 @@ proc issue_2222_cleanup {} {
    # delete jobs and make sure they are no longer referenced in qmaster
    delete_all_jobs
    wait_for_end_of_all_jobs
-   trigger_scheduling
-   sleep 2
 
    # delete the queues
    del_queue "Batch" $issue_2222_host 0 1
@@ -216,7 +214,7 @@ proc issue_2222_test {} {
    # make the jobs run and wait some time (3 * load_report_interval) 
    # for usage reports
    trigger_scheduling
-   sleep 15
+   after 15000
 
    # close the Batch queue
    disable_queue "Batch"
@@ -240,7 +238,7 @@ proc issue_2222_test {} {
 
    # make the jobs to be scheduled
    trigger_scheduling
-   sleep 5
+   after 5000
 
    # verify that jobs of both users are running in the Batch queue
    set qstat_options "-q Batch -s r"

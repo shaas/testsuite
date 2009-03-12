@@ -381,7 +381,7 @@ proc binary_submission_check {} {
                   set E_state_ok 1 
                   break
                }
-               sleep 1
+               after 1000
             }   
             if {$E_state_ok != 1} {
                ts_log_severe "Job did not switch into E state in scenario $scenario"
@@ -423,7 +423,7 @@ proc binary_submission_check {} {
          set no_accounting_found 1
 
          while {[timestamp] < $time && $no_accounting_found == 1}  {
-            sleep 1
+            after 1000
             set back [was_job_running $job_id 0]
             if {$back != -1} {
                # job accounting appeared 

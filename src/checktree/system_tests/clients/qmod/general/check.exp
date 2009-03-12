@@ -604,15 +604,14 @@ proc qmod_clearerrorstate {} {
          ts_log_severe "timeout waiting for queue $test_queue to get in error state"
          break
       }
-
-      sleep 1
+      after 1000
    }
  
    # remove the prolog
    mqattr prolog none $test_queue
 
    # now wait for jobstart - should not happen as queue is in error state
-   set res [wait_for_jobstart $job_id "leeper" 10 0 1]
+   set res [wait_for_jobstart $job_id "leeper" 15 0 1]
    if {$res != -1} {
       ts_log_severe "job $job_id should not start until yet"
    }

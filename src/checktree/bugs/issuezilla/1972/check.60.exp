@@ -114,13 +114,12 @@ proc issue_1972_test1 {} {
    submit_job $arguments
    submit_job $arguments
    submit_job $arguments
-
-   trigger_scheduling
-   sleep 2
-
+   set job_id [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 60"]
+   trigger_scheduling 
+   wait_for_jobstart $job_id "leeper" 60
    set result [start_sge_bin "qstat" "-j"]
    if {$prg_exit_state != 0} {
-      ts_log_severe "qstat -j command failed:\n$result"
+      ts_log_severe "qstat -j command failed (IZ #1972 found):\n$result"
    }
 }
 

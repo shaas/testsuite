@@ -356,7 +356,7 @@ proc control_SGE_Helper_Service {start} {
    set count 0
    while {[is_SGE_Helper_Service_running $host] != $start
           && $count < 10} {
-      sleep 5
+      after 5000
       incr count
    }
 

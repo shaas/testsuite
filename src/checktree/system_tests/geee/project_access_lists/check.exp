@@ -50,7 +50,7 @@ set check_init_level_procedure "project_access_lists_init_level"
 
 # define test's name and run level descriptions
 set check_name            "project_access_lists"
-set check_category        "COMPATIBILITY SYSTEM L10N"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_highest_level   0
 set check_description(0)  "Test project access for queue/cluster/pe"
 
@@ -241,7 +241,6 @@ proc run_user_denied_jobs { id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1" } 
    
    ts_log_fine "\nid_string is $id_string"
    ts_log_fine "jobargs are: $jobargs"
-   sleep 2
    
    set job_id_A [ submit_job "-P userA_project_group $jobargs" 0 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER  ]
    if { $A_ok == 1 } {
@@ -345,12 +344,10 @@ proc run_user_jobs {id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1"} } {
    # "userA_project_name"    C
    # "userB_project_name"    D
 
-
-   
+   ts_log_frame
    ts_log_fine "\nid_string is $id_string"
    ts_log_fine "jobargs are: $jobargs"
-
-   sleep 2
+   ts_log_frame
  
    if { [ string first "-P" $jobargs] >= 0 } {
       set no_P 1
@@ -454,18 +451,20 @@ proc project_access_lists_global_host {} {
    set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30" 
 
    # testing user and group
-   set project_access_lists {userA_project_name userB_project_name}
+   set project_access_lists {{userA_project_name userB_project_name}}
    foreach elem $project_access_lists {
       set A_USER [lindex $elem 0]
       set B_USER [lindex $elem 1]
+      ts_log_frame
       ts_log_fine "A_USER = $A_USER"
       ts_log_fine "B_USER = $B_USER"
+      ts_log_frame
 
       # case 1
       set my_global_host(xprojects) "$A_USER"
       set my_global_host(projects)  "NONE"
       set_exechost my_global_host "global"
-      run_user_jobs "case 1,$A_USER,$B_USER" "$jobargs" 1 1 0 1   ;# A = 0 (not running) B = 1 (should run)
+      run_user_jobs "case 1,$A_USER,$B_USER" "$jobargs" 1 1 0 1   ;# A = 0 (not running) B = 1 (should run) C D E
 
       # case 2
       set my_global_host(xprojects) "NONE"
@@ -547,7 +546,7 @@ proc project_access_lists_exec_host {} {
    set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
 
    # testing user and group
-   set project_access_lists "{userA_project_name userB_project_name }"
+   set project_access_lists {{userA_project_name userB_project_name}}
    foreach elem $project_access_lists {
       set A_USER [lindex $elem 0]
       set B_USER [lindex $elem 1]
@@ -641,7 +640,7 @@ proc project_access_lists_queue {} {
    set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
 
    # testing user and group
-   set project_access_lists "{userA_project_name userB_project_name }"
+   set project_access_lists {{userA_project_name userB_project_name }}
    foreach elem $project_access_lists {
       set A_USER [lindex $elem 0]
       set B_USER [lindex $elem 1]
@@ -735,7 +734,7 @@ proc project_access_lists_cluster_config {} {
    set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"  
 
    # testing user and group
-   set project_access_lists "{userA_project_name userB_project_name }"
+   set project_access_lists {{userA_project_name userB_project_name }}
    foreach elem $project_access_lists {
       set A_USER [lindex $elem 0]
       set B_USER [lindex $elem 1]

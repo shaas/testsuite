@@ -719,7 +719,10 @@ proc qrsh_accounting {} {
 
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -nostdin -l hostname=$host $ts_config(product_root)/examples/jobs/worker.sh 120"]
+
+      set job_run_time 120
+
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -nostdin -l hostname=$host $ts_config(product_root)/examples/jobs/worker.sh $job_run_time"]
 
       set state startup
       set job_id ""
@@ -783,11 +786,25 @@ proc qrsh_accounting {} {
       close_spawn_process $qrsh_id
 
       # wait for accounting file to be flushed (esp. for 6.0) and NFS
-      sleep 15
+      ts_log_fine "now waiting for end of job ..."
+      wait_for_end_of_all_jobs
 
+      ts_log_fine "now check accounting of job ..."
       if {$job_id != ""} {
          if {[get_qacct $job_id] == 0} {
             set cpu [expr $qacct_info(ru_utime) + $qacct_info(ru_stime)]
+            # we allow 1 second loose at startup/end of job. We calculate error tolerance
+            set my_allowed_cpu_value [expr ( $job_run_time * ( ( $job_run_time - 2.0 ) / $job_run_time ) )]
+
+            ts_log_fine "cpu entry: $cpu should be >= $my_allowed_cpu_value"
+            if {$cpu < $my_allowed_cpu_value} {
+               set help_text     "cpu entry \"$cpu\" in accounting seems to be wrong for job $job_id on host $host which\n"
+               append help_text "is a worker with runtime = $job_run_time\nI expected at least a runtime of\n"
+               append help_text "$my_allowed_cpu_value seconds!\n"
+               append help_text "This might happen on virtual hosts which report wrong wallclock time!\n"
+               ts_log_warning $help_text
+            }
+
             if {$cpu < 30} {
                ts_log_severe "cpu entry \"$cpu\" in accounting seems to be wrong for job $job_id on host $host"
             }
@@ -803,8 +820,6 @@ proc qrsh_accounting {} {
          }
       }
    }
-
-   wait_for_end_of_all_jobs
 }
 
 #                                                             max. column:     |
@@ -898,7 +913,7 @@ proc qrsh_suspend {} {
 
          # suspend job
          suspend_job $job_id
-         sleep 10
+         after 10000
          # process status should be suspended
          get_ps_info $job_pid $host
          if {$ps_info($job_pid,error) != 0} {
@@ -917,7 +932,7 @@ proc qrsh_suspend {} {
 
          # unsuspend job
          unsuspend_job $job_id
-         sleep 10
+         after 10000
          # process status should be sleeping or running
          get_ps_info $job_pid $host
          if {$ps_info($job_pid,error) != 0} {
@@ -1140,7 +1155,10 @@ proc qrsh_terminate {} {
          }
 
          # wait for terminate method to finish
-         sleep 2
+         # TODO: (CR) Not sure - if possible we should not write tests which expects
+         #            tasks after timeouts. What happens if NFS is slow?
+         after 2000
+
          # check contents of terminate.out
          set line [start_remote_prog $host $CHECK_USER cat $terminate_out_file exit_code]
          if {$exit_code != 0} {
@@ -1695,7 +1713,7 @@ proc qrsh_sigterm_pending_job {} {
          ts_log_severe "error submitting qrsh job"
          break
       }
-      sleep 1
+      after 1000
       incr timer -1
    }
 

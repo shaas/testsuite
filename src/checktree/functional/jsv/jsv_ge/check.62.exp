@@ -338,7 +338,7 @@ proc jsv_ge_restart_on_modify {} {
       # if the sleep would be missing here then the next
       # GDI operation below (configuration change) might
       # fail due in testsuite timeout
-      sleep 5
+      after 5000
 
       # retrieve the pids from the qstat output
       # the jsv script has written it to the job context
@@ -421,7 +421,7 @@ proc jsv_ge_restart_after_kill {} {
       # if the sleep would be missing here then the next
       # GDI operation below (configuration change) might
       # fail due in testsuite timeout
-      sleep 5
+      after 5000
 
       # reset the configuration changes
       set global_conf(jsv_url) "none"
@@ -469,7 +469,7 @@ proc jsv_ge_restart_after_configuration_change {} {
       # this sleep is extremely important this will give both worker threads the necessary time 
       # to continue if the sleep would be missing here then the next GDI operation below might
       # fail due to timeout
-      sleep 5
+      after 5000
 
       # reset the configuration changes and submit to jobs and try to get new pid of JSV
       set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid2.sh"
@@ -487,7 +487,7 @@ proc jsv_ge_restart_after_configuration_change {} {
       # this sleep is extremely important this will give both worker threads the necessary time 
       # to continue if the sleep would be missing here then the next GDI operation below might
       # fail due to timeout
-      sleep 5
+      after 5000
 
       # reset the configuration changes but slow down worker threads. submit again two jobs
       # and try to jet JSV pids. Because there are no JSV scripts started the pid parsing
@@ -507,7 +507,7 @@ proc jsv_ge_restart_after_configuration_change {} {
       # this sleep is extremely important this will give both worker threads the necessary time 
       # to continue if the sleep would be missing here then the next GDI operation below might
       # fail due to timeout
-      sleep 5
+      after 5000
 
       # reset the configuration changes
       set global_conf(jsv_url) "none"
@@ -571,7 +571,7 @@ proc jsv_ge_restart_after_protocol_error {} {
       # if the sleep would be missing here then the next
       # GDI operation below (configuration change) might
       # fail due in testsuite timeout
-      sleep 5
+      after 5000
 
       # reset the configuration changes
       set global_conf(jsv_url) "none"

@@ -188,7 +188,7 @@ proc commlib_shutdown_run {} {
       set client_server_finished 0
       set found_ccrm 0
       while { $in_loop } {
-         set timeout 30
+         set timeout 61
          expect {
             -i $all_list full_buffer {
                ts_log_severe "expect full_buffer error"
@@ -270,7 +270,7 @@ proc commlib_shutdown_run {} {
                   if {$help == ""} {
                      continue
                   }
-                  ts_log_fine "qping dump: $help"
+                  ts_log_finer "qping dump: $help"
                   append qping_dump_output "$help\n"
                   if {[string match "*qping*sirm*" $help]} {
                      if {$client_id == ""} {
@@ -351,7 +351,7 @@ proc commlib_shutdown_run {} {
          break
       } else {
          if {$run_counter >= 15} {
-            append error_text "max. retry count reached\n"
+            append error_text "max. test retry count reached! Error case did not occur!\n"
             break
          } else {
             ts_log_fine "===> rerun test error case did not occur! This was run $run_counter!"

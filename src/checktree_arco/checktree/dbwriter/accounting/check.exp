@@ -284,7 +284,7 @@ proc issue_113_test {} {
          } else {
             set next_loop [expr $next_loop - 1]
             ts_log_progress
-            sleep $FLUSH_TIME
+            after [expr $FLUSH_TIME * 1000]
          }
       }
       close_spawn_process $id;

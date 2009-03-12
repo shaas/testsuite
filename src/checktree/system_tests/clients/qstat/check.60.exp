@@ -64,7 +64,7 @@ lappend check_functions  "qstat_issue1800"
 lappend check_functions  "qstat_plain_xml_comparison"  ;# Compare the two qstatcommands
 lappend check_functions  "qstat_ne_plain_xml_comparison"  ;# Compare the two qstat -ne commands
 #lappend check_functions  "qstat_r_plain_xml_comparison"  ;# Compare the two qstat -r commands
-lappend check_functions  "qstat_j_ERROR_plain_xml_comparison"  ;# Compare the two qstat -j ERROR commands
+#lappend check_functions  "qstat_j_ERROR_plain_xml_comparison"  ;# Compare the two qstat -j ERROR commands
 #lappend check_functions  "qstat_j_plain_xml_comparison"  ;# Compare the two qstat -j  commands
 lappend check_functions  "qstat_urg_plain_xml_comparison"  ;# Compare the two qstat -urg commands
 #lappend check_functions  "qstat_f_urg_plain_xml_comparison"  ;# Compare the two qstat -f -urg commands
@@ -106,6 +106,12 @@ proc qstat_init_level {} {
 
    return -1
 }
+
+
+# TODO: (CR) 1) This test should not simply wait 10 seconds for the job to start (after 10000)
+#            2) Why is the test useing its own submitter script (we can not work with job ids here)
+#            3) Why is the qsub of -N QERROR job disabled in the job start script?
+
 
 proc qstat_setup {} {
    global ts_config CHECK_HAVE_TDOM
@@ -376,6 +382,7 @@ proc qstat_option_l {} {
    qstat_count_jobs "qstat_option_l" "-l arch=undefined_arch" 0 
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 proc qstat_option_q {} {
@@ -441,11 +448,8 @@ proc qstat_option_pe {} {
    qstat_count_jobs "qstat_option_pe" "-pe mype2" 1 
    
    delete_all_jobs
+   wait_for_end_of_all_jobs
    
-   foreach jobid $job_id_list {
-      wait_for_jobend $jobid "Sleeper" 60 0 1
-   }
-      
    del_pe "mype1"
    del_pe "mype2"
 
@@ -633,7 +637,7 @@ proc qstat_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_plain_output contains the plain qstat output in an assoc. array
    # qstat_plain_output(jobid) contains a list of jobids.
@@ -717,7 +721,7 @@ proc qstat_ne_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_ne_plain_output contains the plain qstat output in an assoc. array
    # qstat_ne)plain_output(jobid) contains a list of jobids.
@@ -800,7 +804,7 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_j_ERROR_plain_output contains the plain qstat output in an assoc. array
    # qstat_j_ERROR_plain_output(jobid) contains a list of jobids.
@@ -808,7 +812,7 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
    
    ts_log_fine "plain qstat -j ERROR array .... \n"
    parray qstat_j_ERROR_plain_output
-   
+
    # qstat_j_ERROR_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_j_JOB_NAME_xml_parse qstat_j_ERROR_xml_output "ERROR"]
    
@@ -892,7 +896,7 @@ proc qstat_j_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_j_plain_output contains the plain qstat output in an assoc. array
    # qstat_j_plain_output(jobid) contains a list of jobids.
@@ -978,7 +982,7 @@ proc qstat_r_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_r_plain_output contains the plain qstat output in an assoc. array
    # qstat_r_plain_output(jobid) contains a list of jobids.
@@ -1075,7 +1079,7 @@ proc qstat_f_r_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_f_r_plain_output contains the plain qstat output in an assoc. array
    # qstat_f_r_plain_output(jobid) contains a list of jobids.
@@ -1197,7 +1201,7 @@ proc qstat_urg_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # qstat_urg_plain_output contains the plain qstat output in an assoc. array
    # qstat_urg_plain_output(jobid) contains a list of jobids.
@@ -1277,7 +1281,7 @@ proc qstat_f_urg_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # qstat_f_urg_plain_output contains the plain qstat  output in an assoc. array
    # qstat_f_urg_plain_output(jobid) contains a list of jobids.
@@ -1385,7 +1389,7 @@ proc qstat_pri_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # qstat_pri_plain_output contains the plain qstat output in an assoc. array
    # qstat_pri_plain_output(jobid) contains a list of jobids.
@@ -1473,7 +1477,7 @@ proc qstat_l_q_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_l_q_plain_output contains the plain qstat output in an assoc. array
    # qstat_l_q_plain_output(jobid) contains a list of jobids.
@@ -1565,7 +1569,7 @@ proc qstat_ext_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_ext_plain_output contains the plain qstat output in an assoc. array
    # qstat_ext_plain_output(jobid) contains a list of jobids.
@@ -1665,7 +1669,7 @@ proc qstat_f_ext_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_f_ext_plain_output contains the plain qstat output in an assoc. array
    # qstat_f_ext_plain_output(jobid) contains a list of jobids.
@@ -1792,7 +1796,7 @@ proc qstat_f_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -1912,7 +1916,7 @@ proc qstat_explain_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -2034,7 +2038,7 @@ proc qstat_f_q_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -2187,7 +2191,7 @@ proc qstat_f_ne_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -2282,7 +2286,7 @@ proc qstat_F_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -2411,7 +2415,7 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
 
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
    
    # Clear error states, if any
    set result1 [start_sge_bin "qmod" "-c all.q"]
@@ -2540,7 +2544,7 @@ proc qstat_g_c_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_g_c_plain_output contains the plain qstat output in an assoc. array
    set result1 [qstat_g_c_plain_parse qstat_g_c_plain_output]
@@ -2626,7 +2630,7 @@ proc qstat_g_d_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_g_d_plain_output contains the plain qstat output in an assoc. array
    # qstat_g_d_plain_output(jobid) contains a list of jobids.
@@ -2720,7 +2724,7 @@ proc qstat_g_t_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_g_t_plain_output contains the plain qstat output in an assoc. array
    # qstat_g_t_plain_output(jobid) contains a list of jobids.
@@ -2814,7 +2818,7 @@ proc qstat_s_a_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_a_plain_output(jobid) contains a list of jobids.
@@ -2895,7 +2899,7 @@ proc qstat_s_p_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_p_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_p_plain_output(jobid) contains a list of jobids.
@@ -2981,7 +2985,7 @@ proc qstat_s_r_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_r_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_r_plain_output(jobid) contains a list of jobids.
@@ -3064,7 +3068,7 @@ proc qstat_s_s_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_s_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_s_plain_output(jobid) contains a list of jobids.
@@ -3150,7 +3154,7 @@ proc qstat_s_z_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_z_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_z_plain_output(jobid) contains a list of jobids.
@@ -3199,6 +3203,7 @@ proc qstat_s_z_plain_xml_comparison {} {
    }
    
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 
@@ -3234,7 +3239,7 @@ proc qstat_s_hs_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_hs_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_hs_plain_output(jobid) contains a list of jobids.
@@ -3320,7 +3325,7 @@ proc qstat_s_hu_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_s_hu_plain_output contains the plain qstat output in an assoc. array
    # qstat_s_hu_plain_output(jobid) contains a list of jobids.
@@ -3402,7 +3407,7 @@ proc qstat_u_valid_plain_xml_comparison {} {
   
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_u_valid_plain_output contains the plain qstat output in an assoc. array
    # qstat_u_valid_plain_output(jobid) contains a list of jobids.
@@ -3484,7 +3489,7 @@ proc qstat_u_invalid_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_u_invalid_plain_output contains the plain qstat output in an assoc. array_
    # qstat_u_invalid_plain_output(jobid) contains a list of jobids.
@@ -3568,7 +3573,7 @@ proc qstat_U_valid_plain_xml_comparison {} {
    
    # Wait a little for jobs to be scheduled.
    trigger_scheduling
-   sleep 10
+   after 10000
 
    # qstat_U_valid_plain_output contains the plain qstat output in an assoc. array
    # qstat_U_valid_plain_output(jobid) contains a list of jobids.
@@ -3627,7 +3632,8 @@ proc test_issue123 {} {
       return
    }
    delete_all_jobs
-   sleep 5
+   wait_for_end_of_all_jobs
+
    # submit job qsub -t 1-5 sleeper.sh
    set arguments "-t 1-5"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 50"]
@@ -3651,6 +3657,7 @@ proc test_issue123 {} {
       }           
    }  
    delete_all_jobs
+   wait_for_end_of_all_jobs
 
    # Test xml for hard and soft resources
 
@@ -3677,5 +3684,6 @@ proc test_issue123 {} {
       }
    }   
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 

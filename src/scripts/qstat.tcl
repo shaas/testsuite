@@ -68,7 +68,7 @@ proc do_qstat {} {
       set delay [expr $delay - $milli]
 
       # expect only knows timeouts in seconds.
-      # so sleep for the milliseconds, expect will timeout after the seconds 
+      # so wait for the milliseconds, expect will timeout after the seconds 
       # part
       after $milli
    } else {

@@ -40,7 +40,7 @@ lappend check_functions "test_qstat_j_xml"
 proc qstat_profile {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
-   global  CHECK_USER
+   global CHECK_USER
    global ts_config
    global hostname job_id_list
 
@@ -65,10 +65,19 @@ proc qstat_profile {} {
    #
    ts_log_fine "checking sge_qstat file functionality ...."
 
-   set home [glob ~/]
+   set home [get_home_dir_path $CHECK_USER]
 
-   file delete "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat"
-   file delete "$home/.sge_qstat"
+   if {[is_remote_file  $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat"]} {
+      get_file_content $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat" common_sge_qstat
+   }
+   if {[is_remote_file  $ts_config(master_host) $CHECK_USER "$home/.sge_qstat"]} {
+      get_file_content $ts_config(master_host) $CHECK_USER "$home/.sge_qstat" local_sge_qstat
+   }
+
+   
+   delete_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat"
+   delete_remote_file $ts_config(master_host) $CHECK_USER "$home/.sge_qstat"
+
    #
    # Create test queue and submit dummy jobs as check user and user sgetest1.
    #
@@ -84,7 +93,7 @@ proc qstat_profile {} {
    #
    #
    foreach user "$CHECK_SECOND_FOREIGN_SYSTEM_USER $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_USER" {
-      set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 60" 1 30 "" $user]
+      set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 180" 1 30 "" $user]
       if {$job_id <= 0} {
          ts_log_severe "can't start job for qstat profile test user $user"
          return -1
@@ -105,15 +114,17 @@ proc qstat_profile {} {
    #
    # Create global qstat profile. File gets truncated (paranoia!).
    #
+
+
    set sge_global_qstat_profile "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat"
-   set fd [open $sge_global_qstat_profile w+ 0777]
-   #
-   # Populate global sge_qstat file. Make user sgetest1 default user option.
-   # User sgetest2 is commented out; we don't like to see this job.
-   #
-   puts $fd "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER"
-#   puts $fd "#-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"
-   close $fd
+   set my_global_stat_file(0) 1
+   set my_global_stat_file(1) "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+
+   set fs_server [fs_config_get_server_for_path $sge_global_qstat_profile]
+   write_remote_file $fs_server $CHECK_USER $sge_global_qstat_profile my_global_stat_file 
+   foreach host [get_all_hosts] {
+      wait_for_remote_file $host $CHECK_USER $sge_global_qstat_profile
+   }
    wait_for_remote_file $ts_config(master_host) $CHECK_USER $sge_global_qstat_profile
    #
    # The real test begins right now.
@@ -142,10 +153,13 @@ proc qstat_profile {} {
    # Now, populate local qstat profile and make check user default user option.
    #
    set sge_local_qstat_profile "$home/.sge_qstat"
-   set fd [open $sge_local_qstat_profile w+ 0777]
-   puts $fd "-u $CHECK_USER"
-   close $fd
-   wait_for_remote_file $ts_config(master_host) $CHECK_USER $sge_local_qstat_profile
+   set my_local_stat_file(0) 1
+   set my_local_stat_file(1) "-u $CHECK_USER"
+   write_remote_file $ts_config(master_host) $CHECK_USER $sge_local_qstat_profile my_local_stat_file 
+   foreach host [get_all_hosts] {
+      wait_for_remote_file $host $CHECK_USER $sge_local_qstat_profile
+   }   
+
    #
    # Issue qstat command without any further options. We should see entries
    # of check user and sgetest1 user.
@@ -197,11 +211,36 @@ proc qstat_profile {} {
    #
    # OK, cleanup.
    #
-   file delete $sge_global_qstat_profile
-   file delete $sge_local_qstat_profile
-
    delete_all_jobs
    wait_for_end_of_all_jobs
+
+   delete_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat"
+   delete_remote_file $ts_config(master_host) $CHECK_USER "$home/.sge_qstat"
+
+   foreach host [get_all_hosts] {
+      wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat" 60 1 1
+      wait_for_remote_file $ts_config(master_host) $CHECK_USER "$home/.sge_qstat" 60 1 1
+   }
+
+   if {[info exists common_sge_qstat]} {
+      write_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat" common_sge_qstat
+   }
+  
+   if {[info exists local_sge_qstat]} {
+      write_remote_file $ts_config(master_host) $CHECK_USER "$home/.sge_qstat" local_sge_qstat
+   }
+
+   foreach host [get_all_hosts] {
+      if {[info exists common_sge_qstat]} {
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sge_qstat" 60 1 0
+      }
+      if {[info exists local_sge_qstat]} {
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER "$home/.sge_qstat" 60 1 1
+      }
+   }
+
+
+
 
    #
    # Paranoia....
@@ -211,6 +250,22 @@ proc qstat_profile {} {
       ts_log_fine "Deleting test.q"
       del_queue test.q $hostname 0 1
    }
+}
+
+proc transform_memory_value { value } {
+
+   set multiplicator 1
+   if {[string match "*M*" $value]} {
+      set multiplicator [ expr 1024*1024]
+   }
+   if {[string match "*K*" $value]} {
+      set multiplicator 1024
+   }
+
+   set new_value [lindex [split $value "MK"] 0]
+   set new_value [ expr $new_value * $multiplicator ]
+   ts_log_fine "value $value transformed to $new_value"
+   return $new_value
 }
 
 proc test_qstat_j_xml {} {
@@ -226,22 +281,38 @@ proc test_qstat_j_xml {} {
    if {[info exists stored_configuration]} {
       unset stored_configuration
    }
+   set host [host_conf_get_suited_hosts]
+
    get_config stored_configuration
-   set myconfig(load_report_time) "00:00:20"
-   set_config myconfig
+   set myconfig(load_report_time) "00:00:10"
+   set_config_and_propagate myconfig $host
    
 
    # submit job sleeper.sh
-   set host [host_conf_get_suited_hosts]
    set arch [resolve_arch $host]
    set queue_name [get_queue_instance "all.q" $host]
    set prj "qstat_j_project"
    
    set arguments "-o /dev/null -j y -hard -q $queue_name -l a=$arch -soft -l h=$host -q $queue_name -P $prj -e /tmp/"
-   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/worker.sh 1000"]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/worker.sh 1000" 1 60 $host]
     
    wait_for_jobstart $job_id "worker.sh" 60 1 1
-   sleep 30
+
+   set my_timeout [timestamp]
+   incr my_timeout 60
+   set help_seconds [clock scan "00:00:00"]
+
+   # we want cpu usage > 20 or one minute runtime
+   while {[timestamp] < $my_timeout} {
+      set plainoutput [start_sge_bin "qstat" "-j $job_id"]
+      plain_j_parse plain $job_id $plainoutput
+      set cpu_value_plain [ expr [clock scan $plain(cpu)] - $help_seconds]
+      ts_log_fine "cpu usage: $cpu_value_plain"
+      if {$cpu_value_plain > 20} {
+         break
+      }
+      after 1000
+   }
 
    set plainoutput [start_sge_bin "qstat" "-j $job_id"]
    set xmloutput [start_sge_bin "qstat" "-j $job_id -xml"]
@@ -249,25 +320,117 @@ proc test_qstat_j_xml {} {
    set result1 [qstat_j_xml_par xml $job_id $xmloutput]
    set result1 [plain_j_parse plain $job_id $plainoutput]
       
-   set var_array {account exec_file gid group job_name job_number \
-      jobshare notify owner "scheduling info" script_file sge_o_home \
-      sge_o_host sge_o_path sge_o_shell maxvmem sge_o_workdir uid \
-      hard_queue_list "hard resource_list" soft_queue_list "soft resource_list"
-      mail_list sge_o_tz project shell_list merge stderr_path_list}
-
-   # for each job test that the xml and plain outputs are the same
-   
-   foreach elem $var_array {
-      if {[ string compare [string trim $xml($elem)] \
-         [string trim $plain($elem)]] != 0} {
-         ts_log_severe "outputs do not match from \
-         plain and xml for $elem."
-         ts_log_severe "xml output: [string trim $xml($elem)] \
-         plain output: [string trim $plain($elem)]"
-         return
+   set var_array {}
+   foreach line [split $plainoutput "\n"] {
+      if {[string match "*:*" $line]} {
+         set new_var [string trim [lindex [split $line ":"] 0 ]] 
+         lappend var_array $new_var
+         ts_log_fine "found \"$new_var\" variable in plain qstat output!"
       }
    }
+   
+   # Append the usage elements 
+   lappend var_array "maxvmem"
+   lappend var_array "cpu"
+   lappend var_array "mem"
+   lappend var_array "io"
+   lappend var_array "vmem"
+
+
+   # for each job test that the xml and plain outputs are the same
+   set found_error ""
+   set warnings ""
+   foreach elem $var_array {
+
+      if {[string trim $plain($elem)] == "" } {
+         ts_log_fine "skip empty elem \"$elem\""
+         continue
+      }
+      if {[string match "*usage*" $elem]} {
+         ts_log_fine "skip usage elem \"$elem\""
+         continue
+      }
+
+      if {$elem == "sge_o_log_name"} {
+         set plain_elem_string [string trim $plain($elem)]
+         ts_log_fine "repair wrong parsing name for \"sge_o_log_name\" to \"sge_o_logname\""
+         if {[string compare [string trim $xml(sge_o_logname)] $plain_elem_string] != 0} {
+            append found_error "outputs do not match from plain and xml for $elem.\n"
+            append found_error "xml output: [string trim $xml(sge_o_logname)] plain output: [string trim $plain($elem)]\n\n"
+         }
+         continue
+      }
+
+
+      if {![info exists xml($elem)]} {
+         append found_error "cannot find $elem in xml output!\n\n"
+         continue
+      }
+
+      set plain_elem_string [string trim $plain($elem)]
+      set xml_value  [string trim $xml($elem)]
+
+      if {$elem == "cpu" || $elem == "mem" || $elem == "io" || $elem == "vmem" } {
+         ts_log_fine "plain xml value: $xml_value"
+         ts_log_fine "plain value: $plain_elem_string"
+
+         if {$elem == "cpu"} {
+            set help_seconds [clock scan "00:00:00"]
+            set cpu_value_plain [ expr [clock scan $plain_elem_string] - $help_seconds]
+            ts_log_fine "cpu_value_plain: $cpu_value_plain"
+            set cpu_value_xml   [ expr [clock scan $xml_value]         - $help_seconds]
+            ts_log_fine "cpu_value_xml:   $cpu_value_xml"
+            if {$cpu_value_plain > 0.0} { 
+               set diff [expr ( $cpu_value_xml * 1.0 / $cpu_value_plain * 1.0 ) ]
+            } else {
+               if {$cpu_value_plain == $cpu_value_xml} {
+                  set diff "1.0"
+               } else {
+                  ts_log_severe "cannot diff cpu values: $cpu_value_plain == $cpu_value_xml ?"
+               }
+            }
+         } else {
+            set xml_value [transform_memory_value $xml_value]
+            set plain_elem_string [transform_memory_value $plain_elem_string]
+
+            if {$xml_value == $plain_elem_string} {
+               set diff 1.0
+            } else {
+               if {$plain_elem_string > 0.0} { 
+                  set diff [expr ( $xml_value * 1.0 / $plain_elem_string * 1.0 ) ]
+               } else {
+                  ts_log_severe "cannot diff values: $xml_value == $plain_elem_string ?"
+               }
+            }
+         }
+         if { $diff < 0.9 } {
+            append found_error "diff value $diff does not match from plain and xml for $elem.\n"
+            append found_error "xml output: [string trim $xml($elem)] plain output: [string trim $plain($elem)]\n\n"
+         }
+         if { $diff > 1.1 } {
+            append found_error "diff value $diff does not match from plain and xml for $elem.\n"
+            append found_error "xml output: [string trim $xml($elem)] plain output: [string trim $plain($elem)]\n\n"
+         }
+         continue
+      }
+
+
+      if {[string match "*time*" $elem]} {
+         set plain_elem_string_new [clock scan $plain_elem_string]
+         ts_log_fine "plain time string \"$plain_elem_string\" converted to unix timestamp: $plain_elem_string_new"
+         set plain_elem_string $plain_elem_string_new
+      }
+      if {[string compare [string trim $xml($elem)] $plain_elem_string] != 0} {
+         append found_error "outputs do not match from plain and xml for $elem.\n"
+         append found_error "xml output: [string trim $xml($elem)] plain output: [string trim $plain($elem)]\n\n"
+      }
+   }
+   if {$found_error != ""} {
+      append found_error "xml output:\n$xmloutput\nplain output:\n$plainoutput\n"
+      ts_log_severe $found_error
+      wait_for_enter
+   }
    delete_all_jobs 
-   set_config stored_configuration
+   set_config_and_propagate stored_configuration $host
 }
 

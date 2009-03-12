@@ -34,6 +34,8 @@
 
 lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd options
 lappend check_functions "qrsh_w_v_test"
+
+
 #                                                             max. column:     |
 #****** qrsh/replace_automount_prefix() ***************************************
 #

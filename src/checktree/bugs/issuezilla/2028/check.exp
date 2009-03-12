@@ -104,10 +104,6 @@ proc issue_2028_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   # make sure all jobs left qmaster
-   trigger_scheduling
-   sleep 5
-
    # shutdown qmaster and restore jobseqnum
    set qmaster_spool_dir [get_qmaster_spool_dir]
    shutdown_qmaster $ts_config(master_host) $qmaster_spool_dir

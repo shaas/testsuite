@@ -435,7 +435,7 @@ proc install_execd {} {
                # Otherwise the last command executed (infotext)
                # will leave a lockfile lying around.
                if {[coverage_enabled]} {
-                  sleep 2
+                  after 2000
                }
                continue
             }

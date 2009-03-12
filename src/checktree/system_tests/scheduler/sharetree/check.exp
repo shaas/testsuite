@@ -112,7 +112,7 @@ proc wait_for_job_tickes {job_id} {
          set last_job_tickets $job_info_var(tckts)
       }
       ts_log_fine "waiting for job $job_id to get its tickets ..."
-      sleep 1
+      after 1000
    }
    if {[timestamp] >= $my_timeout} {
       ts_log_severe "timeout while waiting for job tickets"
@@ -457,7 +457,7 @@ proc share_tree_test {} {
             wait_for_job_tickes $last_job
          }
       }
-      sleep 2
+      after 2000
       incr nr_of_jobs 1
    }
    disable_queue "$test_queue"

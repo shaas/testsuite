@@ -140,7 +140,7 @@ proc path_alias_setup {} {
                if {$prg_exit_state != 0} {
                   break;
                }
-               sleep 1
+               after 1000
             }
             if {$counter <= 0} {
                ts_log_severe "error moving file ${file_name} on host $elem"
@@ -187,7 +187,7 @@ proc path_alias_setup {} {
          if {$prg_exit_state == 0} {
             break;
          }
-         sleep 1
+         after 1000
       }
       if {$prg_exit_state != 0} {
          ts_log_severe "error reading file ${file_name} on host $elem"
