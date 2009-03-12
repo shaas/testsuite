@@ -30,15 +30,5 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc bootstrap_sge_config {} {
-   ts_log_warning "don't know how to read bootstrapping information in an version independent way"
-}
 
-proc dump_sge_config {} {
-   global sge_config
-
-   foreach entry [array names sge_config] {
-      ts_log_fine "$entry: $sge_config($entry)"
-   }
-}
 

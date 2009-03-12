@@ -2390,7 +2390,6 @@ proc get_spaces { nr } {
 #     check/__setup()
 #*******************************************************************************
 proc setup2 { } {
-   global sge_config
    global ts_config ts_host_config ts_user_config actual_ts_config_version
    global CHECK_DO_SETUP
    global CHECK_DEFAULTS_FILE do_nomain
@@ -8902,9 +8901,6 @@ source_tcl_files
 
 # try load TCL packages like TDOM
 load_additional_packages
-
-# fill sge_config array with minimal information
-bootstrap_sge_config
 
 if { $do_category == 1 } {
    set CHECK_ENABLED_CATEGORIES $do_category_list

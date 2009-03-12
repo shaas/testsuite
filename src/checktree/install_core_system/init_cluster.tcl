@@ -56,11 +56,6 @@ proc kill_running_system {} {
    }
 }
 
-proc reread_bootstrap {} {
-   # install_qmaster has written the bootstrap or the configuration file
-   bootstrap_sge_config
-}
-
 
 # generating all testsuite cluster user keys and certificates
 proc make_user_cert {} {

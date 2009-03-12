@@ -69,7 +69,6 @@ if {$install_mode == "automatic" && !$check_use_installed_system} {
 lappend check_functions "install_bdb_rpc"
 lappend check_functions "install_qmaster"
 lappend check_functions "install_wait_for_settings_file"
-lappend check_functions "reread_bootstrap"
 if { $install_mode == "manual" } {
    lappend check_functions "make_user_cert"
 }

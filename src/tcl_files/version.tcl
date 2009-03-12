@@ -133,7 +133,6 @@ proc ts_source {filebase {extension tcl}} {
 #  SEE ALSO
 #*******************************************************************************
 proc get_version_info {} {
-   global sge_config
    global CHECK_PRODUCT_VERSION_NUMBER
    global CHECK_PRODUCT_TYPE CHECK_USER
 
@@ -172,7 +171,7 @@ proc get_version_info {} {
                close $product_mode_file
             } else {
                # SGE(EE) 6.x: product mode is in bootstrap file
-               set product_mode $sge_config(product_mode)
+               set product_mode $ts_config(product_type) 
             }
             if { $ts_config(product_feature) == "csp" } {
                 if { [ string first "csp" $product_mode ] < 0 } {

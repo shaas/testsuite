@@ -1,11 +1,17 @@
-CR-2009-03-12-0: Cleanup     cleanup of miscellaneous testsuite tests and procedures
+CR-2009-03-12-1: Cleanup:    removed "antique" global sge_config variable
+                             and re-adjusted locations where it was used
+                 Review:     AA
+
+CR-2009-03-12-0: Cleanup:    cleanup of misc. testsuite tests and procedures
                  Review:     DG
 
-RH-2009-03-11-0: Bugfix:     get_spooled_jobs used wrong qmaster_spool_dir if different
-                             spooling method for multiple clusters were used
+RH-2009-03-11-0: Bugfix:     get_spooled_jobs used wrong qmaster_spool_dir if
+                             different spooling method for multiple clusters 
+                             were used
                  Review:     CR
 
-RH-2009-03-09-0: Bugfix:     Hedeby: CS port for dummy execution env must not be hard coded
+RH-2009-03-09-0: Bugfix:     Hedeby: CS port for dummy execution env must not 
+                             be hard coded
                  Issue:      Hedeby 261
                  Review:     AF
 

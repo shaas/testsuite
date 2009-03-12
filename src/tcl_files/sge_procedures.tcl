@@ -40,7 +40,6 @@ set module_name "sge_procedures.tcl"
 # test -- ??? 
 # get_complex_version() -- get information about used qconf version
 # get_qmaster_spool_dir() -- return path to qmaster spool directory
-# set_qmaster_spool_dir() -- return path to qmaster spool directory
 # get_execd_spool_dir() -- return spool dir for exec host
 # check_messages_files() -- check messages files for errors and warnings
 # get_qmaster_messages_file() -- get path to qmaster's messages file
@@ -292,64 +291,27 @@ proc get_shepherd_pid_list { users host {job_id_list {}} } {
 }
 
 
-#                                                             max. column:     |
-#****** sge_procedures/get_qmaster_spool_dir() ******
-# 
+#****** sge_procedures/get_qmaster_spool_dir() *********************************
 #  NAME
-#     get_qmaster_spool_dir() -- return path to qmaster spool directory
+#     get_qmaster_spool_dir() -- get qmaster spool directory
 #
 #  SYNOPSIS
 #     get_qmaster_spool_dir { } 
 #
 #  FUNCTION
-#     This procedure returns the actual qmaster spool directory 
-#     (or "" in case of an error)
+#     This procedure returns the qmaster spool directory string
+#
+#  INPUTS
 #
 #  RESULT
-#     string with actual spool directory of qmaster
-#
+#     full path string to qmaster spool directory
 #
 #  SEE ALSO
-#     sge_procedures/get_execd_spool_dir()
-#*******************************
+#     file_procedures/get_spool_dir()
+#*******************************************************************************
 proc get_qmaster_spool_dir {} {
-   global sge_config
    get_current_cluster_config_array ts_config
-   set ret "unknown"
-
-   if {![info exists sge_config(qmaster_spool_dir)]} {
-      # error
-      set ret "qmaster spool dir not yet initialized"
-   } else {
-      set ret $sge_config(qmaster_spool_dir)
-   }
-
-   return $ret
-}
-#                                                             max. column:     |
-#****** sge_procedures/set_qmaster_spool_dir() ******
-# 
-#  NAME
-#     set_qmaster_spool_dir() -- return path to qmaster spool directory
-#
-#  SYNOPSIS
-#     set_qmaster_spool_dir { } 
-#
-#  FUNCTION
-#     This procedure returns the actual qmaster spool directory 
-#     (or "" in case of an error)
-#
-#  RESULT
-#     string with actual spool directory of qmaster
-#
-#
-#  SEE ALSO
-#     sge_procedures/get_qmaster_spool_dir()
-#*******************************
-proc set_qmaster_spool_dir {spool_dir} {
-  global sge_config
-
-  set sge_config(qmaster_spool_dir) $spool_dir
+   return [get_spool_dir $ts_config(master_host) "qmaster"]
 }
 
 #****** sge_procedures/ge_has_feature() ****************************************
@@ -2205,99 +2167,6 @@ proc get_gid_range { user port } {
 }
 
 
-#                                                             max. column:     |
-#****** sge_procedures/move_qmaster_spool_dir() ******
-# 
-#  NAME
-#     move_qmaster_spool_dir -- ??? 
-#
-#  SYNOPSIS
-#     move_qmaster_spool_dir { new_spool_dir } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     new_spool_dir - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc move_qmaster_spool_dir { new_spool_dir } {
-  global CHECK_USER 
-  get_current_cluster_config_array ts_config
-
-  set old_spool_dir [ get_qmaster_spool_dir ]
- 
-  
-  if { [ string compare $old_spool_dir $new_spool_dir ] == 0 } {
-     ts_log_severe "old and new spool dir are the same"
-     return
-  }
- 
-  if { [ string compare "unknown" $old_spool_dir] == 0 } { 
-     ts_log_severe "can't get qmaster spool dir"
-     return
-  }
-
-  if { [string length $new_spool_dir] <= 10  } {
-     # just more security (do not create undefined dirs or something like that)
-     ts_log_severe "please use path with size > 10 characters"
-     return
-  } 
-
-  # change qmaster spool dir and shutdown the qmaster and scheduler
-#  this was the old way before 5.3.beta2. Now we can't change qmaster_spool_dir in
-#  a running system. We have to do it manually.
-#  set change_array(qmaster_spool_dir) $new_spool_dir
-#  set_config change_array "global"
-  shutdown_master_and_scheduler $ts_config(master_host) $old_spool_dir
-
-  set vi_commands ""
- #  ":%s/^$elem .*$/$elem  $newVal/\n"
-  set newVal1 [split $new_spool_dir {/}]
-  set newVal [join $newVal1 {\/}]
-
-  lappend vi_commands ":%s/^qmaster_spool_dir .*$/qmaster_spool_dir    $newVal/\n"
-  set vi_binary [get_binary_path $ts_config(master_host) "vim"]
-  # JG: TODO: this is version dependent! Use set_qmaster_spool_dir instead!
-  set result [ handle_vi_edit "$vi_binary" "$ts_config(product_root)/$ts_config(cell)/common/bootstrap" "$vi_commands" "" ] 
-  ts_log_finest "result: \"$result\""
-  if { $result != 0 } {
-     ts_log_severe "edit error when changing global configuration"
-  } 
-
-  set_qmaster_spool_dir $new_spool_dir
-
-  ts_log_finest "make copy of spool directory ..."
-  # now copy the entries  
-  set result [ start_remote_tcl_prog $ts_config(master_host) $CHECK_USER "file_procedures.tcl" "copy_directory" "$old_spool_dir $new_spool_dir" ]
-  if { [ string first "no errors" $result ] < 0 } {
-      ts_log_severe "error moving qmaster spool dir"
-  }
-
-  ts_log_fine "starting up qmaster ..."
-  startup_qmaster
-  wait_for_load_from_all_queues 300
-
-  set changed_spool_dir [ get_qmaster_spool_dir ]
-  if { [string compare $changed_spool_dir $new_spool_dir] != 0 } {
-     ts_log_severe "error changing qmaster spool dir"
-  }
-
-}
 
 #                                                             max. column:     |
 #****** sge_procedures/get_config() ******
@@ -3490,8 +3359,9 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #     This procedure will wait until no further jobs are remaining in the cluster.
 #
 #  INPUTS
-#     {seconds 60}    - optional: timeout value (if < 1 no timeout is set)
-#     {raise_error 1} - optional: report errors
+#     {seconds 60}        - optional: timeout value (if < 1 no timeout is set)
+#     {raise_error 1}     - optional: report errors
+#     {check_spool_dir 1} - optional: also check that job spooling is done
 #
 #  RESULT
 #     0 - ok
@@ -3503,7 +3373,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #     sge_procedures/get_spooled_jobs()
 #*******************************
 #
-proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
+proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1} {check_spool_dir 1}} {
    get_current_cluster_config_array ts_config
 
    set time [timestamp]
@@ -3513,6 +3383,10 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
       if {$prg_exit_state == 0} {
          if {[string trim $result] == ""} {
             ts_log_finer "qstat -s pr shows no jobs ..."
+            if {$check_spool_dir != 1} {
+               ts_log_fine "spool dir checking disabled!"
+               return 0
+            }
             while {1} {
                # to be sure we also check that no job is spooled somewere
                set spooled_jobs [get_spooled_jobs] 
@@ -3526,7 +3400,7 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
                if {$seconds > 0} {
                   set runtime [expr [timestamp] - $time]
                   if {$runtime >= $seconds} {
-                      ts_log_severe "timeout waiting for end of all jobs:\n\"$result\"" $raise_error
+                      ts_log_severe "timeout (= $seconds seconds) waiting for end of all jobs (spooled):\n\"$result\"" $raise_error
                       return -1
                   }
                }
@@ -3553,7 +3427,7 @@ proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
       if {$seconds > 0} {
          set runtime [expr [timestamp] - $time]
          if {$runtime >= $seconds} {
-             ts_log_severe "timeout waiting for end of all jobs:\n\"$result\"" $raise_error
+             ts_log_severe "timeout (= $seconds seconds) waiting for end of all jobs (spooled):\n\"$result\"" $raise_error
              return -1
          }
       }
@@ -3614,7 +3488,7 @@ proc get_spooled_jobs {} {
       ts_log_finer "we have classic spooling ..."
       set supported 1
       set execute_host $ts_config(master_host)
-      set spooldir [get_local_spool_dir $ts_config(master_host) "qmaster" 0]
+      set spooldir [get_qmaster_spool_dir]
       
       analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" dirs files permissions
       foreach file $files {

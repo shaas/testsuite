@@ -133,7 +133,7 @@ proc qrdel_submit_delete_when_transfered {} {
 
    # cleanup from earlier checks
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set ar_id [submit_ar "-q $queue -pe $pe 50 -d 3600"]
    if {$ar_id > 0} {
@@ -159,10 +159,12 @@ proc qrdel_submit_delete_when_transfered {} {
 
    set output [start_sge_bin "qrstat" "-u '*'"]
    ts_log_fine $output
-   wait_for_end_of_all_jobs 2
+   wait_for_end_of_all_jobs 2 1 0
 
    # clear possible error states of queues
    set output [start_sge_bin "qmod" "-c $queue"]
+
+   wait_for_end_of_all_jobs
 }
 
 proc qrdel_submit_delete_when_transfered_parallel {} {
@@ -171,7 +173,7 @@ proc qrdel_submit_delete_when_transfered_parallel {} {
 
    # cleanup from earlier checks
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set ar_id [submit_ar "-q $queue -pe $pe 50 -d 3600"]
    if {$ar_id > 0} {
@@ -195,10 +197,12 @@ proc qrdel_submit_delete_when_transfered_parallel {} {
       ts_log_severe "error submitting AR"
    }
 
-   wait_for_end_of_all_jobs 2
+   wait_for_end_of_all_jobs 2 1 0
 
    # clear possible error states of queues
    set output [start_sge_bin "qmod" "-c $queue"]
+
+   wait_for_end_of_all_jobs
 }
 
 proc submit_testars {{user ""} {additional_ar_args ""} {with_job "0"} {testar_count "4" }} {
@@ -235,7 +239,7 @@ proc qrdel_help {} {
    set qrdel_help_lines 10
 
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set output [start_sge_bin "qrdel" "-help"]
 
@@ -267,7 +271,7 @@ proc qrdel_help {} {
 proc qrdel_delete_unknown_arbid {} {
 
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    # delete a unknown ar_id
    set ret [delete_ar 1 0 0 "" "" 0] 
@@ -321,7 +325,7 @@ proc qrdel_all {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set all_args "'*'"
 
@@ -370,7 +374,7 @@ proc qrdel_uall {} {
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER 
 
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set uall_args "-u '*'"
    set empty_list ""
@@ -406,7 +410,7 @@ proc qrdel_user_list {} {
    set empty_list ""
 
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    add_user_to_access_list $CHECK_SECOND_FOREIGN_SYSTEM_USER "arusers"
 
@@ -470,7 +474,7 @@ proc qrdel_force {} {
    set empty_list ""
 
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    # submit jobs to delete
    set ar_list_user1 [submit_testars "" "" 1]
@@ -556,7 +560,7 @@ proc qrdel_race_condition_with_qdel {} {
 
    # cleanup from earlier checks
    delete_all_ars
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 

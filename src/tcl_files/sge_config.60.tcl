@@ -30,42 +30,4 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc bootstrap_sge_config {} {
-   global sge_config
-   global CHECK_USER CHECK_DEFAULT_DOMAIN
-
-   get_current_cluster_config_array ts_config
-
-   # start from scratch
-   if [info exists sge_config] {
-      unset sge_config
-   }
-
-   # read bootstrapping info from file
-   set bootstrap_file "$ts_config(product_root)/$ts_config(cell)/common/bootstrap"
-   if {[file exists $bootstrap_file]} {
-      ts_log_fine "reading bootstrap file $bootstrap_file"
-      set f [open $bootstrap_file r]
-      while {[gets $f line] > 0} {
-         if {[string range $line 0 0] != "#"} {
-            set name [lindex $line 0]
-            set value [lrange $line 1 end]
-            set sge_config($name) "$value"
-         } else {
-         }
-      }
-      close $f
-   } else {
-      ts_log_fine "initializing sge_config from default values"
-      set sge_config(admin_user)        "$CHECK_USER"
-      set sge_config(default_domain)    "$CHECK_DEFAULT_DOMAIN"
-      set sge_config(ignore_fqdn)       "true"
-      set sge_config(spooling_method)   "unknown"
-      set sge_config(spooling_lib)      "unknown"
-      set sge_config(spooling_params)   "unknown"
-      set sge_config(binary_path)       "$ts_config(product_root)/bin"
-      set sge_config(qmaster_spool_dir) "$ts_config(product_root)/$ts_config(cell)/spool/qmaster"
-      set sge_config(product_mode)      "$ts_config(product_type)"
-   }
-}
 
