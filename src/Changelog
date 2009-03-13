@@ -1,4 +1,9 @@
-MG-2009-03-12-0: Bugfix:     file_permission_test adjusted for issue 584 + fix for more than one reporter file
+CR-2009-03-13-0: Bugfix:     fixed wrong timing in was_job_running()
+                 Belongs To: CR-2009-03-12-0
+                 Review:     ??
+
+MG-2009-03-12-0: Bugfix:     file_permission_test adjusted for hedeby issue 584
+                             fix for more than one reporter file
                  Review:     MB
 
 CR-2009-03-12-2: Bugfix:     fixed new verified test "project_access_lists"

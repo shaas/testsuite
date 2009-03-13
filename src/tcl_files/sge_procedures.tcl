@@ -2732,12 +2732,10 @@ proc was_job_running {jobid {do_errorcheck 1} } {
 # -1 on error
 # qacct in listform else
 
-  set mytime [timestamp]
-
-  if {$mytime == $check_timestamp} {
+  while {[timestamp] == $check_timestamp} {
      after 500
   }
-  set check_timestamp $mytime
+  set check_timestamp [timestamp]
 
   set result [start_sge_bin "qacct" "-j $jobid"]
   
