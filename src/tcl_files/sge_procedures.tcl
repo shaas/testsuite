@@ -5510,6 +5510,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     {raise_error 1}         - do add_proc error, or only output error messages
 #     {expected_amount -1}    - expected amount of records (tasks)
 #     {atimeout_value 0}      - timeout waiting for accounting info
+#     {sum_up_tasks 1}        - generate the sum of all task related accounting values
 #
 #  RESULT
 #     0, if job was found
@@ -5543,7 +5544,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     parser/parse_qacct()
 #     sge_procedures/get_qacct_error()
 #*******************************
-proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_amount -1} {atimeout_value 0}} {
+proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_amount -1} {atimeout_value 0} {sum_up_tasks 1}} {
    get_current_cluster_config_array ts_config
 
    upvar $variable qacctinfo
@@ -5580,11 +5581,11 @@ proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_
       if {$prg_exit_state == 0} {
          if {$expected_amount == -1} {
             # we have the qacct info without errors
-            parse_qacct result qacctinfo $job_id
+            parse_qacct result qacctinfo $job_id $sum_up_tasks
             break
          } else {
             # we want to have $expected_amount accounting data sets
-            parse_qacct result qacctinfo $job_id
+            parse_qacct result qacctinfo $job_id $sum_up_tasks
             set num_acct [llength $qacctinfo(exit_status)]
             if {$num_acct == $expected_amount} {
                ts_log_fine "found all $num_acct expected accounting records!"

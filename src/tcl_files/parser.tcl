@@ -1407,6 +1407,8 @@ proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
 #     input   - name of a string variable containing the output of qacct
 #     output  - TCL array in which to store the results
 #     [jobid] - jobid that was used for qacct command
+#     sum     - 1 than array job usages are summed up or otherwise 
+#               individual usage per task is reported in lists
 #
 #  RESULT
 #     The output array is filled with the processed data.
@@ -1415,13 +1417,24 @@ proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
 #
 #***************************************************************************
 #
-proc parse_qacct {input output {jobid 0}} {
+proc parse_qacct {input output {jobid 0} {sum 1}} {
    upvar $input  in
    upvar $output out
 
    # append a newline, otherwise the last line will not be parsed
    append in "\n"
 
+   # sum up usage (default) or create task list 
+   set rule_sum rule_sum
+   # get the maximum for all tasks
+   set rule_max rule_max 
+   if {$sum != 1} {
+      # create list instead of summing up
+      set rule_sum rule_list
+      # get the value for each task as list
+      set rule_max rule_list
+   }
+   
    # rules for parsing an accounting record
    set rules(qname)           rule_list
    set rules(hostname)        rule_list
@@ -1431,24 +1444,24 @@ proc parse_qacct {input output {jobid 0}} {
    set rules(slots)           rule_list
    set rules(failed)          rule_list 
    set rules(exit_status)     rule_list
-   set rules(ru_wallclock)    rule_max
-   set rules(ru_utime)        rule_sum
-   set rules(ru_stime)        rule_sum
-   set rules(ru_maxrss)       rule_max
-   set rules(ru_idrss)        rule_sum
-   set rules(ru_minflt)       rule_sum
-   set rules(ru_majflt)       rule_sum
-   set rules(ru_nswap)        rule_sum
-   set rules(ru_inblock)      rule_sum
-   set rules(ru_oublock)      rule_sum
-   set rules(ru_msgsnd)       rule_sum
-   set rules(ru_msgrcv)       rule_sum
-   set rules(ru_nsignals)     rule_sum
-   set rules(cpu)             rule_sum
-   set rules(mem)             rule_sum
-   set rules(io)              rule_sum
-   set rules(iow)             rule_sum
-   set rules(maxvmem)         rule_sum
+   set rules(ru_wallclock)    $rule_max
+   set rules(ru_utime)        $rule_sum 
+   set rules(ru_stime)        $rule_sum
+   set rules(ru_maxrss)       $rule_max
+   set rules(ru_idrss)        $rule_sum
+   set rules(ru_minflt)       $rule_sum
+   set rules(ru_majflt)       $rule_sum
+   set rules(ru_nswap)        $rule_sum
+   set rules(ru_inblock)      $rule_sum
+   set rules(ru_oublock)      $rule_sum
+   set rules(ru_msgsnd)       $rule_sum
+   set rules(ru_msgrcv)       $rule_sum
+   set rules(ru_nsignals)     $rule_sum
+   set rules(cpu)             $rule_sum
+   set rules(mem)             $rule_sum
+   set rules(io)              $rule_sum
+   set rules(iow)             $rule_sum
+   set rules(maxvmem)         $rule_sum
    set rules(taskid)          rule_list
   
    # for non array jobs, taskid is "undefined", replace it by a number
