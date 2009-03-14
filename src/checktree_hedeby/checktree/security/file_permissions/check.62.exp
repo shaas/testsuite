@@ -59,8 +59,6 @@ lappend check_functions "hedeby_check_managed_host_file_permissions"
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 
-global install_current_cluster_config
-
 proc file_permissions_init_level {} {
    global CHECK_ACT_LEVEL
 
@@ -73,11 +71,10 @@ proc file_permissions_init_level {} {
 }
 
 proc file_permissions_setup {} {
-   global install_current_cluster_config
-   global install_user
-
-   set install_current_cluster_config [get_current_cluster_config_nr]
-   set install_user [get_hedeby_startup_user]
+   upvar #0 hedeby_file_permisssion_ctx ctx
+   set ctx(cl_nr) [get_current_cluster_config_nr]
+   set ctx(user) [get_hedeby_startup_user]
+   set ctx(error) 0
 
    # print out system information:
    ts_log_fine "======================================="
@@ -90,18 +87,18 @@ proc file_permissions_setup {} {
 }
 
 proc file_permissions_cleanup {} {
-   global install_current_cluster_config 
+   upvar #0 hedeby_file_permisssion_ctx ctx
 
    # set the current cluster config to the one used when starting
    # the test
-   set_current_cluster_config_nr $install_current_cluster_config
+   set_current_cluster_config_nr $ctx(cl_nr)
 }
 
 
 
 proc hedeby_check_master_host_file_permissions {} {
+   upvar #0 hedeby_file_permisssion_ctx ctx
    global hedeby_config
-   set error_text ""
    set ge_master_hosts [get_hedeby_default_services service_names]
    set expected_ge_jvm_hosts {}
    foreach ge_host $ge_master_hosts {
@@ -112,6 +109,7 @@ proc hedeby_check_master_host_file_permissions {} {
 
    ts_log_fine "checking file permissions on master host ..."
    set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+
    set host $hedeby_config(hedeby_master_host)
    set startup_user [get_hedeby_startup_user]
    set admin_user [get_hedeby_admin_user]
@@ -168,26 +166,32 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "tmp"
    lappend expected_dirs "tmp/ca"
 
-   ts_log_fine "checking directories ..."
+   ts_log_heading "STEP 1. Checking directories on master host"
    if { [llength $spool_directories] != [llength $expected_dirs] } {
+      set error_text ""
       append error_text "expected dirs length ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
       append error_text "Missing dirs:\n"
       foreach dir $expected_dirs {
-         if { [lsearch -exact $spool_directories "${spool_dir}/$dir"] < 0 } {
+         if { [lsearch -exact $spool_directories "./$dir"] < 0 } {
             append error_text "   $dir\n"
          }
       }
       append error_text "Not expected dirs:\n"
       set expected_dirs_helper {}
       foreach dir $expected_dirs {
-         lappend expected_dirs_helper "${spool_dir}/$dir"
+         lappend expected_dirs_helper "./$dir"
       }
       foreach dir $spool_directories {
          if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
             append error_text "   $dir\n"
          }
       }
+      ts_log_severe $error_text
+      set ctx(error) 1
+      return
    }
+   ts_log_heading "STEP 1. DONE"
+   ts_log_heading "STEP 2. Checking files on master host"
 
    set expected_files {}
    lappend expected_files "log/cs_vm-0.log.lck"
@@ -291,7 +295,7 @@ proc hedeby_check_master_host_file_permissions {} {
    set ignore1 {}
    analyze_directory_structure $host $startup_user "${spool_dir}/spool/reporter" spool_directories1 spool_files1 permissions1 $ignore1
    for {set i 0} {$i < 4} {incr i} {
-        if { [lsearch -exact $spool_files1 "${spool_dir}/spool/reporter/report-${i}.log"] != -1 } {
+        if { [lsearch -exact $spool_files1 "./report-${i}.log"] != -1 } {
             lappend expected_files "spool/reporter/report-${i}.log"
         }
    }
@@ -331,13 +335,13 @@ proc hedeby_check_master_host_file_permissions {} {
 
    lappend expected_files "spool/cs/global.xml"
    lappend expected_files "spool/cs/security.xml"
-
-   ts_log_fine "checking files ..."
+   
    if { [llength $spool_files] != [llength $expected_files] } {
+      set error_text ""
       append error_text "\nExpected files length ([llength $expected_files]) != found files length ([llength $spool_files])\n"
       append error_text "Missing files:\n"
       foreach file $expected_files {
-         if { [lsearch $spool_files "${spool_dir}/$file"] < 0 } {
+         if { [lsearch $spool_files "./$file"] < 0 } {
             append error_text "   $file\n"
          }
       }
@@ -346,7 +350,7 @@ proc hedeby_check_master_host_file_permissions {} {
       foreach file $spool_files {
          set match 0
          foreach fileb $expected_files {
-            if { [string match "${spool_dir}/$fileb" $file] } {
+            if { [string match "./$fileb" $file] } {
                set match 1
                break
             }
@@ -355,8 +359,13 @@ proc hedeby_check_master_host_file_permissions {} {
             append error_text "   $file\n"
          }
       }
+      ts_log_severe $error_text
+      set ctx(error) 1
+      return
    }
-
+   
+   ts_log_heading "STEP 2. DONE"
+   ts_log_heading "STEP 3. Checking permission for master host"
    set default_owner [get_hedeby_admin_user]
    set default_perms "-rw-r--r--"
 
@@ -418,8 +427,13 @@ proc hedeby_check_master_host_file_permissions {} {
    }
    set permission_errors ""
    set owner_errors ""
+   set error_text ""
+
+   
+
+
    foreach expect_file $expected_files {
-      set file "$spool_dir/$expect_file"
+      set file "./$expect_file"
 
       if {[info exists permissions($file,perm)]} {
          set perm  $permissions($file,perm)
@@ -447,6 +461,13 @@ proc hedeby_check_master_host_file_permissions {} {
          }
       }
 
+      if {$error_text != ""} {
+            ts_log_severe $error_text
+            set ctx(error) 1
+            return
+      }
+
+
       ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
       if { $perm != $expected_perms($expect_file) } {
          append permission_errors "$expect_file: wrong permissions: \"$perm\" (expected: \"$expected_perms($expect_file)\")\n"
@@ -463,19 +484,28 @@ proc hedeby_check_master_host_file_permissions {} {
    }
 
    if { $error_text != "" } {
-      add_proc_error "hedeby_check_master_host_file_permissions" -1 $error_text
+      ts_log_severe $error_text
+      set ctx(error) 1
+      return
    }
+
+   ts_log_heading "STEP 3. DONE"
 }
 
 
 proc hedeby_check_managed_host_file_permissions {} {
+    set nr 4
+    upvar #0 hedeby_file_permisssion_ctx ctx
+    if {$ctx(error) != 0} {
+        return
+    }
    global hedeby_config
 
    set ge_master_hosts [get_hedeby_default_services service_names]
    set error_text ""
    foreach managed_host [get_all_movable_resources] {
 
-      ts_log_fine "checking file permissions on managed host \"$managed_host\" ..."
+      ts_log_heading "STEP $nr. Checking directories, files and file permissions on managed host \"$managed_host\" ..."
       if { [lsearch -exact $ge_master_hosts $managed_host] >= 0 } {
          ts_log_fine "host \"$managed_host\" is GE service host"
          set is_ge_service_host 1
@@ -488,8 +518,8 @@ proc hedeby_check_managed_host_file_permissions {} {
       set admin_user [get_hedeby_admin_user]
 
       set ignore_path {}
-      lappend ignore_path "${spool_dir}/tmp/executor"
-      lappend ignore_path "${spool_dir}/tmp/executor/*"
+      lappend ignore_path "./tmp/executor"
+      lappend ignore_path "./tmp/executor/*"
       analyze_directory_structure $host $startup_user $spool_dir spool_directories spool_files permissions $ignore_path
 
       set expected_dirs {}
@@ -517,20 +547,22 @@ proc hedeby_check_managed_host_file_permissions {} {
          append error_text "expected dirs length on host \"$host\" ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
          append error_text "Missing dirs:\n"
          foreach dir $expected_dirs {
-            if { [lsearch -exact $spool_directories "${spool_dir}/$dir"] < 0 } {
+            if { [lsearch -exact $spool_directories "./$dir"] < 0 } {
                append error_text "   $dir\n"
             }
          }
          append error_text "Not expected dirs:\n"
          set expected_dirs_helper {}
          foreach dir $expected_dirs {
-            lappend expected_dirs_helper "${spool_dir}/$dir"
+            lappend expected_dirs_helper "./$dir"
          }
          foreach dir $spool_directories {
             if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
                append error_text "   $dir\n"
             }
          }
+         ts_log_severe $error_text
+         return
       }
 
       set expected_files {}
@@ -567,7 +599,7 @@ proc hedeby_check_managed_host_file_permissions {} {
          append error_text "\nExpected files length on host \"$host\" ([llength $expected_files]) != found files length ([llength $spool_files])\n"
          append error_text "Missing files:\n"
          foreach file $expected_files {
-            if { [lsearch $spool_files "${spool_dir}/$file"] < 0 } {
+            if { [lsearch $spool_files "./$file"] < 0 } {
                append error_text "   $file\n"
             }
          }
@@ -576,7 +608,7 @@ proc hedeby_check_managed_host_file_permissions {} {
          foreach file $spool_files {
             set match 0
             foreach fileb $expected_files {
-               if { [string match "${spool_dir}/$fileb" $file] } {
+               if { [string match "./$fileb" $file] } {
                   set match 1
                   break
                }
@@ -585,7 +617,8 @@ proc hedeby_check_managed_host_file_permissions {} {
                append error_text "   $file\n"
             }
          }
-
+         ts_log_severe $error_text
+         return
       }
 
       set default_owner [get_hedeby_admin_user]
@@ -647,7 +680,7 @@ proc hedeby_check_managed_host_file_permissions {} {
       set permission_errors ""
       set owner_errors ""
       foreach expect_file $expected_files {
-         set file "$spool_dir/$expect_file"
+         set file "./$expect_file"
 
          if {[info exists permissions($file,perm)]} {
             set perm  $permissions($file,perm)
@@ -674,6 +707,10 @@ proc hedeby_check_managed_host_file_permissions {} {
                set group $permissions($match_file,group)
             }
          }
+         if {$error_text != ""} {
+            ts_log_severe $error_text
+            return
+         }
          ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
 
          if { $perm != $expected_perms($expect_file) } {
@@ -689,9 +726,13 @@ proc hedeby_check_managed_host_file_permissions {} {
       if { $permission_errors != "" } {
          append error_text "\nPermission errors on host \"$host\":\n$permission_errors\n"
       }
+
+      ts_log_heading "STEP $nr. DONE"
+      incr nr
    }
    if { $error_text != "" } {
-      add_proc_error "hedeby_check_managed_host_file_permissions" -1 $error_text
+      ts_log_severe $error_text
+      return
    }
 }
 
