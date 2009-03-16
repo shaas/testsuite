@@ -64,6 +64,8 @@ set check_functions {}
 lappend check_functions "jsv_issues_job_start_user_qsub"
 lappend check_functions "jsv_issues_job_start_user_drmaa"
 lappend check_functions "jsv_issues_wrong_w_flag"
+lappend check_functions "jsv_issues_q_soft_selection"
+lappend check_functions "jsv_issues_q_hard_selection"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -306,6 +308,67 @@ proc jsv_issues_wrong_w_flag {} {
 
    # test
    if {$qstat_flag != $qsub_flag} {
-      ts_log_severe "Job parameter \"w\"was not reported to JSV correctly. Got \"$qstat_flag\" but expected \"$qsub_flag\""
+      ts_log_severe "Job parameter \"w\" was not reported to JSV correctly. Got \"$qstat_flag\" but expected \"$qsub_flag\""
    }
 }
+
+proc jsv_issues_q_soft_selection {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   # Submit a job in that directory as a result the .sge_request file will be parsed and
+   # the contained switch will be used 
+   # The script will be started as client JSV and this will write the
+   # passed -w flag as job context variable in the job 
+   set qsub_flag "all.q"
+   set qsub_args "-soft -q $qsub_flag -h -jsv ${jsv_base_path}/jsv_get_q_soft.sh $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+   set qsub_host $ts_config(master_host)
+   set qsub_exit_state 0
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   # store qstat -j output
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+
+   # read the flag from the job context variables
+   set qstat_flag 0
+   regexp "JSV_q_soft=(\[a-z0-9()\\\.]*)" $qstat_out match qstat_flag 
+
+   # test
+   if {$qstat_flag != $qsub_flag} {
+      ts_log_severe "Job parameter \"q\" was not reported to JSV correctly. Got \"$qstat_flag\" but expected \"$qsub_flag\""
+   }
+}
+
+proc jsv_issues_q_hard_selection {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   # Submit a job in that directory as a result the .sge_request file will be parsed and
+   # the contained switch will be used 
+   # The script will be started as client JSV and this will write the
+   # passed -w flag as job context variable in the job 
+   set qsub_flag "all.q"
+   set qsub_args "-hard -q $qsub_flag -h -jsv ${jsv_base_path}/jsv_get_q_hard.sh $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+   set qsub_host $ts_config(master_host)
+   set qsub_exit_state 0
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   # store qstat -j output
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+
+   # read the flag from the job context variables
+   set qstat_flag 0
+   regexp "JSV_q_hard=(\[a-z0-9()\\\.]*)" $qstat_out match qstat_flag 
+
+   # test
+   if {$qstat_flag != $qsub_flag} {
+      ts_log_severe "Job parameter \"q\" was not reported to JSV correctly. Got \"$qstat_flag\" but expected \"$qsub_flag\""
+   }
+}
+

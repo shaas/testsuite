@@ -839,13 +839,13 @@ proc drmaa_redirect_lib {version host} {
    # check if file exists on client side because of NFS timing issues
    if {[is_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"] == 1} {
       # wait for link on client host to go away (because of timing issues)
-      wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 60 1 1 
+      wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 120 1 1 
    }
    # create link on fileserver 
    start_remote_prog $fileserver_host "root" "ln" "-s $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
 
    # wait for link on client host
-   wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   wait_for_remote_file $host $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext" 120
 
 }
 

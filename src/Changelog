@@ -1,3 +1,7 @@
+EB-2009-03-16-0: Enhancent.: Added additional JSV test and fixed test
+                             that checks qsub -c in combination with JSV
+                 Review:     MD
+
 CR-2009-03-16-0: Bugfix:     new fix for not equal behaviour of find output
                              on all platforms for the helper script
                              scripts/analyze_dir.sh
