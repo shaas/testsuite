@@ -393,6 +393,13 @@ proc ge_has_feature {feature {quiet 0}} {
             set result true
          }
       }
+      "exclusive-host-usage" {
+         if {$ts_config(gridengine_version) < 62} {
+            set result false
+         } else {
+            set result true
+         }
+      }
       default {
          ts_log_severe "unsupported feature string \"$feature\""
          return "unsupported"

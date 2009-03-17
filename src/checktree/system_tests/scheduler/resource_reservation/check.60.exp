@@ -247,7 +247,7 @@ proc resource_reservation_level_setup {} {
 
       if {$CHECK_ACT_LEVEL == 4} {
 
-         add_queue "$rr_cal_queue_name" "@allhosts" queue_conf 1
+         add_queue "$rr_cal_queue_name" "@allhosts" queue_conf
          set no_rr_host [lindex $ts_config(execd_nodes) 1]
 
          # submit jobs into that queue
@@ -447,7 +447,6 @@ proc get_job_descriptions { test1 test2 {ar_id 0} } {
       set args "-R y"
    }
    
-
    switch -exact $test1 {
       "license" {
          set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=8"

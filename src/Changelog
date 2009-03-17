@@ -1,3 +1,6 @@
+RD-2009-03-17-0: Enhancem.:  Added test for exclusive complex
+                 Review:     AA
+
 LP-2009-03-17-0: Bugfix:     Added -no-jmx flag for GE 6.2 when no JMX port
                  Review:     TBD
 

@@ -160,7 +160,7 @@ proc run_dummy_jobs {} {
    global qalter_queue
 
    # This jobs has to be long enough to survive the starting of the next jobs
-   set submitresult [submit_job "-o /dev/null -e /dev/null -q $qalter_queue $ts_config(product_root)/examples/jobs/sleeper.sh 90"]
+   set submitresult [submit_job "-o /dev/null -e /dev/null -q $qalter_queue $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
    if {$submitresult < 0 } {
       return
    }
