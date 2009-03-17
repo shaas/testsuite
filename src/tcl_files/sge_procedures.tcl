@@ -3494,7 +3494,7 @@ proc get_spooled_jobs {} {
       set supported 1
       set execute_host $ts_config(master_host)
       set spooldir [get_qmaster_spool_dir]
-      
+
       analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" dirs files permissions
       foreach file $files {
          set job_id [file tail $file]

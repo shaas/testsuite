@@ -1,3 +1,9 @@
+CR-2009-03-17-0: Bugfix:     hotfix - remove changes made by CR-2009-03-16-0
+                             which break installation with classic spooling again
+                             and fixed host related find output differences 
+                 Belongs To: CR-2009-03-16-0
+                 Review:     AF
+
 RD-2009-03-17-0: Enhancem.:  Added test for exclusive complex
                  Review:     AA
 
@@ -11,6 +17,7 @@ EB-2009-03-16-0: Enhancent.: Added additional JSV test and fixed test
 CR-2009-03-16-0: Bugfix:     new fix for not equal behaviour of find output
                              on all platforms for the helper script
                              scripts/analyze_dir.sh
+                 Belongs To: CR-2009-03-05-0
                  Review:     TB
 
 MG-2009-03-14-0: Bugfix:     fix for broken file_permission_test
@@ -21,7 +28,7 @@ DG-2009-03-13-0: Enhancem.:  Added test for issue 2952
 
 CR-2009-03-13-0: Bugfix:     fixed wrong timing in was_job_running()
                  Belongs To: CR-2009-03-12-0
-                 Review:     ??
+                 Review:     AF
 
 MG-2009-03-12-0: Bugfix:     file_permission_test adjusted for hedeby issue 584
                              fix for more than one reporter file

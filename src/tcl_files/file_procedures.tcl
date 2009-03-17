@@ -221,63 +221,75 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
    set tmp [start_remote_prog $host $user $script "$path dirs" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    set tmp2 [split $tmp "\n"]
    set spool_directories {}
-   foreach line $tmp2 {
-      set file [string trim $line] 
-      if {$file == ""} {
-         continue
-      }
-      set matched 0
-      foreach dir $ignore {
-         if {[string match $dir $file]} {
-            ts_log_fine "ignoring path $file"
-            set matched 1
-            break
+   if {$prg_exit_state == 0} {
+      foreach line $tmp2 {
+         set file [string trim $line] 
+         if {$file == ""} {
+            continue
          }
+         set matched 0
+         foreach dir $ignore {
+            if {[string match $dir $file]} {
+               ts_log_fine "ignoring path $file"
+               set matched 1
+               break
+            }
+         }
+         if {$matched == 1} {
+            continue
+         }
+         ts_log_finer "adding dir \"$file\""
+         lappend spool_directories $file
       }
-      if {$matched == 1} {
-         continue
-      }
-      ts_log_finer "adding dir \"$file\""
-      lappend spool_directories $file
+   } else {
+      ts_log_severe "$script $path dirs returned exit status $prg_exit_state"
    }
 
    set tmp [start_remote_prog $host $user $script "$path files" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    set tmp2 [split $tmp "\n"]
    set spool_files {}
-   foreach line $tmp2 {
-      set file [string trim $line] 
-      if {$file == ""} {
-         continue
-      }
-      set matched 0
-      foreach dir $ignore {
-         if {[string match $dir $file]} {
-            ts_log_fine "ignoring path $file"
-            set matched 1
-            break
+   if {$prg_exit_state == 0} {
+      foreach line $tmp2 {
+         set file [string trim $line] 
+         if {$file == ""} {
+            continue
          }
+         set matched 0
+         foreach dir $ignore {
+            if {[string match $dir $file]} {
+               ts_log_fine "ignoring path $file"
+               set matched 1
+               break
+            }
+         }
+         if {$matched == 1} {
+            continue
+         }
+         ts_log_finer "adding file \"$file\""
+         lappend spool_files $file
       }
-      if {$matched == 1} {
-         continue
-      }
-      ts_log_finer "adding file \"$file\""
-      lappend spool_files $file
+   } else {
+      ts_log_severe "$script $path files returned exit status $prg_exit_state"
    }
 
    set tmp [start_remote_prog $host $user $script "$path fileperm" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    set tmp2 [split $tmp "\n"]
-   foreach file $spool_files {
-      # find entry in tmp2
-      foreach line $tmp2 {
-         set length [llength $line]
-         incr length -1
-         set dir [lindex $line $length]
-         if {$dir == $file} {
-            set spool_files_permissions($file,perm)   [lindex $line 0]
-            set spool_files_permissions($file,owner)  [lindex $line 2]
-            set spool_files_permissions($file,group)  [lindex $line 3]
+   if {$prg_exit_state == 0} {
+      foreach file $spool_files {
+         # find entry in tmp2
+         foreach line $tmp2 {
+            set length [llength $line]
+            incr length -1
+            set dir [lindex $line $length]
+            if {$dir == $file} {
+               set spool_files_permissions($file,perm)   [lindex $line 0]
+               set spool_files_permissions($file,owner)  [lindex $line 2]
+               set spool_files_permissions($file,group)  [lindex $line 3]
+            }
          }
       }
+   } else {
+      ts_log_severe "$script $path fileperm returned exit status $prg_exit_state"
    }
 }
 

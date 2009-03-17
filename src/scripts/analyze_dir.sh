@@ -66,8 +66,14 @@ if [ "$3" != "" ]; then
    exit 1
 fi
 cd $1
-dirs=`find ./* -name "*"`
+dirs=`find . -name "*"`
 for file in $dirs; do
+   if [ "$file" = "." ]; then
+      continue
+   fi
+   if [ "$file" = ".." ]; then
+      continue
+   fi
    if [ "$2" = "dirs" ]; then
       if [ -d $file  ]; then
          echo $file
