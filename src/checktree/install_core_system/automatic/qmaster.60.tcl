@@ -113,6 +113,8 @@ proc install_qmaster {} {
       }
       set env_list(JAVA_HOME) $java_home
       append feature_install_options " -jmx"
+   } elseif {$ts_config(gridengine_version) >= 62} {
+      append feature_install_options " -no-jmx"
    }
 
    set my_timeout 500
