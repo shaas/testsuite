@@ -354,7 +354,6 @@ proc do_resource_reservation_test {mode {pe_name ""}} {
 
    if { $prg_exit_state != 0 } {
       ts_log_severe "$drmaa_arguments failed\n$test_output"
-      wait_for_enter
    }
 
    delete_all_jobs
