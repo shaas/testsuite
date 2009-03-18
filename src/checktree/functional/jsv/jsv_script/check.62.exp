@@ -215,11 +215,13 @@ proc jsv_script_cleanup {} {
       # nothing to setup, jsv not available
       return 
    }
-     
+
    # terminate spawned process
    foreach id $jsv_id_list {
       set spawn_id [lindex $id 1]
-      ts_send $spawn_id "\003\n"
+      ts_send $spawn_id "\003"
+      # without this after the test fails on fast linux hosts
+      after 1000 
       close_spawn_process $id
    }
    set jsv_id_list {}

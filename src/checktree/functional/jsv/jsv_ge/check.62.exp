@@ -254,7 +254,7 @@ proc jsv_ge_parsing_jsv_url_invalid_type {} {
       set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv troete:${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
-      set job_id [submit_job "$submit_args" 0]
+      set job_id [submit_job "$submit_args" 0 60 $ts_config(master_host)]
       wait_for_job_end $job_id 20
    }
 }
@@ -268,7 +268,7 @@ proc jsv_ge_parsing_jsv_url_valid {} {
       set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv script:${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
-      set job_id [submit_job "$submit_args" 1]
+      set job_id [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       wait_for_job_end $job_id 20
    }
 }
@@ -282,7 +282,7 @@ proc jsv_ge_parsing_jsv_url_user_in_client {} {
       set jsv_script [jsv_script_get_script_file "expect" tcl]
       set submit_args "-jsv script:troete@${jsv_script}"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
-      set job_id [submit_job "$submit_args" 0]
+      set job_id [submit_job "$submit_args" 0 60 $ts_config(master_host)]
       wait_for_job_end $job_id 20
    }
 }
@@ -295,7 +295,7 @@ proc jsv_ge_parsing_jsv_url_invalid_path {} {
       # invalid path
       set submit_args "-jsv script:troete"
       append submit_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
-      set job_id [submit_job "$submit_args" "0"]
+      set job_id [submit_job "$submit_args" 0 60 $ts_config(master_host)]
       wait_for_job_end $job_id 20
    }
 }
@@ -319,8 +319,8 @@ proc jsv_ge_restart_on_modify {} {
       set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
 
       # submit two jobs and store qstat -j output
-      set job_id1 [submit_job "$submit_args" "0"]
-      set job_id2 [submit_job "$submit_args" "0"]
+      set job_id1 [submit_job "$submit_args" 0 60 $ts_config(master_host)]
+      set job_id2 [submit_job "$submit_args" 0 60 $ts_config(master_host)]
       set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
       set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
 
@@ -328,8 +328,8 @@ proc jsv_ge_restart_on_modify {} {
       file_touch ${jsv_base_path}/jsv_get_pid.sh
 
       # submit again two jobs and store the qstat -j output
-      set job_id3 [submit_job "$submit_args" "0"]
-      set job_id4 [submit_job "$submit_args" "0"]
+      set job_id3 [submit_job "$submit_args" 0 60 $ts_config(master_host)]
+      set job_id4 [submit_job "$submit_args" 0 60 $ts_config(master_host)]
       set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
       set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
 
@@ -388,8 +388,8 @@ proc jsv_ge_restart_after_kill {} {
       set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
 
       # submit two jobs and store qstat -j output
-      set job_id1 [submit_job "$submit_args"]
-      set job_id2 [submit_job "$submit_args"]
+      set job_id1 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
+      set job_id2 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
       set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
 
@@ -406,8 +406,8 @@ proc jsv_ge_restart_after_kill {} {
          start_remote_prog $ts_config(master_host) "root" "kill" "-9 $pid2"
 
          # submit again two jobs and store the qstat -j output
-         set job_id3 [submit_job "$submit_args"]
-         set job_id4 [submit_job "$submit_args"]
+         set job_id3 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
+         set job_id4 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
          set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
          set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
          regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
@@ -457,7 +457,7 @@ proc jsv_ge_restart_after_configuration_change {} {
       set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
 
       # submit two jobs and store qstat -j output and find the pid in the job context
-      set job_id1 [submit_job "$submit_args"]
+      set job_id1 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       set job_id2 [submit_job "$submit_args"]
       set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
       set qstat_out2 [start_sge_bin qstat "-j $job_id2"]
@@ -475,8 +475,8 @@ proc jsv_ge_restart_after_configuration_change {} {
       set global_conf(jsv_url) "script:${jsv_base_path}/jsv_get_pid2.sh"
       set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
       set_config global_conf
-      set job_id3 [submit_job "$submit_args"]
-      set job_id4 [submit_job "$submit_args"]
+      set job_id3 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
+      set job_id4 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
       set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
       set pid3 0
@@ -495,8 +495,8 @@ proc jsv_ge_restart_after_configuration_change {} {
       set global_conf(jsv_url) "none"
       set global_conf(qmaster_params) "__TEST_SLEEP_AFTER_REQUEST"
       set_config global_conf
-      set job_id5 [submit_job "$submit_args"]
-      set job_id6 [submit_job "$submit_args"]
+      set job_id5 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
+      set job_id6 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       set qstat_out5 [start_sge_bin qstat "-j $job_id5"]
       set qstat_out6 [start_sge_bin qstat "-j $job_id6"]
       set pid5 0
@@ -605,7 +605,7 @@ proc jsv_ge_start_user {user jsv_url} {
       set submit_args "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3"
 
       # submit jobs and store qstat -j output
-      set job_id1 [submit_job "$submit_args"]
+      set job_id1 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
       set qstat_out1 [start_sge_bin qstat "-j $job_id1"]
 
       # kill both jsv scripts 

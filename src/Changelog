@@ -1,3 +1,9 @@
+RD-2009-03-18-0: Bugfix:     - fixed JSV tests on fast linux hosts and with mixed
+                               architectures
+                             - suspressed features supported logging for exclusive
+                               test
+                 Review:     EB
+
 CR-2009-03-17-0: Bugfix:     hotfix - remove changes made by CR-2009-03-16-0
                              which break installation with classic spooling again
                              and fixed host related find output differences 
