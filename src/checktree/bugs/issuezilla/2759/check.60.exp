@@ -105,7 +105,7 @@ proc issue_2759_cleanup {} {
 #
 #  FUNCTION
 #     Starts some sleeper jobs. Shuts down execd with sgeexecd -stop  
-#     and checks if the shepherds and therefore the jobs are killed. 
+#     and checks if the jobs and therefore the jobs are killed. 
 # 
 #     Additional test: 
 #     Startup cluster again. Start some sleeper jobs. Stop execd with 
@@ -117,7 +117,7 @@ proc issue_2759_test {} {
    global ts_config CHECK_USER issue_2759_hostname
 
    # submit a job for each project and wait for them to be running
-   set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 120"
+   set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 12345"
    set issue_2759_hostname [host_conf_get_suited_hosts]
 
    set job_1 [submit_job "-l h=$issue_2759_hostname $args"]
@@ -138,9 +138,11 @@ proc issue_2759_test {} {
       return   ;# error has been raised in wait_for_jobstart
    }
 
-   # store the PIDs from the shepherd
+   # store the PIDs from the jobs 
    set shep_pid_list [get_shepherd_pid_list $CHECK_USER $issue_2759_hostname]
-   ts_log_fine "Following pids have the shepherds $shep_pid_list" 
+   set pid_list [get_job_pid_list $issue_2759_hostname $shep_pid_list]
+      
+   ts_log_fine "Following pids have the jobs $pid_list" 
 
    # stop execd 
    set output [start_remote_prog $issue_2759_hostname "root" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "stop" "exit_val" 60]
@@ -152,32 +154,47 @@ proc issue_2759_test {} {
    
    # check if the shepherds are still running 
    set starttime [timestamp]
-   foreach job_pid $shep_pid_list {
+   foreach job_pid $pid_list {
       set didntstart 1 
       # waiting a maximum of 30 seconds
       while {[expr [timestamp] - $starttime]< 30} {
          get_ps_info $job_pid $issue_2759_hostname
          if {$ps_info($job_pid,error) == 0} {
-            ts_log_fine "Not OK: waiting for shepherd to die because of sgeexecd stop!"
+            ts_log_fine "Not OK: waiting for job to die because of sgeexecd stop!"
             set didntstart 1
          } else {
             set didntstart 0   
-            ts_log_fine "OK: shepherd seems not to be running!"
+            ts_log_fine "OK: job seems not to be running!"
             break
          }
          # we don't want to have the processor to use 100% CPU time 
          after 1000
       }
       if {$didntstart == 1} {
-         ts_log_severe "Shepherd should have been killed!\nShepherd with PID $job_pid on host $issue_2759_hostname is still running!"
+         ts_log_severe "Job should have been killed!\nJob with PID $job_pid on host $issue_2759_hostname is still running!"
          ts_log_fine "Kill it manually in order to cleanup."
          set output [start_remote_prog $issue_2759_hostname "root" "kill" "9 $job_pid" "exit_val" 60]
          ts_log_fine "Output: $output"
       }
    }
 
-   
-
 }
 
+proc get_job_pid_list {host shepherdpid} {
+   set pid_list {}
+   get_ps_info 0 $host ps_info
+   for {set i 0} {$i < $ps_info(proc_count) } {incr i 1} {
+      foreach ppid $shepherdpid {
+         if {$ps_info(ppid,$i) == $ppid} {
+               ts_log_finer "ps_info(uid,$i)     = $ps_info(uid,$i)"
+               ts_log_finer "ps_info(pid,$i)     = $ps_info(pid,$i)"
+               ts_log_finer "ps_info(command,$i) = $ps_info(command,$i)"
+               ts_log_fine  "ps_info(string,$i)  = $ps_info(string,$i)"
+               lappend pid_list $ps_info(pid,$i)
+         }
+      }
+   }
+   ts_log_fine "processes on host \"$host\": \"$pid_list\""
+   return $pid_list
+}
 
