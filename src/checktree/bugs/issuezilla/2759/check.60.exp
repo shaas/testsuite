@@ -1,0 +1,183 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+global issue_2759_hostname
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2759_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2759"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "stopping an execution daemon does not stop jobs"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+set check_root_access_needs  "yes"
+
+# setup and cleanup functions
+set check_setup_function issue_2759_setup
+set check_cleanup_function issue_2759_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2759_test"
+
+proc issue_2759_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2759_setup {} {
+   global ts_config
+
+}
+
+proc issue_2759_cleanup {} {
+   global ts_config issue_2759_hostname
+   
+   # check if execd is alive, if not start it up   
+   if {[is_execd_alive $issue_2759_hostname] == 0} {
+      startup_execd $issue_2759_hostname
+   }
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+}
+
+
+#****** issue_2759/issue_2759_test() *********************************************
+#  NAME
+#     issue_2759_test() -- test IZ 2759 / CR 6761993 
+#
+#  SYNOPSIS
+#     issue_2759_test { } 
+#
+#  FUNCTION
+#     Starts some sleeper jobs. Shuts down execd with sgeexecd -stop  
+#     and checks if the shepherds and therefore the jobs are killed. 
+# 
+#     Additional test: 
+#     Startup cluster again. Start some sleeper jobs. Stop execd with 
+#     sgeexecd -softstop and verify if the jobs are running (they have to be).
+#      
+#     
+##*******************************************************************************
+proc issue_2759_test {} {
+   global ts_config CHECK_USER issue_2759_hostname
+
+   # submit a job for each project and wait for them to be running
+   set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 120"
+   set issue_2759_hostname [host_conf_get_suited_hosts]
+
+   set job_1 [submit_job "-l h=$issue_2759_hostname $args"]
+   set job_2 [submit_job "-l h=$issue_2759_hostname $args"]
+   set job_3 [submit_job "-l h=$issue_2759_hostname $args"]
+   set job_4 [submit_job "-l h=$issue_2759_hostname $args"]
+   
+   if {$job_1 <= 0 || $job_2 <= 0 || $job_3 <= 0 || $job_4 <= 0} {
+      return   ;# error has been raised in submit_job
+   }
+
+   # wait for jobs to be running
+   trigger_scheduling
+   if {[wait_for_jobstart $job_1 "" 20] != 0 || 
+       [wait_for_jobstart $job_2 "" 20] != 0 || 
+       [wait_for_jobstart $job_3 "" 20] != 0 || 
+       [wait_for_jobstart $job_4 "" 20] != 0} {  
+      return   ;# error has been raised in wait_for_jobstart
+   }
+
+   # store the PIDs from the shepherd
+   set shep_pid_list [get_shepherd_pid_list $CHECK_USER $issue_2759_hostname]
+   ts_log_fine "Following pids have the shepherds $shep_pid_list" 
+
+   # stop execd 
+   set output [start_remote_prog $issue_2759_hostname "root" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "stop" "exit_val" 60]
+
+   if {$exit_val != 0} {
+      ts_log_severe "Couldn't stop execution daemon!\n Output: \n $output"
+      return 
+   }
+   
+   # check if the shepherds are still running 
+   set starttime [timestamp]
+   foreach job_pid $shep_pid_list {
+      set didntstart 1 
+      # waiting a maximum of 30 seconds
+      while {[expr [timestamp] - $starttime]< 30} {
+         get_ps_info $job_pid $issue_2759_hostname
+         if {$ps_info($job_pid,error) == 0} {
+            ts_log_fine "Not OK: waiting for shepherd to die because of sgeexecd stop!"
+            set didntstart 1
+         } else {
+            set didntstart 0   
+            ts_log_fine "OK: shepherd seems not to be running!"
+            break
+         }
+         # we don't want to have the processor to use 100% CPU time 
+         after 1000
+      }
+      if {$didntstart == 1} {
+         ts_log_severe "Shepherd should have been killed!\nShepherd with PID $job_pid on host $issue_2759_hostname is still running!"
+         ts_log_fine "Kill it manually in order to cleanup."
+         set output [start_remote_prog $issue_2759_hostname "root" "kill" "9 $job_pid" "exit_val" 60]
+         ts_log_fine "Output: $output"
+      }
+   }
+
+   
+
+}
+
+
