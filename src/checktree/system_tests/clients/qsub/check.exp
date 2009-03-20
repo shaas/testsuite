@@ -200,6 +200,15 @@ proc qsub_cleanup {} {
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT
    global HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE
 
+   set spool_dir [get_spool_dir $ts_config(master_host)  "qmaster"] 
+   if {[is_qmaster_alive $ts_config(master_host) $spool_dir] != 1} {
+      if {[is_scheduler_alive $ts_config(master_host) $spool_dir] != 1} {
+         startup_qmaster 1
+      } else {
+      startup_qmaster 0
+      }
+   }
+
    delete_all_jobs
    wait_for_end_of_all_jobs
 
