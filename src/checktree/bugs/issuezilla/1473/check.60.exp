@@ -123,7 +123,7 @@ proc issue_1473_cleanup {} {
    modify_complex_from_file $complex_backup
 }
 
-proc modify_complex_from_file {filename {time_var dummy}} {
+proc modify_complex_from_file {filename {time_var dummy} {do_error_check 0}} {
    global ts_config CHECK_USER
 
    upvar $time_var time
@@ -167,14 +167,15 @@ proc modify_complex_from_file {filename {time_var dummy}} {
             }   
          }
       }
-      ts_log_fine "modified $changed complex entries"
-      # JG: TODO: we could check the number of changed complex attributes
+      if {$do_error_check == 1 && $changed != 200} {
+         ts_log_severe "only $changed of 201 complex entries were modified"
+      }
    }
 }
 
 proc issue_1473_do_qconf {message filename} {
    ts_log_fine "$message, using file $filename"
-   modify_complex_from_file $filename time
+   modify_complex_from_file $filename time 1
    ts_log_fine "time required: $time s"
 
    set max_time [scale_timeout 4.0]
