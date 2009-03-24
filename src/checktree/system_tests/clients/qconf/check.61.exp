@@ -48,6 +48,8 @@ append_check_and_exclude_in_jgdi "qconf_issue_2445" "Test for IZ 2445" ; # TS ca
 append_check_and_exclude_in_jgdi "qconf_help" ; # TS case for qconf [-help] return values 
 append_check_and_exclude_in_jgdi "qconf_Aconf" ; # TS case for qconf -Aconf with already existing configuration
 
+lappend check_functions "qconf_issue_2960"
+
 global rqs_name_fast
 global rqs_name_cli
 
@@ -565,5 +567,49 @@ proc qconf_Aconf {} {
       ts_log_severe "qconf_Aconf test failed.\nExpected qconf to fail, but got result:\n$result"
    } else {
       ts_log_fine "qconf_Aconf test passed"
+   }
+}
+
+proc qconf_issue_2960 {} {
+   global CHECK_USER
+
+   ts_log_fine "test writing into not writeable TMPDIR value ..."
+   set error_text ""
+   set host [host_conf_get_suited_hosts]
+   set user $CHECK_USER
+   set tmp_dir  [get_tmp_directory_name $host "default" "tmp" 1]
+   remote_file_mkdir $host $tmp_dir
+
+   set my_env(EDITOR) "echo"
+   set my_env(TMPDIR) $tmp_dir
+   ts_log_fine "tmp dir is set to: $tmp_dir"
+   set output [start_sge_bin "qconf" "-mc" $host $user prg_exit_state 15 "" "bin" output_lines my_env]
+   ts_log_fine $output
+
+   # Check if output contains correct tmpdir path
+   if {[string match "*$tmp_dir*" $output]} {
+      ts_log_fine "found directory output in qconf -mc command, good!"
+      foreach perm "{555 1} {000 1} {755 0}" {
+         set perms [lindex $perm 0]
+         set expected_exit_state [lindex $perm 1] 
+         # Now set permissions not writeable
+         set output [start_remote_prog $host $user "chmod" "$perms $tmp_dir"]
+
+         # This call should produce timeout if issue is present
+         set output [start_sge_bin "qconf" "-mc" $host $user prg_exit_state 10 "" "bin" output_lines my_env]
+         ts_log_fine $output
+         ts_log_fine "exit status = $prg_exit_state"
+         if {$prg_exit_state != $expected_exit_state} {
+            append error_text "exit status (=$prg_exit_state) should be $expected_exit_state for dir permissions=$perms.\n"
+         }
+      }
+   } else {
+      append error_text "output of qconf -mc (env EDITOR=$my_env(EDITOR), env TMPDIR=$my_env(TMPDIR)\n"
+      append error_text "does not contain tmp directory path ($tmp_dir)!\n\n"
+   }
+
+   remote_delete_directory $host $tmp_dir
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
