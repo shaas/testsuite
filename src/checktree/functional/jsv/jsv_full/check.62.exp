@@ -1,0 +1,396 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "jsv_full_init_level"
+
+# define test's name and run level descriptions
+set check_name            "jsv_full"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  ""
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function jsv_full_setup
+set check_cleanup_function jsv_full_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "jsv_full_all_all_correct"
+lappend check_functions "jsv_full_all_one_reject"
+
+# global variables for this test. all of them are initiaized in the setup procedure
+global jsv_org_global_conf
+global jsv_enabled
+global jsv_job_id
+global jsv_hjob_id
+global jsv_enabled 
+global jsv_base_path 
+
+set jsv_enabled ""
+
+proc jsv_full_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+proc jsv_full_setup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_base_path
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+
+   # check if jsv is available
+   if {$jsv_enabled == ""} {
+      set jsv_enabled [ge_has_feature "job-submission-verify"]
+      if {$jsv_enabled == false} {
+         ts_log_config "Cannot run this test, jsv is not available for this GE version!"
+      }
+   }
+
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # get base path of scripts
+   set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_full
+
+   # change global config 
+   get_config jsv_org_global_conf
+   set global_conf(load_report_time) "00:00:04"
+   set global_conf(max_unheard) "00:00:15"
+   set_config global_conf
+
+   # change schedd config
+   set sched_conf(flush_submit_sec) "1"
+   set sched_conf(flush_finish_sec) "1"
+   set_schedd_config sched_conf
+}
+
+proc jsv_full_cleanup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+ 
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
+   # trigger and wait for job termination
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # reset configurations
+   set_config jsv_org_global_conf
+   reset_schedd_config
+
+   # unset our test's global variables
+   foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc jsv_full_all_all_correct {} {
+   global ts_config
+   global CHECK_USER
+   global jsv_base_path
+
+   set skip 0
+   set home_copy 0
+   set global_copy 0
+   set home_existed 0
+
+   set qstat_a 0
+   set qstat_b 0
+   set qstat_c 0
+   set qstat_d 0
+   set qstat_e 0
+
+   # check if there is already a testsuite running with this test
+   set host $ts_config(master_host)
+   set home_path [get_home_dir_path $CHECK_USER $host]
+   set home_file $home_path/.sge_request
+   if {[file exists $home_file]} {
+      ts_log_severe "Test was not executed because there either is another TS running the same test or there is a .sge_request file in the home directory of the test user"
+      set skip 1
+   } 
+
+   # initialisation 
+   if {$skip == 0} {
+      # define server side jsv
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsvEcorrect.sh"   
+      set_config global_conf
+
+      # Create a new directory and store a .sge_request file containing a -jsv switch
+      set tmp_dir [get_tmp_directory_name]
+      set tmp_file "$tmp_dir/.sge_request"
+      file mkdir $tmp_dir
+      set fd [open $tmp_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvBcorrect.sh"
+      close $fd
+
+      # Add a .sge_request file in the home directory and add the -jsv switch
+      set fd [open $home_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvCcorrect.sh"
+      close $fd
+
+      # Create a global sge_reqeust file and add also there the switch for the file
+      set global_file $ts_config(product_root)/default/common/sge_request
+      set saved_global_file $ts_config(product_root)/default/common/sge_request.jsv_full_senario1
+      set global_copy 0
+      if {[file exists $global_file]} {
+         file copy -force $global_file $saved_global_file
+         set global_copy 1
+      }
+      set fd [open $global_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvDcorrect.sh"
+      close $fd
+   }
+
+   # test itself
+   if {$skip == 0} {
+      set qsub_args "-jsv ${jsv_base_path}/jsvAcorrect.sh"
+      append qsub_args " -ac A=0,B=0,C=0,D=0,E=0 -h"
+      append qsub_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set qsub_exit_state 0
+      set qsub_out [start_sge_bin qsub $qsub_args $host $CHECK_USER qsub_exit_state "180" $tmp_dir]
+      set job_id [lindex $qsub_out 2]
+
+      # submit jobs and store qstat -j output
+      set qstat_out [start_sge_bin qstat "-j $job_id"]
+
+      # read the job owner from the job context variables
+      regexp "A=(\[0-9\]*)," $qstat_out match qstat_a
+      regexp "B=(\[0-9\]*)," $qstat_out match qstat_b
+      regexp "C=(\[0-9\]*)," $qstat_out match qstat_c
+      regexp "D=(\[0-9\]*)," $qstat_out match qstat_d
+      regexp "E=(\[0-9\]*)" $qstat_out match qstat_e
+   } 
+
+   # cleanup stuff
+   if {$skip == 0} {
+      # delete tmp files
+      file delete $tmp_file
+      file delete $tmp_dir
+
+      # restore saved home file if it was created above
+      file delete $home_file
+
+      # restore saved global file if it was created above
+      if {$global_copy == 1} {
+         file delete $global_file
+         file copy $saved_global_file $global_file
+         file delete $saved_global_file
+      }
+   }
+  
+   if {$skip == 0} {
+      set count_a $qstat_a
+      set count_b [expr $qstat_b - $qstat_a]
+      set count_c [expr $qstat_c - $qstat_b]
+      set count_d [expr $qstat_d - $qstat_c]
+      set count_e [expr $qstat_e - $qstat_d]
+
+      if {$count_a != 1} {
+         ts_log_severe "JSV specified at commandline was executed $count_a times"      
+      }
+      if {$count_b != 1} {
+         ts_log_severe "JSV specified in .sge_request of cwd was executed $count_b times"      
+      }
+      if {$count_c != 1} {
+         ts_log_severe "JSV specified in .sge_request of home directory was executed $count_c times"      
+      }
+      if {$count_d != 1} {
+         ts_log_severe "JSV specified in global sge_request file was executed $count_d times"      
+      }
+      if {$count_e != 1} {
+         ts_log_severe "JSV specified in global configuration was executed $count_e times"      
+      }
+   } 
+}
+
+proc jsv_full_all_one_reject {} {
+   global ts_config
+   global CHECK_USER
+   global jsv_base_path
+
+   set skip 0
+   set home_copy 0
+   set global_copy 0
+   set home_existed 0
+
+   set qstat_a 0
+   set qstat_b 0
+   set qstat_c 0
+   set qstat_d 0
+   set qstat_e 0
+
+   # check if there is already a testsuite running with this test
+   set host $ts_config(master_host)
+   set home_path [get_home_dir_path $CHECK_USER $host]
+   set home_file $home_path/.sge_request
+   if {[file exists $home_file]} {
+      ts_log_severe "Test was not executed because there either is another TS running the same test or there is a .sge_request file in the home directory of the test user"
+      set skip 1
+   } 
+
+   # initialisation 
+   if {$skip == 0} {
+      # define server side jsv
+      set global_conf(jsv_url) "script:${jsv_base_path}/jsvEcorrect.sh"   
+      set_config global_conf
+
+      # Create a new directory and store a .sge_request file containing a -jsv switch
+      set tmp_dir [get_tmp_directory_name]
+      set tmp_file "$tmp_dir/.sge_request"
+      file mkdir $tmp_dir
+      set fd [open $tmp_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvBcorrect.sh"
+      close $fd
+
+      # Add a .sge_request file in the home directory and add the -jsv switch
+      set fd [open $home_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvreject.sh"
+      close $fd
+
+      # Create a global sge_reqeust file and add also there the switch for the file
+      set global_file $ts_config(product_root)/default/common/sge_request
+      set saved_global_file $ts_config(product_root)/default/common/sge_request.jsv_full_senario1
+      set global_copy 0
+      if {[file exists $global_file]} {
+         file copy -force $global_file $saved_global_file
+         set global_copy 1
+      }
+      set fd [open $global_file "a+"]
+      puts $fd "-jsv ${jsv_base_path}/jsvDcorrect.sh"
+      close $fd
+   }
+
+   # test itself
+   if {$skip == 0} {
+      set qsub_args "-jsv ${jsv_base_path}/jsvAcorrect.sh"
+      append qsub_args " -ac A=0,B=0,C=0,D=0,E=0 -h"
+      append qsub_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set qsub_exit_state 0
+      set qsub_out [start_sge_bin qsub $qsub_args $host $CHECK_USER qsub_exit_state "180" $tmp_dir]
+      set job_id [lindex $qsub_out 2]
+
+      # submit jobs and store qstat -j output
+      set qstat_out [start_sge_bin qstat "-j $job_id"]
+
+      # read the job owner from the job context variables
+      regexp "A=(\[0-9\]*)," $qstat_out match qstat_a
+      regexp "B=(\[0-9\]*)," $qstat_out match qstat_b
+      regexp "C=(\[0-9\]*)," $qstat_out match qstat_c
+      regexp "D=(\[0-9\]*)," $qstat_out match qstat_d
+      regexp "E=(\[0-9\]*)" $qstat_out match qstat_e
+   } 
+
+   # cleanup stuff
+   if {$skip == 0} {
+      # delete tmp files
+      file delete $tmp_file
+      file delete $tmp_dir
+
+      # restore saved home file if it was created above
+      file delete $home_file
+
+      # restore saved global file if it was created above
+      if {$global_copy == 1} {
+         file delete $global_file
+         file copy $saved_global_file $global_file
+         file delete $saved_global_file
+      }
+   }
+  
+   if {$skip == 0} {
+      set count_a $qstat_a
+      set count_b [expr $qstat_b - $qstat_a]
+      set count_c [expr $qstat_c - $qstat_b]
+      set count_d [expr $qstat_d - $qstat_c]
+      set count_e [expr $qstat_e - $qstat_d]
+
+      if {$count_a != 0} {
+         ts_log_severe "JSV specified at commandline was executed $count_a times"      
+      }
+      if {$count_b != 0} {
+         ts_log_severe "JSV specified in .sge_request of cwd was executed $count_b times"      
+      }
+      if {$count_c != 0} {
+         ts_log_severe "JSV specified in .sge_request of home directory was executed $count_c times"      
+      }
+      if {$count_d != 0} {
+         ts_log_severe "JSV specified in global sge_request file was executed $count_d times"      
+      }
+      if {$count_e != 0} {
+         ts_log_severe "JSV specified in global configuration was executed $count_e times"      
+      }
+   } 
+}
