@@ -18,6 +18,10 @@ fi
 for file in `cat $orig`; do
    if [ -f "$file" ]; then
       rm -f $file
+   else
+      if [ -d "$file" ]; then
+         rm -rf $file
+      fi
    fi
 done
 

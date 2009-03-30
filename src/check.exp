@@ -4472,12 +4472,31 @@ proc check_root_access {path} {
 proc delete_temp_script_files { } {
    global ts_config CHECK_USER
 
+   
+   # try to delete the temp files on the fileserver
+   set local_host [gethostname]
+
+   # first delete local files on the hosts
+   set local_del_file_name [get_testsuite_delete_filename 1]
+   if {[is_remote_file $local_host $CHECK_USER $local_del_file_name]} {
+      get_file_content $local_host $CHECK_USER $local_del_file_name local_del_files
+      for { set i 1} { $i <= $local_del_files(0) } { incr i 1 } {
+         set help_str [split $local_del_files($i) ":"]
+         set del_host [string trim [lindex $help_str 0]]
+         set del_file [string trim [lindex $help_str 1]]
+         if {[remote_file_isdirectory $del_host $del_file]} {
+            remote_delete_directory $del_host $del_file
+         } else {
+            delete_remote_file $del_host $CHECK_USER $del_file
+         }
+      }
+      delete_remote_file $local_host $CHECK_USER $local_del_file_name
+   }
+
    ts_log_fine "deleting temporary used files ..."
    set del_file_name [get_testsuite_delete_filename]
    set temp_del_file_name "${del_file_name}.old"
 
-   # try to delete the temp files on the fileserver
-   set local_host [gethostname]
    set host [fs_config_get_server_for_path $del_file_name 0]
 
    if {$host == ""} {

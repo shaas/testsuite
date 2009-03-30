@@ -885,7 +885,7 @@ proc replace_string { input_str what with {only_count 0}} {
 proc translate_macro {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} {par6 ""}} {
    get_current_cluster_config_array ts_config
    set msg [sge_macro $macro]
-   set ret [translate $ts_config(master_host) 1 0 0 $msg $par1 $par2 $par3 $par4 $par5 $par6]
+   set ret [translate $ts_config(master_host) 0 0 0 $msg $par1 $par2 $par3 $par4 $par5 $par6]
 
    return $ret
 }

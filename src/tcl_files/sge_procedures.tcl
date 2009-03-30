@@ -1316,6 +1316,7 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     {raise_error 1} - whether to raise an error condition
 #                       or not
 #     {prg_exit_state ""} - exit state of sge command
+#     {ignore_id_list {}} - ignore errors inside list
 #
 #  RESULT
 #     error code, for recognized messages the corresponding error code from 
@@ -1335,7 +1336,7 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     logging/ts_log()
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
-proc handle_sge_errors {procedure command result messages_var {raise_error 1} {prg_exit_state ""}} {
+proc handle_sge_errors {procedure command result messages_var {raise_error 1} {prg_exit_state ""} {ignore_id_list {}}} {
    upvar $messages_var messages
 
    set ret -999
@@ -1347,6 +1348,10 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
    set result [string trim $result]
    # try to find error message
    foreach errno $messages(index) {
+      if {[lsearch -exact $ignore_id_list $errno] != -1} {
+         ts_log_fine "ignoring errno=$errno"
+         continue
+      }
       if {[string match "*$messages($errno)*" $result]} {
          set ret $errno
          break
@@ -4589,6 +4594,10 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #                           be redirected to /dev/null, true by default
 #                           if the qsub options -o/-e are specified, this parameter
 #                           will be ignored
+#     {the_output ""}     - optional: if set the specified variable contains the output
+#                           of the submit command
+#     {ignore_list{}}     - optional: list which error jobid errors should be ignored
+#                           e.g.: "-38 -2"
 #
 #  RESULT
 #     This procedure returns:
@@ -4622,12 +4631,18 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #     sge_procedures/delete_job()
 #     sge_procedures/submit_job_parse_job_id()
 #*******************************
-proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"} {dev_null 1}} {
+proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"} {dev_null 1} {the_output ""} {ignore_list {}}} {
+   global CHECK_USER
    get_current_cluster_config_array ts_config
+
+   if {$the_output != ""} {
+      upvar $the_output output
+      set output ""
+   }
 
    # we first want to parse errors first, then the positive messages, 
    # as e.g. an immediate job might be correctly submitted, but then cannot be scheduled
-   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34 -35 -36 -37"
+   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34 -35 -36 -37 -38"
 
    append messages(index) " 0 1 2"
 
@@ -4704,6 +4719,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-32)    "*[translate_macro MSG_JOB_PRJNOSUBMITPERMS_S "*"]*"
    set messages(-33)    "*[translate_macro MSG_STREE_USERTNOACCESS2PRJ_SS "*" "*"]*"
    set messages(-34)    "*[translate_macro MSG_JOB_NOSUITABLEQ_S "*"]*"
+   set messages(-38)    "*[translate_macro MSG_QSUB_COULDNOTRUNJOB_S "*"]*"
 
    # add the standard/error output options if necessary
    if { [string first "-o " $args] == -1 && $dev_null == 1} {
@@ -4717,7 +4733,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
 
-   set ret [handle_sge_errors "submit_job" "$qcmd $args" $output messages $raise_error]
+   set ret [handle_sge_errors "submit_job" "$qcmd $args" $output messages $raise_error "" $ignore_list]
 
    # some special handling
    switch -exact -- $ret {
@@ -4738,7 +4754,11 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       }
    }
    if {$show_args == 1} {
-      ts_log_fine "job \"$ret_code\" submitted as \"$user\" with args=\"$args\""
+      set my_user $user
+      if {$my_user == ""} {
+         set my_user $CHECK_USER
+      }
+      ts_log_fine "job \"$ret_code\" submitted as \"$my_user\" with args=\"$args\""
    }
 
    # return job id or error code

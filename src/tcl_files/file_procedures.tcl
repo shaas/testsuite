@@ -153,19 +153,41 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
    }
 
    set timestamp_sub_index $last_file_extention
-   while {1} {
-      set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
-      if {![file isdirectory $CHECK_MAIN_RESULTS_DIR ] || $not_in_results} {
-        set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_${timestamp_appendix}_${dir_ext}"
-      } else {
-        set file_name "$CHECK_MAIN_RESULTS_DIR/${CHECK_USER}_${hostname}_${type}_${timestamp_appendix}_${dir_ext}"
+   if {$not_in_results == 0} {
+      while {1} {
+         set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
+         if {![file isdirectory $CHECK_MAIN_RESULTS_DIR ]} {
+           set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_${timestamp_appendix}_${dir_ext}"
+           set is_host_local_dir 1
+         } else {
+           set file_name "$CHECK_MAIN_RESULTS_DIR/${CHECK_USER}_${hostname}_${type}_${timestamp_appendix}_${dir_ext}"
+           set is_host_local_dir 0
+         }
+         # break loop when file is not existing (when timestamp has increased)
+         if {![file isdirectory $file_name]} {
+            break
+         } else {
+            incr timestamp_sub_index 1
+         }
+      } 
+   } else {
+      set is_host_local_dir 1
+      while {1} {
+         set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
+         set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_${timestamp_appendix}_${dir_ext}"
+         # break loop when file is not existing (when timestamp has increased)
+         if {[remote_file_isdirectory $hostname $file_name]} {
+            incr timestamp_sub_index 1
+         } else {
+            break
+         }
       }
-      # break loop when file is not existing (when timestamp has increased)
-      if {![file isdirectory $file_name]} {
-         break
-      } else {
-         incr timestamp_sub_index 1
-      }
+   }
+ 
+   if {$is_host_local_dir == 0} {
+      delete_file_at_startup $file_name
+   } else {
+      delete_local_file_at_startup $hostname $file_name
    }
    return $file_name
 }
@@ -343,22 +365,44 @@ proc get_tmp_file_name {{hostname ""} {type "default"} {file_ext "tmp"} {not_in_
    }
    
    set timestamp_sub_index $last_file_extention
-   while {1} {
-      set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
-      if {![file isdirectory $CHECK_MAIN_RESULTS_DIR] || $not_in_results} {
-        set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_$timestamp_appendix.${file_ext}"
-      } else {
-        set file_name "$CHECK_MAIN_RESULTS_DIR/${CHECK_USER}_${hostname}_${type}_$timestamp_appendix.${file_ext}"
+   if {$not_in_results == 0} {
+      # local file operations
+      while {1} {
+         set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
+         if {![file isdirectory $CHECK_MAIN_RESULTS_DIR]} {
+           set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_$timestamp_appendix.${file_ext}"
+           set is_host_local_file 1
+         } else {
+           set file_name "$CHECK_MAIN_RESULTS_DIR/${CHECK_USER}_${hostname}_${type}_$timestamp_appendix.${file_ext}"
+           set is_host_local_file 0
+         }
+         # break loop when file is not existing (when timestamp has increased)  
+         if {[file isfile $file_name]} {
+            incr timestamp_sub_index 1
+         } else {
+            break
+         }
       }
-      # break loop when file is not existing (when timestamp has increased)  
-      if {![file isfile $file_name]} {
-         break
-      } else {
-         incr timestamp_sub_index 1
+   } else {
+      # remote file operations
+      set is_host_local_file 1
+      while {1} {
+         set timestamp_appendix "[clock seconds]_$timestamp_sub_index"
+         set file_name "/tmp/${CHECK_USER}_${hostname}_${type}_$timestamp_appendix.${file_ext}"
+         # break loop when file is not existing (when timestamp has increased)  
+         if {[is_remote_file $hostname $CHECK_USER $file_name]} {
+            incr timestamp_sub_index 1
+         } else {
+            break
+         }
       }
    }
 
-   delete_file_at_startup $file_name
+   if {$is_host_local_file == 0} {
+      delete_file_at_startup $file_name
+   } else {
+      delete_local_file_at_startup $hostname $file_name
+   }
  
    return $file_name
 }
@@ -2554,6 +2598,7 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 
    set return_value -1
 
+   ts_log_fine "$hostname: delete directory \"$path\" ..."
    # we move data to a trash directory instead of deleting them immediately
    # create the trash directory, if it does not yet exist
    if {$CHECK_TESTSUITE_TRASH} {
@@ -2621,7 +2666,6 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
       ts_log_severe "$hostname: path is to short. Will not delete\n\"$path\""
       set return_value -1
    }
-
    return $return_value
 }
 
@@ -2647,7 +2691,8 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #     no results 
 #
 #  SEE ALSO
-#     file_procedures/get_testsuite_delete_filename
+#     file_procedures/get_testsuite_delete_filename()
+#     file_procedures/delete_local_file_at_startup()
 #*******************************
 proc delete_file_at_startup {filename} {
    get_current_cluster_config_array ts_config
@@ -2662,6 +2707,40 @@ proc delete_file_at_startup {filename} {
    close $del_file    
 }
 
+#****** file_procedures/delete_local_file_at_startup() *************************
+#  NAME
+#     delete_local_file_at_startup() -- remember local file for later deletion
+#
+#  SYNOPSIS
+#     delete_local_file_at_startup { host filename } 
+#
+#  FUNCTION
+#     This procedure adds the file $filename to the "testsuite local delete file".
+#     All files that are listed in the "testsuite local delete file" are deleted at
+#     the start of a testrun. 
+#
+#  INPUTS
+#     host     - host where the file must be deleted
+#     filename - (full path) file name of file to delete later
+#
+#  RESULT
+#     no returns
+#
+#  SEE ALSO
+#     file_procedures/delete_file_at_startup()
+#     file_procedures/get_testsuite_delete_filename()
+#*******************************************************************************
+proc delete_local_file_at_startup {host filename} {
+   get_current_cluster_config_array ts_config
+   set del_file_name [get_testsuite_delete_filename 1]
+   if {![file isfile $del_file_name]} {
+       set del_file [open $del_file_name "w"]
+   } else {
+       set del_file [open $del_file_name "a"]
+   }
+   puts $del_file "$host:$filename"
+   close $del_file    
+}
 
 #                                                             max. column:     |
 #****** file_procedures/delete_file() ******
@@ -4161,11 +4240,16 @@ proc have_dirs_same_base_dir {dir_name1 dir_name2} {
 #     file_procedures/delete_file_at_startup()
 #     check.exp/delete_temp_script_file()
 #*******************************************************************************
-proc get_testsuite_delete_filename {} {
+proc get_testsuite_delete_filename { {get_local_file 0} } {
    global ts_config
    global CHECK_DEFAULTS_FILE
 
    set ts_config_name [file rootname [file tail $CHECK_DEFAULTS_FILE]]
 
-   return "$ts_config(testsuite_root_dir)/.testsuite_delete.$ts_config_name"
+   if {$get_local_file == 0} {
+      set ret_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete.$ts_config_name"
+   } else {
+      set ret_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete_local.$ts_config_name"
+   }
+   return $ret_file_name
 }

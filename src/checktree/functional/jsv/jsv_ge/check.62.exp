@@ -403,15 +403,32 @@ proc jsv_ge_restart_after_kill {} {
 
       if {$pid1 > 1 && $pid2 > 1} {
          start_remote_prog $ts_config(master_host) "root" "kill" "-9 $pid1"
+         # This sleep is necessary to disable reset of both threads at the
+         # same time
+         after 1500
          start_remote_prog $ts_config(master_host) "root" "kill" "-9 $pid2"
+                
+         # This sleep is necessary to give threads time to react on killed jsv script
+         after 3500
+
+         ts_log_fine "now submit 2 jobs after killing jsv script ..."
 
          # submit again two jobs and store the qstat -j output
-         set job_id3 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
-         set job_id4 [submit_job "$submit_args" 1 60 $ts_config(master_host)]
+         set job_id3 [submit_job "$submit_args" 0 60 $ts_config(master_host) "" "" 1 "qsub" 1 output1]
+         set job_id4 [submit_job "$submit_args" 0 60 $ts_config(master_host) "" "" 1 "qsub" 1 output2]
+
+         if {$job_id3 == -38 || $job_id4 == -38} {
+            ts_log_fine "resubmit the jobs (scripts returned error output) ..."
+            set job_id3 [submit_job "$submit_args" 1 60 $ts_config(master_host) "" "" 1 "qsub" 1 output1]
+            set job_id4 [submit_job "$submit_args" 1 60 $ts_config(master_host) "" "" 1 "qsub" 1 output2]
+         }
          set qstat_out3 [start_sge_bin qstat "-j $job_id3"]
          set qstat_out4 [start_sge_bin qstat "-j $job_id4"]
          regexp "JSV_PID=(\[0-9\]*)" $qstat_out3 match pid3
          regexp "JSV_PID=(\[0-9\]*)" $qstat_out4 match pid4
+         if {$pid3 == 0 || $pid4 == 0} {
+            ts_log_severe "problem with follow up jobs start!"
+         }
       } else {
          ts_log_severe "One of the JSV pids is missing"
       }

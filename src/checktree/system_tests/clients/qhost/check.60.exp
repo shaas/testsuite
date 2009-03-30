@@ -85,9 +85,16 @@ proc qhost_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc qhost_setup {} {
+   global my_qhost_config_saved_value
+   get_config my_qhost_config_saved_value
+   set my_qhost_config(load_report_time) "00:02:00"
+   set my_qhost_config(max_unheard)      "00:08:00"
+   set_config_and_propagate my_qhost_config
 }
 
 proc qhost_cleanup {} {
+   global my_qhost_config_saved_value
+   set_config_and_propagate my_qhost_config_saved_value
 }
 
 proc qhost_issue1306 {} {
@@ -132,8 +139,15 @@ proc test_issue132 {} {
             ts_log_severe "outputs do not match from plain and xml for qtype_string."      
             return
          }      
-         if {[string compare [string trim $xml(host$ind,slots_used)/$xml(host$ind,slots)] [string trim $plain(host$ind,slots_used)]] != 0} {
-            ts_log_severe "outputs do not match from plain and xml for slots."      
+         # reserved/used/total  for GE > 62    OR only used/total for GE <= 61
+         if {[info exists xml(host$ind,slots_resv)]} {
+            set xml_slots_used_value [string trim "$xml(host$ind,slots_resv)/$xml(host$ind,slots_used)/$xml(host$ind,slots)"]
+         } else {
+            set xml_slots_used_value [string trim "$xml(host$ind,slots_used)/$xml(host$ind,slots)"]
+         }
+         set plain_slots_used_value [string trim $plain(host$ind,slots_used)]
+         if {[string compare $xml_slots_used_value $plain_slots_used_value] != 0} {
+            ts_log_severe "outputs do not match from plain and xml for slots:\n\"$xml_slots_used_value\" != \"$plain_slots_used_value\"\n"
             return
          }      
          if {[string compare [string trim $xml(host$ind,state_string)] [string trim $plain(host$ind,state_string)]] != 0} {
