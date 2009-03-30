@@ -1,0 +1,336 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_633"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Check that managed host installation works even if sge_ca script is not accessible on managed host"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_633_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue_633_setup_level"
+set check_cleanup_level_function "hedeby_issue_633_cleanup_level"
+
+lappend check_functions "hedeby_issue_633_check"
+
+
+#****** issue_633/hedeby_issue_633_init_level() ************************
+#  NAME
+#     hedeby_issue_633_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue_633_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue_633_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_633/hedeby_issue_633_setup_level() *********************************
+#  NAME
+#     hedeby_issue_633_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue_633_setup_level { } 
+#
+#  FUNCTION
+#     set up hedeby_issue_633_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_633_setup_level {} {
+   upvar #0 hedeby_issue_633_ctx ctx
+
+   global hedeby_config
+
+   get_current_cluster_config_array ts_config
+
+   set ctx(org_sge_root) $ts_config(product_root) 
+   set ctx(fake_sge_root) "/tmp/hedeby_issue_633_sge_root.[clock clicks]"
+
+   #set ctx(managed_host) [pick_random [get_all_spare_pool_resources]]
+   set ctx(managed_host) [lindex [get_all_spare_pool_resources] 0]
+
+   set ctx(master_host) $hedeby_config(hedeby_master_host)
+   set ctx(cleanup_actions) {}
+   return
+}
+
+#****** issue_633/hedeby_issue_633_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue_633_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_issue_633_cleanup_level { } 
+#
+#  FUNCTION
+#     remove created services and clean up hedeby_issue_633_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_633_cleanup_level {} {
+   upvar #0 hedeby_issue_633_ctx ctx
+  
+
+   set doReset 0
+
+
+   if { [lsearch $ctx(cleanup_actions) "reset_ca_config"] >= 0 } {
+      if {[hedeby_issue_633_set_ca_script "$ctx(org_sge_root)/util/sgeCA/sge_ca" ] != 0 } {
+         ts_log_severe "Could not reset the ca configuration"
+         set doReset 1
+      }
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "remove_symbolic_link"] >= 0 } {
+      start_remote_prog  $ctx(master_host) "root" "rm" "$ctx(fake_sge_root)"
+      if { $prg_exit_state != 0 } {
+         ts_log_severe "Could not remove symbolic link '$ctx(fake_sge_root)'"
+      }
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "startup_managed_host"] >= 0 } {
+      set opts(user) [get_hedeby_startup_user]
+      set opts(host) $ctx(managed_host)
+      sdmadm_command_opt "suj" opts
+      unset opts
+      if { $prg_exit_state != 0 } {
+         set doReset 1
+      }
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "install_managed_host"] >= 0 } {
+      if {[hedeby_install_managed_hosts $ctx(managed_host)] != 0 } {
+         set doReset 1
+      }
+   } 
+
+   if {$doReset != 0} {
+      reset_hedeby 1
+   }
+
+   unset ctx
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_633/hedeby_issue_633_check *****************************
+#  NAME
+#     hedeby_issue_633_check() -- Tests that the install_managed_host command
+#                                 executes the actions which depend on the sge_ca
+#                                 script on the master host
+#
+#  SYNOPSIS
+#     hedeby_issue_633_check { } 
+#
+#  FUNCTION
+#     this steps test hedeby issue 633:
+#
+#     Step 1: Shutdown jvms managed host '$ctx(managed_host)'
+#     Step 2: Uninstall managed host '$ctx(managed_host)'
+#     Step 3: Create symbolic link from '$ctx(org_sge_root)' to '$ctx(fake_sge_root)'
+#             (Creates a path to the sge_ca script which does not exist on the managed host)
+#     Step 4: Reconfigure the CA component
+#     Step 5: Install managed host '$ctx(managed_host)
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_633_check {} {   
+   upvar #0 hedeby_issue_633_ctx ctx
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 1: Shutdown jvms managed host '$ctx(managed_host)'"
+   # ---------------------------------------------------------------------------
+   if { [shutdown_hedeby_hosts "managed" $ctx(managed_host) [get_hedeby_admin_user]] != 0 } {
+      return
+   }
+   set ctx(cleanup_actions) "startup_managed_host"
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 2: Uninstall managed host '$ctx(managed_host)'"
+   # ---------------------------------------------------------------------------
+   set opts(host) $ctx(managed_host)
+   set opts(user) [get_hedeby_startup_user]
+
+   set global_options ""
+   if { $opts(user) == "root" } {
+      # If we have a system installation root must execute
+      # the uninstall_host command
+      # But root is not a admin user, we need also credentials for authenticating
+      set admin_keystore_file ""
+      set ca_file ""
+
+      if { [hedeby_copy_admin_keystore_to_shared_folder admin_keystore_file ca_file] != 0 } {
+         ts_log_severe "Could not copy the admin keystore and the cacert file into a shared folder"
+         return
+      }
+      wait_for_remote_file $ctx(managed_host) "root" $admin_keystore_file
+      wait_for_remote_file $ctx(managed_host) "root" $ca_file
+
+      set global_options "-keystore $admin_keystore_file -cacert $ca_file"
+   }
+   sdmadm_command_opt "$global_options uninstall_host" opts
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Could not uninstall managed host '$ctx(managed_host)'"
+      return
+   }
+   unset opts
+   # We can override the startup_managed_host cleanup action, it is no longer necessary
+   set ctx(cleanup_actions) "install_managed_host"
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 3: Create symbolic link from '$ctx(org_sge_root)' to '$ctx(fake_sge_root)'"
+   # ---------------------------------------------------------------------------
+   start_remote_prog  $ctx(master_host) "root" "ln" "-s $ctx(org_sge_root) $ctx(fake_sge_root)"
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Could not create symbolic link from '$ctx(org_sge_root)' to '$ctx(fake_sge_root)'"
+      return
+   }
+   lappend ctx(cleanup_actions) "remove_symbolic_link"
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 4: Reconfigure the CA component"
+   # ---------------------------------------------------------------------------
+   if {[hedeby_issue_633_set_ca_script $ctx(fake_sge_root)/util/sgeCA/sge_ca] != 0 } {
+      ts_log_severe "Setting the path the sge_ca script failed"
+      return
+   }
+   lappend ctx(cleanup_actions) "reset_ca_config"
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 5: Install managed host '$ctx(managed_host)"
+   # ---------------------------------------------------------------------------
+   set error_text ""
+   if {[hedeby_install_managed_hosts $ctx(managed_host) error_text] != 0} {
+      set    msg "It seems that we ran into issue 633 again!!!\n"
+      append msg "============================================\n"
+      append msg "\n"
+      append msg "This test has modified the path to the sge_ca script\n"
+      append msg "to a path which is only available on the hedeby master host.\n"
+      append msg "The install_managed_host command should work despite the\n"
+      append msg "sge_ca script not being available.\n" 
+      append msg "However it failed with the following error message:\n"
+      append msg $error_text
+      ts_log_severe $msg
+      return    
+   }
+
+   # The manage host has been sucessfully installed, cleanup must not reinstall it
+   # => remove the install_managed_host action from the cleanup_actions (it's always the first action)
+   set ctx(cleanup_actions) [lrange $ctx(cleanup_actions) 1 [llength $ctx(cleanup_actions)]]
+   
+
+}
+
+
+#****** check.62/hedeby_issue_633_set_ca_script() ******************************
+#  NAME
+#     hedeby_issue_633_set_ca_script() -- set the path the sge_ca script in the CA configuration
+#
+#  SYNOPSIS
+#     hedeby_issue_633_set_ca_script { ca_script } 
+#
+#  FUNCTION
+#     Sets the path to the sge_ca script in the CA configuration
+#
+#  INPUTS
+#     ca_script - path to the sge_ca script 
+#
+#  RESULT
+#     exit state of the 'sdmadm mc' command
+#
+#*******************************************************************************
+proc hedeby_issue_633_set_ca_script { ca_script } {
+
+   set error_text ""
+   set ispid [hedeby_mod_setup_opt "mc -c ca" error_text]
+   
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+   lappend sequence ":%s#<security:sgeCaScript>.*</security:sgeCaScript>#<security:sgeCaScript>$ca_script</security:sgeCaScript>#\n"
+   
+   hedeby_mod_sequence $ispid $sequence error_text
+   hedeby_mod_cleanup $ispid error_text
+  
+   if { $prg_exit_state != 0 } {
+       set msg    "Could not change the path to the sge_ca script in the CA component configuration\n"
+       append msg "The 'sdmadm mc -c ca' command failed with the following error message:\n"
+       append msg "$error_text"
+       ts_log_severe $msg
+   }
+   return $prg_exit_state
+}
+
+
+

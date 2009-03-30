@@ -1,4 +1,4 @@
-#!/vol2/TCL_TK/glinux/bin/expect
+
 # ___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -348,11 +348,38 @@ proc hedeby_startup_managed_hosts {} {
 }
 
 
-proc hedeby_install_managed_hosts {} {
+#****** check.62/hedeby_install_managed_hosts() ********************************
+#  NAME
+#     hedeby_install_managed_hosts() -- Install the managed hosts of the hedeby system 
+#
+#  SYNOPSIS
+#     hedeby_install_managed_hosts { { host_list "" } } 
+#
+#  FUNCTION
+#
+#     Performs the installation for managed hosts
+#
+#  INPUTS
+#     { host_list "" } - The list of managed hosts, if this parameter is an empty
+#                        string all movable hosts will be installed 
+#     { error_text_var "" } - upvar where the error text of the installations is stored
+#                             if this parameter is a empty string no error_text will be upvared
+#
+#  RESULT
+#
+#      0    -  Success, all managed hosts have been installed
+#      else -  At least one installation failed 
+#
+#*******************************************************************************
+proc hedeby_install_managed_hosts { { host_list "" } { error_text_var ""} } {
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
    global certificate_creation_time_on_master_host
+
+   if { $error_text_var != "" } {
+      upvar $error_text_var error_text
+   }
 
    # first we make sure to work on the first cluster config
    set_current_cluster_config_nr 0
@@ -378,41 +405,41 @@ proc hedeby_install_managed_hosts {} {
 
    # first get tmp keystore and cacert files
    # the tmp files are deleted with the next test!
-   puts $CHECK_OUTPUT "copy ca certificate and admin keystore ..."
-   set ca_file [get_tmp_file_name "" "ca"]
-   set admin_keystore_file [get_tmp_file_name "" "keystore"]
-   set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
-   set admin_user [get_hedeby_admin_user]
-   set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$admin_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"
-   set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
-   puts $CHECK_OUTPUT "   copy ca result:"
-   puts $CHECK_OUTPUT "   $result"
-   puts $CHECK_OUTPUT "   admin_keystore file should be at:\n   $admin_keystore_file"
-   puts $CHECK_OUTPUT "   ca cert file should be at:\n   $ca_file"
-   puts $CHECK_OUTPUT ""
- 
-   puts $CHECK_OUTPUT "==Install params for all managed hosts=="
-   puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
-   puts $CHECK_OUTPUT "dist_path:        $dist_path" 
-   puts $CHECK_OUTPUT "cs_url:           $cs_url"
-   puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
-   puts $CHECK_OUTPUT "========================================"
 
+   if { [hedeby_copy_admin_keystore_to_shared_folder admin_keystore_file ca_file] != 0 } {
+      ts_log_severe "Could not copy the admin keystore and the cacert file into a shared folder"
+      return
+   }
 
-   set managed_host_list [get_all_movable_resources]
+   if { $host_list == "" } {
+       set managed_host_list [get_all_movable_resources]
+   } else {
+       set managed_host_list $host_list
+   }
 
+   ts_log_heading "Install managed hosts"
+   ts_log_fine "    Managed hosts: $managed_host_list"
+   ts_log_fine "   admin_keystore: $admin_keystore_file"
+   ts_log_fine "     ca cert file: $ca_file"
+   ts_log_fine "      sdmadm_path: $sdmadm_path"
+   ts_log_fine "        dist_path: $dist_path" 
+   ts_log_fine "           cs_url: $cs_url"
+   ts_log_fine "     ssl disabled: $ssl_disabled"
+   ts_log_fine "========================================"
 
+   ts_log_heading "Cleaning up local spool directories on all managed hosts" 
    foreach managed_host $managed_host_list {
       # create and/or delete local spool directory for hedeby master host ...
       # (the spool_dir itself should not be existing)
 
-      puts $CHECK_OUTPUT "\nCleaning up local spool dir on host $managed_host ..."
+      ts_log_finest "Cleaning up local spool dir on host $managed_host ..."
       set managed_host_sdmadm_arguments($managed_host,spool_dir) [cleanup_hedeby_local_spool_dir $managed_host]
-      puts $CHECK_OUTPUT "   using spool dir:\n   $managed_host_sdmadm_arguments($managed_host,spool_dir)"
+      ts_log_finest "   using spool dir:\n   $managed_host_sdmadm_arguments($managed_host,spool_dir)"
    }
 
+   ts_log_heading "Check NFS  availability of ca and keystore file on all managed hosts"
    foreach managed_host $managed_host_list {
-      puts $CHECK_OUTPUT "Checking NFS availability of ca and keystore file on host $managed_host ..."
+      ts_log_finest "Checking NFS availability of ca and keystore file on host $managed_host ..."
       # check that NFS has transported the keystore and cacert file to the managed host ...
       wait_for_remote_file $managed_host $install_user $admin_keystore_file
       wait_for_remote_file $managed_host $install_user $ca_file
@@ -421,16 +448,16 @@ proc hedeby_install_managed_hosts {} {
       set local_time [get_remote_time $managed_host]
       while { $local_time < $certificate_creation_time_on_master_host } {
          set time_diff [expr ( $local_time - $certificate_creation_time_on_master_host )]
-         puts $CHECK_OUTPUT "time difference between certificate creation time on master host \"$hedeby_config(hedeby_master_host)\" and managed host \"$managed_host\": $time_diff"
+         ts_log_finest "time difference between certificate creation time on master host \"$hedeby_config(hedeby_master_host)\" and managed host \"$managed_host\": $time_diff"
          after 2000
          set local_time [get_remote_time $managed_host]
       }
    }
 
-   puts $CHECK_OUTPUT "Starting parallel managed host installation ..."
+   ts_log_heading "Starting parallel managed host installation ..."
    foreach managed_host $managed_host_list {
       # install new system ...
-      set arguments "-s [get_hedeby_system_name]\
+      set arguments "-d -s [get_hedeby_system_name]\
                      -p [get_hedeby_pref_type]\
                      -k $admin_keystore_file\
                      -cc $ca_file\
@@ -451,17 +478,68 @@ proc hedeby_install_managed_hosts {} {
    set error_text [start_parallel_sdmadm_command managed_host_list $install_user task_info]
    
    foreach managed_host $managed_host_list {
-      set exit_state $task_info($managed_host,exit_status)
-      set output $task_info($managed_host,output)
-      debug_puts "----------------------------------"
-      debug_puts "managed_host: $managed_host"
-      debug_puts "exit status: $exit_state"
-      debug_puts "output:\n$output"
-      debug_puts "----------------------------------"
+      set    output "----------------------------------\n"
+      append output "managed_host: $managed_host\n"
+      append output "exit status: $$task_info($managed_host,exit_status)\n"
+      append output "output:\n$task_info($managed_host,output)\n"
+      append output "----------------------------------\n"
+      ts_log_finer $output
    }
 
    if { $error_text != "" } {
       add_proc_error "hedeby_install_managed_hosts" -1 $error_text
+      return 1
    }
+   return 0
+}
+
+
+
+#****** check.62/hedeby_copy_admin_keystore_to_shared_folder() *****************
+#  NAME
+#     hedeby_copy_admin_keystore_to_shared_folder() -- copy the keystore of the
+#                                                      hedeby admin user to a shared folder
+# 
+#
+#  SYNOPSIS
+#     hedeby_copy_admin_keystore_to_shared_folder { keystore_path_var cert_path_var } 
+#
+#  FUNCTION
+#     This function copies the keystore of the hedeby admin user and the ca certificate
+#     to temp files on a shared folder.  
+#
+#  INPUTS
+#     keystore_path_var - upvar, contains the path to copied admin keystore file 
+#     cert_path_var     - upvar, contains the path to copied ca cert file 
+#
+#  RESULT
+#
+#     0 - Success - both files are copied to the shared file, pathnames stored in the
+#                   upvars
+#     else  ERROR
+#
+#*******************************************************************************
+proc hedeby_copy_admin_keystore_to_shared_folder { keystore_path_var cert_path_var } {
+
+   global hedeby_config
+
+   upvar $keystore_path_var keystore_file
+   upvar $cert_path_var     cert_file
+  
+   set cert_file [get_tmp_file_name "" "ca"]
+   set keystore_file [get_tmp_file_name "" "keystore"]
+
+   set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   set admin_user [get_hedeby_admin_user]
+
+   set    cmd "$master_spool_dir ;"
+   append cmd " cp ./security/users/$admin_user.keystore $keystore_file ;"
+   append cmd " cp ./security/ca/ca_top/cacert.pem $cert_file"
+
+   ts_log_heading "Copy admin keystore file and ca cert file to shared folder"
+
+   set result [start_remote_prog "$hedeby_config(hedeby_master_host)" "root" "cd" "$cmd"]
+
+   return $prg_exit_state
 }
 
