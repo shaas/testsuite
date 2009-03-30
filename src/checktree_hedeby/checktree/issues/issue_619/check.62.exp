@@ -109,6 +109,7 @@ proc hedeby_issue619_setup_level {} {
    set this(managed) [pick_random [get_all_movable_resources]]
    set this(spare) "new_spare"
    set this(added) "false"
+   set this(managed_spool_dir) [get_hedeby_local_spool_dir $this(managed)]
    
    # ------------------------------------------------------------------ 
    ts_log_heading "Setup : Add a new spare_pool component with name: $this(spare) to master jvm: $this(jvm) on host $this(managed)"
@@ -193,9 +194,18 @@ proc hedeby_issue619_cleanup_level {} {
            }
            set this(added) "false" 
    }
+
    if {$this(reset)} {
       reset_hedeby 1
    }
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Cleanup 2 : Delete files from local spool dir '$this(managed_spool_dir)' on host $this(managed)"
+   # ------------------------------------------------------------------ 
+   set log_dir "$this(managed_spool_dir)/log"
+   set files   "$this(managed_spool_dir)/spool/$this(spare) $log_dir/cs_vm-0.log $log_dir/cs_vm.stdout $log_dir/cs_vm.stderr"
+   start_remote_prog $this(managed) "root" "rm" "-rf $files"
+
    unset this
    # ------------------------------------------------------------------ 
    ts_log_heading "Cleanup : Cleanup for issue619 finished"
