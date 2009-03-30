@@ -1,0 +1,116 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name
+global check_category
+global check_description
+global check_needs
+global check_functions
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2876_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2876"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "fix qsub truncation of scripts"
+
+# define test's dependencies
+set check_needs           "init_core_system"
+
+# setup and cleanup functions
+set check_setup_function issue_2876_setup
+set check_cleanup_function issue_2876_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2876_test1"
+
+proc issue_2876_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2876_setup {} {
+   global CHECK_ACTUAL_TEST_PATH CHECK_USER size_of_big_file big_file_path
+
+   set big_file_path $CHECK_ACTUAL_TEST_PATH/bigfile.txt
+
+   set args "-c $big_file_path | cut -d \" \" -f3"
+   ts_log_fine "executing wc $args"
+   set size_of_big_file [start_remote_prog [gethostname] $CHECK_USER "wc" $args]
+}
+
+proc issue_2876_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+proc issue_2876_test1 {} {
+   global ts_config CHECK_USER size_of_big_file big_file_path
+
+   set args "$big_file_path | qsub -h -terse"
+   ts_log_fine "executing cat $args"
+   set job_id [string trimright [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "cat" $args]]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "remote prog error (exit state not 0) cat $args failed"
+   }
+
+   set spooled_big_file_path [get_qmaster_spool_dir]/job_scripts/$job_id
+
+   set args "-c $spooled_big_file_path | cut -d \" \" -f3"
+   ts_log_fine "executing wc $args"
+   set size_of_spool_big_file [start_remote_prog $ts_config(master_host) $CHECK_USER "wc" $args]
+
+   ts_log_fine "size of origin file: $size_of_big_file"
+   ts_log_fine "size of spooled file: $size_of_spool_big_file"
+   if {$size_of_big_file != $size_of_spool_big_file} {
+      ts_log_severe "truncation of script"
+   }
+}
