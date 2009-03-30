@@ -107,8 +107,8 @@ proc hedeby_issue_633_setup_level {} {
    set ctx(org_sge_root) $ts_config(product_root) 
    set ctx(fake_sge_root) "/tmp/hedeby_issue_633_sge_root.[clock clicks]"
 
-   #set ctx(managed_host) [pick_random [get_all_spare_pool_resources]]
-   set ctx(managed_host) [lindex [get_all_spare_pool_resources] 0]
+   set ctx(managed_host) [pick_random [get_all_spare_pool_resources]]
+   #set ctx(managed_host) [lindex [get_all_spare_pool_resources] 0]
 
    set ctx(master_host) $hedeby_config(hedeby_master_host)
    set ctx(cleanup_actions) {}
@@ -152,6 +152,12 @@ proc hedeby_issue_633_cleanup_level {} {
       }
    } 
 
+   if { [lsearch $ctx(cleanup_actions) "install_managed_host"] >= 0 } {
+      if {[hedeby_install_managed_hosts $ctx(managed_host)] != 0 } {
+         set doReset 1
+      }
+   } 
+
    if { [lsearch $ctx(cleanup_actions) "startup_managed_host"] >= 0 } {
       set opts(user) [get_hedeby_startup_user]
       set opts(host) $ctx(managed_host)
@@ -162,11 +168,6 @@ proc hedeby_issue_633_cleanup_level {} {
       }
    } 
 
-   if { [lsearch $ctx(cleanup_actions) "install_managed_host"] >= 0 } {
-      if {[hedeby_install_managed_hosts $ctx(managed_host)] != 0 } {
-         set doReset 1
-      }
-   } 
 
    if {$doReset != 0} {
       reset_hedeby 1
@@ -215,7 +216,8 @@ proc hedeby_issue_633_check {} {
    if { [shutdown_hedeby_hosts "managed" $ctx(managed_host) [get_hedeby_admin_user]] != 0 } {
       return
    }
-   set ctx(cleanup_actions) "startup_managed_host"
+   # we always need to startup the managed host during cleanup
+   lappend ctx(cleanup_actions) "startup_managed_host"
 
    # ---------------------------------------------------------------------------
    ts_log_heading "Step 2: Uninstall managed host '$ctx(managed_host)'"
@@ -246,8 +248,7 @@ proc hedeby_issue_633_check {} {
       return
    }
    unset opts
-   # We can override the startup_managed_host cleanup action, it is no longer necessary
-   set ctx(cleanup_actions) "install_managed_host"
+   lappend ctx(cleanup_actions) "install_managed_host"
 
    # ---------------------------------------------------------------------------
    ts_log_heading "Step 3: Create symbolic link from '$ctx(org_sge_root)' to '$ctx(fake_sge_root)'"
@@ -287,10 +288,9 @@ proc hedeby_issue_633_check {} {
    }
 
    # The manage host has been sucessfully installed, cleanup must not reinstall it
-   # => remove the install_managed_host action from the cleanup_actions (it's always the first action)
-   set ctx(cleanup_actions) [lrange $ctx(cleanup_actions) 1 [llength $ctx(cleanup_actions)]]
-   
-
+   # => remove the install_managed_host action from the cleanup_actions
+   set imh_index [lsearch -exact $ctx(cleanup_actions) "install_managed_host"]
+   set ctx(cleanup_actions) [lreplace $ctx(cleanup_actions) $imh_index $imh_index]
 }
 
 
