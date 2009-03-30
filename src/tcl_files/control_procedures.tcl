@@ -454,7 +454,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    ts_log_finest "now waiting for vi start ..."
    set error 0
 
-   set timeout 10
+   set timeout 15
    expect {
       -i $sp_id full_buffer {
          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -475,7 +475,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       }
    }
 
-   set timeout 30
+   set timeout 60
    expect {
       -i $sp_id full_buffer {
          set error 1
@@ -907,7 +907,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    set EOF_MSG "unexpected end of file"
    set TMOUT_START "timeout - can't start vi (3)"
 
-   set timeout 10
+   set timeout 30
    expect {
       -i $sp_id full_buffer {
          set result $BUFF_OVERFLOW
@@ -928,7 +928,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       }
    }
 
-   set timeout 10
+   set timeout 30
    expect {
       -i $sp_id full_buffer {
          set error 1
