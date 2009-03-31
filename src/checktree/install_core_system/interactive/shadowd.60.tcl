@@ -135,6 +135,11 @@ proc install_shadowd {} {
       set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
       set DO_YOU_WANT_TO_CONTINUE      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_YOU_WANT_TO_CONTINUE] ]
       set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT] ]
+      
+      # java
+      set JMX_ENABLE_JMX               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENABLE_JMX]]
+      set JMX_JAVA_HOME                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JAVA_HOME] "*" ]
+      set JMX_ADD_JVM_ARGS             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_JVM_ARGS] "*"]
 
       ts_log_fine "inst_sge -sm"
 
@@ -232,6 +237,29 @@ proc install_shadowd {} {
 
             -i $sp_id $INSTALL_SCRIPT { 
                install_send_answer $sp_id $ANSWER_NO
+               continue
+            }
+            
+            -i $sp_id $JMX_ENABLE_JMX {
+               # We send just enter as default is set based of the flags
+               install_send_answer $sp_id "" "enable jmx"
+               continue
+            }
+            
+            -i $sp_id $JMX_JAVA_HOME {
+               # For the JMX MBean Server we need java 1.5
+               set java_home [get_java_home_for_host $shadow_host "1.5"]
+               if {$java_home == ""} {
+                  ts_log_warning "Cannot install qmaster with JMX MBean Server on host $shadow_host. java15 is not defined in host configuration"
+                  close_spawn_process $id
+                  return
+               }
+               install_send_answer $sp_id $java_home "sending java_home"
+               continue
+            }            
+            
+            -i $sp_id $JMX_ADD_JVM_ARGS {
+               install_send_answer $sp_id "" "additional_jvm_args"
                continue
             }
 

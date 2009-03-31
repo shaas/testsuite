@@ -186,12 +186,14 @@ proc install_qmaster {} {
    # java
    set JMX_JAVA_HOME                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JAVA_HOME] "*" ]
    set JMX_ADD_JVM_ARGS             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_JVM_ARGS] "*"]
+   set JMX_ENABLE_JMX               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENABLE_JMX]]
    set JMX_PORT_QUESTION            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_PORT]]
    set JMX_SSL_QUESTION             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL]]
    set JMX_SSL_CLIENT_QUESTION      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_CLIENT]]
    set JMX_SSL_KEYSTORE_QUESTION    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_KEYSTORE] "*" ]
    set JMX_SSL_KEYSTORE_PW_QUESTION [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_KEYSTORE_PW]]
    set JMX_USE_DATA                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USE_DATA]]
+   set JMX_USER_KEYSTORE_PW         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USER_KEYSTORE_PW]]
 
    set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME]]
    set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME]]
@@ -351,7 +353,12 @@ proc install_qmaster {} {
             install_send_answer $sp_id "y" "2"
             continue
          }
-       
+         
+         -i $sp_id $JMX_ENABLE_JMX {
+            # We send just enter as default is set based of the flags
+            install_send_answer $sp_id "" "enable jmx"
+            continue
+         }
          -i $sp_id $JMX_JAVA_HOME {
             # For the JMX MBean Server we need java 1.5
             set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
@@ -399,6 +406,11 @@ proc install_qmaster {} {
 
          -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
             install_send_answer $sp_id $ts_config(jmx_ssl_keystore_pw) "jmx ssl keystore pw"
+            continue
+         }
+         
+         -i $sp_id $JMX_USER_KEYSTORE_PW {
+            install_send_answer $sp_id "changeit" "user keystore password"
             continue
          }
 
