@@ -59,6 +59,10 @@ set check_needs           "init_core_system"
 set check_setup_function issue_2876_setup
 set check_cleanup_function issue_2876_cleanup
 
+# per level setup and cleanup functions
+set check_setup_level_function issue_2876_level_setup
+set check_cleanup_level_function issue_2876_level_cleanup
+
 # define test's procedure order
 set check_functions {}
 lappend check_functions "issue_2876_test1"
@@ -78,13 +82,6 @@ proc issue_2876_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2876_setup {} {
-   global CHECK_ACTUAL_TEST_PATH CHECK_USER size_of_big_file big_file_path
-
-   set big_file_path $CHECK_ACTUAL_TEST_PATH/bigfile.txt
-
-   set args "-c $big_file_path | cut -d \" \" -f3"
-   ts_log_fine "executing wc $args"
-   set size_of_big_file [start_remote_prog [gethostname] $CHECK_USER "wc" $args]
 }
 
 proc issue_2876_cleanup {} {
@@ -92,8 +89,24 @@ proc issue_2876_cleanup {} {
    wait_for_end_of_all_jobs
 }
 
+proc issue_2876_level_setup {} {
+   global CHECK_USER big_file_path size_of_big_file
+
+   set big_file_path [create_file_with_size 200]
+
+   set args "-c $big_file_path | cut -d \" \" -f3"
+   ts_log_fine "executing wc $args"
+   set size_of_big_file [start_remote_prog [gethostname] $CHECK_USER "wc" $args]
+}
+
+proc issue_2876_level_cleanup {} {
+   global big_file_path
+
+   delete_file "$big_file_path"
+}
+
 proc issue_2876_test1 {} {
-   global ts_config CHECK_USER size_of_big_file big_file_path
+   global ts_config CHECK_USER big_file_path size_of_big_file
 
    set args "$big_file_path | qsub -h -terse"
    ts_log_fine "executing cat $args"
@@ -113,4 +126,25 @@ proc issue_2876_test1 {} {
    if {$size_of_big_file != $size_of_spool_big_file} {
       ts_log_severe "truncation of script"
    }
+}
+
+proc create_file_with_size { size_in_kB } {
+   set tmp_file [get_tmp_file_name]
+   ts_log_fine "created file: $tmp_file"
+   set f [open "$tmp_file" w]
+
+   set counter 0
+   set line ""
+   while {$counter < 100} {
+      append line "1111111111"
+      incr counter 1
+   }
+   set counter 0
+   while {$counter < $size_in_kB} {
+      puts $f $line
+      incr counter 1
+   }
+   close $f
+   
+   return $tmp_file
 }
