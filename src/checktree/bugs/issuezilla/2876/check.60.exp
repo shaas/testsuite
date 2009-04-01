@@ -82,6 +82,9 @@ proc issue_2876_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2876_setup {} {
+   global test_host
+
+   set test_host [host_conf_get_suited_hosts]
 }
 
 proc issue_2876_cleanup {} {
@@ -106,11 +109,12 @@ proc issue_2876_level_cleanup {} {
 }
 
 proc issue_2876_test1 {} {
-   global ts_config CHECK_USER big_file_path size_of_big_file
+   global ts_config CHECK_USER big_file_path size_of_big_file test_host
 
    set args "$big_file_path | qsub -h -terse"
    ts_log_fine "executing cat $args"
-   set job_id [string trimright [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "cat" $args]]
+   wait_for_remote_file $test_host $CHECK_USER $big_file_path
+   set job_id [string trimright [start_remote_prog $test_host $CHECK_USER "cat" $args]]
    if { $prg_exit_state != 0 } {
       ts_log_severe "remote prog error (exit state not 0) cat $args failed"
    }
@@ -119,6 +123,7 @@ proc issue_2876_test1 {} {
 
    set args "-c $spooled_big_file_path | cut -d \" \" -f3"
    ts_log_fine "executing wc $args"
+   wait_for_remote_file $ts_config(master_host) $CHECK_USER $spooled_big_file_path
    set size_of_spool_big_file [start_remote_prog $ts_config(master_host) $CHECK_USER "wc" $args]
 
    ts_log_fine "size of origin file: $size_of_big_file"
