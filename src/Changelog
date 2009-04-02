@@ -1,5 +1,8 @@
+LP-2009-04-02-0: Enhancem.:  TS updated for changed JMX messages
+                 Review:     EB
+
 LP-2009-03-31-0: Enhancem.:  TS updated for changed JMX messages
-                 Review:     TBD
+                 Review:     JO
 
 CR-2009-03-30-1: Bugfix:     o Fixed jsv_ge test
                              o Fixed xml qhost test

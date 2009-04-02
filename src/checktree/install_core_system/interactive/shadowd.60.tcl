@@ -140,6 +140,7 @@ proc install_shadowd {} {
       set JMX_ENABLE_JMX               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENABLE_JMX]]
       set JMX_JAVA_HOME                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JAVA_HOME] "*" ]
       set JMX_ADD_JVM_ARGS             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_JVM_ARGS] "*"]
+      set JMX_USE_DATA                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USE_DATA]]
 
       ts_log_fine "inst_sge -sm"
 
@@ -245,6 +246,11 @@ proc install_shadowd {} {
                install_send_answer $sp_id "" "enable jmx"
                continue
             }
+                                              
+            -i $sp_id $JMX_USE_DATA {
+               install_send_answer $sp_id "y"
+               continue
+            }            
             
             -i $sp_id $JMX_JAVA_HOME {
                # For the JMX MBean Server we need java 1.5
