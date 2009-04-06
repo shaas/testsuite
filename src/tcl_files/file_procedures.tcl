@@ -2520,8 +2520,8 @@ proc check_for_core_files {hostname path {do_remove 0}} {
       return $nr_of_cores_found
    }
 
-   # try to find core files in path
-   set core_files [start_remote_prog $hostname $CHECK_USER "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   # try to find core files in path (-type f => only find regular files, no directories)
+   set core_files [start_remote_prog $hostname $CHECK_USER "find" "$path -name core -type f -print" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    if {$prg_exit_state != 0} {
       ts_log_severe "find core files in directory $path on host $hostname failed: $core_files"
    } else {

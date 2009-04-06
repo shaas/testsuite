@@ -1,3 +1,7 @@
+TB-2009-04-06-1: Bugfix:     checking for core files now only checks files, no
+                             directories
+                 Review:     CR
+
 TB-2009-04-06-0: Enhancem:   implemented TS test for hedeby issue 632
                  Review:     RH
 
