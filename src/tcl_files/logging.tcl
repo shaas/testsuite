@@ -964,6 +964,7 @@ proc ts_log_get_level_abbreviation {level raise_error} {
 #     {do_mail 1}     - do sending mail?
 #*******************************************************************************
 proc ts_private_do_log {level message {raise_error 1} {function ""} {do_output 1} {do_logging 1} {do_mail 1}} {
+   global do_wait_on_error
    # get level as integer - we might have got the level name
    set level [ts_log_get_level_number $level]
 
@@ -980,8 +981,12 @@ proc ts_private_do_log {level message {raise_error 1} {function ""} {do_output 1
    ts_private_log_store_error $level $message $raise_error $function
 
    # do output to stdout
-   if {$do_output} {
+   if {$do_output || $do_wait_on_error == 1} {
       ts_private_log_do_output $level $message $raise_error $function
+      if {$do_wait_on_error == 1 && $raise_error != 0 && $level <= 2} {
+         ts_log_fine "\"wait_on_error\" command line option is enabled!"
+         wait_for_enter
+      }
    }
 
    # do logging to file

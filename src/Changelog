@@ -1,3 +1,7 @@
+CR-2009-04-06-0: Enhancem.:  o added new testsuite command line parameter:
+                               wait_on_error
+                 Review:     MD
+
 TB-2009-04-06-1: Bugfix:     checking for core files now only checks files, no
                              directories
                  Review:     CR
