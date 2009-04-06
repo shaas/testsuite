@@ -211,7 +211,7 @@ proc hedeby_issue566_check {} {
    # --------------------------------------------------------------------------
 
    #add PermanentRequestSLO with urgency 10 to the spare pool component
-   set permanent_request_slo [create_permanent_request_slo 10 "PermanentRequestSLO" "host"]
+   set permanent_request_slo [create_permanent_request_slo 10 "PermanentRequestSLO"]
    set slos {}
    lappend slos $permanent_request_slo
    if {[set_service_slos "mod_config" $this(spare_pool) $slos 1 "minutes" 1] != 0} {

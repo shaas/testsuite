@@ -1,0 +1,357 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_632"
+# check_category: not yet VERIFIED -> don't run with (2)
+set check_category             "COMPATIBILITY SYSTEM"
+set check_description(0)       "Check that RP continues considering a resource, even if a service did not want to release the resource."
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_632_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue_632_setup_level"
+set check_cleanup_level_function "hedeby_issue_632_cleanup_level"
+
+lappend check_functions "hedeby_issue_632_check"
+
+
+#****** issue_632/hedeby_issue_632_init_level() ************************
+#  NAME
+#     hedeby_issue_632_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue_632_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue_632_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_632/hedeby_issue_632_setup_level() *********************************
+#  NAME
+#     hedeby_issue_632_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue_632_setup_level { } 
+#
+#  FUNCTION
+#     set up hedeby_issue_632_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_632_setup_level {} {
+   upvar #0 hedeby_issue_632_ctx ctx
+
+   get_hedeby_default_services service_names
+
+   set ctx(resource) [pick_random [get_all_spare_pool_resources]]
+   set ctx(ge_service) [pick_random $service_names(services)]
+   set ctx(ge_host) $service_names(master_host,$ctx(ge_service))
+
+   # remember old ts_cluster_nr and set cluster for test
+   set ctx(old_cluster_nr) [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$ctx(ge_service))
+
+   # job submit for sleeper_job (1 hour) with no output on host $ctx(resource)
+   set sleep_time [expr 60 * 60]
+   get_current_cluster_config_array ts_config
+   set ctx(job_name) "sleepy"
+   set ctx(sleeper_with_no_output) "-l hostname=$ctx(resource) -N $ctx(job_name) -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $sleep_time"
+
+   set ctx(cleanup_actions) {}
+   return
+}
+
+#****** issue_632/hedeby_issue_632_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue_632_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_issue_632_cleanup_level { } 
+#
+#  FUNCTION
+#     remove created SLOs and clean up hedeby_issue_632_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_632_cleanup_level {} {
+   upvar #0 hedeby_issue_632_ctx ctx
+
+   set doReset 0
+
+   if { [lsearch $ctx(cleanup_actions) "delete_job"] >= 0 } {
+      delete_all_jobs
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "reset_spare_pool_slo"] >= 0 } {
+      if {[reset_default_slos "mod_config" "spare_pool"] != 0} {
+         ts_log_fine "Problem during cleanup while resetting default slo for spare_pool => reset_hedeby"
+         set doReset 1
+      }
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "reset_ge_config"] >= 0 } {
+      if { [set_hedeby_default_job_suspend_policy $ctx(ge_service)] != 0} {
+         ts_log_fine "Problem during cleanup while resetting ge_config => reset_hedeby"
+         set doReset 1
+      }
+      if { [reload_hedeby_component $ctx(ge_service) $ctx(ge_host)] != 0} {
+         ts_log_fine "Problem during cleanup while reloading component '$ctx(ge_service)' => reset_hedeby"
+         set doReset 1
+      }
+      
+   } 
+
+   if { [lsearch $ctx(cleanup_actions) "move_resource_back"] >= 0 } {
+      # move resource back to spare pool, ignoring errors
+      set opt(raise_error) 0
+      sdmadm_command_opt "move_resource -r $ctx(resource) -s spare_pool" opt
+
+      # ... and wait for it to arrive at spare_pool
+      unset -nocomplain exp_res_info
+      set exp_res_info($ctx(resource),service) "spare_pool"
+      set exp_res_info($ctx(resource),flags) "{}"
+      set exp_res_info($ctx(resource),state) "ASSIGNED"
+      if {[wait_for_resource_info exp_res_info 60 0 mvr_error] != 0} {
+         ts_log_fine "Problem during cleanup: timeout while waiting for resource '$ctx(resource)' to appear at spare_pool => reset_hedeby"
+         set doReset 1
+      }
+   } 
+
+   if {$doReset != 0} {
+      reset_hedeby 1
+   }
+
+   # reset cluster nr
+   set_current_cluster_config_nr $ctx(old_cluster_nr)
+
+   unset ctx
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_632/hedeby_issue_632_check *****************************
+#  NAME
+#     hedeby_issue_632_check() -- Check that a resource is considered by RP even
+#                                 after service has not given up the resource
+#
+#  SYNOPSIS
+#     hedeby_issue_632_check { } 
+#
+#  FUNCTION
+#     these steps test hedeby issue 632:
+#
+#     Step 1: Pick a resource in spare pool and move it to a GE service
+#     Step 2: Schedule a sleeper job which runs one hour onto this resource
+#     Step 3: Modify jobSuspendPolicy for service '$ctx(ge_service)'"
+#     Step 4: Setup a PermanentRequestSLO in spare_pool that requests exactly this
+#             resource with a high urgency
+#     Step 5: wait until GE service sent ResourceRemoveEvent, AddResourceEvent,
+#             ResourceAddedEvent (this means that RP requested the resource but
+#             GE service did not give up the resource because of running jobs
+#             on the resource)
+#     Step 6: delete all jobs running on the resource
+#     Step 7: resource must move to spare_pool
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_632_check {} {   
+   upvar #0 hedeby_issue_632_ctx ctx
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 1: Moving resource '$ctx(resource)' to GE service '$ctx(ge_service)'"
+   # ---------------------------------------------------------------------------
+   sdmadm_command_opt "move_resource -r $ctx(resource) -s $ctx(ge_service)"
+   unset -nocomplain exp_res_info
+   set exp_res_info($ctx(resource),service) $ctx(ge_service)
+   set exp_res_info($ctx(resource),flags) "{}"
+   set exp_res_info($ctx(resource),state) "ASSIGNED"
+   if {[wait_for_resource_info exp_res_info 60 0 mvr_error] != 0} {
+      ts_log_severe "Step 1: Moving resource '$ctx(resource)' to GE service '$ctx(ge_service)' failed with following error message: $mvr_error"
+      return
+   }
+   lappend ctx(cleanup_actions) "move_resource_back"
+   
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 2: Schedule job that runs one hour onto resource '$ctx(resource)'"
+   # ---------------------------------------------------------------------------
+   set job_id [submit_job "$ctx(sleeper_with_no_output)"]
+   if {$job_id < 0 } {
+      ts_log_severe "Step 2: Error submitting sleeper_job"
+      return
+   }
+   lappend ctx(cleanup_actions) "delete_job"
+   if {[wait_for_jobstart $job_id $ctx(job_name) 60] != 0} {
+      ts_log_severe "Step 2: job $job_id did not start"
+      return
+   }
+
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 3: Modify jobSuspendPolicy for service '$ctx(ge_service)'"
+   # ---------------------------------------------------------------------------
+   # this step is only done to speed up the test. With jobSuspendPolicy ->
+   # timeout set to 0, ge service gives up trying to remove
+   # at once and does not prolong the test unnecessarily for 2 minutes
+
+   # Reconfigure the job suspend policy of the ge service and reload the component
+   set job_wait_time 0
+   set suspend_methods {} ; # irrelevant for this test
+   if { [set_hedeby_job_suspend_policy $ctx(ge_service) $suspend_methods $job_wait_time "seconds"] != 0} {
+      ts_log_severe "Step 3: Failed to modify job suspend policy on service '$ctx(ge_service)'!"
+      return 
+   }
+   if {[reload_hedeby_component $ctx(ge_service) $ctx(ge_host)] != 0} {
+      ts_log_severe "Step 3: Failed to reload component '$ctx(ge_service)' on host '$ctx(ge_host)'"
+      return
+   }
+   lappend ctx(cleanup_actions) "reset_ge_config"
+
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 4: Setup PermanentRequestSLO for resource '$ctx(resource)' on spare_pool"
+   # ---------------------------------------------------------------------------
+   set start_time [clock seconds]
+
+   set prop(resourceHostname) "{=} {$ctx(resource)}"
+   set resourceFilter [create_resource_filter prop]
+   set requestFilter  [create_request_filter  prop]
+   set urgency 99
+   set permanent_request_slo [create_permanent_request_slo $urgency "PermanentRequestSLO_$ctx(resource)" $resourceFilter $requestFilter]
+   set slos {}
+   lappend slos $permanent_request_slo
+   # this replaces all SLOs on the spare_pool
+   if {[set_service_slos "mod_config" "spare_pool" $slos] != 0} {
+      ts_log_severe "Step 4: Setting slos for service 'spare_pool' failed!"
+      return
+   }
+   lappend ctx(cleanup_actions) "reset_spare_pool_slo"
+
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 5: Wait for RESOURCE_REMOVE, RESOURCE_ADD, RESOURCE_ADDED event"
+   # ---------------------------------------------------------------------------
+   # We expect the events RESOURCE_REMOVE, RESOURCE_ADD, and RESOURCE_ADDED in the history
+   set exp_hist(0,resource) $ctx(resource)
+   set exp_hist(0,type)     "RESOURCE_REMOVE"
+   set exp_hist(0,service)  $ctx(ge_service)
+   
+   set exp_hist(1,resource) $ctx(resource)
+   set exp_hist(1,type)     "RESOURCE_ADD"
+   set exp_hist(1,service)  $ctx(ge_service)
+
+   set exp_hist(2,resource) $ctx(resource)
+   set exp_hist(2,type)     "RESOURCE_ADDED"
+   set exp_hist(2,service)  $ctx(ge_service)
+   set exp_hist(count) 3
+   
+   # We can stop processing if the resource goes into error state or was removed (which it should not be!)
+   set error_hist(0,resource) $ctx(resource)
+   set error_hist(0,type)     "RESOURCE_ERROR"
+
+   set error_hist(1,resource) $ctx(resource)
+   set error_hist(1,type)     "RESOURCE_REMOVED"
+   set error_hist(count) 2
+
+   if {[wait_for_notification $start_time exp_hist error_hist] != 0} {
+      ts_log_severe "Step 5: Waiting for events RESOURCE_REMOVE, RESOURCE_ADD, RESOURCE_ADDED failed."
+      return
+   }
+
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 6: Deleting all jobs running on resource '$ctx(resource)'"
+   # ---------------------------------------------------------------------------
+   delete_all_jobs
+   # remove this action from the cleanup actions
+   set dj_index [lsearch -exact $ctx(cleanup_actions) "delete_job"]
+   set ctx(cleanup_actions) [lreplace $ctx(cleanup_actions) $dj_index $dj_index]
+
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 7: Waiting for resource '$ctx(resource)' to return to spare pool"
+   # ---------------------------------------------------------------------------
+   unset -nocomplain exp_res_info
+   set exp_res_info($ctx(resource),service) "spare_pool"
+   set exp_res_info($ctx(resource),flags) "{}"
+   set exp_res_info($ctx(resource),state) "ASSIGNED"
+   if {[wait_for_resource_info exp_res_info 60 0 mvr_error] != 0} {
+      ts_log_severe "Step 7: Resource '$ctx(resource) did not return to 'spare_pool': $mvr_error"
+      return
+   }
+   # remove this action from the cleanup actions
+   set mrb_index [lsearch -exact $ctx(cleanup_actions) "move_resource_back"]
+   set ctx(cleanup_actions) [lreplace $ctx(cleanup_actions) $mrb_index $mrb_index]
+}

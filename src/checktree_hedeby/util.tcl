@@ -7187,15 +7187,19 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #
 #  SYNOPSIS
 #     create_permanent_request_slo { {urgency 1 } 
-#     { name "PermanentRequestSLO" } { type "host" } } 
+#     { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""} } 
 #
 #  FUNCTION
 #     creates xml string with specified values
 #
 #  INPUTS
 #     {urgency 1 }                   - urceny value
-#     { name "PermanentRequestSLO" } - name value
-#     { type "host" }                - typ value currently only "host" supported
+#     {name "PermanentRequestSLO" }  - name value
+#     {resourceFilter ""}            - optional: resource filter created with 
+#                                      procedure create_resource_filter()
+#     {requestFilter ""}             - optional: request filter created with 
+#                                      procedure create_request_filter()
+#                                      if "" -> default: type = "host"
 #
 #  RESULT
 #     xml string
@@ -7204,11 +7208,23 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
 #     util/set_hedeby_slos_config()
+#     util/create_resource_filter()
 #*******************************************************************************
-proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } { type "host" }} {
+proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""}} {
    set slo_txt ""
    append slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
-   append slo_txt    "<common:request>type=\"$type\"</common:request>"
+
+   if { $requestFilter != "" } {
+      append slo_txt $requestFilter
+   } else {
+      set prop(type) "{=} {host}"
+      append slo_txt [create_request_filter prop]
+   }
+
+   if { $resourceFilter != "" } {
+      append slo_txt $resourceFilter
+   }
+
    append slo_txt "</common:slo>"
    return $slo_txt
 }
@@ -8456,7 +8472,7 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
       if {[lsearch -exact $services "all"] >= 0 ||
           [lsearch -exact $services "spare_pool"] >= 0} {
          ts_log_fine "reset \"spare_pool\" ..."
-         set default_spare_pool_slo [create_permanent_request_slo 1 "PermanentRequestSLO" "host"]
+         set default_spare_pool_slo [create_permanent_request_slo 1 "PermanentRequestSLO"]
          if {[set_hedeby_slos_config $exec_host $admin_user "spare_pool" $default_spare_pool_slo $raise_error] != 0} {
             append error_text "setting slos for service \"spare_pool\" failed!"
          }
