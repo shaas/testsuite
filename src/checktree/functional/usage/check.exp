@@ -186,12 +186,8 @@ proc usage_setup {} {
    get_config saved_config
 
    # set scheduler flushing params
-   if {$ts_config(gridengine_version) == 53} {
-      set new_config(schedd_params) "$saved_config(schedd_params) flush_submit_secs=0"
-   } else {
-      set my_schedd_conf(flush_submit_sec) "1"
-      set_schedd_config my_schedd_conf 
-   }
+   set my_schedd_conf(flush_submit_sec) "1"
+   set_schedd_config my_schedd_conf 
 
    # set global config params
    set new_config(load_report_time) "0:0:5"
@@ -234,9 +230,7 @@ proc usage_cleanup {} {
    # reset config
    set_config_and_propagate saved_config
 
-   if {$ts_config(gridengine_version) != 53} {
-      reset_schedd_config;
-   }
+   reset_schedd_config;
    
    del_queue usage.q "" 0 1
 
@@ -376,7 +370,7 @@ proc usage_job_finished {job_state} {
 }
 
 
-proc usage_check {jobid qstat_j_info slots acct_slots} {
+proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
    global ts_config
    global usage_accounting_summary
 
@@ -399,12 +393,17 @@ proc usage_check {jobid qstat_j_info slots acct_slots} {
    #           memory limit for each queue we have jobs running in
    #           and set different memory limits for different queues
    set wallclock $qacct_info(ru_wallclock)
+   ts_log_fine "job runtime was reported as $wallclock, expected wallclock is $expected_wallclock"
    set expected_cpu [expr $wallclock * $slots]
    set expected_mem [expr $wallclock * 500.0 * $slots / 1024]
    ts_log_fine "expected_cpu = $expected_cpu, expected_mem = $expected_mem"
 
    # compare usage
    set result {}
+   # wallclock
+   if {[expr abs($wallclock - $expected_wallclock)] > [expr $expected_wallclock / 10]} {
+      lappend result "wallclock time ($wallclock) differs more than 10% from expected wallclock ($expected_wallclock) on host $qacct_info(hostname)"
+   }
    # online cpu
    if {[expr abs($online_cpu - $expected_cpu)] > [expr $expected_cpu / 10]} {
       lappend result "online cpu usage ($online_cpu) differs more than 10% from expected usage ($expected_cpu) on host $qacct_info(hostname)"
@@ -443,7 +442,7 @@ proc max {a b} {
    }
 }
 
-proc usage_monitor_check {id test_name slots acct_slots} {
+proc usage_monitor_check {id test_name slots acct_slots wallclock} {
    set started 0
    set finished 0
    set jobid 0
@@ -503,7 +502,7 @@ proc usage_monitor_check {id test_name slots acct_slots} {
       if {!$job_finished} {
          ts_log_severe "job terminated abnormally"
       } else {
-         set error_list [usage_check $jobid online_info $slots $acct_slots]
+         set error_list [usage_check $jobid online_info $slots $acct_slots $wallclock]
 
          foreach error $error_list {
             ts_log_severe $error
@@ -525,7 +524,7 @@ proc usage_single {} {
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-      usage_monitor_check $id "usage_single" 1 1
+      usage_monitor_check $id "usage_single" 1 1 60
    }
 }
 
@@ -533,20 +532,31 @@ proc usage_tight {} {
    global ts_config
    global submit_command usage_master_hosts
    global master_host
-   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_ACT_LEVEL
 
-   # tight integration with csp is not working in SGE(EE) 5.3
-   if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
-      ts_log_config "tight integration is not available in SGE(EE) 5.3 with CSP enabled"
-   } else {
-      foreach master_host $usage_master_hosts {
-         ts_log_fine "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
-
-         set queue [get_queue_instance "usage.q" $master_host]
-         set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-
-         usage_monitor_check $id "usage_tight" 5 5
+   # for SGE versions where CR 6746750 / IZ 2977 is fixed
+   # we expect to get the correct usage (slots x time)
+   # in runlevel 2/102 with accounting_summary enabled
+   # even if the job slots are not occupied by tasks 
+   # for the whole job runtime
+   set task_runtime 120
+   set sleep_after 0
+   if {$CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 102} {
+      if {$ts_config(gridengine_version) >= 62} {
+         set task_runtime 100
+         set sleep_after 20
       }
+   }
+
+   foreach master_host $usage_master_hosts {
+      ts_log_fine "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
+
+      set queue [get_queue_instance "usage.q" $master_host]
+      # with accounting_summary=TRUE
+      # tasks will only sleep 100s, but RESERVED_USAGE should still be correct!
+      set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $task_runtime $sleep_after" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+
+      usage_monitor_check $id "usage_tight" 5 5 120
    }
 }
 
@@ -562,7 +572,7 @@ proc usage_loose {pe expected_slots acct_slots} {
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -pe $pe 4 -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-      usage_monitor_check $id "usage_loose" $expected_slots $acct_slots
+      usage_monitor_check $id "usage_loose" $expected_slots $acct_slots 60
    }
 }
 
