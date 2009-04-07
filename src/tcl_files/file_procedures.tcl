@@ -1437,7 +1437,7 @@ proc get_file_names {path {ext "*"}} {
 #     file_procedures/create_html_link()
 #     file_procedures/create_html_text()
 #*******************************************************************************
-proc generate_html_file { file headliner content {return_text 0} {refresh_time 15} } {
+proc generate_html_file { file headliner content {return_text 0} {refresh_time 0} } {
 
    global CHECK_USER
 
@@ -1455,7 +1455,9 @@ proc generate_html_file { file headliner content {return_text 0} {refresh_time 1
    lappend output "<head>"
    lappend output "   <meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">"
    lappend output "   <meta http-equiv=\"expires\" content=\"0\">"
-   lappend output "   <meta http-equiv=\"refresh\" content=\"$refresh_time\">"
+   if {$refresh_time != 0} {
+      lappend output "   <meta http-equiv=\"refresh\" content=\"$refresh_time\">"
+   }
    lappend output "   <meta name=\"Author\" content=\"Grid Engine Testsuite - user ${CHECK_USER}\">"
    lappend output "   <meta name=\"GENERATOR\" content=\"unknown\">"
    lappend output "</head>"

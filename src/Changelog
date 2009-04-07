@@ -1,3 +1,6 @@
+RD-2009-04-07-0: Bugfix:     some minor fixes
+                 Review:     CR
+
 CR-2009-04-06-0: Enhancem.:  o added new testsuite command line parameter:
                                wait_on_error
                  Review:     MD

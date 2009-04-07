@@ -255,6 +255,8 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
       puts $fdo "SUBMIT_HOST_LIST=\"\""
       puts $fdo "EXEC_HOST_LIST=\"$host\""
       puts $fdo "EXEC_HOST_LIST_RM=\"$host\""
+      set spooldir [get_local_spool_dir $host "execd"]
+      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
    } else {
       puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
       if {$ts_config(submit_only_hosts) != "none"} {
@@ -264,11 +266,6 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
       }
       puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
       puts $fdo "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\""
-   }
-   set spooldir [get_local_spool_dir $host "execd" 0]
-   if {$spooldir != ""} {
-      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
-   } else {
       puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"\""
    }
    puts $fdo "HOSTNAME_RESOLVING=\"true\""

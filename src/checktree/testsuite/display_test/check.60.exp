@@ -87,16 +87,21 @@ proc display_test_test {} {
    set users [user_conf_get_cluster_users]
    set hosts [get_all_hosts]
 
+   set display_opt ""
    foreach user $users {
       ts_log_fine "user: $user"
+      if {$user != $CHECK_USER} {
+         set display_opt "-display $CHECK_DISPLAY_OUTPUT"
+      }
+
       foreach host $hosts {
          ts_log_progress FINE "\r   open xterm on host $host: \r"
          set xterm_path [get_binary_path $host "xterm"]
-         set output [start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"]
+         set output [start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j $display_opt -e sleep 0"]
          if { $prg_exit_state != 0 } {
             set disp_result($user,$host) 0
             set error_result($user,$host,out) $output
-            set error_result($user,$host,cmd) "${host}(${user}): $xterm_path -bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"
+            set error_result($user,$host,cmd) "${host}(${user}): $xterm_path -bg darkolivegreen -fg navajowhite -sl 5000 -sb -j $display_opt -e sleep 0"
 
              
             ts_log_fine "xterm returned exit state: $prg_exit_state\nOutput:\n$output"
@@ -116,7 +121,7 @@ proc display_test_test {} {
          if { $disp_result($user,$host) == 0 } {
             append error_text "====================================================\n"
             append error_text "Error for user $user on host $host:\n"
-            append error_text "   starting xterm with display $CHECK_DISPLAY_OUTPUT returned:\n$error_result($user,$host,out)\n"
+            append error_text "   starting xterm returned:\n$error_result($user,$host,out)\n"
             append error_text "   commandline (sh) was:\n$error_result($user,$host,cmd)\n"
          }
       }

@@ -7823,7 +7823,7 @@ proc update_compile_html_output { content } {
    if { $CHECK_HTML_DIRECTORY != "" } {
       ts_log_fine "-> UPDATING HTML FILES IN DIRECTORY: \"$CHECK_HTML_DIRECTORY\""
       ts_log_fine "-> UPDATING file index.html"
-      generate_html_file "$CHECK_HTML_DIRECTORY/index.html" "Nightly Build Compile Results" $content
+      generate_html_file "$CHECK_HTML_DIRECTORY/index.html" "Nightly Build Compile Results" $content 0 15
    }
 }
 

@@ -268,7 +268,7 @@ proc install_execd {} {
                # spooldir, but enter an empty directory path here, inst_sge has
                # to handle this situation.
                # Beginning with INST_VERSION 4, this situation is handled correctly.
-               # To thest the correct error handling, we send yes here and later on
+               # To test the correct error handling, we send yes here and later on
                # (ENTER_LOCAL_EXECD_SPOOL_DIR_ENTER) we send \"\" as spooldir.
                # inst_sge has to detect the incorrect input and repeat this question.
                if {$INST_VERSION >= 4 && $LOCAL_ALREADY_CHECKED == 0} {
