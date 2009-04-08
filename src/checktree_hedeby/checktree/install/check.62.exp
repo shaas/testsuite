@@ -538,7 +538,7 @@ proc hedeby_copy_admin_keystore_to_shared_folder { keystore_path_var cert_path_v
 
    ts_log_heading "Copy admin keystore file and ca cert file to shared folder"
 
-   set result [start_remote_prog "$hedeby_config(hedeby_master_host)" "root" "cd" "$cmd"]
+   set result [start_remote_prog "$hedeby_config(hedeby_master_host)" [get_hedeby_startup_user] "cd" "$cmd"]
 
    return $prg_exit_state
 }
