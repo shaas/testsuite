@@ -571,6 +571,27 @@ proc config_dbwriter_host { only_check name config_array } {
 
 }
 
+proc config_database_schema { only_check name config_array } {
+   global ts_db_config
+
+   upvar $config_array config
+
+   set db_type ""
+   if {[info exists ts_db_config($config(database),dbtype)] } { set db_type $ts_db_config($config(database),dbtype) }
+
+   switch -- $db_type {
+      "postgres" {
+         set help_text { "Enter the name of the tablespace used for tables,"
+                         "or press >RETURN< to use the default value." }
+         return [config_generic $only_check $name config $help_text "string" 0]
+}
+      default {
+         array set choices {}
+         return [config_generic $only_check $name config "" "choice" 1 1 choices]
+      }
+   }
+}
+
 proc config_arco_dbwriter_debug_level { only_check name config_array } {
    
    upvar $config_array config

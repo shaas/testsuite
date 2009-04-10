@@ -1,4 +1,8 @@
-AP-2009-04-09-0: Enhancem:   o added test bugs/issuezilla/2967
+AP-2009-04-10-1: Bugfix:     added missing function config_database_schema
+                             to ARCo checktree.
+                 Belongs To: AP-2009-04-10-0
+
+AP-2009-04-10-0: Enhancem:   o added test bugs/issuezilla/2967
                              o checkpoint object interface
                  Cleanup:    cleanup of some deprecated functions and replaced it's
                              usages
