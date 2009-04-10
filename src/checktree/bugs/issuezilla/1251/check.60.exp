@@ -86,7 +86,7 @@ proc issue_1251_cleanup {} {
 
    # delete the projects that were created during the test
    foreach project $project_names {
-      del_prj $project
+      del_project $project
    }
 }
 
@@ -152,6 +152,5 @@ proc issue_1251_add_project {name} {
    lappend project_names $name
 
    # add the project
-   set prj(name) $name
-   add_prj prj
+   add_project $name
 }

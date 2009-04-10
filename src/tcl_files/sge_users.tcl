@@ -115,8 +115,8 @@ proc add_user {user {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {ra
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option" $vi_commands messages $on_host $as_user]
 
-}
-
+   }
+   unset chgar(name)
    return [handle_sge_errors "add_user" "qconf $option" $result messages $raise_error]
 }
 

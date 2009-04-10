@@ -52,7 +52,7 @@ proc set_pe_defaults {change_array} {
    upvar $change_array chgar
 
    set chgar(pe_name)           "template"          ;# pe_name is mandatory
-   set chgar(slots)             "0"       
+   set chgar(slots)             "0"
    set chgar(user_lists)        "NONE"
    set chgar(xuser_lists)       "NONE"
    set chgar(start_proc_args)   "NONE"
@@ -63,7 +63,7 @@ proc set_pe_defaults {change_array} {
    
    # SGE version dependent defaults
    if {$ts_config(gridengine_version) == 53} {
-      set chgar(queue_list) "all"   
+      set chgar(queue_list) "all"
    }
 
    if {$ts_config(gridengine_version) >= 60} {
@@ -134,7 +134,7 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $pe_name" $vi_commands messages $on_host $as_user]
    }
-
+   unset chgar(pe_name)
    return [handle_sge_errors "add_pe" "qconf $option" $result messages $raise_error]
 }
 

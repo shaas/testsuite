@@ -96,8 +96,7 @@ proc issue_1874_setup  {} {
    global stree
 
    # add project
-   set object(name) "1874_prj1"
-   set result [add_prj object]
+   set result [add_project "1874_prj1"]
 
    # add user
    set result [add_user "1874_usr1"]
@@ -122,7 +121,7 @@ proc issue_1874_cleanup  {} {
    del_user "1874_usr1"
    del_user "1874_usr2"
    # remove project 
-   del_prj "1874_prj1"
+   del_project "1874_prj1"
 }
 
 proc create_stree1_1874 {} {
@@ -168,7 +167,8 @@ proc issue_1874_run  {} {
    set vi_commands ""
 
    foreach line $stree {
-      lappend vi_commands "GA${line}[format "%c" 27]"
+      lappend vi_commands "GA
+${line}[format "%c" 27]"
    }
    lappend vi_commands "1Gdddddddddd"
    set CHANGED_SHARETREE [translate_macro MSG_TREE_CHANGEDSHARETREE]

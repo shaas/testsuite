@@ -175,7 +175,7 @@ proc jsv_ge_add_setup {} {
    set ckpt_param(ckpt_dir) "/tmp"
    set ckpt_param(signal) "none"
    set ckpt_param(when) "sx"
-   add_checkpointobj ckpt_param 
+   add_ckpt $ckpt_param(ckpt_name) ckpt_param
 
    set ckpt_param(ckpt_name) "jsv_ge_add_ckpt2"
    set ckpt_param(interface) "CPR"
@@ -186,14 +186,11 @@ proc jsv_ge_add_setup {} {
    set ckpt_param(ckpt_dir) "/tmp"
    set ckpt_param(signal) "none"
    set ckpt_param(when) "sx"
-   add_checkpointobj ckpt_param 
+   add_ckpt $ckpt_param(ckpt_name) ckpt_param
 
    # create project
-   set prj_setup(name) "jsv_ge_add_prj1"
-   add_prj prj_setup
-
-   set prj_setup(name) "jsv_ge_add_prj2"
-   add_prj prj_setup
+   add_project "jsv_ge_add_prj1"
+   add_project "jsv_ge_add_prj2"
 
    # create queue 
    set q_param(load_thresholds) "np_load_avg=100.00"
@@ -237,10 +234,10 @@ proc jsv_ge_add_cleanup {} {
    del_queue "all2.q" "@allhosts" 0 1
    del_pe "jsv_ge_add_pe1"
    del_pe "jsv_ge_add_pe2"
-   del_checkpointobj "jsv_ge_add_ckpt1"
-   del_checkpointobj "jsv_ge_add_ckpt2"
-   del_prj "jsv_ge_add_prj1"
-   del_prj "jsv_ge_add_prj2"
+   del_ckpt "jsv_ge_add_ckpt1"
+   del_ckpt "jsv_ge_add_ckpt2"
+   del_project "jsv_ge_add_prj1"
+   del_project "jsv_ge_add_prj2"
 
    # unset our test's global variables
    foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {

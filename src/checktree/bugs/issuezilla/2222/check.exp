@@ -108,10 +108,8 @@ proc issue_2222_setup {} {
    set_schedd_config sched_conf
 
    # create projects
-   set project(name) "Batch"
-   add_prj project
-   set project(name) "Interactive"
-   add_prj project
+   add_project "Batch"
+   add_project "Interactive"
 
    # add users
    # they might exist as auto users from earlier tests, so first try to delete them
@@ -169,8 +167,8 @@ proc issue_2222_cleanup {} {
    del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
 
    # delete projects
-   del_prj "Batch"
-   del_prj "Interactive"
+   del_project "Batch"
+   del_project "Interactive"
 
    # reset the schedd config
    reset_schedd_config

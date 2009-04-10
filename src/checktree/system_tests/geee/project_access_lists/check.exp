@@ -149,21 +149,17 @@ proc project_access_lists_setup {} {
    add_access_list "$CHECK_FIRST_FOREIGN_SYSTEM_USER"   userA_name
    add_access_list "$CHECK_SECOND_FOREIGN_SYSTEM_USER"  userB_name
 
-   set my_project(name) "userA_project_group"
    set my_project(acl)  "userA_group"
-   add_prj my_project
+   add_project "userA_project_group" my_project
 
-   set my_project(name) "userB_project_group"
    set my_project(acl)  "userB_group"
-   add_prj my_project
+   add_project "userB_project_group" my_project
  
-   set my_project(name) "userA_project_name"
    set my_project(acl)  "userA_name"
-   add_prj my_project
+   add_project "userA_project_name" my_project
 
-   set my_project(name) "userB_project_name"
    set my_project(acl)  "userB_name"
-   add_prj my_project
+   add_project "userB_project_name" my_project
 
    if { [string first "unknown" $CHECK_GROUP] >= 0 } {
       ts_log_severe "CHECK_GROUP set to unknown"
@@ -199,10 +195,10 @@ proc project_access_lists_cleanup {} {
    }
 
    # delete test projects
-   del_prj "userA_project_group"
-   del_prj "userB_project_group"
-   del_prj "userA_project_name"
-   del_prj "userB_project_name"
+   del_project "userA_project_group"
+   del_project "userB_project_group"
+   del_project "userA_project_name"
+   del_project "userB_project_name"
 
    # delete access lists
    del_access_list "userA_group"  ;# A
@@ -832,7 +828,7 @@ proc project_access_lists_project {} {
    set jobargs "-o /dev/null -e /dev/null -P access_test_project -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    # second -P switch will overwrite first one in run_user_denied_jobs !
 
-   set my_project(name)     "access_test_project"
+   set PROJECT_NAME "access_test_project"
 
    # testing user and group
    set access_lists "{userA_name userB_name 0} {userA_group userB_group 1}"
@@ -846,45 +842,45 @@ proc project_access_lists_project {} {
       # case 1
       set my_project(xacl) "$A_USER"
       set my_project(acl)  "NONE"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       run_user_denied_jobs "case 1,$A_USER,$B_USER" $jobargs 0 1 0 1       ;# A = 0 (not running) B = 1 (should run)
-      del_prj "access_test_project"  
+      del_project $PROJECT_NAME
  
       # case 2
       set my_project(xacl) "NONE"
       set my_project(acl)  "$A_USER"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       run_user_denied_jobs "case 2,$A_USER,$B_USER" $jobargs 1 0 1 0
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
 
       # case 3
       set my_project(xacl) "$B_USER"
       set my_project(acl)  "$A_USER"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       run_user_denied_jobs "case 3,$A_USER,$B_USER" $jobargs 1 0 1 0
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
 
    
       #case 4
       set my_project(xacl) "$A_USER"
       set my_project(acl)  "$B_USER"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       run_user_denied_jobs "case 4,$A_USER,$B_USER" $jobargs 0 1 0 1
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
 
    
       #case 5
       set my_project(xacl) "NONE"
       set my_project(acl)  "NONE"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       run_user_denied_jobs "case 5,$A_USER,$B_USER" $jobargs 1 1 1 1 1
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
 
    
       #case 6
       set my_project(xacl) "$A_USER $B_USER"
       set my_project(acl)  "NONE"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       if { $group_test == 1 } {
          ts_log_fine "group test active"
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
@@ -905,13 +901,13 @@ proc project_access_lists_project {} {
       }
       ts_log_fine "C_run is $C_run"
       run_user_denied_jobs "case 6,$A_USER,$B_USER" $jobargs 0 0 0 0 $C_run
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
       ts_log_fine "case 6 done"
    
       #case 7
       set my_project(xacl) "NONE"
       set my_project(acl)  "$A_USER $B_USER"
-      add_prj my_project
+      add_project $PROJECT_NAME my_project
       if { $group_test == 1 } {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
          if { [string first $CHECK_GROUP $group1] >= 0 ||
@@ -924,7 +920,7 @@ proc project_access_lists_project {} {
          set C_run 0
       }
       run_user_denied_jobs "case 7,$A_USER,$B_USER" $jobargs 1 1 1 1 $C_run
-      del_prj "access_test_project"
+      del_project $PROJECT_NAME
    }
    
 
@@ -933,26 +929,26 @@ proc project_access_lists_project {} {
    # userA_name userB_name userA_group userB_group
    set my_project(xacl) "userA_group"
    set my_project(acl)  "userA_name"
-   add_prj my_project
+   add_project $PROJECT_NAME my_project
    run_user_denied_jobs "group/user case 1" "$jobargs" 0 0 0 0 
-   del_prj "access_test_project"
+   del_project $PROJECT_NAME
 
    set my_project(xacl) "NONE"
    set my_project(acl)  "userA_name userA_group"
-   add_prj my_project
+   add_project $PROJECT_NAME my_project
    run_user_denied_jobs "group/user case 2" "$jobargs" 1 0 1 0
-   del_prj "access_test_project"
+   del_project $PROJECT_NAME
 
    set my_project(xacl) "userA_name userA_group"
    set my_project(acl)  "NONE"
-   add_prj my_project
+   add_project $PROJECT_NAME my_project
    run_user_denied_jobs "group/user case 3" "$jobargs" 0 1 0 1
-   del_prj "access_test_project"
+   del_project $PROJECT_NAME
 
    set my_project(xacl) "userA_name"
    set my_project(acl)  "userA_group"
-   add_prj my_project
+   add_project $PROJECT_NAME my_project
    run_user_denied_jobs "group/user case 4" "$jobargs" 0 0 0 0
-   del_prj "access_test_project"
+   del_project $PROJECT_NAME
 }
 

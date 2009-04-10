@@ -167,7 +167,7 @@ proc cleanup_system {} {
    } else {
       foreach elem $result {
          ts_log_fine "removing ckpt interface $elem."
-         del_checkpointobj $elem 
+         del_ckpt $elem
       }
    }
 
@@ -214,7 +214,7 @@ proc cleanup_system {} {
      } else {
         foreach elem $result {
            ts_log_fine "removing project $elem."
-           del_prj $elem 
+           del_project $elem
         }
      }
   }
@@ -391,9 +391,9 @@ proc setup_queues {} {
 #     ???/???
 #*******************************
 proc setup_testcheckpointobject {} {
-   set change(ckpt_name)  "testcheckpointobject"
-   add_checkpointobj change
-   assign_queues_with_ckpt_object "all.q" "" "testcheckpointobject"
+   set ckpt_name "testcheckpointobject"
+   add_ckpt $ckpt_name
+   assign_queues_with_ckpt_object "all.q" "" $ckpt_name
 }
 
 #                                                             max. column:     |
@@ -828,8 +828,7 @@ proc setup_mytestproject {} {
   }
 
   # setup project "mytestproject"
-  set prj_setup(name) "mytestproject"
-  set result [ add_prj prj_setup ] 
+  set result [add_project "mytestproject"]
 }
 
 

@@ -105,8 +105,7 @@ proc issue_1848_setup {} {
 
                lappend prj1_id_list $PRJ
               
-               set prj_setup(name) "$PRJ"
-               add_prj prj_setup
+               add_project "$PRJ"
               
                incr PRJ_TMP_COUNT
                incr PRJ_COUNT
@@ -134,7 +133,7 @@ proc issue_1848_cleanup {} {
 
    ts_log_fine "deleting projects"
    foreach prj $prj1_id_list {
-      del_prj $prj
+      del_project $prj
       ts_log_progress
    }
    ts_log_fine " done"

@@ -97,7 +97,7 @@ proc set_queue_defaults { change_array } {
    # SGE version dependent defaults
    if { $ts_config(gridengine_version) == 53 } {
       set chgar(hostlist)             "unknown"
-      set chgar(qtype)                "BATCH INTERACTIVE PARALLEL" 
+      set chgar(qtype)                "BATCH INTERACTIVE PARALLEL"
       set chgar(shell_start_mode)     "NONE"
       set chgar(complex_list)         "NONE"
       if { $ts_config(product_type) == "sgeee" } {
@@ -106,7 +106,7 @@ proc set_queue_defaults { change_array } {
       }
    } elseif { $ts_config(gridengine_version) >= 60 } {
       set chgar(hostlist)             "NONE"
-      set chgar(qtype)                "BATCH INTERACTIVE" 
+      set chgar(qtype)                "BATCH INTERACTIVE"
       set chgar(ckpt_list)            "NONE"
       set chgar(pe_list)              "make"
       set chgar(shell_start_mode)     "posix_compliant"
@@ -239,7 +239,8 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
       set result [start_vi_edit "qconf" "-aq" $vi_commands messages $on_host $as_user]
 
    }
-
+   unset chgar(qname)
+   unset chgar(hostlist)
    return [handle_sge_errors "add_queue" "qconf $option" $result messages $raise_error]
 }
 
@@ -297,12 +298,10 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
      
    if { $fast_add } {
       ts_log_fine "Modify queue $qname for hostlist $hostlist from file ..."
-      # aja: TODO: suppress all messages coming from the procedure
       get_queue "$qname" curr_arr "" "" 0
       if {![info exists curr_arr]} {
          set_queue_defaults curr_arr
      }
-      # aja: TODO: is this okay? procedures not checked
       if { $ts_config(gridengine_version) >= 60 } {
          if {[llength $hostlist] == 0} {
             set_cqueue_default_values curr_arr chgar
@@ -939,6 +938,8 @@ proc get_queue_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
          }
       }
       "del" {
+         set STILL_RUNNING_JOBS [translate_macro MSG_QINSTANCE_STILLJOBS]
+         add_message_to_container messages -2 $STILL_RUNNING_JOBS
       }
       "list" {
          set NOT_DEFINED [translate_macro MSG_QCONF_NOXDEFINED_S "cqueue list"]

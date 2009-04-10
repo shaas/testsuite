@@ -529,15 +529,6 @@ proc arco_config_upgrade_1_5 { config_array } {
 #     config_tablespace_index()
 #     config_database()
 #
-#  DEPRECATED
-#     config_database_type()
-#     config_database_host()
-#     config_database_port()
-#     config_database_name()
-#     config_database_read_pw()
-#     config_arco_spool_dir()
-#     config_java_home()
-#
 #  SEE ALSO
 #     check/config_database()
 #
@@ -580,133 +571,6 @@ proc config_dbwriter_host { only_check name config_array } {
 
 }
 
-# @deprecated
-proc config_database_type { only_check name config_array } {
-   upvar $config_array config
-   
-   set help_text {  "Enter the database type, or press >RETURN<"
-                    "to use the default value."
-                    "Valid values are \"postgres\", \"oracle\" or \"mysql\"" }
-                    
-       
-   set db_type [config_generic $only_check $name config $help_text "string" ]
-
-   if { $db_type == "postgres" || $db_type == "oracle" || $db_type == "mysql" } {
-      default_config_values $db_type config
-      return $db_type
-   }
-   return -1
-}
-
-# @deprecated
-proc config_database_host { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the name of your database host, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-# @deprecated
-proc config_database_port { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the name of your database port, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-# @deprecated
-proc config_database_name { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the name of your database, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-proc config_database_schema { only_check name config_array } {
-   global ts_db_config
-   
-   upvar $config_array config
-   
-   set db_type ""
-   if {[info exists ts_db_config($config(database),dbtype)] } { set db_type $ts_db_config($config(database),dbtype) }
-
-   switch -- $db_type {
-      "postgres" {
-         set help_text { "Enter the name of the tablespace used for tables,"
-                         "or press >RETURN< to use the default value." }
-         return [config_generic $only_check $name config $help_text "string" 0]
-}
-      default {
-         array set choices {}
-         return [config_generic $only_check $name config "" "choice" 1 1 choices]
-      }
-   }
-}
-
-# @deprecated
-proc config_database_write_user { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the name of the user which has write permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-# @deprecated
-proc config_database_read_user { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the name of the user which has read permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-# @deprecated
-proc config_database_write_pw { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the password of the user which has write permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string" 0]
-}
-
-# @deprecated
-proc config_database_read_pw { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the password of the user which has read permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "string"]
-}
-
-# @deprecated
-proc config_arco_spool_dir { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter path to the ARCo spool directory, or press >RETURN<"
-                    "to use the default value." }
-
-   return [config_generic $only_check $name config $help_text "directory"]
-}
-
 proc config_arco_dbwriter_debug_level { only_check name config_array } {
    
    upvar $config_array config
@@ -727,18 +591,6 @@ proc config_arco_dbwriter_interval { only_check name config_array } {
                     "to use the default value."  }
 
    return [config_generic $only_check $name config $help_text "string" 0]
-}
-
-# @deprecated
-proc config_jdbc_driver { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the path to the JDBC driver or press >RETURN<"
-                    "to use the default value."  }
-     
-   return [config_generic $only_check $name config $help_text "string"]
-   
 }
 
 proc config_swc_host {only_check name config_array} {
@@ -783,18 +635,6 @@ proc config_swc_host {only_check name config_array} {
    }
 
    return $swc_host
-}
-
-# @deprecated
-proc config_java_home { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Enter the JAVA_HOME path or press >RETURN<"
-                    "to use the default value."  }
-     
-   return [config_generic $only_check $name config $help_text "directory"]
-   
 }
 
 proc config_tablespace { only_check name config_array } {

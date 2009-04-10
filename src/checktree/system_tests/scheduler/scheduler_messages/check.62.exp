@@ -104,15 +104,12 @@ proc scheduler_messages_setup {} {
    set pe(allocation_rule)   "\$fill_up"
    add_pe "pe_slots20" pe
 
-   set prj(name) "sched_messages_project_queue"
-   add_prj prj
-   set prj(name) "sched_messages_project_host"
-   add_prj prj
-   set prj(name) "sched_messages_project_global"
-   add_prj prj
+   add_project "sched_messages_project_queue"
+   add_project "sched_messages_project_host"
+   add_project "sched_messages_project_global"
 
    set ckpt(ckpt_name) "sched_messages_ckpt"
-   add_checkpointobj ckpt
+   add_ckpt $ckpt(ckpt_name) ckpt
 
    set host_list [host_conf_get_suited_hosts 2]
    set first_host [lindex $host_list 0]
@@ -184,7 +181,7 @@ proc scheduler_messages_cleanup {} {
    del_pe        "pe_slots1"
    del_pe        "pe_slots20"
 
-   del_checkpointobj "sched_messages_ckpt"
+   del_ckpt "sched_messages_ckpt"
 
    set host_conf(complex_values) "NONE"
    set host_conf(xprojects) "NONE"
@@ -192,9 +189,9 @@ proc scheduler_messages_cleanup {} {
    set_exechost host_conf "$first_host"
    set_exechost host_conf "$second_host"
 
-   del_prj "sched_messages_project_queue"
-   del_prj "sched_messages_project_host"
-   del_prj "sched_messages_project_global"
+   del_project "sched_messages_project_queue"
+   del_project "sched_messages_project_host"
+   del_project "sched_messages_project_global"
 
    if {[get_rqs_list rqs_names "" "" 0] == 0} {
       foreach elem $rqs_names {

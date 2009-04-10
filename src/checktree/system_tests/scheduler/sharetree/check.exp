@@ -269,14 +269,9 @@ proc share_tree_setup  {} {
    set change_array(load_thresholds) "none"
    add_queue "test" $test_host change_array
 
-   set prj_setup(name) "project1"
-   add_prj prj_setup
-
-   set prj_setup(name) "project2"
-   add_prj prj_setup
-
-   set prj_setup(name) "project3"
-   add_prj prj_setup
+   add_project "project1"
+   add_project "project2"
+   add_project "project3"
 
    # delete a possibly existing sharetree
    del_sharetree
@@ -552,9 +547,9 @@ proc share_tree_cleanup  {} {
    del_sharetree
 
    # delete projects
-   del_prj "project1"
-   del_prj "project2"
-   del_prj "project3"
+   del_project "project1"
+   del_project "project2"
+   del_project "project3"
 
    # reset configuration
    set_config sharetree_stored_configuration

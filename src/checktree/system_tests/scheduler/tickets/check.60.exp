@@ -355,15 +355,14 @@ proc ticket_for_projects { } {
    
    # create projects
    for {set i 0} {$i < $project_count} { incr i 1 } {
-      set project_conf(name)    $projects($i,name)
       set project_conf(fshare)  $projects($i,fshare)
       set project_conf(oticket) $projects($i,oticket)
       
-      set result [ add_prj project_conf ]
+      set result [ add_project $projects($i,name) project_conf ]
       if { $result != 0 } {
          ts_log_severe "Can not add project $projects($i,name)"
          for {set ii 0} {$ii < $i} { incr ii 1 } {
-            del_prj $projects($ii,name)
+            del_project $projects($ii,name)
          }
          return -1
       }
@@ -394,7 +393,7 @@ proc ticket_for_projects { } {
    
    # Remove  the projects
    foreach project $ticket_projects {
-      del_prj $project
+      del_project $project
    }
    
    if { $result != 0 } {

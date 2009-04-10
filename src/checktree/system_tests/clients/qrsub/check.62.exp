@@ -105,6 +105,8 @@ proc qrsub_setup {} {
    set pe(allocation_rule) "\$round_robin"
    add_pe "qrsub_pe" pe
    assign_queues_with_pe_object "all.q" "" "qrsub_pe"
+   add_ckpt "qrsub_ckpt"
+   assign_queues_with_ckpt_object "all.q" "" "qrsub_ckpt"
 }
 
 proc qrsub_cleanup {} {
@@ -115,6 +117,8 @@ proc qrsub_cleanup {} {
    wait_for_end_of_all_jobs 60
    unassign_queues_with_pe_object "qrsub_pe"
    del_pe "qrsub_pe"
+   unassign_queues_with_ckpt_object "qrsub_ckpt"
+   del_ckpt "qrsub_ckpt"
    ts_log_fine "qrsub cleanup function"
 }
 
@@ -263,7 +267,7 @@ proc check_option_ckpt {} {
    global ts_config 
 
    # positive tests
-   set elm "test_ar_ckpt"
+   set elm "qrsub_ckpt"
    set args "-d 1000 -ckpt $elm"
  
    set ar_id [submit_ar $args]

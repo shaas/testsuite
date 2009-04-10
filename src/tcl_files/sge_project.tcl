@@ -117,16 +117,8 @@ proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user "
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option" $vi_commands messages $on_host $as_user]
    }
-
+   unset chgar(name)
    return [handle_sge_errors "add_project" "qconf $option" $result messages $raise_error]
-}
-
-#****** sge_project/add_prj() **************************************************
-# @deprecated
-proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   upvar $change_array chgar
-   set prj_name $chgar(name)
-   return [add_project $prj_name chgar $fast_add $on_host $as_user $raise_error]
 }
 
 #****** sge_project/get_project() **********************************************
@@ -175,13 +167,6 @@ proc get_project {project {output_var result} {on_host ""} {as_user ""} {raise_e
    
 }
 
-#****** sge_project/get_prj() **************************************************
-# @deprecated
-proc get_prj { prj_name change_array } {
-   upvar $change_array chgar
-   return [get_project $prj_name chgar]
-}
-
 #****** sge_project/del_project() **********************************************
 # 
 #  NAME
@@ -225,12 +210,6 @@ proc del_project { project {on_host ""} {as_user ""} {raise_error 1} } {
    
    return [handle_sge_errors "del_project" "qconf -dprj $project" $output messages $raise_error]
 
-}
-
-#****** sge_project/del_prj() **************************************************
-# @deprecated
-proc del_prj { prj_name {raise_error 1} } {
-   return [del_project $prj_name "" "" $raise_error]
 }
 
 #****** sge_project/get_project_list() *****************************************

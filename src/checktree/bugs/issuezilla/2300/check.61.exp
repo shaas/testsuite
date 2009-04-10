@@ -125,12 +125,9 @@ proc issue_2300_setup {} {
    add_rqs rqs
 
    # create projects
-   set prj(name) "P1"
-   add_prj prj
-   set prj(name) "P2"
-   add_prj prj
-   set prj(name) "P3"
-   add_prj prj
+   add_project "P1"
+   add_project "P2"
+   add_project "P3"
 
    # create pe's and attach them to the all.q
    set pe(slots)   100
@@ -157,9 +154,9 @@ proc issue_2300_cleanup {} {
    del_rqs "iz_2300_s"
 
    # delete projects
-   del_prj "P1"
-   del_prj "P2"
-   del_prj "P3"
+   del_project "P1"
+   del_project "P2"
+   del_project "P3"
 
    # delete pes
    del_pe "PE1"

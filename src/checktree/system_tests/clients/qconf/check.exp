@@ -2135,7 +2135,7 @@ proc qconf_modify_checkpoint {} {
    set myarray(ckpt_name) "qconf_ckpt_name"
    ts_log_fine "Create  checkpoint  $myarray(ckpt_name) ..."
 
-   set result1 [add_checkpointobj myarray]
+   set result1 [add_ckpt $myarray(ckpt_name) myarray]
 
    if {$result1 == 0} {
       ts_log_fine "qconf -ackpt  succeded"
@@ -2146,7 +2146,7 @@ proc qconf_modify_checkpoint {} {
    # Now modify it using set_checkpointobj
    set myarray(clean_command) "ls"
    ts_log_fine "Modify checkpoint $myarray(ckpt_name) ..."
-   set result2 [mod_checkpointobj myarray 1]
+   set result2 [mod_ckpt $myarray(ckpt_name) myarray 1]
 
    if {$result2 == 0} {
       ts_log_fine "qconf -Mckpt succeded"
@@ -2157,7 +2157,7 @@ proc qconf_modify_checkpoint {} {
    # Now modify it using CLI
    set myarray(clean_command) "none"
    ts_log_fine "Modify checkpoint $myarray(ckpt_name) using CLI..."
-   set result21 [mod_checkpointobj myarray 0]
+   set result21 [mod_ckpt $myarray(ckpt_name) myarray 0]
 
    if {$result21 == 0} {
       ts_log_fine "qconf -mckpt succeded"
@@ -2168,7 +2168,7 @@ proc qconf_modify_checkpoint {} {
    # Now try to modify using a non-existent checkpoint
    set myarray(ckpt_name) "qconf_ckpt_wrong"
    ts_log_fine "Modify wrong checkpoint $myarray(ckpt_name) ..."
-   set result21 [mod_checkpointobj myarray 1 "" "" 0]
+   set result21 [mod_ckpt $myarray(ckpt_name) myarray 1 "" "" 0]
 
    if {$result21 == -1} {
       ts_log_fine "qconf -Mckpt failed correctly"
@@ -2182,7 +2182,7 @@ proc qconf_modify_checkpoint {} {
 #       Best might be to pass arrays of messages to handle_vi_edit, similar to
 #       handle_sge_error.
 #   ts_log_fine "Modify wrong checkpoint $myarray(ckpt_name) slow ...\n"
-#   set result22 [mod_checkpointobj myarray 0 "" "" 0]
+#   set result22 [mod_ckpt $myarray(ckpt_name) myarray 0 "" "" 0]
 #
 #   if {$result22 == -9} {
 #      ts_log_fine "qconf -mckpt failed correctly"
@@ -2193,7 +2193,7 @@ proc qconf_modify_checkpoint {} {
    # Now delete checkpoint
    set myarray(ckpt_name) "qconf_ckpt_name"
    ts_log_fine "Delete checkpoint $myarray(ckpt_name) ..."
-   set result4 [del_checkpointobj $myarray(ckpt_name)]
+   set result4 [del_ckpt $myarray(ckpt_name)]
 
    if {$result4 == 0} {
       ts_log_fine "qconf -dckpt $myarray(ckpt_name) succeded"
@@ -2763,6 +2763,8 @@ proc qconf_add_project {} {
 }
 
 proc qconf_brief_exercise {} {
+   global ts_config
+
    ts_log_fine "* * * PROJECT * * *"
    set right_param(oticket) "10"
    qconf_messages_basic_check project right_param
@@ -2805,7 +2807,7 @@ proc qconf_brief_exercise {} {
 
    ts_log_fine "* * * QUEUE * * *"
    set right_param(load_thresholds)       "np_load_avg=7.0"
-   set args(hostlist) [gethostname]
+   set args(hostlist) $ts_config(master_host)
    set args(ignore_hostlist) 1
    set args(del_cqueue) 1
    qconf_messages_basic_check queue right_param args

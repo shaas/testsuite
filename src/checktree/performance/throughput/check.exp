@@ -230,14 +230,9 @@ proc throughput_setup_sharetree {} {
    ts_log_fine "setup sharetree ..."
 
    ts_log_fine "adding projects ..."
-   set prj_setup(name) "project1"
-   add_prj prj_setup
-
-   set prj_setup(name) "project2"
-   add_prj prj_setup
-
-   set prj_setup(name) "project3"
-   add_prj prj_setup
+   add_project "project1"
+   add_project "project2"
+   add_project "project3"
 
    # delete a possibly existing sharetree
    del_sharetree
@@ -276,9 +271,9 @@ proc throughput_cleanup_sharetree {} {
 
    # remove projects
    ts_log_fine "removing projects ..."
-   del_prj "project1"
-   del_prj "project2"
-   del_prj "project3"
+   del_project "project1"
+   del_project "project2"
+   del_project "project3"
 }
 
 proc throughput_setup_functional_policy {} {
@@ -287,17 +282,14 @@ proc throughput_setup_functional_policy {} {
    ts_log_fine "setup functional policy ..."
 
    ts_log_fine "adding projects ..."
-   set prj_setup(name) "project1"
    set prj_setup(fshare) 4000
-   add_prj prj_setup
+   add_project "project1" prj_setup
 
-   set prj_setup(name) "project2"
    set prj_setup(fshare) 6000
-   add_prj prj_setup
+   add_project "project2" prj_setup
 
-   set prj_setup(name) "project3"
    set prj_setup(fshare) 2000
-   add_prj prj_setup
+   add_project "project3" prj_setup
 
    # setup policy weighting for sharetree
    get_schedd_config my_config 
@@ -318,9 +310,9 @@ proc throughput_cleanup_functional_policy {} {
 
    # remove projects
    ts_log_fine "removing projects ..."
-   del_prj "project1"
-   del_prj "project2"
-   del_prj "project3"
+   del_project "project1"
+   del_project "project2"
+   del_project "project3"
 }
 
 proc throughput_setup {} {

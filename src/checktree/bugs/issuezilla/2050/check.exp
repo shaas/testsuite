@@ -169,12 +169,11 @@ proc issue_2050_test {} {
          "projects" {
             ts_log_fine "-------- Testing projects --------"
             set test_project "testprj_$act_time"         
-            set new_project(name) "$test_project"
             set error_mail_output ""
 
             #create a project by adding a user to it
             ts_log_fine "Creating new project $test_project"
-            set result [add_prj new_project]
+            set result [add_project "$test_project"]
             if {$result == 0} {
                ts_log_fine "New project $test_project created"
             } else {
@@ -191,13 +190,13 @@ proc issue_2050_test {} {
              
             #now try deleting the project, it should throw an error!
             ts_log_fine "Deleting project $test_project"
-            set result [del_prj $test_project 0]
+            set result [del_project $test_project "" "" 0]
             if {$result == 0} {
                ts_log_severe "the project should not have been deleted!!"
                append error_mail_output "the project should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "projects" $test_project $test_queueinst
-               del_prj $test_project
+               del_project $test_project
             }
 
             #Do cleanup after error is shown
@@ -213,7 +212,7 @@ proc issue_2050_test {} {
             set error_mail_output ""
             #create a pe 
             ts_log_fine "Creating new pe $test_pe"
-            set result [add_pe "$test_pe" new_pe]
+            set result [add_pe "$test_pe"]
             if {$result == 0} {
                 ts_log_fine "New pe $test_pe created"
             } else {
@@ -328,10 +327,9 @@ proc issue_2050_test {} {
          "ckpt" {
             ts_log_fine "-------- Testing checkpoints --------"
             set test_checkpoint "testckpt_$act_time"     
-            set new_ckpt(ckpt_name) "$test_checkpoint"
             #create a new checkpoint
             ts_log_fine "Creating new checkpoint $test_checkpoint"
-            set result [add_checkpointobj new_ckpt]
+            set result [add_ckpt "$test_checkpoint"]
             if {$result == 0} {
                ts_log_fine "New checkpoint $test_checkpoint"
             } else {
@@ -348,7 +346,7 @@ proc issue_2050_test {} {
             }
             #now try deleting the checkpoint, it should throw an error!
             ts_log_fine "Deleting checkpoint $test_checkpoint"
-            set result [del_checkpointobj $test_checkpoint "" "" 0]
+            set result [del_ckpt $test_checkpoint "" "" 0]
             if {$result == 0} {
                ts_log_severe "the checkpoint should not have been deleted!!"
                append error_mail_output "the checkpoint should not have been deleted, as it is still referenced in the queue!"
@@ -356,7 +354,7 @@ proc issue_2050_test {} {
                ts_log_fine "removing checkpoint $test_checkpoint from q"
                del_attr $object_spec "ckpt_list" $test_checkpoint $test_queueinst
                ts_log_fine "Deleting checkpoint $test_checkpoint"
-               del_checkpointobj $test_checkpoint
+               del_ckpt $test_checkpoint
             }
 
             #Do cleanup after error is shown

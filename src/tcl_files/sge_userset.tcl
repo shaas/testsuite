@@ -96,18 +96,18 @@ proc add_userset {name change_array {fast_add 1} {on_host ""} {as_user ""} {rais
      return -9
    }
    
-   upvar $change_array chgar
-   set chgar(name) $name
-
    get_userset_messages messages "add" "$name" $on_host $as_user
   
    if {$fast_add} {
       ts_log_fine "Add userset $name from file ..."
       set option "-Au"
+      upvar $change_array chgar
+      set chgar(name) $name
       set_userset_defaults old_config
       update_change_array old_config chgar
       set tmpfile [dump_array_to_tmpfile old_config]
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
+      unset chgar(name)
       return [handle_sge_errors "add_userset" "qconf $option" $result messages $raise_error]
       
    } else {
@@ -307,7 +307,7 @@ proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {r
       set result [start_vi_edit "qconf" "$option $userset" $vi_commands messages $on_host $as_user]
 
    }
-  
+
    return [handle_sge_errors "mod_userset" "qconf $option" $result messages $raise_error]
    }
 

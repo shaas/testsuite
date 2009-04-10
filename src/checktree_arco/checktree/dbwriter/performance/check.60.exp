@@ -138,14 +138,9 @@ proc arco_dbwriter_performance_setup  {} {
    }
    
    # setup some projects
-   set prj(name) "project0"
-   add_prj prj
-   
-   set prj(name) "project1"
-   add_prj prj
-   
-   set prj(name) "project2"
-   add_prj prj
+   add_project "project0"
+   add_project "project1"
+   add_project "project2"
    
    ts_log_fine "projects created"
    
@@ -170,9 +165,9 @@ proc arco_dbwriter_performance_cleanup  {} {
       return -1
    }
    
-   del_prj "project0"
-   del_prj "project1"
-   del_prj "project2"
+   del_project "project0"
+   del_project "project1"
+   del_project "project2"
 
    if { [get_dbwriter_status 0] == 0 } {
       if { [shutdown_dbwriter] != 0 } {

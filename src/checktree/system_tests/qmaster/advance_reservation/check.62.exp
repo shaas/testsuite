@@ -174,8 +174,8 @@ proc advance_reservation_cleanup {} {
    del_pe $pe_name1 "" "" 0
    del_pe $pe_name2 "" "" 0
 
-   del_checkpointobj $ckpt_name1 "" "" 0
-   del_checkpointobj $ckpt_name2 "" "" 0
+   del_ckpt $ckpt_name1 "" "" 0
+   del_ckpt $ckpt_name2 "" "" 0
 
    del_calendar $cal_name1 "" "" 0
    del_calendar $cal_name2 "" "" 0
@@ -274,9 +274,9 @@ proc test_ckpt {} {
 
    # Test setup
    set ckpt(ckpt_name)       "$ckpt_name1"
-   add_checkpointobj ckpt
+   add_ckpt $ckpt(ckpt_name) ckpt
    set ckpt(ckpt_name)       "$ckpt_name2"
-   add_checkpointobj ckpt
+   add_ckpt $ckpt(ckpt_name) ckpt
 
    set queue_settings(ckpt_list)        "$ckpt_name1"
    mod_queue $queue_name1 "" queue_settings
@@ -324,8 +324,8 @@ proc test_ckpt {} {
    mod_queue $queue_name1 "" queue_settings
    mod_queue $queue_name2 "" queue_settings
 
-   del_checkpointobj $ckpt_name1
-   del_checkpointobj $ckpt_name2
+   del_ckpt $ckpt_name1
+   del_ckpt $ckpt_name2
 }
 
 proc test_cal {} {

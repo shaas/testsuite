@@ -65,7 +65,7 @@ lappend check_functions "per_job_consumables_global"
 lappend check_functions "per_job_consumables_hosts"
 lappend check_functions "per_job_consumables_queues"
 lappend check_functions "per_job_consumables_rqs"
-lappend check_functions "per_job_consumables_master_task"; # job consumable is only configured on master task but 
+lappend check_functions "per_job_consumables_master_task"; # job consumable is only configured on master task but
                                                            # other hosts should also be used as slave tasks.
 lappend check_functions "per_job_consumables_master_task_rqs"
 

@@ -50,7 +50,7 @@ proc set_calendar_defaults { change_array } {
    
    set chgar(calendar_name) "template"          ;# calendar_name is mandatory
    set chgar(year)          "NONE"
-   set chgar(week)          "NONE"       
+   set chgar(week)          "NONE"
 }
 
 #****** sge_calendar/add_calendar() ********************************************
@@ -106,9 +106,9 @@ proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $calendar" $vi_commands messages $on_host $as_user]
 
-  }
-
-  return [handle_sge_errors "add_calendar" "qconf $option" $result messages $raise_error]
+   }
+   unset chgar(calendar_name)
+   return [handle_sge_errors "add_calendar" "qconf $option" $result messages $raise_error]
 }
 
 #****** sge_calendar/get_calendar() *******************************************
@@ -245,7 +245,7 @@ proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} 
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $calendar" $vi_commands messages $on_host $as_user]
 
-  }
+   }
 
    return [handle_sge_errors "mod_calendar" "qconf $option" $result messages $raise_error]
 }

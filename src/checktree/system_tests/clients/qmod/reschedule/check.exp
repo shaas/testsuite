@@ -189,12 +189,12 @@ proc reschedule_setup {} {
    set new_checkpointobj(ckpt_name)  "qmod_with_r"
    set new_checkpointobj(interface)  "userdefined"
    set new_checkpointobj(when) "r"
-   add_checkpointobj "new_checkpointobj"
+   add_ckpt $new_checkpointobj(ckpt_name) "new_checkpointobj"
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_with_r
 
    set new_checkpointobj(ckpt_name)  "qmod_without_r"
    set new_checkpointobj(when) "s"
-   add_checkpointobj "new_checkpointobj"
+   add_ckpt $new_checkpointobj(ckpt_name) "new_checkpointobj"
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_without_r
 
    # add pe_object for test
@@ -205,8 +205,8 @@ proc reschedule_setup {} {
       set new_peobj(allocation_rule) [lindex $pe_alloc_rule $index]
       incr index 1
       add_pe $elem new_peobj
-      assign_queues_with_pe_object $rerun_queue $rerun_host $new_peobj(pe_name)
-      assign_queues_with_pe_object $rerun_queue2 $no_rerun_host $new_peobj(pe_name)
+      assign_queues_with_pe_object $rerun_queue $rerun_host $elem
+      assign_queues_with_pe_object $rerun_queue2 $no_rerun_host $elem
    }
 }
 
@@ -253,8 +253,8 @@ proc reschedule_cleanup {} {
    set_config stored_configuration
 
    ts_log_fine "removing checkpointobjects ..."
-   del_checkpointobj "qmod_with_r"
-   del_checkpointobj "qmod_without_r"
+   del_ckpt "qmod_with_r"
+   del_ckpt "qmod_without_r"
 
    foreach elem $pe_names {
       del_pe $elem

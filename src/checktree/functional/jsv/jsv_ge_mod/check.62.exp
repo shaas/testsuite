@@ -170,11 +170,10 @@ proc jsv_ge_mod_setup {} {
    set ckpt_param(ckpt_dir) "/tmp"
    set ckpt_param(signal) "none"
    set ckpt_param(when) "sx"
-   add_checkpointobj ckpt_param 
+   add_ckpt $ckpt_param(ckpt_name) ckpt_param
 
    # create project
-   set prj_setup(name) "jsv_ge_mod_prj"
-   add_prj prj_setup
+   add_project "jsv_ge_mod_prj"
 
    # change global config 
    get_config jsv_org_global_conf
@@ -216,8 +215,8 @@ proc jsv_ge_mod_cleanup {} {
 
    # delete pe and ckpt
    del_pe "jsv_ge_mod_pe"
-   del_checkpointobj "jsv_ge_mod_ckpt"
-   del_prj "jsv_ge_mod_prj"
+   del_ckpt "jsv_ge_mod_ckpt"
+   del_project "jsv_ge_mod_prj"
 
    # unset our test's global variables
    foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {

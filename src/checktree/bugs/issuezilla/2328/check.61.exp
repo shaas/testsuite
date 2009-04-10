@@ -129,8 +129,7 @@ proc issue_2328_setup {} {
    
    # Create 5 projects
    for {set prj_counter 1} {$prj_counter <= 5} {incr prj_counter} {
-      set prj_config(name) "Project$prj_counter"
-      add_prj prj_config
+      add_project "Project$prj_counter"
    }
 
    # 4. Add rqs a_new_rqs
@@ -159,7 +158,7 @@ proc issue_2328_cleanup {} {
 
    # Delete the 5 projects
    for {set prj_counter 1} {$prj_counter <= 5} {incr prj_counter} {
-      del_prj "Project$prj_counter"
+      del_project "Project$prj_counter"
    }
 
    # Clear global cluster of F** complexes

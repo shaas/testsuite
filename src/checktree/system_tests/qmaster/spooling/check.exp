@@ -134,23 +134,21 @@ proc qmaster_spooling_prj_restart {} {
    } else {
       set check_fields "name oticket fshare acl xacl"
 
-      set config(name) "spool_prj"
+      set PROJECT_NAME "spool_prj"
       set config(oticket) "123"
       set config(fshare)  "234"
       set config(acl)  "deadlineusers"
       set config(xacl)  "defaultdepartment"
 
-      # JG: TODO: make add_prj and get_prj return info if it was successfull.
-      #           use this information and do some status output
-      add_prj config
+      add_project $PROJECT_NAME config
 
       shutdown_and_restart_qmaster
 
-      get_prj "spool_prj" new_config
+      get_project $PROJECT_NAME new_config
 
       cmp_config config new_config $check_fields "qmaster_spooling_prj_restart"
 
-      del_prj "spool_prj"
+      del_project $PROJECT_NAME
    }
 }
 
@@ -211,7 +209,7 @@ proc qmaster_spooling_ar_restart {} {
       set    args "-a $start "
       append args "-e $end "
       append args "-A test_ar_account "
-      append args "-ckpt test_ar_ckpt "
+      append args "-ckpt testcheckpointobject "
       append args "-he yes "
       append args "-l 'h_rt=200, h=${actual_host}' "
       append args "-m abe "
@@ -232,7 +230,7 @@ proc qmaster_spooling_ar_restart {} {
       set check_values(id)                             "$ar_id"
       set check_values(name)                           "test_ar_name"
       set check_values(owner)                          "$CHECK_USER"  
-      set check_values(checkpoint_name)                "test_ar_ckpt"
+      set check_values(checkpoint_name)                "testcheckpointobject"
       set check_values(start_time)                     "$starto"
       set check_values(end_time)                       "$endo"
       set check_values(duration)                       "01:01:01"

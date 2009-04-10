@@ -635,9 +635,9 @@ proc setup_checkpointing {} {
    set ckpt_param(signal)            "none"
    set ckpt_param(when)              "sx"
 
-   set result [add_checkpointobj "ckpt_param"]
+   set result [add_ckpt $ckpt_param(ckpt_name) "ckpt_param"]
    if {$result != 0} {
-      ts_log_severe "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
+      ts_log_severe "could not add checkpoint ENV $migration_ckpt_name (result of add_ckpt: $result)"
       return
    }
  
@@ -687,7 +687,7 @@ proc clean_up_checkpointing {} {
    set not_deleted ""
    set error 0
 
-   set result [del_checkpointobj $migration_ckpt_name]
+   set result [del_ckpt $migration_ckpt_name]
    if {$result != 0} {
       set not_deleted "$not_deleted $result"
       incr error 1
