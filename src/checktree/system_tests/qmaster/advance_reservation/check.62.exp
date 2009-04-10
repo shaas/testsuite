@@ -273,10 +273,8 @@ proc test_ckpt {} {
    global queue_name1 queue_name2
 
    # Test setup
-   set ckpt(ckpt_name)       "$ckpt_name1"
-   add_ckpt $ckpt(ckpt_name) ckpt
-   set ckpt(ckpt_name)       "$ckpt_name2"
-   add_ckpt $ckpt(ckpt_name) ckpt
+   add_ckpt "$ckpt_name1"
+   add_ckpt "$ckpt_name2"
 
    set queue_settings(ckpt_list)        "$ckpt_name1"
    mod_queue $queue_name1 "" queue_settings

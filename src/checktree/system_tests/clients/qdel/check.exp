@@ -662,7 +662,6 @@ proc qdel_iz_125_case_4 {} {
    set testq(load_thresholds) "np_load_avg=7.00"
    add_queue "test1.q" $qdel_host testq
 
-   set mype1(pe_name) "mype1"
    set mype1(slots) 2
    set mype1(allocation_rule) "\$pe_slots"
    add_pe "mype1" mype1
@@ -670,7 +669,6 @@ proc qdel_iz_125_case_4 {} {
 
    add_queue "test2.q" $qdel_host testq
 
-   set mype2(pe_name) "mype2"
    set mype2(slots) 2
    set mype2(allocation_rule) "\$pe_slots"
    add_pe "mype2" mype2

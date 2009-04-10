@@ -108,8 +108,7 @@ proc scheduler_messages_setup {} {
    add_project "sched_messages_project_host"
    add_project "sched_messages_project_global"
 
-   set ckpt(ckpt_name) "sched_messages_ckpt"
-   add_ckpt $ckpt(ckpt_name) ckpt
+   add_ckpt "sched_messages_ckpt"
 
    set host_list [host_conf_get_suited_hosts 2]
    set first_host [lindex $host_list 0]

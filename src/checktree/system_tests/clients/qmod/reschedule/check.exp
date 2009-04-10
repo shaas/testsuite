@@ -186,15 +186,13 @@ proc reschedule_setup {} {
 
    # add checkpointobject for test
    ts_log_fine "creating checkpointobjects ..."
-   set new_checkpointobj(ckpt_name)  "qmod_with_r"
    set new_checkpointobj(interface)  "userdefined"
    set new_checkpointobj(when) "r"
-   add_ckpt $new_checkpointobj(ckpt_name) "new_checkpointobj"
+   add_ckpt "qmod_with_r" new_checkpointobj
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_with_r
 
-   set new_checkpointobj(ckpt_name)  "qmod_without_r"
    set new_checkpointobj(when) "s"
-   add_ckpt $new_checkpointobj(ckpt_name) "new_checkpointobj"
+   add_ckpt "qmod_without_r" new_checkpointobj
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_without_r
 
    # add pe_object for test

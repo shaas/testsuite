@@ -92,8 +92,7 @@ proc issue_2967_setup {} {
    # we want to modify the global config - make a backup
    get_config issue_2967_backup
 
-   set ckpt(ckpt_name) "my_ckpt"
-   set CKPT_NAME $ckpt(ckpt_name)
+   set CKPT_NAME "my_ckpt"
    set CKPT_NAME_NO_REF "my_ckpt_no_ref"
    set NON_CKPT_NAME "fake_ckpt"
    set QUEUE_NO_CKPT_NAME "test.q"
