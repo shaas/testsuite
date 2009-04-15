@@ -605,6 +605,23 @@ proc setup_execd_conf {} {
             set expected_entries 4
          } else {
             set expected_entries 2
+            # Since 6.2u3 + JMX: shadows add their local configuration (jvm_lib + args)
+            if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) != 0} {
+               set fp [open "$ts_config(product_root)/$ts_config(cell)/common/shadow_masters" r]
+               set shadow_masters [read $fp]
+               close $fp
+               set shadow_masters [split $shadow_masters "\n"]
+               foreach shadowd $shadow_masters {
+                  if {[string compare $shadowd $host] == 0} {
+                     if {[string compare $shadowd $ts_config(master_host)] == 0 && [array size tmp_config] < 4} {
+                        set expected_entries [array size tmp_config]
+                     } else {
+                        set expected_entries 4
+                     }
+                     break
+                  }
+               }
+            }
          }
       } else {
          set expected_entries 8
@@ -622,7 +639,9 @@ proc setup_execd_conf {} {
          append output "$elem is set to $tmp_config($elem)\n"
          incr counter 1
          switch $elem {
-            "mailer" { continue }
+            "mailer" -
+            "libjvm_path" -
+            "additional_jvm_args" { continue }
             "qlogin_command" -
             "qlogin_daemon" -
             "rlogin_command" -
