@@ -156,7 +156,6 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "spool/cs/module/ge-service-adapter/complex_mapping"
    lappend expected_dirs "spool/resource_provider"
    lappend expected_dirs "spool/resource_provider/resource_provider"
-   lappend expected_dirs "spool/resource_provider/resource_provider/orders"
    lappend expected_dirs "spool/resource_provider/spare_pool"
    foreach service $service_names(services) {
       lappend expected_dirs "spool/resource_provider/$service"

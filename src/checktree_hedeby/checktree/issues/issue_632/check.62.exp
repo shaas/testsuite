@@ -41,8 +41,7 @@ global check_use_installed_system check_init_level_procedure
 # This file shows some check specific things
 set check_root_access_needs    "yes"
 set check_name                 "hedeby_issue_632"
-# check_category: not yet VERIFIED -> don't run with (2)
-set check_category             "COMPATIBILITY SYSTEM"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
 set check_description(0)       "Check that RP continues considering a resource, even if a service did not want to release the resource."
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "hedeby_issue_632_init_level"
@@ -339,6 +338,8 @@ proc hedeby_issue_632_check {} {
    set dj_index [lsearch -exact $ctx(cleanup_actions) "delete_job"]
    set ctx(cleanup_actions) [lreplace $ctx(cleanup_actions) $dj_index $dj_index]
 
+   wait_for_end_of_all_jobs
+
 
    # ---------------------------------------------------------------------------
    ts_log_heading "Step 7: Waiting for resource '$ctx(resource)' to return to spare pool"
@@ -347,7 +348,12 @@ proc hedeby_issue_632_check {} {
    set exp_res_info($ctx(resource),service) "spare_pool"
    set exp_res_info($ctx(resource),flags) "{}"
    set exp_res_info($ctx(resource),state) "ASSIGNED"
-   if {[wait_for_resource_info exp_res_info 60 0 mvr_error] != 0} {
+
+   # GE Adapter runs every 60 seconds a qstat. Before it will not detect that
+   # the resource can be release. We must wait much longer then the default 60
+   # seconds until the resource moves back to spare_pool
+   set waiting_time [expr 2 * 60]
+   if {[wait_for_resource_info exp_res_info $waiting_time 0 mvr_error] != 0} {
       ts_log_severe "Step 7: Resource '$ctx(resource) did not return to 'spare_pool': $mvr_error"
       return
    }
