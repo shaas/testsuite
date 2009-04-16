@@ -132,7 +132,7 @@ proc qmaster_spooling_prj_restart {} {
    if {$ts_config(product_type) != "sgeee"} {
       ts_log_config "this can only run in sgeee clusters"
    } else {
-      set check_fields "name oticket fshare acl xacl"
+      set check_fields "oticket fshare acl xacl"
 
       set PROJECT_NAME "spool_prj"
       set config(oticket) "123"

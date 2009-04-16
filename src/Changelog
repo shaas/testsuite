@@ -1,3 +1,7 @@
+EB-2009-04-16-0: Bugfix:     checktree/system_tests/qmaster/spooling
+                             always failed
+                 Review:     CR
+
 RH-2009-04-16-0: Bugfix:     Hedeby: Adjustments for issue 632
                              test for i632 is now VERFIED
                  Review:     TB
