@@ -1,3 +1,6 @@
+RH-2009-04-16-1: Bugfix:     Hedeby: junit test make clean before starting the tests
+                 Review:     TB
+
 EB-2009-04-16-0: Bugfix:     checktree/system_tests/qmaster/spooling
                              always failed
                  Review:     CR
