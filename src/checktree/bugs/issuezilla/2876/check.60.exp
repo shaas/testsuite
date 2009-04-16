@@ -111,6 +111,12 @@ proc issue_2876_level_cleanup {} {
 proc issue_2876_test1 {} {
    global ts_config CHECK_USER big_file_path size_of_big_file test_host
 
+   # test only for classic spooling
+   if { [string compare "$ts_config(spooling_method)" "classic"] != 0 } {
+      ts_log_fine "issue_2876_test1 skipped for $ts_config(spooling_method) spooling method"
+      return 0
+   }
+
    set args "$big_file_path | qsub -h -terse"
    ts_log_fine "executing cat $args"
    wait_for_remote_file $test_host $CHECK_USER $big_file_path

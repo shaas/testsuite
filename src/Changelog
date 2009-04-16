@@ -1,3 +1,6 @@
+JF-2009-04-16-0: Bugfix:     fix: test for issue 2876 cannot work with BDB
+                 Review:     LP
+
 RH-2009-04-16-1: Bugfix:     Hedeby: junit test make clean before starting the tests
                  Review:     TB
 
