@@ -3762,11 +3762,16 @@ proc mod_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
 proc mod_attr_file_error {result object attribute tmpfile target raise_error} {
+   global ts_config
 
    # recognize certain error messages and return special return code
    set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_UNKNOWNATTRIBUTENAME_S $attribute ]
-   set messages(-2) [translate_macro MSG_FILE_ERRORREADINGINFILE ]
+   if {$ts_config(gridengine_version) < 61} {
+      set messages(-2) [translate_macro MSG_FILE_ERRORREADINGINFILE ]
+   } else {
+      set messages(-2) "*[translate_macro MSG_FLATFILE_ERROR_READINGFILE_S "*"]*"
+   }
 
    set ret 0
    # now evaluate return code and raise errors

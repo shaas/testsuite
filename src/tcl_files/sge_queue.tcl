@@ -275,11 +275,11 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
 #     sge_queue/get_queue_messages()
 #*******************************************************************************
 proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  get_current_cluster_config_array ts_config
+   get_current_cluster_config_array ts_config
 
-  upvar $change_array chgar
+   upvar $change_array chgar
 
-  if { $ts_config(gridengine_version) == 53 && ![string match "*@*" $qname] } {
+   if { $ts_config(gridengine_version) == 53 && ![string match "*@*" $qname] } {
       if { $hostlist == "@allhosts" || $hostlist == "" || $hostlist == "NONE" } {
          set hostlist $ts_config(execd_nodes)
          foreach host $hostlist {
@@ -292,6 +292,12 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
    }
 
    set chgar(qname) "$qname"
+   if {$hostlist != ""} {
+      set chgar(hostlist) "$hostlist"
+   } else {
+      set chgar(hostlist) "NONE"
+   }
+
    validate_queue chgar
 
    get_queue_messages messages "mod" "$qname" $on_host $as_user
@@ -299,29 +305,16 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
    if { $fast_add } {
       ts_log_fine "Modify queue $qname for hostlist $hostlist from file ..."
       get_queue "$qname" curr_arr "" "" 0
-      if {![info exists curr_arr]} {
-         set_queue_defaults curr_arr
-     }
-      if { $ts_config(gridengine_version) >= 60 } {
-         if {[llength $hostlist] == 0} {
-            set_cqueue_default_values curr_arr chgar
-         } else {
-            set_cqueue_specific_values curr_arr chgar $hostlist
-         }
-      } else {
-         set chgar(hostlist) "$hostlist"
-      }
 
       update_change_array curr_arr chgar
 
-      set tmpfile [dump_array_to_tmpfile curr_arr]  
+      set tmpfile [dump_array_to_tmpfile curr_arr]
       set output [start_sge_bin "qconf" "-Mq $tmpfile" $on_host $as_user]
       set ret [handle_sge_errors "mod_queue" "qconf -Mq $qname" $output messages $raise_error]
 
    } else {
       ts_log_fine "Modify queue $qname for hostlist $hostlist slow ..."
       set vi_commands [build_vi_command chgar]
-      set chgar(hostlist) $hostlist
       # BUG: different message for "vi" from fastadd ...
       set NOT_EXISTS [translate_macro MSG_CQUEUE_DOESNOTEXIST_S "$qname"]
       add_message_to_container messages -1 $NOT_EXISTS
