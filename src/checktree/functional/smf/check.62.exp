@@ -50,11 +50,13 @@ set check_needs           "init_core_system"
 # define test's procedure order
 set check_fuctions   ""
 lappend check_functions "smf_test_host_supported"
-lappend check_functions "smf_test_qmaster"
 lappend check_functions "smf_test_shadowd"
 lappend check_functions "smf_test_execd"
 lappend check_functions "smf_test_bdb"
 lappend check_functions "smf_test_dbwriter"
+
+# This test makes currently problems. This should be the last smf test.
+lappend check_functions "smf_test_qmaster"
 
 set check_setup_function "smf_setup"
 set check_cleanup_function "smf_cleanup"
@@ -127,7 +129,6 @@ proc smf_test_qmaster {} {
 
 proc smf_test_shadowd {} {
    global ts_config
-   global check_do_not_use_spool_config_entries
 
    if {[llength $ts_config(shadowd_hosts)] == 0} {
       ts_log_config "No shadowd hosts in your configuration"
@@ -139,15 +140,11 @@ proc smf_test_shadowd {} {
    foreach host $ts_config(shadowd_hosts) {
       if {[is_smf_host $host] == 1} {
          if {[is_daemon_running $host "sge_shadowd"] == 0} {
-            if {$check_do_not_use_spool_config_entries == 1} {
-               ts_log_severe "shadowd \"$host\" is not running, but it should! The shadowd smf test would FAIL!"
-               return -1
-            } else {
-               ts_log_config "shadowd \"$host\" is not running. Restart the testsuite with no_local_spool and start smf test again!"
-            }
+            ts_log_severe "shadowd \"$host\" is not running, but it should! The shadowd smf test would FAIL!"
+            return -1
          }
          lappend smf_hosts $host
-         smf_generic_test $host "shadowd" 30 0
+         smf_generic_test $host "shadowd" 60 0
          incr counter 1
       }
    }
@@ -190,7 +187,7 @@ proc smf_test_bdb {} {
    }
    set host $ts_config(bdb_server)
    if {$host == "none"} {
-      ts_log_config "No bdb server host in your configuration"
+      ts_log_fine "No bdb server host in your configuration"
       return
    }
    if {[is_smf_host $host] == 1} {
@@ -206,7 +203,7 @@ proc smf_test_dbwriter {} {
    global arco_config
 
    if {[lsearch -glob $ts_config(additional_checktree_dirs) "*checktree_arco"] == -1} {
-      ts_log_config "No arco checktree configuration found in additional_checktree_dirs!"
+      ts_log_fine "No arco checktree configuration found in additional_checktree_dirs!"
       return
    }
 

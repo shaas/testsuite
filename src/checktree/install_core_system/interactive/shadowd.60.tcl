@@ -73,16 +73,25 @@ proc install_shadowd {} {
 
    if {!$check_use_installed_system} {
       set feature_install_options ""
+      set my_csp_host_list ""
 
+      # support jmx ssl testsuite keystore and certificate creation
+      if {$ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
+         set my_csp_host_list $CHECK_CORE_SHADOWD
+      }
+ 
+      # are we installing secure grid engine?
       if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
          set my_csp_host_list $CHECK_CORE_SHADOWD
-         foreach shadow_host $my_csp_host_list {
-            if {$shadow_host == $ts_config(master_host)} {
-               continue
-            }
-            copy_certificates $shadow_host
+      }
+
+      # if $my_csp_host_list != "" we copy certificates
+      foreach shadow_host $my_csp_host_list {
+         if {$shadow_host == $ts_config(master_host)} {
+            continue
          }
+         copy_certificates $shadow_host
       }
    }
  
@@ -90,7 +99,7 @@ proc install_shadowd {} {
       ts_log_fine "testing shadowd settings for host $shadow_host ..."
       set info [check_shadowd_settings $shadow_host]
       if {$info != ""} {
-         ts_log_config "skipping shadowd installation for host $shadow_host:\n$info"
+         ts_log_severe "skipping shadowd installation for host $shadow_host:\n$info"
          continue
       }
 

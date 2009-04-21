@@ -193,7 +193,7 @@ proc issue_1803_test {} {
 
          ts_log_fine "reading $trace_file ..."
          set trace_output [start_remote_prog $host $ts_user_config(second_foreign_user) cat $trace_file prg_exit_state 10]
-      #            ts_log_fine "---\n$trace_output\n---"
+#         ts_log_fine "---\n$trace_output\n---"
          set trace_output [split $trace_output "\r\n"]
 
          set counter 0

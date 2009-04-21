@@ -95,7 +95,7 @@ proc install_execd {} {
 
    if {!$check_use_installed_system} {
       set feature_install_options ""
-      if { $ts_config(submit_only_hosts) != "none" } {
+      if {$ts_config(submit_only_hosts) != "none"} {
          foreach elem $ts_config(submit_only_hosts) {
             ts_log_fine "do a qconf -as $elem ..."
             set result [start_sge_bin "qconf" "-as $elem"]

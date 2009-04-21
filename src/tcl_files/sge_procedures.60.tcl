@@ -1015,24 +1015,24 @@ proc call_startup_script { host service {script_file ""} {args ""} { timeout 30 
       switch -exact $service {
          "master" -
          "qmaster" {
-	    set service "qmaster"
-	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
-	    set args "-$service $args"
+            set service "qmaster"
+            set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
+            set args "-$service $args"
          }
          "shadow" - 
          "shadowd" {
-	    set service "shadowd"
-	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
-	    set args "-$service $args"
+            set service "shadowd"
+            set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
+            set args "-$service $args"
          }
          "execd" -
          "bdb" -
          "dbwriter" {
-	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sge$service"
+            set script_file "$ts_config(product_root)/$ts_config(cell)/common/sge$service"
          }
          default {
-	    ts_log_severe "Invalid service $service in smf_call_stop_script_and_restart{}"
-	 }
+	         ts_log_severe "Invalid service $service in smf_call_stop_script_and_restart{}"
+         }
       }
    }
    

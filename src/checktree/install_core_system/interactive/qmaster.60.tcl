@@ -355,8 +355,12 @@ proc install_qmaster {} {
          }
          
          -i $sp_id $JMX_ENABLE_JMX {
-            # We send just enter as default is set based of the flags
-            install_send_answer $sp_id "" "enable jmx"
+            if {$ts_config(jmx_port) > 0} {
+               install_send_answer $sp_id "y" "enable jmx"
+            } else {
+               ts_log_info "jmx disabled - jmx should be enabled for testing"
+               install_send_answer $sp_id "n" "disable jmx"
+            }
             continue
          }
          -i $sp_id $JMX_JAVA_HOME {
@@ -377,7 +381,13 @@ proc install_qmaster {} {
          }
 
          -i $sp_id $JMX_PORT_QUESTION {
-            install_send_answer $sp_id $ts_config(jmx_port) "jmx port"
+            if {$ts_config(jmx_port) > 0} {
+               install_send_answer $sp_id $ts_config(jmx_port) "jmx port $ts_config(jmx_port)"
+            } else {
+               ts_log_severe "got jmx port question, but jmx port is set to $ts_config(jmx_port)"
+               close_spawn_process $id
+               return
+            }
             continue
          }
 

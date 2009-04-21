@@ -48,8 +48,8 @@ global CHECK_ACTUAL_TEST_PATH
 ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/init_cluster
 ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/interactive/bdb_rpc
 ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/qmaster
-ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/execd
 ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/shadowd
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/execd
 
 set check_root_access_needs "yes"
 

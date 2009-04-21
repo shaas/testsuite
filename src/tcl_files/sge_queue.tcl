@@ -292,19 +292,27 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
    }
 
    set chgar(qname) "$qname"
-   if {$hostlist != ""} {
-      set chgar(hostlist) "$hostlist"
-   } else {
-      set chgar(hostlist) "NONE"
-   }
-
    validate_queue chgar
 
    get_queue_messages messages "mod" "$qname" $on_host $as_user
      
    if { $fast_add } {
       ts_log_fine "Modify queue $qname for hostlist $hostlist from file ..."
+      # aja: TODO: suppress all messages coming from the procedure
       get_queue "$qname" curr_arr "" "" 0
+      if {![info exists curr_arr]} {
+         set_queue_defaults curr_arr
+     }
+      # aja: TODO: is this okay? procedures not checked
+      if { $ts_config(gridengine_version) >= 60 } {
+         if {[llength $hostlist] == 0} {
+            set_cqueue_default_values curr_arr chgar
+         } else {
+            set_cqueue_specific_values curr_arr chgar $hostlist
+         }
+      } else {
+         set chgar(hostlist) "$hostlist"
+      }
 
       update_change_array curr_arr chgar
 
@@ -315,6 +323,7 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
    } else {
       ts_log_fine "Modify queue $qname for hostlist $hostlist slow ..."
       set vi_commands [build_vi_command chgar]
+      set chgar(hostlist) $hostlist
       # BUG: different message for "vi" from fastadd ...
       set NOT_EXISTS [translate_macro MSG_CQUEUE_DOESNOTEXIST_S "$qname"]
       add_message_to_container messages -1 $NOT_EXISTS

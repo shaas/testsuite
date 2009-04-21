@@ -1,10 +1,31 @@
+CR-2009-04-21-0: Bugfix:     o automatic installation did not use "-noremote"
+                               parameter for installing shadowd 
+                             o fixed shadowd specific code in smf test and
+                               init_core_system test
+                             o sge_procedures.tcl: 
+                               enhanced timeout when waiting for global config
+                               changes which is necessary for NFS spooling
+                             o disabled qstat_g_c_plain_xml_comparison test
+                               function in qstat test (added TODO hints)
+                             o copy certificates to shadowd hosts when
+                               jmx is enabled
+                             o disabled skipping of shadowd installation -
+                               incorrect shadowd configuration settings will
+                               now result in failed install_core_system test
+                             o write_autoinst_config():
+                               removed last "/" character from default qmaster
+                               spool directory
+                 Revert:     o restored sge_queue.tcl from AP-2009-04-21-0
+                 Review:     RD
+
 AP-2009-04-21-0: Enhancem.:  added test bugs/issuezilla/2408
                  Review:     DG
 
 JF-2009-04-16-0: Bugfix:     fix: test for issue 2876 cannot work with BDB
                  Review:     LP
 
-RH-2009-04-16-1: Bugfix:     Hedeby: junit test make clean before starting the tests
+RH-2009-04-16-1: Bugfix:     Hedeby: junit test make clean before starting
+                             the tests
                  Review:     TB
 
 EB-2009-04-16-0: Bugfix:     checktree/system_tests/qmaster/spooling

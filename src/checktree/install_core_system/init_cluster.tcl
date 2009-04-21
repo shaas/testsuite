@@ -602,29 +602,24 @@ proc setup_execd_conf {} {
       if {$CHECK_INTERACTIVE_TRANSPORT == "default" ||
           ($CHECK_INTERACTIVE_TRANSPORT == "rtools" && $ts_config(gridengine_version) < 62)} {
          if {$ts_config(gridengine_version) < 62} {
+            # default or rtools/ssh for GE versions 53, 60, 61
             set expected_entries 4
          } else {
+            # default for GE versions >= 62 (no rtools)
             set expected_entries 2
-            # Since 6.2u3 + JMX: shadows add their local configuration (jvm_lib + args)
-            if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) != 0} {
-               set fp [open "$ts_config(product_root)/$ts_config(cell)/common/shadow_masters" r]
-               set shadow_masters [read $fp]
-               close $fp
-               set shadow_masters [split $shadow_masters "\n"]
-               foreach shadowd $shadow_masters {
-                  if {[string compare $shadowd $host] == 0} {
-                     if {[string compare $shadowd $ts_config(master_host)] == 0 && [array size tmp_config] < 4} {
-                        set expected_entries [array size tmp_config]
-                     } else {
-                        set expected_entries 4
-                     }
-                     break
-                  }
-               }
-            }
          }
       } else {
+         # rtools (rlogin, telnetd, rsh) >= 6.2 or ssh
          set expected_entries 8
+      }
+
+      # Since 6.2u3 + JMX: shadows add their local configuration (jvm_lib + args)
+      if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) > 0} {
+         set hosts_with_2_additional_parameters $ts_config(shadowd_hosts)
+         lappend hosts_with_2_additional_parameters $ts_config(master_host)
+         if {[lsearch -exact $hosts_with_2_additional_parameters $host] >= 0} {
+            incr expected_entries 2
+         }
       }
 
       if {$have_exec_spool_dir != ""} {
@@ -663,7 +658,7 @@ proc setup_execd_conf {} {
                   }
                }
             }
-            "xterm" { 
+            "xterm" {
                ts_log_fine "host $host has xterm setting to \"$tmp_config($elem)\""
                if {![is_remote_file $host $CHECK_USER $tmp_config($elem)]} {
                   set config_xterm_path [get_binary_path $host "xterm"]

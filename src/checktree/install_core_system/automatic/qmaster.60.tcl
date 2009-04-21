@@ -244,7 +244,7 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
    } else {
       puts $fdo "QMASTER_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/qmaster\""
    }
-   puts $fdo "EXECD_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/\""
+   puts $fdo "EXECD_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool\""
    puts $fdo "GID_RANGE=\"$gid_range\""
    puts $fdo "SPOOLING_METHOD=\"$ts_config(spooling_method)\""
    puts $fdo "DB_SPOOLING_SERVER=\"$bdb_server\""

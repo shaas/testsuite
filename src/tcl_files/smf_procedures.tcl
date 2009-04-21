@@ -581,6 +581,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
       ts_log_severe "ERROR: Registering $service service did not succeed!"
       return -1
    }
+
    #Start over SMF
    start_smf_service $host $service
    if { [string is false [is_smf_service_state $host $service "online"]] == 1 } {
@@ -664,6 +665,7 @@ proc smf_advanced_restart_test {host service {timeout 30} {kill_restarts 1}} {
       return -1
    }
    #svcadm enable -st
+   # TODO: This fast smf disable/enable trigger produces a qmaster deadlock !!!
    if {[smf_start_svcadm $host $service "enable" "-st"] == -1} {
       return -1
    }
@@ -802,7 +804,6 @@ proc smf_startup_cluster {} {
 
 proc startup_cluster {} {
    global ts_config
-   global check_do_not_use_spool_config_entries
    #bdb
    set host "$ts_config(bdb_server)"
    if {[llength $host] != 0} {
@@ -814,11 +815,7 @@ proc startup_cluster {} {
    
    #shadowds
    foreach host $ts_config(shadowd_hosts) {
-      if {$check_do_not_use_spool_config_entries == 0 && [string compare $host $ts_config(master_host)] != 0} {
-         ts_log_config "shadowd \"$host\" can't be started. Not on qmaster_spool_dir not on NFS."
-      } else {
-         startup_daemon $host "shadowd"
-      }
+      startup_daemon $host "shadowd"
    }
    #dbwriter
    if {[info exists arco_config(dbwriter_host)] == 1} {

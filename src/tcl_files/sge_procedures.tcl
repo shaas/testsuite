@@ -2483,8 +2483,7 @@ proc set_config_and_propagate {config {host global}} {
          set sp_id $spawn_list($conf_host)
          set tail_id $open_spawn_list($conf_host)
  
-         set timeout 90
-
+         set timeout 240
          expect {
             -i $sp_id full_buffer {
              ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
