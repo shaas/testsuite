@@ -618,7 +618,6 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
       }
 
       set file_name [get_tmp_file_name "" "$row"]
-      lappend file_name_list $file_name
       set file_pointer [open $file_name w]
 
       set counter 0
@@ -629,6 +628,11 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
          incr counter 1
       }
       close $file_pointer
+
+      # try to plot only if there were data points in this file
+      if { $counter > 0 } {
+         lappend file_name_list $file_name
+      }
 
       if { [ info exists rows($row,drawmode) ] } {
          lappend drawmode_list $rows($row,drawmode)

@@ -56,14 +56,14 @@
 #     Different scenarios are run:
 #        1 queues are disabled during whole submission
 #        2 queues are enabled during whole submission
-#        3 queues are enabled after half of the test jobs have been submitted
+#        3 queues are enabled after half of the test jobs have been submitted; with qstats
 #        4 scenario 3 without qstat's
-#        5 scenario 3 with resource requests (hard and soft)
+#        5 scenario 3 with resource requests (hard and soft),  without qstat's
 #        6 scenario 3 with resource requests (hard and soft) and parallel jobs
-#          requesting a range of slots
-#        7 scenario 3 with array jobs
-#        8 scenario 3 with sharetree
-#        9 scenario 3 with functional policy
+#          requesting a range of slots, without qstat's
+#        7 scenario 3 with array jobs, without qstat's
+#        8 scenario 3 with sharetree, without qstat's
+#        9 scenario 3 with functional policy, without qstat's
 #
 #     The test results are stored as HTML pages including a number of 
 #     charts.
@@ -138,7 +138,7 @@ set check_name                "throughput"
 set check_description(0)      "Functional test, submit 300 jobs with enabled queues"
 set check_description(1)      "Functional test, submit 300 jobs with disabled queues"
 set check_description(2)      "Functional test, submit 150 of 300 jobs with disabled queues"
-set check_description(3)      "Functional test, submit 150 of 300 jobs with disabled queues, no qstats"
+set check_description(3)      "Functional test, submit 150 of 300 jobs with disabled queues, with qstats"
 set check_description(4)      "Functional test, submit 150 of 300 jobs with disabled queues, requests"
 set check_description(5)      "Functional test, submit 150 of 300 jobs with disabled queues, requests and parallel jobs"
 set check_description(6)      "Functional test, submit 150 of 300 jobs with disabled queues, array jobs"
@@ -202,6 +202,7 @@ proc throughput_init_level {} {
 
    # we can only run with more than one host
    if {[llength $ts_config(execd_nodes)] < 2} {
+      ts_log_severe "at least 2 exec hosts are needed to perform the test"
       return -1
    }
 
@@ -217,7 +218,7 @@ proc throughput_init_level {} {
       return -1
    }
 
-#if {$minor_level != 2} {
+#if {$minor_level != 3 && $minor_level != 2} {
 #   return -1
 #}
 
@@ -324,7 +325,7 @@ proc throughput_setup {} {
    global FLUSH_FINISH_SEC                    ;# -1 or 0,1,2,3 ...
    global run_throughput_test_SCHEDULE_INTERVAL             ;# 00:00:30 ...
    global global_job_run_time                  ;# job sleep parameter
-   global host_list submit_hosts
+   global host_list submit_hosts qstat_hosts
    global queue_list
 
 
@@ -360,6 +361,24 @@ proc throughput_setup {} {
    }
    ts_log_fine "using [llength $submit_hosts] hosts to submit jobs"
    ts_log_fine "submit_hosts $submit_hosts"
+
+   # qstat host list - limit the number!
+   set max_qstat_hosts 50
+   set total_qstat_hosts [llength $host_list]
+   if {$total_qstat_hosts > $max_qstat_hosts} {
+      # the first host is a submit host 
+      set step [expr ( $total_qstat_hosts - 1 ) / $max_qstat_hosts]
+      set last [expr $step * $max_qstat_hosts]
+      set qstat_hosts {}
+      # do not start from 0 otherwise submit hosts would also be qstat hosts
+      for {set i 1} {$i < $last} {incr i $step} {
+         lappend qstat_hosts [lindex $host_list $i]
+      }
+   } else {
+      set qstat_hosts $host_list
+   }
+   ts_log_fine "using [llength $qstat_hosts] hosts as qstat hosts"
+   ts_log_fine "qstat_hosts $qstat_hosts"
 
    # disable all default queues
    disable_queue "all.q"
@@ -426,7 +445,7 @@ proc throughput_setup_level {} {
    # paramters for all tests
    set enable_queues_job_count  0   ;# after witch job, enable queues
    set ps_interval              5   ;# ps every 5 seconds
-   set qstat_interval        1000   ;# try 1 qstat per second
+   set qstat_interval           0   ;# don't do qstats
    set throughput_sharetree     0   ;# default, we enable explicitly
    set array_size               1   ;# default: no array jobs
    set do_requests              0   ;# default: do no resource requests
@@ -442,22 +461,18 @@ proc throughput_setup_level {} {
    switch -- $major_level {
       0 {
          set job_count 300
-         set qstat_interval 1000
          set level_array_size 5
       }
       1 {
          set job_count 3000
-         set qstat_interval 2000
          set level_array_size 50
       }
       2 {
          set job_count 30000
-         set qstat_interval 5000
          set level_array_size 500
       }
       3 {
          set job_count 300000
-         set qstat_interval 10000
          set level_array_size 5000
       }
    }
@@ -487,11 +502,11 @@ proc throughput_setup_level {} {
       3 {
          # enable queues after half of the jobs have been submitted
          # do no qstat's
-         set throughput_subdir        "mixed_no_qstat"
+         set throughput_subdir        "mixed_with_qstat"
 
          set end_job_count            $job_count
          set enable_queues_job_count  [expr $job_count / 2]
-         set qstat_interval 0
+         set qstat_interval 1 
       }
       4 {
          # enable queues after half of the jobs have been submitted
@@ -695,7 +710,7 @@ proc run_throughput_test {} {
    global CHECK_USER
    global queue_list
    global enable_queues_job_count
-   global end_job_count host_list submit_hosts
+   global end_job_count host_list submit_hosts qstat_hosts
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global throughput_sharetree functional_policy
    global global_job_run_time
@@ -795,16 +810,6 @@ proc run_throughput_test {} {
    lappend remote_spawn_list $id
    set spawn_host_map($spawn_id) $ts_config(master_host)
 
-   if {$qstat_interval > 0} {
-      # start qstat monitor (on master host, second testsuite user)
-      ts_log_fine "starting qstat monitor"
-      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_SECOND_FOREIGN_SYSTEM_USER "$expect_bin" "-f $ts_config(testsuite_root_dir)/scripts/qstat.tcl $ts_config(product_root) $ts_config(gridengine_version)"]
-      set spawn_id [lindex $id 1]
-      lappend spawn_list $spawn_id
-      lappend remote_spawn_list $id
-      set spawn_host_map($spawn_id) $ts_config(master_host)
-   }
-
    # start qping
    # TODO: we should better have a qping.tcl script as with qstat, ps_info etc.
    set qping_host [lindex $host_list 0]
@@ -818,6 +823,23 @@ proc run_throughput_test {} {
 
    # prepare job arguments 
    set my_job "$ts_config(product_root)/examples/jobs/sleeper.sh"
+
+   if {$qstat_interval > 0} {
+      # start qstat monitor (on master host, second testsuite user)
+      ts_log_fine "starting qstat monitor"
+
+      # start qstat (expect script) on all execd hosts, not no master host
+      foreach host $qstat_hosts {
+         set expect_bin [get_binary_path $host "expect"]
+         ts_log_fine "starting qstat expect process on host $host"
+         set id [open_remote_spawn_process $ts_config(master_host) $CHECK_SECOND_FOREIGN_SYSTEM_USER "$expect_bin" "-f $ts_config(testsuite_root_dir)/scripts/qstat.tcl $ts_config(product_root) $ts_config(gridengine_version)"]
+         set spawn_id [lindex $id 1]
+         lappend spawn_list $spawn_id
+         lappend remote_spawn_list $id
+         set spawn_host_map($spawn_id) $host
+         set host_spawn_map($host) $spawn_id
+      }
+   }
 
    # start submitter (expect script) on all execd hosts, not no master host
    foreach host $submit_hosts {
@@ -891,8 +913,7 @@ proc run_throughput_test {} {
 
             switch -glob -- $line {
                "SUBMITTER*" {
-                  ts_log_fine "submitter started on host $host_name"
-                  ts_log_fine "setting options for submitter on host $host_name: $submit_options"
+                  ts_log_fine "submitter started on host $host_name (options=$submit_options)"
                   ts_send $spawn_id "OPTIONS $submit_options\n"
                }
                "OPTIONS OK*" {
@@ -909,8 +930,7 @@ proc run_throughput_test {} {
                   ts_log_severe "got error from host $host_name: $line"
                }
                "PROCESS INFO STARTED" {
-                  ts_log_fine "process monitor for qmaster and schedd started"
-                  ts_log_fine "setting ps interval to $ps_interval"
+                  ts_log_fine "process monitor for qmaster and schedd started. ps interval is $ps_interval"
                   ts_send $spawn_id "INTERVAL $ps_interval\n"
                }
                "PROCESS INFO INTERVAL OK" {
@@ -947,8 +967,7 @@ proc run_throughput_test {} {
                   set monitoring($process_name,$index,cpu)  $process_cpu
                }
                "QSTAT STARTED" {
-                  ts_log_fine "qstat monitor started"
-                  ts_log_fine "setting qstat interval to $qstat_interval ms"
+                  ts_log_fine "qstat monitor started. setting qstat interval to $qstat_interval ms"
                   ts_send $spawn_id "INTERVAL $qstat_interval\n"
                }
                "QSTAT INTERVAL OK" {
@@ -957,7 +976,7 @@ proc run_throughput_test {} {
                }
                "QSTAT START OK" {
                   ts_log_fine "qstat monitor running"
-                  set qstat_ok 1
+                  set qstat_ok 1 
                }
                "QSTAT DATA*" {
                   set index $qstat_data(count)
@@ -1534,6 +1553,7 @@ proc compare_dump_directory { dir } {
    lappend test_data "utilization"
    lappend test_data "submits_per_second"
    lappend test_data "jobs_per_second"
+   lappend test_data "qstats_per_second"
    lappend test_data "total_submit_time"
    lappend test_data "total_run_time"
 
@@ -1556,7 +1576,6 @@ proc compare_dump_directory { dir } {
       }
 
       set test_info_file $dir/${file}_dir/test_results_array.dat
-#      ts_log_fine "file: $test_info_file\n"
       read_array_from_file $test_info_file "test settings" test_settings
       read_array_from_file $test_info_file "test results"  test_results
 
@@ -1576,13 +1595,12 @@ proc compare_dump_directory { dir } {
       if { $ignore == 0 } {
          # here we have the data
          foreach data $test_data {
-#            ts_log_fine "($count=$file) $data: $test_results($data)" 
             set nr [lsearch $test_data $data]
 
             # x value: (nr of file )
             set xy_rows($nr,$count,x) $count
             set xy_rows($nr,$count,y) $test_results($data)
-            set sum($data) [ expr ( $sum($data) + $test_results($data)) ]
+            set sum($data) [ expr $sum($data) + $test_results($data) ]
          }
          incr count 1
       }
@@ -1593,7 +1611,7 @@ proc compare_dump_directory { dir } {
    
    foreach data $test_data {
       set nr [lsearch $test_data $data]
-      set calc_avg [expr ( $sum($data) / $count )]
+      set calc_avg [expr $sum($data) / $count]
       ts_log_fine "avg. $data: $calc_avg"
    }
 
@@ -1923,6 +1941,7 @@ proc compare_dump_data_file { file1 file2 } {
    lappend A $test_data1(total_submit_time)
    lappend A $test_data1(submits_per_second)
    lappend A $test_data1(jobs_per_second)
+   lappend A $test_data1(qstats_per_second)
    lappend A $test_data1(utilization)
    lappend A $test_data1(avg_submit)
    lappend A $test_data1(avg_run)
@@ -1933,6 +1952,7 @@ proc compare_dump_data_file { file1 file2 } {
    lappend B $test_data2(total_submit_time)
    lappend B $test_data2(submits_per_second)
    lappend B $test_data2(jobs_per_second)
+   lappend B $test_data2(qstats_per_second)
    lappend B $test_data2(utilization)
    lappend B $test_data2(avg_submit)
    lappend B $test_data2(avg_run)
@@ -2391,6 +2411,7 @@ proc analyse_dump_data_file { file { force 0 } } {
    ts_log_fine "total submit time  : $cluster_results(total_submit_time)"
    ts_log_fine "submits per second : $cluster_results(submits_per_second)"
    ts_log_fine "jobs per second    : $cluster_results(jobs_per_second)"
+   ts_log_fine "qstats per second  : $cluster_results(qstats_per_second)"
    ts_log_fine "avg. slots free    : $cluster_results(avg_slots_free)"
    ts_log_fine "total slots        : $cluster_results(total_slots)"
    ts_log_fine "utilization        : $cluster_results(utilization)"
@@ -2427,6 +2448,11 @@ proc analyse_dump_data_file { file { force 0 } } {
    set test "Jobs per second"
    set table($test) $cluster_results(jobs_per_second)
    set test_data(jobs_per_second) $cluster_results(jobs_per_second)
+
+   set test "Qstats per second"
+   set table($test) $cluster_results(qstats_per_second)
+   set test_data(qstats_per_second) $cluster_results(qstats_per_second)
+
 
    set test "Utilization (Slot allocation)"
    set table($test) $cluster_results(utilization)
@@ -2733,6 +2759,7 @@ if {0} {
 
    calculate_monitoring_xy_rows monitoring xy_rows $test_start 0
 
+   set test_start $results(0,test_run_time)
    calculate_qstat_xy_rows qstat_data xy_rows $test_start 0
 
    calculate_event_xy_rows event_data xy_rows $test_start 0
@@ -2851,6 +2878,7 @@ if {0} {
       clear_xy_rows_show xy_rows
       set_xy_rows_show xy_rows 16
       set_xy_rows_show xy_rows 17
+
       create_gnuplot_xy_gif plot_data xy_rows
    }
 
@@ -2953,8 +2981,7 @@ proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start
           set normalized_submit_end_time [ expr ( $jobs($job,submit_end_time) - $test_start ) ]
           set normalized_run_end_time    [ expr ( $jobs($job,run_end_time)    - $test_start ) ]
 
-          #set submit_time [ expr ( $jobs($job,submit_end_time) - $jobs($job,submit_start_time) ) ]
-          set submit_time [expr $jobs($job,submit_time) / 1000.0]
+          set submit_time [ expr $jobs($job,submit_time) / 1000.0 ]
           set run_time    [ expr ( $jobs($job,run_end_time)    - $jobs($job,run_start_time)    ) ]                    
 
           #   x->time y->submit_time
@@ -3066,7 +3093,7 @@ proc calculate_qstat_xy_rows { results_array_name row_array_name test_start star
    set failed 0
    for {set i 0} {$i < $qstat_data(count)} {incr i} {
       if { $qstat_data($i,time) >= $test_start } {
-         set normalized_time [expr $qstat_data($i,time) - $test_start]
+         set normalized_time [expr $qstat_data($i,time) - $test_start ]
          if {$qstat_data($i,error)} {
             set xy_rows($pos2,$failed,x) $normalized_time
             set xy_rows($pos2,$failed,y) $qstat_data($i,duration)
@@ -3519,6 +3546,7 @@ proc calculate_average_cluster_times { results_array monitoring_array qstat_arra
    set result(total_submit_time) 0    ;#
    set result(submits_per_second) 0   ;#
    set result(jobs_per_second) 0      ;#
+   set result(qstats_per_second) 0      ;#
    set result(utilization) 0          ;#
    set result(jobs_sleep_time)  0      ;#
    set result(queue_enable_value) $enable_queues_job_count    ;#
@@ -3607,6 +3635,7 @@ proc calculate_average_cluster_times { results_array monitoring_array qstat_arra
    # jobs per second is the cluster throughput while queues were enabled
    if { $result(total_qenabled_time) > 0 } {
       set result(jobs_per_second) [ expr ( $result(total_jobs_done).00 / $result(total_qenabled_time) ) ]
+      set result(qstats_per_second) [ expr ( $qstat_data(count) / $result(total_run_time) ) ]
    }
 
    set result(utilization) [ expr 100.0 * (double($result(total_slots)) - $result(avg_slots_free)) / double($result(total_slots)) ]
@@ -3721,7 +3750,6 @@ proc calculate_average_job_times { job_array_name job_results_array { dump_file 
          set run_time 0
          if { $jobs($job,submit_end_time) > 0 && $jobs($job,submit_start_time) > 0 } {
             incr submit_job_count 1
-            #set submit_time [ expr ( $jobs($job,submit_end_time) - $jobs($job,submit_start_time) ) ]
             set submit_time [expr double($jobs($job,submit_time)) / 1000.0]
          }
          if { $jobs($job,run_end_time) > 0 && $jobs($job,run_start_time) > 0 } {

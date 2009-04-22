@@ -1,3 +1,7 @@
+EB-2009-04-22-0: Enhancemn.: changed performance test senarios. qstat is now
+                             only executed in one scenario)
+                 Review:     JG
+
 AP-2009-04-22-0: Bugfix:     fix of test bugs/issuezilla/2408
                  Belongs To: AP-2009-04-21-0
 
