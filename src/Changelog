@@ -1,3 +1,8 @@
+CR-2009-04-22-0: Bugfix:     set_config_and_propagate():
+                             Fixed problem when global host parameters are
+                             overwritten by local paramters.
+                 Review:     JG
+
 EB-2009-04-22-0: Enhancemn.: changed performance test senarios. qstat is now
                              only executed in one scenario)
                  Review:     JG

@@ -2417,12 +2417,13 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
 #               to global
 #*******************************************************************************
 proc set_config_and_propagate {config {host global}} {
-   global CHECK_USER ts_user_config
+   global CHECK_USER
    get_current_cluster_config_array ts_config
    upvar $config my_config
 
    if {[array size my_config] > 0} {
       set host_list {}
+      set joined_spawn_list {}
 
       # get host and spooldir of an execd - where to look for messages file
       if {$host == "global"} {
@@ -2436,21 +2437,23 @@ proc set_config_and_propagate {config {host global}} {
          # consume the lines output immediately by tail -f
          set spool_dir [get_spool_dir $conf_host "execd"]
          set messages_name "$spool_dir/messages"
-         ts_log_fine "starting tail -f $messages_name on host $conf_host ..."
-         set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) [get_binary_path $conf_host "tail"] "-f $messages_name"]
+         ts_log_fine "starting tail -1f $messages_name on host $conf_host ..."
+         set tail_id [open_remote_spawn_process $conf_host $CHECK_USER [get_binary_path $conf_host "tail"] "-1f $messages_name"]
          set sp_id [lindex $tail_id 1]
-         set timeout 5
+         set timeout 30
          expect {
             -i $sp_id full_buffer {
-             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             }
             -i $sp_id timeout {
+               ts_log_severe "timeout while waiting for tail output on host $conf_host"
             }
             -i $sp_id "*\n" {
             }
          }
-         set open_spawn_list($conf_host) $tail_id
-         set spawn_list($conf_host) $sp_id
+         lappend joined_spawn_list $sp_id
+         set host_spawn_map($sp_id) $conf_host
+         set sp_tail_id_map($sp_id) $tail_id
       }
 
       # Make configuration change
@@ -2470,37 +2473,78 @@ proc set_config_and_propagate {config {host global}} {
          set value "*"
       }
 
-      if {[string length $value] >= 99} {
-         ts_log_fine "=> changed value is to long - using only the first 100 characters"
-         set value [string range $value 0 99]
+      foreach conf_host $host_list {
+         set expected_value($conf_host) $value
       }
-      ts_log_fine "searching for value \"$value\" for name \"$name\""
+
+      # local values might overwrite global once
+      if {$host == "global" && $name != "*"} {
+         foreach conf_host $host_list {
+            get_config tmp_config $conf_host
+            if {[info exists tmp_config($name)]} {
+               set expected_value($conf_host) $tmp_config($name)
+               ts_log_fine "$conf_host: Overwriting expected value for $name to \"$tmp_config($name)\". Local config overwrites global one!"
+            }
+         }
+      }
+
+      foreach conf_host $host_list {
+         if {[string length $value] >= 99} {
+            ts_log_fine "=> changed value is to long - using only the first 100 characters"
+            set expected_value($conf_host) [string range $expected_value($conf_host) 0 99]
+         }
+         ts_log_fine "$conf_host: Searching for $name = \"$expected_value($conf_host)\""
+      }
 
 
       foreach conf_host $host_list {
-         # Wait for change to propagate
-         ts_log_fine "waiting for configuration change to propagate to execd $conf_host ..."
-         set sp_id $spawn_list($conf_host)
-         set tail_id $open_spawn_list($conf_host)
- 
-         set timeout 240
-         expect {
-            -i $sp_id full_buffer {
-             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         set is_host_ok($conf_host) 0
+      }
+      ts_log_fine "waiting for configuration change to propagate to execd(s) $host_list ..."
+
+      set timeout 60
+      expect {
+         -i $joined_spawn_list full_buffer {
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         }
+         -i $joined_spawn_list timeout {
+            set error_text ""
+            foreach tmp_host $host_list {
+               if {$is_host_ok($tmp_host) == 0} {
+                  append error_text "setup failed (timeout for config change of $name = \"$expected_value($tmp_host)\" on host \"$tmp_host\")\n"
+               }
             }
-            -i $sp_id timeout {
-               ts_log_severe "setup failed (timeout waiting for config to change)"
+            ts_log_severe $error_text
+         }
+         -i $joined_spawn_list "*\n" {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_spawn_map($spawn_id)
+            set buffer [string trim $expect_out(0,string)]
+            set splitline [split $buffer "\n"]
+            foreach line $splitline {
+#               ts_log_fine "$host: $line"
+               if {[string match "*$host*\|I\|*using \"$expected_value($host)\" for $name*" $line]} {
+                  ts_log_fine "$host: Configuration changed: $name = \"$expected_value($host)\"" 
+                  set is_host_ok($host) 1
+               }
             }
-            -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
-               ts_log_finer "$conf_host: Configuration changed: $name = \"$value\""
+
+            set wait_host_list {}
+            foreach tmp_host $host_list {
+               if {$is_host_ok($tmp_host) == 0} {
+                  lappend wait_host_list $tmp_host
+               }
             }
-            -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
-               ts_log_finer "$conf_host: Configuration changed: $name = \"$value\""
+            if {[llength $wait_host_list] > 0} {
+               ts_log_fine "still waiting for configuration changes on host(s): $wait_host_list"
+               exp_continue
+            } else {
+               ts_log_fine "all configuration changed!"
             }
          }
-
-         # Stop watching
-         close_spawn_process $tail_id
+      }
+      foreach spawn_id $joined_spawn_list {
+         close_spawn_process $sp_tail_id_map($spawn_id)
       }
    }
 }
