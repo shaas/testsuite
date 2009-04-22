@@ -1,3 +1,6 @@
+AP-2009-04-22-0: Bugfix:     fix of test bugs/issuezilla/2408
+                 Belongs To: AP-2009-04-21-0
+
 CR-2009-04-21-0: Bugfix:     o automatic installation did not use "-noremote"
                                parameter for installing shadowd 
                              o fixed shadowd specific code in smf test and

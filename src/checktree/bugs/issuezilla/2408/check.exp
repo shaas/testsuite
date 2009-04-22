@@ -94,12 +94,14 @@ proc issue_2408_setup {} {
    set HGRP_NAME "@test_hgrp"
    set QUEUE_NAME "test.q"
 
+   # create a host group
    set chgar(hostlist) $issue_2408_hosts
    add_hostgroup $HGRP_NAME chgar
    unset chgar
 
+   # create a queue which references a host group in attribute slots
    set chgar(slots) "1,\[$HGRP_NAME=10\]"
-   add_queue $QUEUE_NAME $HGRP_NAME chgar
+   add_queue $QUEUE_NAME $issue_2408_hosts chgar
    unset chgar
 }
 
@@ -107,8 +109,6 @@ proc issue_2408_cleanup {} {
    global ts_config
    global issue_2408_hosts issue_2408_backup
    global HGRP_NAME QUEUE_NAME
-
-   del_queue $QUEUE_NAME $issue_2408_hosts 1 1
 
    # restore config
    set_config issue_2408_backup
@@ -133,23 +133,10 @@ proc issue_2408_test {} {
       ts_log_severe "Deletion of host group should be rejected due to existing reference."
    }
 
-   ts_log_fine "Remove hostgroup from hostlist in queue configuration."
-   set result [mod_queue $QUEUE_NAME "NONE" chgar]
+   ts_log_fine "Delete queue which is referencing a host group."
+   set result [del_queue $QUEUE_NAME $issue_2408_hosts 1 1]
    if {$result != 0} {
-      ts_log_severe "Can't modify queue $QUEUE_NAME."
-   }
-
-   ts_log_fine "Try to delete referencing hostgroup."
-   set result [del_hostgroup $HGRP_NAME "" "" 0]
-   if {$result != -3} {
-      ts_log_severe "Deletion of host group should be rejected due to existing reference."
-   }
-
-   ts_log_fine "Remove hostgroup from slots attribute in queue configuration."
-   set chgar(slots) "1"
-   set result [mod_queue $QUEUE_NAME "NONE" chgar]
-   if {$result != 0} {
-      ts_log_severe "Can't modify queue $QUEUE_NAME."
+      ts_log_severe "Can't delete queue $QUEUE_NAME."
    }
 
    # Delete hostgroup
@@ -157,4 +144,5 @@ proc issue_2408_test {} {
    if {$result != 0} {
       ts_log_severe "Deletion of host group failed."
    }
+
 }
