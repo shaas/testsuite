@@ -1,22 +1,4 @@
 
-proc setup_check_functions { functions } {
-   upvar $functions check_functions
-   lappend check_functions "cleanup_system"
-   lappend check_functions "setup_queues"
-   lappend check_functions "setup_testcheckpointobject"
-   lappend check_functions "setup_conf" 
-   lappend check_functions "setup_execd_conf"
-   lappend check_functions "setup_mytestproject" 
-   lappend check_functions "setup_mytestpe" 
-   lappend check_functions "setup_deadlineuser" 
-   lappend check_functions "setup_schedconf" 
-   lappend check_functions "setup_default_calendars"
-   lappend check_functions "setup_check_messages_files"
-   lappend check_functions "setup_win_users"
-   lappend check_functions "setup_and_check_users"
-   lappend check_functions "setup_inhouse_cluster"
-   lappend check_functions "setup_sge_aliases_file"
-}
 
 proc kill_running_system {} {
    global ts_config

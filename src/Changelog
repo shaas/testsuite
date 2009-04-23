@@ -1,3 +1,7 @@
+CR-2009-04-23-2: Bugfix:     o CR-2009-04-23-1 breaks testsuite startup
+                 Belongs To: CR-2009-04-23-1
+                 Review:     RD
+
 RD-2009-04-23-0: Enhancem:   - added new throughput test scenario
                              - added fast option for set_complex and made it
                                the default
