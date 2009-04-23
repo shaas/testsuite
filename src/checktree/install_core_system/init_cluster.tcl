@@ -1,32 +1,23 @@
-#                                                             max. column:     |
-#****** install_core_system/kill_running_system() ******
-# 
-#  NAME
-#     kill_running_system -- shutdown an already running system
-#
-#  SYNOPSIS
-#     kill_running_system { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
+
+proc setup_check_functions { functions } {
+   upvar $functions check_functions
+   lappend check_functions "cleanup_system"
+   lappend check_functions "setup_queues"
+   lappend check_functions "setup_testcheckpointobject"
+   lappend check_functions "setup_conf" 
+   lappend check_functions "setup_execd_conf"
+   lappend check_functions "setup_mytestproject" 
+   lappend check_functions "setup_mytestpe" 
+   lappend check_functions "setup_deadlineuser" 
+   lappend check_functions "setup_schedconf" 
+   lappend check_functions "setup_default_calendars"
+   lappend check_functions "setup_check_messages_files"
+   lappend check_functions "setup_win_users"
+   lappend check_functions "setup_and_check_users"
+   lappend check_functions "setup_inhouse_cluster"
+   lappend check_functions "setup_sge_aliases_file"
+}
+
 proc kill_running_system {} {
    global ts_config
    global CHECK_USER CORE_INSTALLED
@@ -1185,6 +1176,34 @@ proc setup_win_users {} {
       foreach user $win_users {
          setup_win_user_passwd $user
       }
+   }
+}
+
+proc setup_and_check_users {} {
+   global ts_user_config CHECK_USER ts_config
+   # setup users to test
+   set users "$CHECK_USER $ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user)"
+   # select host != qmaster
+   set host [host_conf_get_suited_hosts 1 {} {} {} 1]
+   
+   set error_text ""
+   foreach user $users {
+      ts_log_fine "check qstat -f as user $user on host $host ..."
+      set output [start_sge_bin "qstat" "-f" $host $user prg_exit_state]
+      if {$prg_exit_state != 0} {
+         append error_text "qstat -f exit state is $prg_exit_state for user $user:\n$output\n"
+      } else {
+         foreach host $ts_config(execd_nodes) {
+            if {[string match "*$host*" $output] == 0} {
+               append error_text "execd host name \"$host\" not found in qstat -f output of user $user on host $host!\n$output\n"
+            } else {
+               ts_log_fine "found hostname \"$host\" in qstat -f output - ok"
+            }
+         }
+      }
+   }
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
 

@@ -74,20 +74,9 @@ if { $install_mode == "manual" } {
 }
 lappend check_functions "install_shadowd"
 lappend check_functions "install_execd"
-lappend check_functions "cleanup_system"
-lappend check_functions "setup_queues"
-lappend check_functions "setup_testcheckpointobject"
-lappend check_functions "setup_conf" 
-lappend check_functions "setup_execd_conf"
-lappend check_functions "setup_mytestproject" 
-lappend check_functions "setup_mytestpe" 
-lappend check_functions "setup_deadlineuser" 
-lappend check_functions "setup_schedconf" 
-lappend check_functions "setup_default_calendars"
-lappend check_functions "setup_check_messages_files"
-lappend check_functions "setup_win_users"
-lappend check_functions "setup_inhouse_cluster"
-lappend check_functions "setup_sge_aliases_file"
+
+# setup cleanup functions after installation was done
+setup_check_functions check_functions
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
@@ -105,36 +94,6 @@ set CORE_INSTALLED ""
 set CORE_INSTALLED_TIME ""
 
 
-# this is to setup the cluster
-#                                                             max. column:     |
-#****** install_core_system/write_install_list() ******
-# 
-#  NAME
-#     write_install_list -- ??? 
-#
-#  SYNOPSIS
-#     write_install_list { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc write_install_list {} {
    global ts_config
    global CORE_INSTALLED CORE_INSTALLED_TIME

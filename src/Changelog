@@ -1,3 +1,9 @@
+CR-2009-04-23-1: Bugfix:     o issue 1330 test:
+                                test did not make user certificates for 
+                                additional testsuite users which caused
+                                csp system test problems
+                 Review:     RD
+
 CR-2009-04-23-0: Bugfix:     o issue 2743 test:
                                 check job accounting values for correct
                                 runtime limit. The test might fail because
