@@ -95,7 +95,7 @@ proc issue_2050_setup  {} {
    set test_queue "testq.$act_time"
 
    #add new test queue
-   add_queue $test_queue $test_host new_queue 0
+   add_queue $test_queue $test_host new_queue
 }
 
 proc issue_2050_cleanup  {} {

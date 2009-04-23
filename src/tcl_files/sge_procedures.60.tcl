@@ -76,14 +76,12 @@ proc get_complex { change_array } {
 #  INPUTS
 #     change_array - array with the complex definitions
 #     raise_error  - if unset the error is expected
+#     fast_add     - add from file
 #
 #  RETURN:
 #
-#       -1  complex definition has been modified
-#       -2  complex definition has been added
-#       -3  complex definition has been removed
-#       -4  complex definition has not changed
-#     else  error
+#     >=0 - success  complex definition has been modified
+#      <0 - error
 #
 #  EXAMPLE:
 #
@@ -102,7 +100,7 @@ proc get_complex { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc set_complex {change_array {raise_error 1}} {
+proc set_complex {change_array {raise_error 1} {fast_add 1}} {
    global CHECK_USER
    global env
    get_current_cluster_config_array ts_config
@@ -110,53 +108,74 @@ proc set_complex {change_array {raise_error 1}} {
    set values [array names chgar]
 
    get_complex old_values
-   # parray old_values
 
-   set vi_commands {}
-   foreach elem $values {
-      # this will quote any / to \/  (for vi - search and replace)
-      set newVal $chgar($elem)
-      if {[info exists old_values($elem)]} {
-         # if old and new config have the same value, create no vi command,
-         # if they differ, add vi command to ...
-         if { [compare_complex $old_values($elem) $newVal] != 0 } {
-            if {$newVal == ""} {
-               # ... delete config entry (replace by comment)
-               lappend vi_commands ":%s/^$elem .*$/#/\n"
-            } else {
-               # ... change config entry
-               set newVal1 [split $newVal {/}]
-               set newVal [join $newVal1 {\/}]
-               lappend vi_commands ":%s/^$elem .*$/$elem  $newVal/\n"
-            }
-         }
-      } else {
-         # if the config entry didn't exist in old config: append a new line
-         lappend vi_commands "1Gi$elem  $newVal\n[format "%c" 27]"
+   if {$fast_add} {
+      foreach elem $values {
+         set old_values($elem) "$chgar($elem)"
       }
-   }
 
-   set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
-   set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
-   set REMOVED  [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
-   set STILLREF [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
-   set NOT_MODIFIED [translate_macro MSG_CENTRY_NOTCHANGED]
+      set tmpfile [dump_array_to_tmpfile old_values]
+      set result [start_sge_bin "qconf" "-Mc $tmpfile"]
 
-   # This bugfix has not yet been merged to V60s2_BRANCH
-   if {$ts_config(gridengine_version) >= 61} {
-      set NULL_URGENCY [translate_macro MSG_CENTRY_NULL_URGENCY]
+      # parse output or raise error
+      add_message_to_container messages 3 [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+      add_message_to_container messages 2 [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
+      add_message_to_container messages 1 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+      add_message_to_container messages -1 [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
+      add_message_to_container messages -2 [translate_macro MSG_CENTRYREFINHOST_SS "*" "*"]
+      if {$ts_config(gridengine_version) >= 61} {
+         add_message_to_container messages -6 [translate_macro MSG_CENTRY_NULL_URGENCY "*" "*"]
+      }
+      set result [handle_sge_errors "set_complex" "qconf -Mc" $result messages $raise_error]
+      if {$result < 0 && $prg_exit_state == 0} {
+         ts_log_severe "prg_exit_state was 0 but qconf returned an error" $raise_error
+      }
    } else {
-      set NULL_URGENCY "NULL_URGENCY fix only available in SGE 6.1 or higher"
-   }
- 
-   set master_arch [resolve_arch $ts_config(master_host)] 
+      set vi_commands {}
+      foreach elem $values {
+         # this will quote any / to \/  (for vi - search and replace)
+         set newVal $chgar($elem)
+         if {[info exists old_values($elem)]} {
+            # if old and new config have the same value, create no vi command,
+            # if they differ, add vi command to ...
+            if { [compare_complex $old_values($elem) $newVal] != 0 } {
+               if {$newVal == ""} {
+                  # ... delete config entry (replace by comment)
+                  lappend vi_commands ":%s/^$elem .*$/#/\n"
+               } else {
+                  # ... change config entry
+                  set newVal1 [split $newVal {/}]
+                  set newVal [join $newVal1 {\/}]
+                  lappend vi_commands ":%s/^$elem .*$/$elem  $newVal/\n"
+               }
+            }
+         } else {
+            # if the config entry didn't exist in old config: append a new line
+            lappend vi_commands "1Gi$elem  $newVal\n[format "%c" 27]"
+         }
+      }
 
-   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF $NULL_URGENCY "___ABCDEFG___" $raise_error]
-   if {$result != 0 && $result != -2 && $result != -3 && $result != -4 && $result != -6} {
-      ts_log_severe "could not modify complex: ($result)" $raise_error
-   } 
-   if {$result == -4} {
-      ts_log_fine "INFO: could not modify complex: ($result) (unchanged settings)" $raise_error
+      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set REMOVED  [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set STILLREF [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
+      set NOT_MODIFIED [translate_macro MSG_CENTRY_NOTCHANGED]
+
+      if {$ts_config(gridengine_version) >= 61} {
+         set NULL_URGENCY [translate_macro MSG_CENTRY_NULL_URGENCY]
+      } else {
+         set NULL_URGENCY "NULL_URGENCY fix only available in SGE 6.1 or higher"
+      }
+    
+      set master_arch [resolve_arch $ts_config(master_host)] 
+
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF $NULL_URGENCY "___ABCDEFG___" $raise_error]
+      if {$result != 0 && $result != -2 && $result != -3 && $result != -4} {
+         ts_log_severe "could not modify complex: ($result)" $raise_error
+      } 
+      if {$result == -4} {
+         ts_log_fine "INFO: could not modify complex: ($result) (unchanged settings)" $raise_error
+      }
    }
 
    return $result

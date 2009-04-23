@@ -59,9 +59,17 @@ proc dump_array_to_tmpfile { change_array } {
    set file [open $tmpfile "w"]
 
    if [info exists chgar] {
+      set ignored 0
       foreach elem [array names chgar] {
          set value $chgar($elem)
-         puts $file "$elem $value"
+         if {$value != ""} {
+            puts $file "$elem $value"
+         } else {
+            incr ignored
+         }
+      }
+      if {$ignored != 0} {
+            ts_log_fine "ignored $ignored line(s) because value was empty"
       }
    }
 

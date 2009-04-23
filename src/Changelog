@@ -1,3 +1,8 @@
+RD-2009-04-23-0: Enhancem:   - added new throughput test scenario
+                             - added fast option for set_complex and made it
+                               the default
+                 Review:     CR
+
 CR-2009-04-23-1: Bugfix:     o issue 1330 test:
                                 test did not make user certificates for 
                                 additional testsuite users which caused

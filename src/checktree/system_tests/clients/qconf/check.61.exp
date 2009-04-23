@@ -472,13 +472,11 @@ proc qconf_issue_2383 {} {
 
    set wrong_complex(newone) "new STRING  ==  NO  NO NONE "   
    # Call set_complex with null_urgency set to "1", the last var
-   set result [set_complex wrong_complex ]
+   set result [set_complex wrong_complex 0]
       
    # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
    if {$result != -6 } {
-      ts_log_info "qconf -mc test for IZ 2383 failed"
-   } else {
-      ts_log_fine "qconf -mc test for IZ 2383 passed"
+      ts_log_severe "qconf -mc test for IZ 2383 failed"
    }
 }
 

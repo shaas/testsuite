@@ -83,8 +83,8 @@ proc set_project_defaults {change_array} {
 #     {raise_error 1}   - raise error condition in case of errors?
 #
 #  RESULT
-#       0 - success
-#     < 0 - error
+#     >=0 - success
+#      <0 - error
 #   
 #  SEE ALSO
 #     sge_procedures/handle_sge_error()

@@ -8939,12 +8939,16 @@ proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user
 
    # set up the values of host and user for macro messages, if not set
    if {$on_host == ""} {
-   set on_host "*"
+      set on_host "*"
    }
    
    if {$as_user == ""} {
-   set as_user "*"
-   } 
+      set as_user "*"
+   }
+
+   if {[string compare $obj_name ","] != 0} {
+      set obj_name "*"
+   }
 
    switch -exact $action {
       "add" {   
