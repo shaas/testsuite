@@ -102,16 +102,44 @@ proc issue_2743_test {} {
    set job_id [submit_job "$qsub_params"]
 
    wait_for_jobstart $job_id "sleep" 100 1 1
+   set start_time [timestamp]   
 
    soft_execd_shutdown $test_host 
   
-   ts_log_fine "now sleeping for 30 seconds ..."
-   after 30000
+   set sleep_time [expr ( 30 - ([timestamp] - $start_time) ) * 1000]
+   if {$sleep_time < 0} {
+      set sleep_time 1000
+   }
+
+   ts_log_fine "now sleeping for $sleep_time milliseconds ..."
+   after $sleep_time
    ts_log_fine "wakeup!"
 
    startup_execd $test_host
 
    # wait for termination of job
-   wait_for_job_end $job_id  5
+   if {[wait_for_job_end $job_id 5 0] != 0} {
+      # If the job is still in qstat the execd might not get
+      # the info that job has finised (sheperds are no child
+      # of execd anymore) 
+      # at least after 70 seconds the job must be gone
+      # (give execd time to check its spooled jobs. The execd cleanup
+      # is done just every 60 seconds, defined by OLD_JOB_INTERVAL)
+      wait_for_end_of_all_jobs 70
+   }
+   wait_for_end_of_all_jobs 60
+
+   # now check job accounting - job wallclock should not
+   # be more than 50 seconds
+   get_qacct $job_id job_accounting
+   if {$job_accounting(exit_status) != 137 ||
+       [string match "*100*" $job_accounting(failed)] == 0 ||
+       $job_accounting(ru_wallclock) > 50} { 
+      set error_text ""
+      append error_text "Job accounting information of job $job_id does not reflect expected values!\n"
+      append error_text "Expected values are: exit_status=137, failed=*100*, ru_wallclock <= 59\n"
+      append error_text "Job accounting looks as follows:\n[format_array job_accounting]\n"
+      ts_log_severe $error_text
+   }
 }
 

@@ -5429,14 +5429,14 @@ proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_grou
 #
 #  INPUTS
 #     jobid                   - job id of job
-#     {variable qstat_j_info} - array to store information
+#     {my_variable qstat_j_info} - array to store information
 #
 #  SEE ALSO
 #     parser/parse_qstat_j()
 #*******************************************************************************
-proc get_qstat_j_info {jobid {variable qstat_j_info}} {
+proc get_qstat_j_info {jobid {my_variable qstat_j_info}} {
    get_current_cluster_config_array ts_config
-   upvar $variable jobinfo
+   upvar $my_variable jobinfo
 
    if {[info exists jobinfo]} {
       unset jobinfo
@@ -8874,14 +8874,20 @@ proc trigger_scheduling {} {
 #     has sent a job delete order to sge_qmaster).
 #
 #  INPUTS
-#     job_id       - job id to wait for
-#     {timeout 60} - how long to wait
+#     job_id          - job id to wait for
+#     {timeout 60}    - how long to wait
+#     {raise_error 1} - report errors if 1
+#
+#  RESULT
+#     0  - on success
+#     -1 - on error
 #
 #  SEE ALSO
 #     sge_procedures/get_qstat_j_info()
 #*******************************************************************************
-proc wait_for_job_end {job_id {timeout 60}} {
+proc wait_for_job_end {job_id {timeout 60} {raise_error 1}} {
    get_current_cluster_config_array ts_config
+   set result 0
 
    # we wait until now + timeout
    set my_timeout [expr [timestamp] + $timeout]
@@ -8894,12 +8900,14 @@ proc wait_for_job_end {job_id {timeout 60}} {
       while {[get_qstat_j_info $job_id] != 0} {
          ts_log_progress
          if {[timestamp] > $my_timeout} {
-            ts_log_severe "timeout while waiting for job $job_id leave qmaster"
+            set result -1
+            ts_log_severe "timeout while waiting for job $job_id leave qmaster" $raise_error
             break
          }
          after 500
       }
    }
+   return $result
 }
 
 #****** sge_procedures/sge_client_messages() ***********************************

@@ -1,3 +1,12 @@
+CR-2009-04-23-0: Bugfix:     o issue 2743 test:
+                                check job accounting values for correct
+                                runtime limit. The test might fail because
+                                job might be shown by qstat for 90 seconds
+                                or longer when execd is restarted.
+                 Enhancem.:  o get_qstat_j_info():
+                                added raise_error parameter and return value
+                 Review:     RD
+
 CR-2009-04-22-0: Bugfix:     set_config_and_propagate():
                              Fixed problem when global host parameters are
                              overwritten by local paramters.
