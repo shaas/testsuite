@@ -170,12 +170,13 @@ proc install_qmaster {} {
 #     host                 - config file is for this host
 #     {do_cleanup 1}       - clean spool directories?
 #     {file_delete_wait 1} - delete the file before writing it, and wait for it
-#                            to vanish / reappear?
+#                            to vanish / reappear
 #     {exechost 0}         - is this a config for an exechost installation?
 #     {set_file_perms 0}   - shall the file permissions be checked 
 #                            during (qmaster) installation?
+#     {{shadowd 0}         - is this a config for a shadowd host installation?
 #*******************************************************************************
-proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0} {set_file_perms 0}} {
+proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0} {set_file_perms 0} {shadowd 0}} {
    global CHECK_USER local_execd_spool_set
    global ts_config
 
@@ -188,8 +189,8 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
 
       # deleting berkeley db spool dir. autoinstall will stop, if
       # bdb spooldir exists.
-      if {$do_cleanup} {
-         if {[file isdirectory $db_dir]} {
+      if {$do_cleanup && $exechost == 0 && $shadowd == 0} {
+         if {[remote_file_isdirectory $ts_config(master_host) $db_dir]} {
             remote_delete_directory $ts_config(master_host) $db_dir
          }
       }
@@ -198,107 +199,122 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
       # by rpc server install procedure
       set db_dir [get_bdb_spooldir $bdb_server 1]
    }
-   ts_log_finer "db_dir is $db_dir"
+   ts_log_fine "db_dir is \"$db_dir\""
 
    if {$file_delete_wait} {
-      ts_log_finer "delete file $filename ..."
       delete_remote_file $host $CHECK_USER $filename
    }
 
-   set fdo [open $filename w]
-
-   puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
-   puts $fdo "SGE_QMASTER_PORT=\"$ts_config(commd_port)\""
-   puts $fdo "SGE_EXECD_PORT=\"$execd_port\""
+   set auto_config_content ""
+   append auto_config_content "SGE_ROOT=\"$ts_config(product_root)\"\n"
+   append auto_config_content "SGE_QMASTER_PORT=\"$ts_config(commd_port)\"\n"
+   append auto_config_content "SGE_EXECD_PORT=\"$execd_port\"\n"
 
    # some GE 6.2 specific parameters
    if {$ts_config(gridengine_version) >= 62} {
-      puts $fdo "SGE_ENABLE_SMF=\"false\""
-      puts $fdo "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\""
+      append auto_config_content "SGE_ENABLE_SMF=\"false\"\n"
+      append auto_config_content "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\"\n"
    
       if {$ts_config(jmx_port) > 0} {
-         set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
-         puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
-         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-         puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
-         puts $fdo "SGE_JMX_SSL=\"$ts_config(jmx_ssl)\""
-         puts $fdo "SGE_JMX_SSL_CLIENT=\"$ts_config(jmx_ssl_client)\""
-         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/private/keystore\""
-         puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"$ts_config(jmx_ssl_keystore_pw)\""
+         if {$shadowd} {
+            set jvm_lib_path [get_jvm_lib_path_for_host $host]
+         } else {
+            set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
+         }
+         append auto_config_content "SGE_JVM_LIB_PATH=\"$jvm_lib_path\"\n"
+         append auto_config_content "SGE_ADDITIONAL_JVM_ARGS=\"\"\n"
+         append auto_config_content "SGE_JMX_PORT=\"$ts_config(jmx_port)\"\n"
+         append auto_config_content "SGE_JMX_SSL=\"$ts_config(jmx_ssl)\"\n"
+         append auto_config_content "SGE_JMX_SSL_CLIENT=\"$ts_config(jmx_ssl_client)\"\n"
+         append auto_config_content "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/private/keystore\"\n"
+         append auto_config_content "SGE_JMX_SSL_KEYSTORE_PW=\"$ts_config(jmx_ssl_keystore_pw)\"\n"
       } else {
-         puts $fdo "SGE_JVM_LIB_PATH=\"\""
-         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-         puts $fdo "SGE_JMX_PORT=\"0\""
-         puts $fdo "SGE_JMX_SSL=\"false\""
-         puts $fdo "SGE_JMX_SSL_CLIENT=\"false\""
-         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"\""
-         puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"\""
+         append auto_config_content "SGE_JVM_LIB_PATH=\"\"\n"
+         append auto_config_content "SGE_ADDITIONAL_JVM_ARGS=\"\"\n"
+         append auto_config_content "SGE_JMX_PORT=\"0\"\n"
+         append auto_config_content "SGE_JMX_SSL=\"false\"\n"
+         append auto_config_content "SGE_JMX_SSL_CLIENT=\"false\"\n"
+         append auto_config_content "SGE_JMX_SSL_KEYSTORE=\"\"\n"
+         append auto_config_content "SGE_JMX_SSL_KEYSTORE_PW=\"\"\n"
       }
-      puts $fdo "SERVICE_TAGS=\"enable\""
+      append auto_config_content "SERVICE_TAGS=\"enable\"\n"
    }
-   puts $fdo "CELL_NAME=\"$ts_config(cell)\""
-   puts $fdo "ADMIN_USER=\"$CHECK_USER\""
-   set spooldir [get_local_spool_dir $host qmaster $do_cleanup]
+   append auto_config_content "CELL_NAME=\"$ts_config(cell)\"\n"
+   append auto_config_content "ADMIN_USER=\"$CHECK_USER\"\n"
+   
+   if {$exechost || $shadowd} {
+      set spooldir [get_local_spool_dir $host qmaster 0]
+   } else {
+      set spooldir [get_local_spool_dir $host qmaster $do_cleanup]
+   }
    if {$spooldir != ""} {
-      puts $fdo "QMASTER_SPOOL_DIR=\"$spooldir\""
+      append auto_config_content "QMASTER_SPOOL_DIR=\"$spooldir\"\n"
    } else {
-      puts $fdo "QMASTER_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/qmaster\""
+      append auto_config_content "QMASTER_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/qmaster\"\n"
    }
-   puts $fdo "EXECD_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool\""
-   puts $fdo "GID_RANGE=\"$gid_range\""
-   puts $fdo "SPOOLING_METHOD=\"$ts_config(spooling_method)\""
-   puts $fdo "DB_SPOOLING_SERVER=\"$bdb_server\""
-   puts $fdo "DB_SPOOLING_DIR=\"$db_dir\""
-   # exec host install: only use the given host in the host lists
-   if {$exechost} {
-      puts $fdo "ADMIN_HOST_LIST=\"$host\""
-      puts $fdo "SUBMIT_HOST_LIST=\"\""
-      puts $fdo "EXEC_HOST_LIST=\"$host\""
-      puts $fdo "EXEC_HOST_LIST_RM=\"$host\""
-      set spooldir [get_local_spool_dir $host "execd"]
-      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
-   } else {
-      puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
-      if {$ts_config(submit_only_hosts) != "none"} {
-         puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+   append auto_config_content "EXECD_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool\"\n"
+   append auto_config_content "GID_RANGE=\"$gid_range\"\n"
+   append auto_config_content "SPOOLING_METHOD=\"$ts_config(spooling_method)\"\n"
+   append auto_config_content "DB_SPOOLING_SERVER=\"$bdb_server\"\n"
+   append auto_config_content "DB_SPOOLING_DIR=\"$db_dir\"\n"
+   # exec/shadowd host install: only use the given host in the host lists
+   if {$exechost || $shadowd} {
+      append auto_config_content "ADMIN_HOST_LIST=\"$host\"\n"
+      append auto_config_content "SUBMIT_HOST_LIST=\"\"\n"
+      append auto_config_content "EXEC_HOST_LIST=\"$host\"\n"
+      append auto_config_content "EXEC_HOST_LIST_RM=\"$host\"\n"
+      if {$exechost} {
+         set spooldir [get_local_spool_dir $host "execd" $do_cleanup]
       } else {
-         puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
+         set spooldir [get_local_spool_dir $host "execd" 0]
       }
-      puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
-      puts $fdo "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\""
-      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"\""
-   }
-   puts $fdo "HOSTNAME_RESOLVING=\"true\""
-   puts $fdo "SHELL_NAME=\"rsh\""
-   puts $fdo "COPY_COMMAND=\"rcp\""
-   puts $fdo "DEFAULT_DOMAIN=\"none\""
-   puts $fdo "ADMIN_MAIL=\"$ts_config(report_mail_to)\""
-   puts $fdo "ADD_TO_RC=\"false\""
-   if {$set_file_perms} {
-      puts $fdo "SET_FILE_PERMS=\"true\""
+      append auto_config_content "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\"\n"
    } else {
-      puts $fdo "SET_FILE_PERMS=\"false\""
+      append auto_config_content "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\"\n"
+      if {$ts_config(submit_only_hosts) != "none"} {
+         append auto_config_content "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\"\n"
+      } else {
+         append auto_config_content "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\"\n"
+      }
+      append auto_config_content "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\"\n"
+      append auto_config_content "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\"\n"
+      append auto_config_content "EXECD_SPOOL_DIR_LOCAL=\"\"\n"
    }
-   puts $fdo "RESCHEDULE_JOBS=\"wait\""
-   puts $fdo "SCHEDD_CONF=\"1\""
-   puts $fdo "SHADOW_HOST=\"$ts_config(shadowd_hosts)\""
-   puts $fdo "REMOVE_RC=\"false\""
-   puts $fdo "WINDOWS_SUPPORT=\"false\""
-   puts $fdo "WIN_ADMIN_NAME=\"Administrator\""
-   puts $fdo "CSP_RECREATE=\"true\""
-   puts $fdo "CSP_COPY_CERTS=\"true\""
-   puts $fdo "CSP_COUNTRY_CODE=\"DE\""
-   puts $fdo "CSP_STATE=\"Germany\""
-   puts $fdo "CSP_LOCATION=\"Building\""
-   puts $fdo "CSP_ORGA=\"Devel\""
-   puts $fdo "CSP_ORGA_UNIT=\"Software\""
-   puts $fdo "CSP_MAIL_ADDRESS=\"$ts_config(report_mail_to)\""
-   close $fdo
+   append auto_config_content "HOSTNAME_RESOLVING=\"true\"\n"
+   append auto_config_content "SHELL_NAME=\"rsh\"\n"
+   append auto_config_content "COPY_COMMAND=\"rcp\"\n"
+   append auto_config_content "DEFAULT_DOMAIN=\"none\"\n"
+   append auto_config_content "ADMIN_MAIL=\"$ts_config(report_mail_to)\"\n"
+   append auto_config_content "ADD_TO_RC=\"false\"\n"
+   if {$set_file_perms} {
+      append auto_config_content "SET_FILE_PERMS=\"true\"\n"
+   } else {
+      append auto_config_content "SET_FILE_PERMS=\"false\"\n"
+   }
+   append auto_config_content "RESCHEDULE_JOBS=\"wait\"\n"
+   append auto_config_content "SCHEDD_CONF=\"1\"\n"
+   append auto_config_content "SHADOW_HOST=\"$ts_config(shadowd_hosts)\"\n"
+   append auto_config_content "REMOVE_RC=\"false\"\n"
+   append auto_config_content "WINDOWS_SUPPORT=\"false\"\n"
+   append auto_config_content "WIN_ADMIN_NAME=\"Administrator\"\n"
+   append auto_config_content "CSP_RECREATE=\"true\"\n"
+   append auto_config_content "CSP_COPY_CERTS=\"true\"\n"
+   append auto_config_content "CSP_COUNTRY_CODE=\"DE\"\n"
+   append auto_config_content "CSP_STATE=\"Germany\"\n"
+   append auto_config_content "CSP_LOCATION=\"Building\"\n"
+   append auto_config_content "CSP_ORGA=\"Devel\"\n"
+   append auto_config_content "CSP_ORGA_UNIT=\"Software\"\n"
+   append auto_config_content "CSP_MAIL_ADDRESS=\"$ts_config(report_mail_to)\"\n"
 
-   # wait for file to appear
-   if {$file_delete_wait} {
-      wait_for_remote_file $host $CHECK_USER $filename
+   set cur_line 1
+   foreach line [split $auto_config_content "\n"] {
+      set auto_config_content_array($cur_line) $line
+      incr cur_line 1
    }
+   incr cur_line -1
+   set auto_config_content_array(0) $cur_line
+
+   write_remote_file $host $CHECK_USER $filename auto_config_content_array
 }
 
 #                                                             max. column:     |
@@ -338,11 +354,6 @@ proc create_autoinst_config {} {
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
 
-   set config_file "$ts_config(product_root)/autoinst_config.conf"
-
-   if {[file isfile $config_file] == 1} {
-      file delete -force $config_file
-   }
 
    # do setting of the file permissions only if we use tar.gz packages,
    # and try to do it on the file server
@@ -365,6 +376,7 @@ proc create_autoinst_config {} {
    }
 
    ts_log_finer "creating automatic install config file ..."
+   set config_file "$ts_config(product_root)/autoinst_config.conf"
    write_autoinst_config $config_file $ts_config(master_host) 1 1 0 $set_file_perm
    ts_log_finer "automatic install config file successfully created ..."
 }

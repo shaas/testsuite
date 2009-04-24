@@ -2096,6 +2096,7 @@ proc write_remote_file {host user file array_name} {
    set program "cp"
    set program_arg "$tmp_file $file"
    start_remote_prog $host $user $program $program_arg
+   wait_for_remote_file $host $user $file
    return $prg_exit_state
 } 
 
@@ -3196,11 +3197,13 @@ proc is_remote_path {hostname user path} {
 #     file_procedures/delete_remote_file()
 #*******************************************************************************
 proc delete_remote_file {hostname user path {win_local_user 0}} {
-   if {[is_remote_file $hostname $user $path ]} {
-      ts_log_fine "deleting file $path on host $hostname ..."
+   if {[is_remote_file $hostname $user $path]} {
+      ts_log_fine "deleting file $path on host $hostname as user $user ..."
       set output [start_remote_prog $hostname $user "rm" "$path" prg_exit_state 60 0 "" "" 0 0 0 1 $win_local_user]
       ts_log_finest $output
       wait_for_remote_file $hostname $user $path 60 1 1
+   } else {
+      ts_log_fine "file $path not found on host $hostname as user $user!"
    }
 }
 

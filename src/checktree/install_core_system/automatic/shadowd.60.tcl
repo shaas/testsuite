@@ -129,9 +129,13 @@ proc install_shadowd {} {
          } else {
             set install_user $CHECK_USER
          }
-         set inst_sge_param "-sm -auto $ts_config(product_root)/autoinst_config.conf -noremote"
+         
+         set autoinst_config_file "$ts_config(product_root)/autoinst_config_shadowd_${shadow_host}.conf"
+         write_autoinst_config $autoinst_config_file $shadow_host 0 1 0 0 1
+
+         set inst_sge_param "-sm -auto $autoinst_config_file -noremote"
          ts_log_fine "$shadow_host as $install_user: inst_sge $inst_sge_param"
-         set output [start_remote_prog "$shadow_host" $install_user  "./inst_sge" $inst_sge_param exit_val $my_timeout 0 $ts_config(product_root)]
+         set output [start_remote_prog "$shadow_host" $install_user  "./inst_sge" $inst_sge_param exit_val $my_timeout 0 $ts_config(product_root) "" 0 15 0 1 1]
          if {$exit_val != 0} {
             ts_log_warning "install shadowd hosts failed\n$shadow_host as $install_user: inst_sge $inst_sge_param:\n$output"
          }

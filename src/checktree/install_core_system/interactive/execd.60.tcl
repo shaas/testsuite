@@ -192,15 +192,19 @@ proc install_execd {} {
       
       ts_log_fine "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
 
-      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
-         # wait for act qmaster file
-         wait_for_remote_file $exec_host "root" "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
-         set id [open_remote_spawn_process "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
-      } else {
+      if {$CHECK_ADMIN_USER_SYSTEM} {
          ts_log_fine "--> install as user $CHECK_USER <--" 
-         wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
-         set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
+         set install_user $CHECK_USER
+      } else {
+         set install_user "root"
       }
+      ts_log_fine "--> starting install script as user \"$install_user\" <--" 
+
+      # wait for act qmaster file
+      wait_for_remote_file $exec_host $install_user "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
+
+      # start install script
+      set id [open_remote_spawn_process $exec_host $install_user  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
 
       log_user 1
 

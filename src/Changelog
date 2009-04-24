@@ -1,3 +1,6 @@
+CR-2009-04-24-2: Bugfix:     rework of auto install test procedures
+                 Review:     AA
+
 CR-2009-04-24-1: Enhancem.:  o new command line option: no_local_qmaster_spool
                                 If used the qmaster is using 
                                 "$SGE_ROOT/$SGE_CELL/spool/qmaster" directory for

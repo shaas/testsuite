@@ -171,23 +171,15 @@ proc install_execd {} {
    if {[info exists autoconfig_files]} {
       unset autoconfig_files
    }
+
    foreach exec_host $ts_config(execd_nodes) {
       set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
       set autoconfig_files($exec_host) $autoconfig_file
+   }
 
-      file delete $autoconfig_file
-   }
-   # wait for all autoinstall config files to vanish
-   foreach exec_host $ts_config(execd_nodes) {
-      wait_for_remote_file $exec_host $CHECK_USER $autoconfig_files($exec_host) 60 1 1
-   }
    # create all autoinstall config files
    foreach exec_host $ts_config(execd_nodes) {
-      write_autoinst_config $autoconfig_files($exec_host) $exec_host 0 0 1
-   }
-   # wait for all autoinstall config files to appear
-   foreach exec_host $ts_config(execd_nodes) {
-      wait_for_remote_file $exec_host $CHECK_USER $autoconfig_files($exec_host)
+      write_autoinst_config $autoconfig_files($exec_host) $exec_host 1 1 1
    }
 
    # now do the real installation
@@ -233,7 +225,7 @@ proc install_execd {} {
 
          # start auto install for this host 
          set install_options "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_files($exec_host) -noremote"
-         set id [open_remote_spawn_process $exec_host $install_user "./install_execd" "$install_options" 0 $ts_config(product_root)]
+         set id [open_remote_spawn_process $exec_host $install_user "./install_execd" "$install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
          set spawn_id [lindex $id 1]
          lappend spawn_list $spawn_id
          lappend remote_spawn_list $id
