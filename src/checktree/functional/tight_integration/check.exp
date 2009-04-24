@@ -75,6 +75,7 @@ lappend check_functions "tight_integration_iz_1916"
 lappend check_functions "tight_integration_massive"
 lappend check_functions "tight_integration_massive_nfs_tmpdir"
 lappend check_functions "tight_integration_massive_short"
+lappend check_functions "tight_integration_notify"
 # This tests needs to be the last one
 lappend check_functions "tight_integration_check_tmpdir"
 
@@ -1063,8 +1064,133 @@ proc tight_integration_check_tmpdir {} {
          append error "Found IZ 2846: tmpdir was not cleaned on host $host for jobs: $output\n"
       }
    }
-   if { $error != "" } {
+   if {$error != ""} {
       ts_log_severe "$error"
    }
 }
 
+# helper function for tight_integration_notify check function
+proc tight_integration_notify_doit {scenario expected_signal {special_option ""} {job_action ""} {messages_check 1}} {
+   global ts_config
+   global submit_command tight_masterq tight_master_node
+
+   ts_log_fine "tight_integration: testing the -notify option in scenario $scenario"
+
+   # initialize checking of messages files
+   tight_integration_init_messages_check
+
+   # start job with -notify option
+   set total_slots 4
+   set id [submit_with_method $submit_command "$special_option -notify -pe tight $total_slots -masterq $tight_masterq -cwd -N tightm" \
+                              "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 30" \
+                              $tight_master_node]
+
+   set started 0
+   set finished 0
+   set jobid 0
+   set job_finished 0
+   set job_action_done 0
+   set signal 0
+
+   # wait for job end, monitor states
+   while {$job_finished == 0} {
+      set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info 0 signal]
+      set job_finished [tight_integration_job_finished $job_state]
+      if {$job_action != "" && !$job_action_done && $started == $total_slots} {
+         switch -exact $job_action {
+            "delete" {
+               delete_job $jobid
+            }
+            "suspend" {
+               suspend_job $jobid
+            }
+         }
+         set job_action_done 1
+      }
+   }
+
+   # make sure job actually got notified
+   if {$signal != $expected_signal} {
+      ts_log_severe "job should have received signal $expected_signal, but got $signal"
+   }
+
+   # make sure all tasks were started correctly
+   if {$started != $total_slots} {
+      ts_log_severe "job $jobid: only $started tasks out of $total_slots were started successfully"
+   }
+
+   # and all tasks ran to the end correctly despite receiving a signal
+   if {$finished != $total_slots} {
+      ts_log_severe "job $jobid: only $finished tasks out of $total_slots ran through successfully"
+   }
+
+   # cleanup
+   set sp_id [lindex $id 1]
+   close_spawn_process $id
+
+   wait_for_jobend $jobid tightm 300 0 1
+   tight_integration_acct $jobid 4
+   if {$messages_check} {
+      tight_integration_messages_check "notify: $scenario"
+   }
+}
+
+#****** check/tight_integration_notify() ***************************************
+#  NAME
+#     tight_integration_notify() -- test tight integration with -notify option
+#
+#  SYNOPSIS
+#     tight_integration_notify {} 
+#
+#  FUNCTION
+#     Tests if the -notify option works correctly with tightly integrated jobs.
+#     We had CR 6802351 / IZ 2986: we need the ability for qrsh to ignore
+#     SIGUSR1 and SIGUSR2 to support -notify
+#     The fix of this Bug is checked with the folloing test, all jobs submitted
+#     with the -notify option:
+#        - qdel: notify signal SIGUSR2
+#        - qmod -s: notify signal SIGUSR1
+#        - exceed some limit, e.g. h_rt/s_rt: notify limit SIGUSR2
+#        - modify the notification signal, e.g. NOTIFY_KILL, and expect correct behaviour
+#*******************************************************************************
+proc tight_integration_notify {} {
+   global ts_config
+   global tight_master_node
+
+   if {$ts_config(gridengine_version) < 61} {
+      ts_log_fine "CR 6802351 / IZ 2986 has only be fixed in 6.1u7 and 6.2u3 - skipping this test"
+      return
+   }
+
+   # test notification on job delete
+   tight_integration_notify_doit "delete job" "SIGUSR2" "" "delete"
+   tight_integration_notify_doit "suspend job" "SIGUSR1" "" "suspend"
+
+   # test notification on wallclock limit
+   # these tests will generate messages in the execd messages file,
+   # so we suppress the messages check
+   tight_integration_notify_doit "h_rt" "SIGUSR2" "-l h_rt=15" "" 0
+
+   # there seems to be a bug in 6.2:
+   # for s_rt we expect to get SIGUSR1 (even when the job is submitted without -notify),
+   # but in 6.2 we need to use -notify and get SIGUSR2!
+   # needs additional analysis - both 6.1 and 6.2 seem to show incorrect behaviour
+   if {$ts_config(gridengine_version) == 61} {
+      tight_integration_notify_doit "s_rt" "SIGUSR1" "-l s_rt=15" "" 0
+   } else {
+      tight_integration_notify_doit "s_rt" "SIGUSR2" "-l s_rt=15" "" 0
+   }
+
+   # now set a different kill signal, and expect it to work as before
+   get_config config_backup $tight_master_node
+   set config(execd_params) "NOTIFY_KILL=USR1,NOTIFY_SUSP=USR2"
+   set_config_and_propagate config $tight_master_node
+   tight_integration_notify_doit "delete job" "SIGUSR1" "" "delete"
+   tight_integration_notify_doit "suspend job" "SIGUSR2" "" "suspend"
+
+   # cleanup - make sure the execd_params actually get deleted!
+   if {![info exists config_backup(execd_params)]} {
+      set config_backup(execd_params) ""
+   }
+   set_config_and_propagate config_backup $tight_master_node
+}

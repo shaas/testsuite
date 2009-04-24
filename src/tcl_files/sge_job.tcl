@@ -83,11 +83,14 @@
 #     bugs/issuezilla/2822/check.61.exp
 #     functional/tight_integration
 #*******************************************************************************
-proc tight_integration_monitor {id master_node started_var finished_var jobid_var info_var {iz_578 0}} {
+proc tight_integration_monitor {id master_node started_var finished_var jobid_var info_var {iz_578 0} {signal_var ""}} {
    upvar $started_var  started
    upvar $finished_var finished
    upvar $jobid_var    jobid
    upvar $info_var     job_info
+   if {$signal_var != ""} {
+      upvar $signal_var signal
+   }
 
    set job_info(tasks) {}
 
@@ -181,6 +184,16 @@ proc tight_integration_monitor {id master_node started_var finished_var jobid_va
                   "script done.*" {
                      ts_log_fine "got \"script done.\" from remote prog shell script"
                   }
+                  "master task received SIG*" {
+                     set signal [lindex $line 3]
+                     set ret "signalled"
+                     ts_log_fine $line
+                  }
+                  "pe task received SIG*" -
+                  "User*ignal*" {
+                     ts_log_fine $line
+                     set ret "signalled"
+                  }
                   default {
                      # something we didn't expect.
                      # store all unexpected lines and send them in one mail
@@ -240,7 +253,8 @@ proc tight_integration_job_finished {job_state} {
       "task finished" -
       "master started" -
       "master submitted" -
-      "unexpected job output" {
+      "unexpected job output" -
+      "signalled" {
          set job_finished 0
       }
 
