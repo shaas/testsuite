@@ -1,3 +1,11 @@
+RH-2009-04-24-0: Bugfix:     Hedeby: 
+                             o add_ge_service does not destroy the default
+                               execd config for cloud resources
+                             o manage_admin_user test disabled (need rewrite)
+                             o It is now possible to define a gridengine qmaster
+                               host as hedeby master host (needed for cloud testing)  
+                 Review:    TB 
+
 CR-2009-04-23-2: Bugfix:     o CR-2009-04-23-1 breaks testsuite startup
                  Belongs To: CR-2009-04-23-1
                  Review:     RD

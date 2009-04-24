@@ -941,7 +941,10 @@ proc config_hedeby_master_host { only_check name config_array } {
                    "      qmaster host to enhance test quality!" }
 
    array set params {}
-   set params(exclude_list) [get_all_qmaster_hosts]
+   # For cloud testing we must allows hedeby master runs
+   # on a gridengine qmaster, because in the master host
+   # is part of the vpn to the cloud
+   #set params(exclude_list) [get_all_qmaster_hosts]
    set params(verify) "compile"
 
    return [config_generic $only_check $name config $help_text "host" 0 1 "" params ]

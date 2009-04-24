@@ -49,7 +49,7 @@ set check_name                 "manage_admin_user"
 # specifiy the test categories
 # (VERIFIED if the test is QA inspected)
 # other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
-set check_category             "SYSTEM VERIFIED" 
+set check_category             "SYSTEM" 
 
 # define the highest check level
 set check_highest_level        0
@@ -101,6 +101,9 @@ global manage_admin_user_ctx
 # week   ( >24 h            / run level 400 - 499 )"
 proc manage_admin_user_init_level {} {
   global CHECK_ACT_LEVEL
+
+  ts_log_warning "manage_admin_user is temporarily disabled, because it removes the root user from the admin list.\nSkip this test"
+  return -1
 
   # this test currently supports only runlevel "0"
   if { $CHECK_ACT_LEVEL == 0 } {

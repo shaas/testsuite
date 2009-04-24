@@ -8793,7 +8793,7 @@ proc get_hedeby_execd_install_params_sequence { my_execd_install_params } {
    
    ts_log_fine $log_message
    
-   # add an execd install settings for simulated hosts
+   # add execd install settings for simulated hosts
    lappend sequence "<!-- =========================================================\n"
    lappend sequence "     execd install params for simulated hosts\n"
    lappend sequence "     =========================================================-->\n"
@@ -8803,14 +8803,48 @@ proc get_hedeby_execd_install_params_sequence { my_execd_install_params } {
    lappend sequence "<ge_adapter:filter>simhost=\"true\"\n"
    lappend sequence "</ge_adapter:filter>\n"
    lappend sequence "  <ge_adapter:installTemplate executeOn=\"qmaster_host\">"
-   lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/install_execd_sim.sh</ge_adapter:script>"
+   lappend sequence "     <ge_adapter:script>util/templates/ge-adapter/install_execd_sim.sh</ge_adapter:script>"
    lappend sequence "  </ge_adapter:installTemplate>"
    lappend sequence "  <ge_adapter:uninstallTemplate executeOn=\"qmaster_host\">"
-   lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/uninstall_execd_sim.sh</ge_adapter:script>"
+   lappend sequence "     <ge_adapter:script>util/templates/ge-adapter/uninstall_execd_sim.sh</ge_adapter:script>"
    lappend sequence "  </ge_adapter:uninstallTemplate>"
    lappend sequence "</ge_adapter:execd>\n"
    
    lappend sequence "\n"
+
+    # add execd install settings for cloud hosts
+   lappend sequence "<!-- =========================================================\n"
+   lappend sequence "     execd install params for cloud hosts\n"
+   lappend sequence "     =========================================================-->\n"
+   lappend sequence "   <ge_adapter:execd adminUsername='root'\n"
+   lappend sequence "                      defaultDomain='' \n"
+   lappend sequence "                      ignoreFQDN='true' \n"
+   lappend sequence "                      rcScript='false' \n"
+   lappend sequence "                      adminHost='true' \n"
+   lappend sequence "                      submitHost='false' \n"
+   lappend sequence "                      cleanupDefault='true'>\n"
+   lappend sequence "        <ge_adapter:filter>cloudResource='true'</ge_adapter:filter>\n"
+   lappend sequence "        <ge_adapter:installTemplate needsConfigFile='false' \n"
+   lappend sequence "                                    executeOn='qmaster_host'>\n"
+   lappend sequence "            <ge_adapter:script>util/templates/ge-adapter/copy_sge_root_to_cloud.sh</ge_adapter:script>\n"
+   lappend sequence "        </ge_adapter:installTemplate>\n"
+   lappend sequence "        <ge_adapter:installTemplate needsConfigFile='false'\n"
+   lappend sequence "                                    executeOn='exec_host'>\n"
+   lappend sequence "            <ge_adapter:script>util/templates/ge-adapter/patch_bootstrap_files_on_cloud.sh</ge_adapter:script>\n"
+   lappend sequence "        </ge_adapter:installTemplate>\n"
+   lappend sequence "        <ge_adapter:installTemplate needsConfigFile='true'\n"
+   lappend sequence "                                    executeOn='exec_host'>\n"
+   lappend sequence "            <ge_adapter:script>util/templates/ge-adapter/install_execd_cloud.sh</ge_adapter:script>\n"
+   lappend sequence "            <ge_adapter:conf>util/templates/ge-adapter/install_execd_cloud.conf</ge_adapter:conf>\n"
+   lappend sequence "        </ge_adapter:installTemplate>\n"
+   lappend sequence "        <ge_adapter:uninstallTemplate needsConfigFile='true'\n"
+   lappend sequence "                                      executeOn='exec_host'>\n"
+   lappend sequence "            <ge_adapter:script>util/templates/ge-adapter/uninstall_execd_cloud.sh</ge_adapter:script>\n"
+   lappend sequence "            <ge_adapter:conf>util/templates/ge-adapter/uninstall_execd_cloud.conf</ge_adapter:conf>\n"
+   lappend sequence "        </ge_adapter:uninstallTemplate>\n"
+   lappend sequence "    </ge_adapter:execd>\n"
+   lappend sequence "\n"
+
 
    # We deleted from <ge_adapter:execd to EOF
    # => the closing common:componentConfig is missing

@@ -279,6 +279,12 @@ proc show_status_check {} {
       }
    }
 
+   # In the case that a qmaster is running on the hedeby master host we must
+   # add the name of the service to the expected components on the hedeby master host
+   if { [lsearch -exact $ge_qmaster_hosts $hedeby_config(hedeby_master_host)] >= 0} {
+      lappend expected_components($hedeby_config(hedeby_master_host)) $service_names(service,$hedeby_config(hedeby_master_host))
+   }
+
    set nr_of_jvms 0
    set nr_of_components 0
    set error_text ""
