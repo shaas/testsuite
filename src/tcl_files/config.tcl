@@ -4050,9 +4050,14 @@ proc config_testsuite_bdb_dir { only_check name config_array } {
 
    # when we have no_local_spool option set, berkeley db spooling only works on a local disk
    # except for the BDB server - it works on any filesystem
-   if {$check_do_not_use_spool_config_entries == 1 && $spooling_method == "berkeleydb" && $bdb_server == "none"} {
+   if {$check_do_not_use_spool_config_entries != 0 && $spooling_method == "berkeleydb" && $bdb_server == "none"} {
       if {$value == "none"} {
-         ts_log_severe "You are using the \"no_local_spool\" option, this needs a configured bdb_dir"
+         if {$check_do_not_use_spool_config_entries == 1} {
+            set used_param_name "no_local_spool"
+         } else {
+            set used_param_name "no_local_qmaster_spool"
+         }
+         ts_log_severe "You are using the \"--${used_param_name}\" option and \"berkeleydb\" spooling, this needs a configured bdb_dir!"
          return -1
       }
 
@@ -4266,7 +4271,11 @@ proc config_shadowd_hosts { only_check name config_array } {
          if {$spooldir != ""} {
             puts ""
             set error_text    "master host $config(master_host) has a local spool dir in \"$spooldir/..\"\n"
-            append error_text "the configured shadowd host \"$host\" cannot access this directory!\n"
+            append error_text "the configured shadowd host \"$host\" cannot access this directory!\n\n"
+            append error_text "INFO: To solve this problem you might do one of the following actions:\n"
+            append error_text "   - remove the shadowd host \"$host\" from your testsuite configuration\n"
+            append error_text "   - use the global testsuite command line parameter \"no_local_qmaster_spool\"\n"
+            append error_text "   - use the global testsuite command line parameter \"no_local_spool\"\n"
             puts $error_text
             ts_log_warning $error_text
             return -1

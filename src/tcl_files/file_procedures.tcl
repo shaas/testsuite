@@ -3688,6 +3688,13 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    get_current_cluster_config_array ts_config
 
    set spooldir ""
+   set is_master_host 0
+   if {$check_do_not_use_spool_config_entries == 2} {
+      if {[resolve_host $host] == [resolve_host $ts_config(master_host)]} {
+         ts_log_fine "\"no_local_qmaster_spool\" option is set, this is master host"
+         set is_master_host 1
+      }
+   }
 
    # special case: suppress local spooldirectories
    # and even more special: In SGE 6.2, shared spooldirs are no longer possible
@@ -3699,6 +3706,17 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
          ts_log_fine "\"no_local_spool\" option is set, but we are on Windows - allowing local spool dir"
       } else {
          ts_log_fine "\"no_local_spool\" option is set - returning empty spool dir" 
+         return $spooldir
+      }
+   }
+
+   if {$check_do_not_use_spool_config_entries == 2 &&
+       $is_master_host &&
+       $subdir == "qmaster"} {
+      if {[resolve_arch $host] == "win32-x86"} {
+         ts_log_fine "\"no_local_qmaster_spool\" option is set, but we are on Windows - allowing local spool dir"
+      } else {
+         ts_log_fine "\"no_local_qmaster_spool\" option is set - returning empty spool dir" 
          return $spooldir
       }
    }

@@ -8430,6 +8430,8 @@ for {set i 0} {$i < $argc} {incr i} {
       puts ""
       puts "no_local_spool        ignore local spool directories from host configuration file"
       puts ""
+      puts "no_local_qmaster_spool ignore local spool directory only for the qmaster host"
+      puts ""
       puts "interactive <type>    use <type> as transport for interactive jobs, type = "
       puts "                      rtools (use rsh/rlogin/telnet, default for < 6.2)"
       puts "                      ssh (use ssh as transport)"
@@ -8520,6 +8522,11 @@ for {set i 0} {$i < $argc} {incr i} {
 
    if {[string compare [lindex $argv $i] "--no_local_spool"] == 0 || [string compare [lindex $argv $i] "no_local_spool"] == 0} {
       set check_do_not_use_spool_config_entries 1
+      continue
+   }
+
+   if {[string compare [lindex $argv $i] "--no_local_qmaster_spool"] == 0 || [string compare [lindex $argv $i] "no_local_qmaster_spool"] == 0} {
+      set check_do_not_use_spool_config_entries 2
       continue
    }
 
