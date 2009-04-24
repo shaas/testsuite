@@ -2456,6 +2456,24 @@ proc set_config_and_propagate {config {host global}} {
          set sp_tail_id_map($sp_id) $tail_id
       }
 
+      # check actual load_report_time
+      set load_report_time_string "00:00:15"
+      get_config tmp_config $host
+      if {[info exists tmp_config(load_report_time)]} {
+         set load_report_time_string $tmp_config(load_report_time)
+      }
+      ts_log_fine "load report time seems to be \"$load_report_time_string\""
+      set split_list [split $load_report_time_string ":"]
+      set lr_sec [lindex $split_list 2]
+      set lr_min [lindex $split_list 1]
+      set lr_hrs [lindex $split_list 0]
+      set change_timeout_value [expr ($lr_hrs * 3600 + $lr_min * 60 + $lr_sec) * 2]
+      ts_log_fine "timeout used for change to happen: $change_timeout_value seconds" 
+      if {$change_timeout_value < 30} {
+         set change_timeout_value 30
+         ts_log_fine "adapted timeout used for change to happen to: $change_timeout_value seconds" 
+      }
+
       # Make configuration change
       set_config my_config $host
 
@@ -2485,6 +2503,19 @@ proc set_config_and_propagate {config {host global}} {
                set expected_value($conf_host) $tmp_config($name)
                ts_log_fine "$conf_host: Overwriting expected value for $name to \"$tmp_config($name)\". Local config overwrites global one!"
             }
+            if {[info exists tmp_config(load_report_time)]} {
+               set local_load_report_time $tmp_config(load_report_time)
+               set split_list [split $load_report_time_string ":"]
+               set lr_sec [lindex $split_list 2]
+               set lr_min [lindex $split_list 1]
+               set lr_hrs [lindex $split_list 0]
+               set local_change_timeout_value [expr ($lr_hrs * 3600 + $lr_min * 60 + $lr_sec) * 2]
+               if {$local_change_timeout_value > $change_timeout_value} {
+                  set change_timeout_value $local_change_timeout_value
+                  ts_log_fine "$conf_host: Local load report interval is larger than global interval!"
+                  ts_log_fine "new timeout used for change to happen: $change_timeout_value seconds"
+               }
+            }
          }
       }
 
@@ -2502,7 +2533,7 @@ proc set_config_and_propagate {config {host global}} {
       }
       ts_log_fine "waiting for configuration change to propagate to execd(s) $host_list ..."
 
-      set timeout 60
+      set timeout $change_timeout_value
       expect {
          -i $joined_spawn_list full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"

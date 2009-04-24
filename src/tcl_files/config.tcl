@@ -4176,7 +4176,7 @@ proc config_add_compile_archs { only_check name config_array } {
 
    return [config_generic $only_check $name config "" "choice" 1 0 archs]
 
-          }
+}
 
 #****** config/config_shadowd_hosts() ******************************************
 #  NAME
@@ -4201,7 +4201,7 @@ proc config_add_compile_archs { only_check name config_array } {
 proc config_shadowd_hosts { only_check name config_array } {
    global CHECK_CORE_SHADOWD
    global ts_host_config
-   global fast_setup
+   global fast_setup check_do_not_use_spool_config_entries
 
    set CHECK_CORE_SHADOWD ""
 
@@ -4243,8 +4243,37 @@ proc config_shadowd_hosts { only_check name config_array } {
       puts "master host $config(master_host) is not in shadowd list: $value"
       return -1
    }
-    
 
+   # check that each shadowd host has access to qmaster spool dir
+   # get master spool dir
+   #   1) host might be a virtual host - to query local spooldir we need the real host
+   set physical_master_host [node_get_host $config(master_host)]
+  
+   #   2) read local spool dir from host config
+   if {[info exist ts_host_config($physical_master_host,spooldir)] && $check_do_not_use_spool_config_entries == 0 } {
+      set spooldir $ts_host_config($physical_master_host,spooldir)
+   } else {
+      set spooldir ""
+   }
+
+   #   3) check that every shadowd host has access to the master spool dir
+   foreach host $value {
+      if {$host == $config(master_host)} {
+         # we skip this test for master host
+         continue
+      } else {
+         # if qmaster has a local spool dir, skip this settings
+         if {$spooldir != ""} {
+            puts ""
+            set error_text    "master host $config(master_host) has a local spool dir in \"$spooldir/..\"\n"
+            append error_text "the configured shadowd host \"$host\" cannot access this directory!\n"
+            puts $error_text
+            ts_log_warning $error_text
+            return -1
+         }
+      }
+   }
+    
    set CHECK_CORE_SHADOWD $value
 
    return $value

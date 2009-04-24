@@ -283,7 +283,7 @@ proc test_qstat_j_xml {} {
    }
    set host [host_conf_get_suited_hosts]
 
-   get_config stored_configuration
+   get_config stored_configuration $host
    set myconfig(load_report_time) "00:00:10"
    set_config_and_propagate myconfig $host
    

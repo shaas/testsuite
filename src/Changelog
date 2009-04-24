@@ -1,3 +1,13 @@
+CR-2009-04-24-0: Enhancem:   o set_config_and_propagate():
+                                timeout for execds to get new configuration
+                                now depends on active load report interval
+                             o config_shadowd_hosts():
+                                check that shadowds have access to qmaster
+                                spool dir at testsuite startup
+                 Bugfix:     o some tests did not reset changed configuration
+                               attributes
+                 Review:     DG  
+
 MD-2009-04-24-0: Enhancem:   added test for IZ 2972 to clients/qalter test
                  Review:     CR
 

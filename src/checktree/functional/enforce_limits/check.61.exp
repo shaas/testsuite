@@ -124,7 +124,6 @@ proc enforce_limits_setup {} {
    global loose_slave_node
    global el_base_path
    global org_global_conf
-   global org_sched_conf
 
    set el_base_path $ts_config(testsuite_root_dir)/checktree/functional/enforce_limits
 
@@ -197,7 +196,6 @@ proc enforce_limits_setup {} {
    set_config_and_propagate global_conf
 
    # change schedd config
-   get_schedd_config org_sched_conf
    set sched_conf(params) "DURATION_OFFSET=00:00:05"
    set_schedd_config sched_conf 
 }
@@ -210,7 +208,6 @@ proc enforce_limits_setup {} {
 proc enforce_limits_cleanup {} {
    global ts_config
    global org_global_conf
-   global org_sched_conf
 
    # trigger and wait for job termination
    delete_all_jobs
@@ -227,10 +224,10 @@ proc enforce_limits_cleanup {} {
    del_queue loose.q "" 0 1
 
    # reset global config
-   set_config org_global_conf
+   set_config_and_propagate org_global_conf
 
    # reset sched config
-   set_schedd_config org_sched_conf
+   reset_schedd_config
 }
 
 # 50) submit a sleeper job
