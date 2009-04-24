@@ -118,6 +118,7 @@ proc set_complex {change_array {raise_error 1} {fast_add 1}} {
       set result [start_sge_bin "qconf" "-Mc $tmpfile"]
 
       # parse output or raise error
+      add_message_to_container messages 4 [translate_macro MSG_CENTRY_NOTCHANGED]
       add_message_to_container messages 3 [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
       add_message_to_container messages 2 [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
       add_message_to_container messages 1 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]

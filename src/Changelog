@@ -1,3 +1,7 @@
+RD-2009-04-24-0: Bugfix:     fixed reporting test broken due to
+                             RD-2009-04-23-0
+                 Review:     CR
+
 CR-2009-04-24-0: Enhancem:   o set_config_and_propagate():
                                 timeout for execds to get new configuration
                                 now depends on active load report interval
