@@ -85,6 +85,7 @@ lappend check_functions "qalter_verify"
 lappend check_functions "qalter_V"
 lappend check_functions "qalter_w"
 lappend check_functions "qalter_a"
+lappend check_functions "qalter_IZ_2972"
 
 global submitresult
 global normal_job_id
@@ -1777,3 +1778,45 @@ proc qalter_a {} {
    }
 }
 
+#                                                             max. column:     |
+#****** qalter/qalter_IZ_2972() ******
+# 
+#  NAME
+#     qalter_IZ_2972 -- testing qalter -h U 
+#
+#  SYNOPSIS
+#     qalter_IZ_2972 { } 
+#
+#  FUNCTION
+#     testing qalter -h U option. removing hold from
+#     job using job name eg: qalter -h U <job_name> 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+proc qalter_IZ_2972 {} {
+   global ts_config
+   global submitresult qalter_queue job_output_dir 
+
+   set submitresult [submit_job "-h -q $qalter_queue -N qalter_test_job -e $job_output_dir -o $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 15"]
+
+   set option "-h U qalter_test_job"
+   set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
+   }
+}

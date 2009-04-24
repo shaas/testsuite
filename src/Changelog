@@ -1,3 +1,6 @@
+MD-2009-04-24-0: Enhancem:   added test for IZ 2972 to clients/qalter test
+                 Review:     CR
+
 RH-2009-04-24-0: Bugfix:     Hedeby: 
                              o add_ge_service does not destroy the default
                                execd config for cloud resources
