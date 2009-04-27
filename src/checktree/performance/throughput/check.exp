@@ -1235,7 +1235,6 @@ proc run_throughput_test {} {
                   set submitjob_jobid [lindex $line 2]
                   set submitjob_time  [lindex $line 3]
                   set submitjob_start [lindex $line 4]
-                  set submitjob_end   [lindex $line 5]
 
                   # clear remembered submit command
                   unset sent_commands($host_name)
@@ -1267,7 +1266,6 @@ proc run_throughput_test {} {
 
                      set job_data($job_index,submit_time) $submitjob_time
                      set job_data($job_index,submit_start_time) $submitjob_start
-                     set job_data($job_index,submit_end_time) $submitjob_end
                   }
 
                   # this host now can take the next submit command
@@ -3080,7 +3078,8 @@ proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start
     }
     for {set job 0} {$job < $last_job_id} {incr job} {
        if {[info exists jobs($job,job_id)]} {
-          set normalized_submit_end_time [ expr ( $jobs($job,submit_end_time) - $test_start ) ]
+          set submit_end_time [expr $jobs($job,submit_start_time) + ( $jobs($job,submit_time) / 1000 )]
+          set normalized_submit_end_time [ expr ( $submit_end_time - $test_start ) ]
           set normalized_run_end_time    [ expr ( $jobs($job,run_end_time)    - $test_start ) ]
 
           set submit_time [ expr $jobs($job,submit_time) / 1000.0 ]
@@ -3810,7 +3809,7 @@ proc trash_incomplete_job_records {job_array_name} {
    set errors 0
    for {set job 0} {$job <= $last_job_id} {incr job} {
       if {[info exists jobs($job,job_id)] && 
-          (![info exists jobs($job,submit_end_time)] || 
+          (![info exists jobs($job,submit_start_time)] || 
            ![info exists jobs($job,run_start_time)] ||
            ![info exists jobs($job,run_end_time)])} {
          unset jobs($job,job_id)
@@ -3845,7 +3844,8 @@ proc calculate_average_job_times { job_array_name job_results_array { dump_file 
       if {[info exists jobs($job,job_id)]} {
          set submit_time 0
          set run_time 0
-         if { $jobs($job,submit_end_time) > 0 && $jobs($job,submit_start_time) > 0 } {
+         set submit_end_time [expr $jobs($job,submit_start_time) + ( $jobs($job,submit_time) / 1000 )]
+         if { $submit_end_time > 0 && $jobs($job,submit_start_time) > 0 } {
             incr submit_job_count 1
             set submit_time [expr double($jobs($job,submit_time)) / 1000.0]
          }
@@ -3861,7 +3861,7 @@ proc calculate_average_job_times { job_array_name job_results_array { dump_file 
 
          # spool data to file
          if { $dump_file != "" } {
-            set line "$job|$jobs($job,job_id)|$submit_time|$run_time|$jobs($job,state)|$jobs($job,submit_start_time)|$jobs($job,submit_end_time)|$jobs($job,run_start_time)|$jobs($job,run_end_time)"
+            set line "$job|$jobs($job,job_id)|$submit_time|$run_time|$jobs($job,state)|$jobs($job,submit_start_time)|$submit_end_time|$jobs($job,run_start_time)|$jobs($job,run_end_time)"
             puts $dump_file $line
          }
       }
