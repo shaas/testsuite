@@ -1,3 +1,6 @@
+RD-2009-04-27-0: Enhancem.:  added test_sge_lock_fifo to module tests
+                 Review:     AA
+
 EB-2009-04-27-0: Enhancemn.: eleminated unecessary data in performance test
                  Review:     RD
 
