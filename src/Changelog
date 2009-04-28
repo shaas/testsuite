@@ -1,3 +1,7 @@
+DG-2009-04-28-0: Enhancem.:  Added test for issue 2979 which is slightly 
+                             modified (therefore it checks a similar case).
+                 Review:     CR
+
 CR-2009-04-28-0: Enhancem.:  o jsv_ge_mod test:
                                 added new runlevel which tests qalter using
                                 jobname instead of job id

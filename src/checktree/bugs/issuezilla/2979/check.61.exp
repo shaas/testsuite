@@ -1,0 +1,198 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_levelmeeting
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+#set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2979_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2979"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  "Check if submitted process is notified with TERM signal before termination is done."
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2979_setup
+set check_cleanup_function issue_2979_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2979_test"
+
+proc issue_2979_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2979_setup {} {
+   global ts_config
+   global issue_2979_host issue_2979_backup
+   
+   # let's assume we need 2 test hosts
+   set issue_2979_host [host_conf_get_suited_hosts]
+   
+   # we want to modify the global config - make a backup
+   get_config issue_2979_backup
+}
+
+proc issue_2979_cleanup {} {
+   global ts_config
+   global issue_2979_hosts issue_2979_backup
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # restore config
+   set_config_and_propagate issue_2979_backup
+   
+   # unset our test's global variables
+   foreach var "issue_2979_hosts issue_2979_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+#****** check.61/issue_2979_test() *********************************************
+#  NAME
+#     issue_2979_test() -- ??? 
+#
+#  SYNOPSIS
+#     issue_2979_test { } 
+#
+#  FUNCTION
+#     Set NOTIFY_KILL=TERM to get the SIGTERM before sending the SIGKILL signal  
+#     to the job. Submit a hard request. Check if this signal is send to 
+#     the process. 
+#
+#*******************************************************************************
+proc issue_2979_test {} {
+   global ts_config CHECK_USER ts_user_config
+   global issue_2979_host
+   
+   # set execd parameter NOTIFY_KILL=TERM so that SIGTERM will be 
+   # sent to process 
+   set my_execd_params "KEEP_ACTIVE=true, NOTIFY_KILL=TERM"
+   get_config act_configuration
+   if { [string compare "none" $act_configuration(execd_params)] != 0 } {
+      append my_execd_params ",$act_configuration(execd_params)"
+   }
+   set myconfig(execd_params) "$my_execd_params"
+   
+   ts_log_fine "setting execd_param to \"$my_execd_params\" ..."
+   # change it global
+   set_config_and_propagate myconfig
+
+   # ----------------------------------------------------------
+   # submit a sleeper job with soft realtime limit (-l s_rt=30)
+   # 
+   # SINCE THIS IS NOT A BUG BECAUSE SOFT LIMITS DO NOT END IN A 
+   # NOTIFY_KILL WE HAVE TO SUBMIT A HARD REALTIME LIMIT 
+   # -----------------------------------------------------------  
+   set job_id [submit_job "-b y -notify -l hostname=$issue_2979_host -l h_rt=30 sleep 3600"]
+   wait_for_jobstart $job_id "sleep" 100 
+
+   # check which signal is sent to job by inspecting trace file 
+   # get trace file
+   set spool_dir [get_execd_spool_dir $issue_2979_host]
+   set jobs_dir $spool_dir/$issue_2979_host/active_jobs/$job_id.1
+   set trace_file $jobs_dir/trace
+
+   ts_log_fine "reading $trace_file ..."
+
+   # init_logfile_wait 
+   init_logfile_wait $issue_2979_host $trace_file
+   # wait  for signal output 
+   set trace_output [logfile_wait "writing usage file"]
+   close_logfile_wait
+
+   # decide if test is failed or not 
+   set trace_output [split $trace_output "\r\n"]   
+
+   set signalcntr 0 
+   set notification_signal "none found"
+
+   foreach line_a $trace_output {
+      set line [string trim $line_a]
+      if { $line != "" } {
+         # check for kill signal 
+         if { [string match "*now sending signal*" $line ] } {
+            incr signalcntr 1
+            if {$signalcntr == 1} {
+               # we are just interested in the notification signal (2 signals are appearing here)
+               set notification_signal [get_string_value_between "signal " " to" $line] 
+               set notification_signal [string trim $notification_signal]
+            }
+         }
+      }
+   }
+
+   # in trace file we are expecting 2 signals (notification and real termination)
+   if {$signalcntr != 2} {
+      ts_log_severe "trace file from job does not show up the 2 signals (notification and real termination): $signalcntr"
+   }
+
+   if {$notification_signal != "TERM"} {
+      ts_log_severe "Bug 2979 found! NOTIFY_KILL=TERM was set but process was notified with: $notification_signal"
+   } else {
+      ts_log_fine "OK. Process was notified with $notification_signal"
+   }
+}
+
