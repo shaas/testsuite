@@ -1,3 +1,13 @@
+CR-2009-04-28-0: Enhancem.:  o jsv_ge_mod test:
+                                added new runlevel which tests qalter using
+                                jobname instead of job id
+                             o analyze_directory_structure():
+                                enhanced error reporting
+                             o check_shadowd_settings():
+                                now using framework functions for remote file
+                                operations
+                 Review:     RD
+
 RD-2009-04-27-0: Enhancem.:  added test_sge_lock_fifo to module tests
                  Review:     AA
 

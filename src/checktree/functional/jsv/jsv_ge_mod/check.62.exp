@@ -49,15 +49,16 @@ set check_init_level_procedure "jsv_ge_mod_init_level"
 # define test's name and run level descriptions
 set check_name            "jsv_ge_mod"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0 
-set check_description(0)  ""
-set check_description(1)  ""
+set check_highest_level   1
+set check_description(0)  "test qalter jsv requests using job id of job to modify"
+set check_description(1)  "test qalter jsv requests using job name of job to modify"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function jsv_ge_mod_setup
+set check_setup_level_function jsv_ge_mod_setup_level
+set check_cleanup_level_function jsv_ge_mod_cleanup_level
 set check_cleanup_function jsv_ge_mod_cleanup
 
 # define test's procedure order
@@ -86,7 +87,7 @@ lappend check_functions "jsv_ge_mod_notify"
 lappend check_functions "jsv_ge_mod_N"                
 lappend check_functions "jsv_ge_mod_o"                
 lappend check_functions "jsv_ge_mod_ot"               
-lappend check_functions "jsv_ge_mod_P"               
+lappend check_functions "jsv_ge_mod_P"    
 lappend check_functions "jsv_ge_mod_p"               
 lappend check_functions "jsv_ge_mod_pe_name_min_max"  
 lappend check_functions "jsv_ge_mod_q_hard"          
@@ -115,16 +116,17 @@ proc jsv_ge_mod_init_level {} {
 
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+         return 0
+      }
+      1 {
+         return 0
       }
    }
 
    return -1  ;# no other level
 }
 
-proc jsv_ge_mod_setup {} {
+proc jsv_ge_mod_setup_level {} {
    global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
@@ -187,13 +189,15 @@ proc jsv_ge_mod_setup {} {
    set_schedd_config sched_conf
 
    # submit one job which can be used for hold_jid test
-   append submit_args "-h -t 1-2 $ts_config(product_root)/examples/jobs/sleeper.sh 60"
-   set jsv_hjob_id [submit_job "$submit_args"]
-   set jsv_job_id [submit_job "$submit_args"]
+   set jsv_hjob_id [submit_job "-N h_job -h -t 1-2 $ts_config(product_root)/examples/jobs/sleeper.sh 60"]
+   set jsv_job_id  [submit_job "-N job -h -t 1-2 $ts_config(product_root)/examples/jobs/sleeper.sh 60"]
+   if {$CHECK_ACT_LEVEL == 1} {
+      set jsv_hjob_id "h_job"
+      set jsv_job_id "job"
+   }
 }
 
-proc jsv_ge_mod_cleanup {} {
-   global CHECK_ACT_LEVEL
+proc jsv_ge_mod_cleanup_level {} {
    global ts_config
    global jsv_org_global_conf
    global jsv_enabled
@@ -218,12 +222,33 @@ proc jsv_ge_mod_cleanup {} {
    del_ckpt "jsv_ge_mod_ckpt"
    del_project "jsv_ge_mod_prj"
 
+}
+
+proc jsv_ge_mod_cleanup {} {
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_enabled
+   global jsv_job_id
+   global jsv_hjob_id
+ 
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      return 
+   }     
+
    # unset our test's global variables
    foreach var "org_global_conf jsv_enabled jsv_base_path jsv_job_id jsv_hjob_id" {
       if {[info exists $var]} {
          unset $var
       }
    }
+}
+
+
+# helper function to get some test description at runtime for error logging
+proc get_test_info {global_config param_name argument} {
+   upvar $global_config global_conf
+   return "testing qalter $argument ($param_name) jsv_allowed_mod=$global_conf(jsv_allowed_mod), jsv_url=$global_conf(jsv_url)"
 }
 
 # Scenario: check modification of jsv_ parameters in combination
@@ -239,7 +264,7 @@ proc jsv_ge_mod_cleanup {} {
 #  -  remove the global jsv script
 #  -  try this modification again
 #  => also this has to work
-proc jsv_ge_mod {param_name argument} {
+proc jsv_ge_mod {param_name argument {reset_job_name ""}} {
    global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
@@ -252,36 +277,54 @@ proc jsv_ge_mod {param_name argument} {
       return 
    }     
 
-   if {$CHECK_ACT_LEVEL == 0} {
-      set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
-      set global_conf(jsv_allowed_mod) "none"
-      set_config global_conf
-      set first_exit_state 0
-      set first_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER first_exit_state]
+   set error_text ""
+   set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
+   set global_conf(jsv_allowed_mod) "none"
+   set_config global_conf
+   set first_exit_state 0
+   # ts_log_fine [get_test_info global_conf $param_name "$argument $jsv_job_id"]
+   set first_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER first_exit_state]
+   if {$reset_job_name != "" && $first_exit_state == 0} {
+      ts_log_fine "reseting job name to \"job\" ..."
+      start_sge_bin "qalter" "-N job $reset_job_name" $ts_config(master_host) $CHECK_USER
+   }
 
-      set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
-      set global_conf(jsv_allowed_mod) "$param_name"
-      set_config global_conf
-      set second_exit_state 0
+   set global_conf(jsv_url) "${jsv_base_path}/jsv.sh"
+   set global_conf(jsv_allowed_mod) "$param_name"
+   set_config global_conf
+   set second_exit_state 0
+   #ts_log_fine [get_test_info global_conf $param_name "$argument $jsv_job_id"]
+   set second_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER second_exit_state]
+   if {$reset_job_name != "" && $second_exit_state == 0} {
+      ts_log_fine "reseting job name to \"job\" ..."
+      start_sge_bin "qalter" "-N job $reset_job_name" $ts_config(master_host) $CHECK_USER
+   }
 
-      set second_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER second_exit_state]
+   set global_conf(jsv_url) "none"
+   set global_conf(jsv_allowed_mod) "none"
+   set_config global_conf
+   set third_exit_state 0
+   #ts_log_fine [get_test_info global_conf $param_name "$argument $jsv_job_id"]
+   set third_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER third_exit_state]
+   if {$reset_job_name != "" && $third_exit_state == 0} {
+      ts_log_fine "reseting job name to \"job\" ..."
+      start_sge_bin "qalter" "-N job $reset_job_name" $ts_config(master_host) $CHECK_USER
+   }
 
-
-      set global_conf(jsv_url) "none"
-      set global_conf(jsv_allowed_mod) "none"
-      set_config global_conf
-      set third_exit_state 0
-      set third_message [start_sge_bin "qalter" "$argument $jsv_job_id" $ts_config(master_host) $CHECK_USER third_exit_state]
-
-      if {$first_exit_state != 1} {
-         ts_log_severe "first modification of \"$param_name\" should have been rejected but it was accepted by master. qalter returned with message: $first_message"
-      }
-      if {$second_exit_state != 0} {
-         ts_log_severe "second modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $second_message"
-      }
-      if {$third_exit_state != 0} {
-         ts_log_severe "third modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $third_message"
-      }
+   if {$first_exit_state == 0} {
+      append error_text "[get_test_info global_conf $param_name $argument]:\n"
+      append error_text "first modification of \"$param_name\" should have been rejected but it was accepted by master. qalter returned with message: $first_message\n"
+   }
+   if {$second_exit_state != 0} {
+      append error_text "[get_test_info global_conf $param_name $argument]:\n"
+      append error_text "second modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $second_message\n"
+   }
+   if {$third_exit_state != 0} {
+      append error_text "[get_test_info global_conf $param_name $argument]:\n"
+      append error_text "third modification of \"$param_name\" should have been allowed but it was rejected by master. qalter returned with message: $third_message\n"
+   }
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
 
@@ -378,7 +421,7 @@ proc jsv_ge_mod_notify {} {
 }
 
 proc jsv_ge_mod_N {} {
-   jsv_ge_mod "N" "-N NewName"
+   jsv_ge_mod "N" "-N NewName" "NewName"
 }
 
 proc jsv_ge_mod_o {} {

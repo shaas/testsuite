@@ -264,7 +264,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
          lappend spool_directories $file
       }
    } else {
-      ts_log_severe "$script $path dirs returned exit status $prg_exit_state"
+      ts_log_severe "$script $path dirs returned exit status $prg_exit_state:\n$tmp\n"
    }
 
    set tmp [start_remote_prog $host $user $script "$path files" prg_exit_state 60 0 "" "" 1 0 0 1 1]
@@ -291,7 +291,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
          lappend spool_files $file
       }
    } else {
-      ts_log_severe "$script $path files returned exit status $prg_exit_state"
+      ts_log_severe "$script $path files returned exit status $prg_exit_state:\n$tmp\n"
    }
 
    set tmp [start_remote_prog $host $user $script "$path fileperm" prg_exit_state 60 0 "" "" 1 0 0 1 1]
@@ -311,7 +311,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
          }
       }
    } else {
-      ts_log_severe "$script $path fileperm returned exit status $prg_exit_state"
+      ts_log_severe "$script $path fileperm returned exit status $prg_exit_state:\n$tmp\n"
    }
 }
 

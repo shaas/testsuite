@@ -491,27 +491,29 @@ proc check_shadowd_settings { shadowd_host } {
       set qmaster_messages_file [get_qmaster_spool_dir]/messages
       set act_qmaster_file "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
       set sgemaster_file $ts_config(product_root)/$ts_config(cell)/common/sgemaster
-      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
-      set act_qmaster [string trim $result]
 
-      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
-      if { $prg_exit_state != 0 } {
-         return "no nfs shared qmaster spool directory? (1)"
-      } 
+      # read act qmaster file
+      wait_for_remote_file $ts_config(master_host) $CHECK_USER $act_qmaster_file
+      get_file_content $ts_config(master_host) $CHECK_USER $act_qmaster_file file_array
+      set act_qmaster [string trim $file_array(1)]
+      ts_log_fine "act_qmaster: \"$act_qmaster\""
+      
 
-      ts_log_fine $result
-      set heartbeat1 [string trim $result]
+      # read heartbeat file on qmaster host
+      wait_for_remote_file $ts_config(master_host) $CHECK_USER $heartbeat_file
+      get_file_content $ts_config(master_host) $CHECK_USER $heartbeat_file file_array
+      set heartbeat1 [string trim $file_array(1)]
       set heartbeat1 [string trimleft $heartbeat1 "0"]
+      ts_log_fine "heartbeat file read on host \"$ts_config(master_host)\": \"$heartbeat1\""
 
-      set result [start_remote_prog $test_host $CHECK_USER "cat" $heartbeat_file]
-      if { $prg_exit_state != 0 } {
-         return "no nfs shared qmaster spool directory? (2)";
-      }
-
-      ts_log_fine $result
-      set heartbeat2 [string trim $result ]
+      # read heartbeat file on shadowd host
+      wait_for_remote_file $test_host $CHECK_USER $heartbeat_file
+      get_file_content $test_host $CHECK_USER $heartbeat_file file_array
+      set heartbeat2 [string trim $file_array(1)]
       set heartbeat2 [string trimleft $heartbeat2 "0"]
+      ts_log_fine "heartbeat file read on host \"$test_host\": \"$heartbeat2\""
 
+      # diff the contents (allow max + 1)
       set heart_diff [expr ( $heartbeat2 - $heartbeat1 ) ]
       if { $heart_diff > 1 || $heart_diff < -1 } {
          return "heartbeat file diff error: heart_diff=$heart_diff - no nfs shared qmaster spool directory found"
