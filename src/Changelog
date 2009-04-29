@@ -1,3 +1,6 @@
+RH-2009-04-29-1: Bugfix:     Hedeby: typo in junit_test leads to tcl error
+                 Review:     TB
+
 RH-2009-04-29-0: Bugfix:     Hedeby: managed_admin_user test fixed
                  Enhancem.:  Hedeby: new test username_password_auth
                  Review:     MG

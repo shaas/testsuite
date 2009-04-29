@@ -125,7 +125,7 @@ proc hedeby_junit_check {} {
          get_additional_config $filename add_config
          if { $java_build_host != $add_config(master_host) } {
              set cs_port $add_config(commd_port)
-             ts_log_fine "Using qmaster port of cluster $add_config(cluster_name) for junit tests ($cs_p rt)"
+             ts_log_fine "Using qmaster port of cluster $add_config(cluster_name) for junit tests ($cs_port)"
              break
          }
       }
