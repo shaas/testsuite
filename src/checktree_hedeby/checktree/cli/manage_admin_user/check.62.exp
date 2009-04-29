@@ -49,7 +49,7 @@ set check_name                 "manage_admin_user"
 # specifiy the test categories
 # (VERIFIED if the test is QA inspected)
 # other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
-set check_category             "SYSTEM" 
+set check_category             "SYSTEM VERIFIED" 
 
 # define the highest check level
 set check_highest_level        0
@@ -99,11 +99,16 @@ global manage_admin_user_ctx
 # long   (   1 h   -  4 h   / run level 200 - 299 )"
 # day    ( > 4 h   - 24 h   / run level 300 - 399 )"
 # week   ( >24 h            / run level 400 - 499 )"
+#****** check.62/manage_admin_user_init_level() ********************************
+#  NAME
+#     manage_admin_user_init_level() -- init level method
+#
+#  SYNOPSIS
+#     manage_admin_user_init_level { } 
+#
+#*******************************************************************************
 proc manage_admin_user_init_level {} {
   global CHECK_ACT_LEVEL
-
-  ts_log_warning "manage_admin_user is temporarily disabled, because it removes the root user from the admin list.\nSkip this test"
-  return -1
 
   # this test currently supports only runlevel "0"
   if { $CHECK_ACT_LEVEL == 0 } {
@@ -112,92 +117,195 @@ proc manage_admin_user_init_level {} {
   return -1
 }
 
-# the setup function for this test is storing the current
-# cluster config nr in a global variable.
+#****** check.62/manage_admin_user_setup() *************************************
+#  NAME
+#     manage_admin_user_setup() -- setup method for this test 
+#
+#  SYNOPSIS
+#     manage_admin_user_setup { } 
+#
+#  FUNCTION
+#
+#   Intialzes the context of the test
+#
+#*******************************************************************************
 proc manage_admin_user_setup {} {
    global hedeby_config
    upvar #0 manage_admin_user_ctx this
 
-   set this(cc_cnr) [get_current_cluster_config_nr]
    set this(master_host) $hedeby_config(hedeby_master_host)
    set this(admin_user) [get_hedeby_admin_user]
+   set this(cleanup_actions) {}
 }
 
-# the cleanup function for this test will restore the
-# current cluster config nr from the global variable set 
-# be the setup function.
+#****** check.62/manage_admin_user_cleanup() ***********************************
+#  NAME
+#     manage_admin_user_cleanup() --
+#
+#  SYNOPSIS
+#     manage_admin_user_cleanup { } 
+#
+#  FUNCTION
+#
+#     Removes the user root from the admin user list if this(cleanup_actions) contains
+#     the string "add_root"
+#
+#*******************************************************************************
 proc manage_admin_user_cleanup {} {
    upvar #0 manage_admin_user_ctx this
 
-   ts_log_heading "Check that user root has been removed from admin user list ..."
-   get_admin_user_list $this(master_host) $this(admin_user) user_list
-   if { [lsearch $user_list "root"] >= 0 } {
-      ts_log_fine "user root is still in admin user list! Removing ..."
-      remove_user_from_admin_list $this(master_host) $this(admin_user) "root"
-   } else {
-      ts_log_fine "user root is not in admin user list! - OK"
+   if {[lsearch -exact $this(cleanup_actions) "add_root"] >= 0} {
+      if { [add_user_to_admin_list $this(master_host) $this(admin_user) "root"] == 0} {
+         restart_master_host_to_ensure_that_role_cache_is_cleared
+      } else {
+         reset_hedeby 1
+      }
    }
-   set_current_cluster_config_nr $this(cc_cnr)
 }
 
 
-# The test will call the sdmadm show_status command for every 
-# hedeby managed host and on the master host.
-# If the output does not show all components in the "started"
-# status the test will fail.
+#****** check.62/manage_admin_user_check() *************************************
+#  NAME
+#     manage_admin_user_check() --
+#
+#  SYNOPSIS
+#     manage_admin_user_check { } 
+#
+#  FUNCTION
+#
+#     This test performs the following steps:
+#
+#     1. Check that user root is on the admin user list
+#        (if not the test can not be executed)
+#     2. Remove user root from the admin user list
+#     3. Check that a sdmadm sr as root fails with exit state 2
+#        and with error message "permission denied"
+#     4. Add user root to the admin user list
+#     5. Check that a sdmam sr as root works
+#
+#*******************************************************************************
 proc manage_admin_user_check {} {
    upvar #0 manage_admin_user_ctx this
 
-   # TODO: Add support for "user" preference mode!
-   #       root user must add bootstrap configuration in his home directory before running this test.
-   #       => Cleanup and Setupfunction should add/remove the bootstrap configuration
-   #       => If root password is not available (noroot GE testsuite mode) this test cannot run
-   if { [get_hedeby_pref_type] == "user" } {
-      ts_log_config "Test 'manage_admin_user' is not supported if Hedeby is installed in user mode!" 
-      return
-   }
-
-   # setup master host expectations ...
-   
-   # Add root as admin user
-
-   if { [add_user_to_admin_list $this(master_host) $this(admin_user) "root"] != 0 } {
-      return
-   }
-   
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Check that user root is on the admin user list" 
+   # ----------------------------------------------------------------------------
    set user_list {}
    if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
+      ts_log_severe "Could not get the admin user list"
       return
    }
-   
+
    if { [lsearch $user_list "root"] < 0} {
-      ts_log_severe "User root has not been added to admin user list"
+      set    msg "Can not run the manage_admin_user test because user root is not "
+      append msg "on the admin user list => Skip this test"
+      ts_log_severe $msg
       return
    }
 
-   # if we have the root password we can now try to execute a sdmadm command as root
-   # we really need the root password. If ssh access is configured we can also not
-   # test it
-   if { [have_ssh_access] == 0 && [have_root_passwd] == 0} {
-        restart_master_host_to_ensure_that_role_cache_is_cleared
-
-        # now start scs interactive ...
-        set tasks(username) "root"
-        set tasks(password) "ROOTPW"
-        set opt(interactive_tasks) tasks
-        sdmadm_command_opt "-ppw sc -h $this(master_host)" opt
-        if { $prg_exit_state != 0 } {
-           ts_log_severe "sdmadm as user root with prompt password option failed!"
-           return
-        }
-   } else {
-      ts_log_info "Skip execution sdm_adm command as user root, have no root password"
-   }
    
-   remove_user_from_admin_list  $this(master_host) $this(admin_user) "root"
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Removing user root from the admin user list" 
+   # ----------------------------------------------------------------------------
+   if { [remove_user_from_admin_list $this(master_host) $this(admin_user) "root"] != 0} {
+      ts_log_severe "Could not remove user root from the admin user list"
+      return
+   }
+
+   set user_list {}
+   if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
+      ts_log_severe "Could not get the admin user list"
+      lappend this(cleanup_actions) "add_root"
+      return
+   }
+
+   if { [lsearch $user_list "root"] >= 0} {
+      ts_log_server "User root has not been removed from the admin user list"
+      return
+   }
+   lappend this(cleanup_actions) "add_root"
+   
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Restarting Hedeby master to ensure that role cached timed out" 
+   # ----------------------------------------------------------------------------
    restart_master_host_to_ensure_that_role_cache_is_cleared
+
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Invoke an sdmadm sr command as user root => must fail with permission denied" 
+   # ----------------------------------------------------------------------------
+   set opts(user)        "root"
+   set opts(raise_error) "0" 
+   set output [sdmadm_command_opt "sr" opts]
+   unset opts
+   set error_msg [create_bundle_string "JAASJMXAuthenticator.permissionDenied"]
+
+   if { [string first $error_msg $output] < 0 } {
+      set msg    "Executed an 'sdmadm sr' as user root, but user was not on the admin user list.\n"
+      append msg "Expected error message '$error_msg' was not printed.\n"
+      append msg "Got the following output:\n"
+      append msg "$output\n"
+      ts_log_severe $msg
+      return
+   }
+
+   if { $prg_exit_state == 0 } {
+      set msg    "Severe security problem!!!!!\n"
+      append msg "============================\n"
+      append msg "\n"
+      append msg "User root is not on the admin user list, however an sdmadm sr as user root\n"
+      append msg "did not produce an error\n"
+      ts_log_severe $msg
+      return
+   }
+
+
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Adding user root from to the admin user list" 
+   # ----------------------------------------------------------------------------
+   if { [add_user_to_admin_list $this(master_host) $this(admin_user) "root"] != 0} {
+      ts_log_severe "Could not add user root to the admin_user list"
+      return
+   }
+
+   set user_list {}
+   if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
+      ts_log_severe "Could not get tehe admin user list"
+      return
+   }
+
+   if { [lsearch $user_list "root"] < 0} {
+      ts_log_severe "User root has not been been added to the admin user list"
+      return
+   }
+   set idx [lsearch -exact $this(cleanup_actions) "add_root"]
+   set this(cleanup_actions) [lreplace $this(cleanup_actions) $idx $idx]
+
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Restarting Hedeby master to ensure that role cached timed out" 
+   # ----------------------------------------------------------------------------
+   restart_master_host_to_ensure_that_role_cache_is_cleared
+  
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Ensure that user root can communicate with CS after adding to admin user list" 
+   # ----------------------------------------------------------------------------
+   set opts(user)        "root"
+   set output [sdmadm_command_opt "sr" opts]
+   unset opts
 }
 
+#****** check.62/restart_master_host_to_ensure_that_role_cache_is_cleared() ******
+#  NAME
+#     restart_master_host_to_ensure_that_role_cache_is_cleared() -- 
+#
+#  SYNOPSIS
+#     restart_master_host_to_ensure_that_role_cache_is_cleared { } 
+#
+#  FUNCTION
+#
+#     This method restarts the hedeby master host to ensure that the role cache
+#     of the jvms is cleared
+#
+#*******************************************************************************
 proc restart_master_host_to_ensure_that_role_cache_is_cleared {} {
    upvar #0 manage_admin_user_ctx this
 

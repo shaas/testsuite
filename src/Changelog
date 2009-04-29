@@ -1,3 +1,7 @@
+RH-2009-04-29-0: Bugfix:     Hedeby: managed_admin_user test fixed
+                 Enhancem.:  Hedeby: new test username_password_auth
+                 Review:     MG
+
 DG-2009-04-28-0: Enhancem.:  Added test for issue 2979 which is slightly 
                              modified (therefore it checks a similar case).
                  Review:     CR

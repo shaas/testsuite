@@ -1,0 +1,254 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+# ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
+# "no" - we don't need root acess / "yes" - we need root access:
+set check_root_access_needs    "yes"              
+
+# name of the test (best practice: use the name of the test directory)
+set check_name                 "username_password_auth"
+
+# specifiy the test categories
+# (VERIFIED if the test is QA inspected)
+# other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
+set check_category             "SYSTEM VERIFIED" 
+
+# define the highest check level
+set check_highest_level        0
+
+# a sort check description for each runlevel:
+# (runlevel 0 is mandatory)
+set check_description(0)       "Checks that username/password authentication works" ;# runlevel 0
+
+# specify check dependencies
+# (name all tests which have to run sucessfull before this test can run)
+set check_needs                "hedeby_install"                  
+
+# The name of the init level procedure for this test. The procedure is defined
+# in the test file. 
+set check_init_level_procedure "username_password_auth_init_level"
+
+# define tests setup and cleanup function. The functions are called for each
+# runlevel. Before testsuite is starting with calling all check_functions
+# the setup function is called. After finishing all check_functions the 
+# cleanup function is called.
+#
+# The aim of the setup/cleanup functions is that the test should restore
+# all modifications, even when the test failes completely.
+set check_setup_function "username_password_auth_setup"
+set check_cleanup_function "username_password_auth_cleanup"
+
+
+# The check_functions array tells the testsuite which check functions should
+# be called (and in which order)
+# All check_functions should be defined at least in a file (*.tcl) in the
+# check directory.
+set check_functions            ""
+lappend check_functions "username_password_auth_check"
+
+
+# ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global username_password_auth_ctx
+
+# (the init level procedure defines which runlevels are supported)
+# short  (   0 min - 15 min / run level   0 -  99 )"
+# medium (  16 min -  1 h   / run level 100 - 199 )"
+# long   (   1 h   -  4 h   / run level 200 - 299 )"
+# day    ( > 4 h   - 24 h   / run level 300 - 399 )"
+# week   ( >24 h            / run level 400 - 499 )"
+
+#****** /username_password_auth_init_level() ***************************
+#  NAME
+#     username_password_auth_init_level() -- 
+#
+#  SYNOPSIS
+#     username_password_auth_init_level { } 
+#
+#*******************************************************************************
+proc username_password_auth_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # this test currently supports only runlevel "0"
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+#****** username_password_auth_setup() ********************************
+#  NAME
+#     username_password_auth_setup() -- ??? 
+#
+#  SYNOPSIS
+#     username_password_auth_setup { } 
+#
+#  FUNCTION
+#
+#     Check that the test is supported, it is supported if ...
+#
+#     o hedeby is not installed in user mode
+#     o root is an hedeby admin user
+#     o testsuite ssh access is disabled
+#     o the root password is known in the testsuite
+#
+#     If the test is supported this test renames the keystore of user root
+#
+#*******************************************************************************
+proc username_password_auth_setup {} {
+   global hedeby_config
+   upvar #0 username_password_auth_ctx this
+
+   set this(cc_cnr) [get_current_cluster_config_nr]
+   set this(master_host) $hedeby_config(hedeby_master_host)
+   set this(admin_user) [get_hedeby_admin_user]
+
+   set this(supported) "false"
+   if { [get_hedeby_pref_type] == "user" } {
+      ts_log_config "Test 'username_password_auth' is not supported if Hedeby is installed in user mode!" 
+      return
+   }
+
+   set user_list {}
+   if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
+      ts_log_severe "Could not get the admin user list"
+      return
+   }
+   
+   if { [lsearch $user_list "root"] < 0} {
+      ts_log_config "Test 'username_password_auth' is not supported, user root is not an admin user"
+      return
+   }
+
+   if { [have_ssh_access] == 1 || [have_root_passwd] == -1} {
+      ts_log_config "Test 'username_password_auth' is not supported, have no root password"
+      return
+   }
+
+   set this(supported) "true"
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Renaming keystore of user root"
+   # ----------------------------------------------------------------------------
+   set this(host)     $hedeby_config(hedeby_master_host)
+   set this(keystore) "[get_hedeby_local_spool_dir $this(host)]/security/users/root.keystore"
+
+   set output [start_remote_prog $this(host) "root" "mv" "$this(keystore) $this(keystore).org"]
+   if {$prg_exit_state != 0} {
+      set    msg "Could not rename keystore or user root ('$this(keystore)')\n"
+      append msg "mv command failed (exit status $prg_exit_state)\n"
+      append msg "Output:\n$output"
+      ts_log_severe $msg
+   }
+}
+
+#****** username_password_auth_cleanup() ******************************
+#  NAME
+#     username_password_auth_cleanup() -- cleanup test function 
+#
+#  SYNOPSIS
+#     username_password_auth_cleanup { } 
+#
+#  FUNCTION
+#
+#     Restores the keystore of user root
+#
+#**********************************************************************
+proc username_password_auth_cleanup {} {
+   upvar #0 username_password_auth_ctx this
+
+   if {$this(supported) == "true" } {
+      start_remote_prog $this(host) "root" "test" "-f $this(keystore).org"
+      if {$prg_exit_state == 0} {
+         # ----------------------------------------------------------------------------
+         ts_log_heading "Restoring keystore of user root"
+         # ----------------------------------------------------------------------------
+         set output [start_remote_prog $this(host) "root" "mv" "$this(keystore).org $this(keystore)"]
+         if {$prg_exit_state != 0} {
+            set    msg "Could not rename keystore or user root ('$this(keystore)')\n"
+            append msg "mv command failed (exit status $prg_exit_state)\n"
+            append msg "Output:\n$output"
+            ts_log_severe $msg
+         }
+      } else {
+         ts_log_fine "Backup of keystore of user root does not exist"
+      }
+   } else {
+      ts_log_fine "Test is not supported => no cleanup necessary"
+   }
+}
+
+
+#****** username_password_auth_check() ********************************
+#  NAME
+#     username_password_auth_check() -- 
+#
+#  SYNOPSIS
+#     username_password_auth_check { } 
+#
+#  FUNCTION
+#
+#     This method executes an sdmadm sr as user root and provides username
+#     and password for authentication
+#     
+#*******************************************************************************
+proc username_password_auth_check {} {
+   upvar #0 username_password_auth_ctx this
+
+   if { $this(supported) != "true" } {
+      return
+   }
+   
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Execution 'sdmadm sr' as root with username/password authentication"
+   # ----------------------------------------------------------------------------
+   set tasks(username) "root"
+   set tasks(password) "ROOTPW"
+   set opt(interactive_tasks) tasks
+   sdmadm_command_opt "-ppw sr" opt
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "sdmadm as user root with prompt password option failed!"
+      return
+   }
+}
+
