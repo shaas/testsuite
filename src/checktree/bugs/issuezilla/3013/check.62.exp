@@ -1,0 +1,289 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+# define test's name and run level descriptions
+set check_name            "issue_3013"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check issue 3013 is fixed"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_3013_setup
+set check_cleanup_function issue_3013_cleanup
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3013_init_level"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_3013_check"
+
+proc issue_3013_init_level {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         # For this test we need at least 2 hosts
+         if { [llength $ts_config(execd_nodes)] < 2 } {
+             ts_log_config "Need at least 2 hosts for this test. We only have $ts_config(execd_hosts)"
+         }
+         return 0
+      } 
+   } 
+
+   return -1  ;# no other level 
+}
+
+# -------- local test procedures: initialization ------------------------------
+
+#****** issuezilla/issue_3013_setup() ********************************************
+#  NAME
+#     issue_3013_setup() -- Setup function for 3013. 
+#
+#  SYNOPSIS
+#     issue_3013_setup { } 
+#
+#  FUNCTION
+#     Tests if scheduling is right when requesting -masterq and -q and 
+#     having an matching but not restricting resource quota rule. 
+#     The scheduling will fail when the specific regression bug is active.  
+#
+#*******************************************************************************
+proc issue_3013_setup {} {
+   global ts_config
+   global rqs_name_3013 
+
+   ts_log_fine "issue_3013_setup" 
+
+   # offer enough slots within these pe's 
+   set pe(slots)             "100"
+   set pe(allocation_rule)   "\$round_robin"
+   add_pe "round_robin" pe
+
+   set pe(slots)             "100"
+   set pe(allocation_rule)   "\$fill_up"
+   add_pe "fill_up" pe
+
+   set first [lindex $ts_config(execd_nodes) 0]
+   set second [lindex $ts_config(execd_nodes) 1]
+
+   # setup queues A and B each with one slot on a single host
+   set queue_conf(seq_no)           "1,\[$first=1\],\[$second=1\]"
+   set queue_conf(slots)            "1"
+   set queue_conf(pe_list)          "round_robin fill_up"
+   set queue_conf(load_thresholds)  "NONE"
+   add_queue "A" "$first $second" queue_conf 1
+
+   # enable resource reservation etc.
+   set schedconf(schedule_interval)          "0:0:05"
+   set schedconf(weight_urgency)             "0.000000"
+   set schedconf(weight_ticket)              "0.000000"
+   set schedconf(weight_priority)            "1.000000"
+   set schedconf(max_reservation)            "10"
+   set schedconf(flush_submit_sec)             1
+   set schedconf(flush_finish_sec)             1
+   set schedconf(job_load_adjustments)       "NONE"
+   set schedconf(load_adjustment_decay_time) "0:0:00"
+   set schedconf(params)                     "MONITOR=true"
+   set result [set_schedd_config schedconf]
+
+   #  Add rqs another_new_rqs
+
+   set rqs_name_3013              "another_new_rqs"
+   set rules                      ""
+   lappend rules "name A queues A to slots=10 "
+   set rqs_charray($rqs_name_3013,limit)   "$rules"
+   set rqs_charray($rqs_name_3013,enabled) "true"
+   set rqs_charray($rqs_name_3013,description) "global"
+   add_rqs rqs_charray
+
+   # ensure schedule file exists
+   trigger_scheduling
+}
+
+
+#****** cissuezilla/issue_3013_wait_for_pattern() *********************************
+#  NAME
+#     issue_3013_wait_for_pattern() --  Waits till a pattern in the log occurs. 
+#
+#  SYNOPSIS
+#     issue_3013_wait_for_pattern { case_name pattern {timeout 30} } 
+#
+#  FUNCTION
+#     Waits till a specific pattern in the log file occurs.  
+#
+#  INPUTS
+#     case_name    - The case in which the error occured (for error reporting). 
+#     pattern      - The pattern to wait for.  
+#     {timeout 30} - timeout 
+#
+#  RESULT
+#     Returns 1 in case when the pattern was not found. Otherwise 0. 
+#
+#*******************************************************************************
+proc issue_3013_wait_for_pattern {case_name pattern {timeout 30}} {
+   set output [logfile_wait $pattern $timeout 0]
+   if {$logfile_wait_error != 0} {
+      ts_log_severe "case '$case_name': there were no pattern '$pattern' in the reporting file, got only\n$output"
+      return 1
+   }
+   return 0
+}
+
+proc issue_3013_cleanup {  } {
+   global ts_config
+   global rqs_name_3013 
+
+   # reset the scheduler configuration
+   reset_schedd_config
+
+   # remove the cqueues
+   del_queue "A" "" 1 1
+  
+   # remove parallel environments 
+   del_pe        "round_robin"
+   del_pe        "fill_up"
+
+   # remove resource quota set
+   del_rqs $rqs_name_3013
+}
+
+
+# -------- local test procedures: initialization ------------------------------
+
+
+#****** issuezilla/issue_3013_check() ********************************************
+#  NAME
+#     issue_3013_check() -- Checks hard masterq and slave q requests. 
+#
+#  SYNOPSIS
+#     issue_3013_check { } 
+#
+#  FUNCTION
+#     Checks several combinations of hard masterq and slave q requests.  
+#     Since these are not soft options the scheduler have to schedule     
+#     them on the given queue or queue instance. Because the queue offers 
+#     exactly 2 hosts and each host offers only 1 slot the result is 
+#     predictable. 
+# 
+#*******************************************************************************
+proc issue_3013_check { } {
+   global ts_config
+   set first [lindex $ts_config(execd_nodes) 0]
+   set second [lindex $ts_config(execd_nodes) 1]
+
+   ts_log_fine "testing -masterq 'a host' with -q 'the queue'"
+
+   # this should be scheduled because we have 1 slot at $first and 1 slot at $second 
+   if { [ issue_3013_single_check "fill_up"     "A@$first" "A" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A@$first" "A" ] != 0 } { return }
+   
+   if { [ issue_3013_single_check "fill_up"     "A@$second" "A" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A@$second" "A" ] != 0 } { return }
+
+   if { [ issue_3013_single_check "fill_up"     "A" "A@$first" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A" "A@$first" ] != 0 } { return }
+
+   if { [ issue_3013_single_check "fill_up"     "A" "A@$second" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A" "A@$second" ] != 0 } { return }
+
+   if { [ issue_3013_single_check "fill_up"     "A@$first" "A@$second" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A@$first" "A@$second" ] != 0 } { return }
+
+   if { [ issue_3013_single_check "fill_up"     "A@$second" "A@$first" ] != 0 } { return }
+   if { [ issue_3013_single_check "round_robin" "A@$second" "A@$first" ] != 0 } { return }
+}
+
+#****** check.62/issue_3013_single_check() *************************************
+#  NAME
+#     issue_3013_single_check() -- Submits parallel task.  
+#
+#  SYNOPSIS
+#     issue_3013_single_check { pe_name master {slave ""} {slave_request ""} 
+#     {handled_as_fillup 0} } 
+#
+#  FUNCTION
+#     Submits a parallel job with master and slave requests. After submitting 
+#     it watches the output file.  
+#
+#  INPUTS
+#     pe_name               - Name of parallel environment. 
+#     master                - The -masterq request. 
+#     {slave ""}            - The -q request  
+#     {slave_request ""}    - The -q option when needed. 
+#
+#*******************************************************************************
+proc issue_3013_single_check { pe_name master {slave ""} {slave_request ""} } {
+   global ts_config
+
+   set SGE_ROOT $ts_config(product_root)
+   set SGE_CELL $ts_config(cell)
+   set schedule "$SGE_ROOT/$SGE_CELL/common/schedule"
+
+   # tail -f scheduling file
+   init_logfile_wait $ts_config(master_host) $schedule
+
+   set jobid [submit_job "-pe $pe_name 2 -masterq $master -q $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+   set ret [issue_3013_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}*:slots:1.0*"]
+
+   if {$ret == 0} {
+      set ret [issue_3013_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}*:slots:1.0*"]
+   }
+
+   ts_log_fine "got master queue (${master}) and slave queue (${slave}) as expected"
+
+   # set lines_with_starting [exec grep "STARTING" $schedule]
+   # ts_log_fine "the lines with time are \n$lines_with_starting\n"
+
+   close_logfile_wait
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   return $ret
+}
