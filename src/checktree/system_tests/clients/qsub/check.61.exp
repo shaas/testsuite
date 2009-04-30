@@ -243,7 +243,8 @@ proc check_sync_failover {} {
    shutdown_master_and_scheduler $ts_config(master_host) $spool_dir 
    set output [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 10"]
    set text [translate_macro MSG_GDI_UNABLE_TO_CONNECT_SUS "qmaster" "*" "*"]
-   if {[string match "*$text*" $output] == 0} {
+   set text2 [translate_macro MSG_GDI_CANT_SEND_MSG_TO_PORT_ON_HOST_SUSS "qmaster" "*" "*" "*"]
+   if {[string match "*$text*" $output] == 0 && [string match "*$text2*" $output] == 0} {
       append error_text "\"qconf -km before qsub -sync y\" FAILED due to an unexpected output\n"
       set error 1
    }
@@ -350,8 +351,9 @@ proc check_sync_failover {} {
    startup_qmaster 0
 
    # Qmaster down after qsub -sync y 
+   ts_log_fine "Qmaster down after qsub -sync y test"
    set id [open_remote_spawn_process $host $CHECK_USER \
-      "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 30" 1]
+      "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 120" 1]
  
    set output 0
    set recon 0
@@ -384,6 +386,10 @@ proc check_sync_failover {} {
       $text2 {
          ts_log_fine "Qsub output: Reconnected to qmaster."
          set recon 1
+      }
+      "_END_OF_FILE_" {
+         set error 1
+         append error_text "Could no reconnect to qmaster\n"
       }
    }
    
