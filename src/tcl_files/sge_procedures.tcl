@@ -2296,6 +2296,7 @@ proc get_config { change_array {host global} {atimeout 60}} {
 #                     the global configuration (global)
 #     {do_add 0}    - if 1: this is a new configuration, no old one exists)
 #     {raise_error} - raise error condition (1), or not (0)
+#     {do_reset 0}  - if 1: any existing parameter is removed if not in change_array
 #
 #  RESULT
 #     -1 : timeout
@@ -2352,25 +2353,39 @@ proc get_config { change_array {host global} {atimeout 60}} {
 #  SEE ALSO
 #     sge_procedures/get_config()
 #*******************************
-proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
+proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset 0}} {
    global env
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   upvar $change_array chgar
+   upvar $change_array chgar_orig
+
+   foreach elem [array names chgar_orig] {
+      set chgar($elem) $chgar_orig($elem)
+   }
+
    set values [array names chgar]
 
    # get old config - we want to compare it to new one
    if {$do_add == 0} {
       set qconf_cmd "-mconf"
-      get_config old_values $host
+      get_config current_values $host
+
+      if {$do_reset} {
+         # Any elem in current_values which should not be in new config
+         # have to be defined in new config as parameter with empty string
+         foreach elem [array names current_values] {
+            if {![info exists chgar($elem)]} {
+               set chgar($elem) ""
+            }
+         }
+      }
+      set vi_commands [build_vi_command chgar current_values]
    } else {
       set qconf_cmd "-aconf"
-      set old_values(xyz) "abc"
+      set vi_commands [build_vi_command chgar] 
    }
 
-   set vi_commands [build_vi_command chgar old_values]
-  
    set GIDRANGE [translate_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I "*"]
    set EDIT_FAILED [translate_macro MSG_PARSE_EDITFAILED]
    set master_arch [resolve_arch $ts_config(master_host)]
@@ -2397,6 +2412,35 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
    return $result
 }
 
+#****** sge_procedures/reset_config() ******************************************
+#  NAME
+#     reset_config() -- reset configuration to specified configuration
+#
+#  SYNOPSIS
+#     reset_config { change_array {host global} {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure sets the specified configuration values and removes 
+#     values which are additional set from the current config. The resulting
+#     config will reflect the set values in the specified array.
+#     
+#
+#  INPUTS
+#     change_array    - values to set
+#     {host global}   - hostname or "global" for global config
+#     {raise_error 1} - if 0: Do not report errors
+#
+#  RESULT
+#     return value of set_config()
+#
+#  SEE ALSO
+#     sge_procedures/set_config()
+#*******************************************************************************
+proc reset_config {change_array {host global} {raise_error 1}} {
+   upvar $change_array ch_array
+   return [set_config ch_array $host 0 $raise_error 1]
+}
+
 #****** sge_procedures/set_config_and_propagate() ******************************
 #  NAME
 #     set_config_and_propagate() -- set the config for the given host
@@ -2413,10 +2457,10 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
 #
 #  INPUTS
 #     config        - the configuration to set
-#     {host global} - the host for which the configuration should be set.  Defaults
-#               to global
+#     {host global} - the host for which the configuration should be set
+#     {do_reset 0}  - parameter used for set_config (do a reset if 1)
 #*******************************************************************************
-proc set_config_and_propagate {config {host global}} {
+proc set_config_and_propagate {config {host global} {do_reset 0}} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
    upvar $config my_config
@@ -2475,7 +2519,7 @@ proc set_config_and_propagate {config {host global}} {
       }
 
       # Make configuration change
-      set_config my_config $host
+      set_config my_config $host 0 1 $do_reset
 
       # choose a config to wait for
       # if it is an empty string (e.g. as we deleted an entry), use wildcards
@@ -2578,6 +2622,34 @@ proc set_config_and_propagate {config {host global}} {
          close_spawn_process $sp_tail_id_map($spawn_id)
       }
    }
+}
+
+#****** sge_procedures/reset_config_and_propagate() ****************************
+#  NAME
+#     reset_config_and_propagate() -- reset configuration to specified configuration
+#
+#  SYNOPSIS
+#     reset_config_and_propagate { config {host global} } 
+#
+#  FUNCTION
+#     This procedure sets the specified configuration values and removes 
+#     values which are additional set from the current config. The resulting
+#     config will reflect the set values in the specified array. It waits until
+#     all (specified) execds (global means all) have got the new config.
+#
+#  INPUTS
+#     config        - values to set
+#     {host global} - hostname or "global" for global config
+#
+#  RESULT
+#     return value of set_config_and_propagate()
+#
+#  SEE ALSO
+#     sge_procedures/set_config_and_propagate()
+#*******************************************************************************
+proc reset_config_and_propagate { config {host global} } {
+   upvar $config conf
+   return [set_config_and_propagate conf $host 1]
 }
 
 proc compare_complex {a b} {
@@ -3574,7 +3646,7 @@ proc get_spooled_jobs {} {
       set execute_host $ts_config(master_host)
       set spooldir [get_qmaster_spool_dir]
 
-      analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" dirs files permissions
+      analyze_directory_structure $execute_host $CHECK_USER "$spooldir/jobs" "" files ""
       foreach file $files {
          set job_id [file tail $file]
          lappend spooled_jobs_list [string trimleft $job_id "0"]

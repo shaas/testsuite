@@ -265,7 +265,7 @@ proc check_correct_testsuite_setup_user { error_text } {
 #     ???/???
 #*******************************************************************************
 proc build_vi_command { change_array {current_array ""}} {
-   upvar $change_array  chgar
+   upvar $change_array chgar
 
    if {$current_array != ""} {
       upvar $current_array curar

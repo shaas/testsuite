@@ -1,3 +1,13 @@
+CR-2009-05-05-0: Bugfix:     o analyze_directory_structure()
+                                Fixed problem when called by get_spooled_jobs()
+                                and qmaster is removing job from spool directory
+                                at the same time. (File not exists error)
+                 Enhancem.:  o Added new parameters for set_config() and 
+                               set_config_and_propagate(): reset
+                 Enhancem.:  o Added new procedures reset_config() and
+                               reset_config_and_propagate()
+                 Review:     SH
+
 DG-2009-04-29-0: Enhancem.:  Added test for issue 3015. 
                  Review:     CR
 
