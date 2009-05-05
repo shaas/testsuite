@@ -159,12 +159,10 @@ proc reschedule_setup {} {
    set schedd_config(schedule_interval) "0:0:4"
    set_schedd_config schedd_config
 
-   if {[info exists stored_configuration]} {
-      unset stored_configuration
-   }
    get_config stored_configuration
+
    set myconfig(load_report_time) "00:00:6"
-   set_config myconfig
+   set_config_and_propagate myconfig
 
    # disable the all.q
    foreach host $ts_config(execd_hosts) {
@@ -248,7 +246,7 @@ proc reschedule_cleanup {} {
    wait_for_end_of_all_jobs
 
    reset_schedd_config
-   set_config stored_configuration
+   reset_config_and_propagate stored_configuration
 
    ts_log_fine "removing checkpointobjects ..."
    del_ckpt "qmod_with_r"
@@ -990,7 +988,7 @@ proc reschedule_pe_jobs {} {
 proc reschedule_deleted_job {} {
    global ts_config
    global rerun_queue no_rerun_queue rerun_host no_rerun_host
-   global stored_configuration rerun_queue2
+   global rerun_queue2
    global pe_names pe_alloc_rule
 
    ts_log_fine "submitting job to queue $no_rerun_queue ..."

@@ -120,7 +120,7 @@ proc issue_2419_cleanup {} {
    wait_for_end_of_all_jobs
 
    # restore config
-   set_config_and_propagate issue_2419_backup
+   reset_config_and_propagate issue_2419_backup
 
    # delete queue and pe
    del_queue "tight" "" 1 1

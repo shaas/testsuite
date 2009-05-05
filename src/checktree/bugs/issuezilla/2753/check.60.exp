@@ -100,7 +100,7 @@ proc issue_2753_cleanup {} {
    wait_for_end_of_all_jobs
 
    # restore config
-   set_config issue_2753_backup
+   reset_config issue_2753_backup
 
    # unset our test's global variables
    foreach var "issue_2753_hosts issue_2753_backup" {

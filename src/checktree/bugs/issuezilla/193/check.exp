@@ -709,7 +709,7 @@ proc issue193_cleanup {} {
    trigger_scheduling
 
    reset_schedd_config
-   set_config stored_configuration
+   reset_config stored_configuration
    ts_log_fine "removing checkpointobjects ..."
    del_ckpt "qmod_with_r"
    del_ckpt "qmod_without_r"

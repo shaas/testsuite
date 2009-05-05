@@ -164,7 +164,7 @@ proc job_start_cleanup  {} {
 
    ts_log_fine "restoring original configuration ..."
    reset_schedd_config
-   set_config job_start_stored_configuration
+   reset_config job_start_stored_configuration
    
 
    del_pe tight_job_start

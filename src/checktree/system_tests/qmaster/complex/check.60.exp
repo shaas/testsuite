@@ -151,7 +151,10 @@ proc complex_setup {} {
    global ts_config CHECK_USER CHECK_ACT_LEVEL
    global complex_host
    global complex_global_host_backup complex_host_backup
+   global complex_global_config_backup
+  
 
+   get_config complex_global_config_backup
    set complex_host [host_conf_get_suited_hosts]
    ts_log_fine "using test host $complex_host"
 
@@ -186,7 +189,7 @@ proc complex_setup {} {
 
    # set global config params
    set new_config(load_report_time) "0:0:5"
-   set_config new_config
+   set_config_and_propagate new_config
 
    # enable immediate scheduling to speed up test
    set schedd_conf(flush_submit_sec) 1
@@ -201,6 +204,7 @@ proc complex_setup {} {
 proc complex_cleanup {} {
    global ts_config
    global complex_host complex_global_host_backup complex_host_backup
+   global complex_global_config_backup
 
    # cleanup
    delete_all_jobs
@@ -245,6 +249,8 @@ proc complex_cleanup {} {
          }
       }
    }
+
+   reset_config_and_propagate complex_global_config_backup
 }
 
 proc complex_loadsensor_test {} {
@@ -255,6 +261,7 @@ proc complex_loadsensor_test {} {
       # we install a loadsensor delivering the above complex attributes
       # backup host config and make sure, load_sensor gets deleted at restore
       get_config complex_old_config $complex_host
+      get_config complex_old_saved_config $complex_host
       if {![info exists complex_old_config(load_sensor)]} {
          set complex_old_config(load_sensor) "" 
       }
@@ -272,7 +279,7 @@ proc complex_loadsensor_test {} {
       } else {
          set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor_multihost.sh"
       }
-      set_config new_config $complex_host
+      set_config_and_propagate new_config $complex_host
 
       # wait for loadsensor to have effect
       set time 0
@@ -286,7 +293,7 @@ proc complex_loadsensor_test {} {
 
             # reset host complex, stop loadsensor
             ts_log_fine "resetting configuration for host $complex_host"
-            set_config complex_old_config $complex_host
+            reset_config complex_old_saved_config $complex_host
             return
          }
          set load_value_names ""
@@ -343,7 +350,7 @@ proc complex_loadsensor_test {} {
 
       # reset host complex, stop loadsensor
       ts_log_fine "resetting configuration for host $complex_host"
-      set_config complex_old_config $complex_host
+      reset_config complex_old_saved_config $complex_host
 
       # wait for loadsensor to be down
       set time 0

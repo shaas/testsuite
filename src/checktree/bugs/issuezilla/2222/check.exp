@@ -174,7 +174,7 @@ proc issue_2222_cleanup {} {
    reset_schedd_config
 
    # restore the global configuration
-   set_config_and_propagate config_backup $issue_2222_host
+   reset_config_and_propagate config_backup $issue_2222_host
 
    # enable all.q
    set queues {}

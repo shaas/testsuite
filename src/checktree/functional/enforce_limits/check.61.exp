@@ -224,7 +224,7 @@ proc enforce_limits_cleanup {} {
    del_queue loose.q "" 0 1
 
    # reset global config
-   set_config_and_propagate org_global_conf
+   reset_config_and_propagate org_global_conf
 
    # reset sched config
    reset_schedd_config

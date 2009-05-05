@@ -141,7 +141,7 @@ proc arco_dbwriter_job_log_cleanup  {} {
    set sqlutil_id ""
    set sqlutil_sp_id ""
    
-   if {[set_config arco_dbwriter_job_log_org_config] != 0} {
+   if {[reset_config arco_dbwriter_job_log_org_config] != 0} {
       ts_log_severe "Can not reset configuration"
       return -1
    }

@@ -1293,6 +1293,7 @@ proc qrsh_qsub_gid {} {
 
       # set parameter USE_QSUB_GID
       get_config config $host
+      get_config saved_config $host
       if {[info exists config(execd_params)]} {
          set execd_params $config(execd_params)
       } else {
@@ -1316,7 +1317,7 @@ proc qrsh_qsub_gid {} {
       # unset USE_QSUB_GID
       unset config
       set config(execd_params) $execd_params
-      set_config_and_propagate config $host
+      reset_config_and_propagate saved_config $host
    }
 
    wait_for_end_of_all_jobs

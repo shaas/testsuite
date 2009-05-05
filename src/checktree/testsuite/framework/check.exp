@@ -1,0 +1,143 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# level initialization procedure:
+set check_init_level_procedure "test_framework_init_level"
+
+# test's name and run level descriptions
+set check_name            "test_framework"
+set check_category        "FRAMEWORK VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check testsuite framework functions"
+
+# test's dependencies
+set check_needs           "init_core_system" 
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions   "test_framework_set_config"
+
+proc test_framework_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+proc test_framework_set_config {} {
+   global ts_config
+
+   set error_text ""
+   ts_log_fine "testing set_config() from testsuite framework when used to restore configs ..."
+  
+   set host $ts_config(master_host)
+   get_config orig $host
+
+   
+
+   set new_config(blub) "blab"
+   set_config new_config $host
+
+   get_config test1 $host
+
+   if {![info exists test1(xterm)]} {
+      append error_text "parameter xterm should be set for $host\n"
+   }
+
+   if {![info exists test1(blub)]} {
+      append error_text "new parameter not set (Error A)\n"
+   } else {
+      if {$test1(blub) != "blab"} {
+         append error_text "new parameter \"blub\" not set to \"blab\" (Error B)\n"
+      }
+   }
+
+   set new_config(blub) "blabber"
+   set_config new_config $host
+   get_config test1 $host
+   if {![info exists test1(blub)]} {
+      append error_text "changed parameter not set (Error C)\n"
+   } else {
+      if {$test1(blub) != "blabber"} {
+         append error_text "changed parameter \"blub\" not set to \"blabber\" (Error D)\n"
+      }
+   }
+
+
+   reset_config orig $host
+   get_config restored $host
+   if {[info exists restored(blub)]} {
+      append error_text "resetting stored original config doesn't work:\n"
+      append error_text "=> parameter blub should not be in reset config\n"
+      append error_text "=> removing parameter blub from host config for $host\n"
+      set new_config(blub) ""
+      set_config new_config $host
+   }
+ 
+   foreach elem [array names orig] {
+      ts_log_fine "examine parameter \"$elem\" ..."
+      if {![info exists restored($elem)]} {
+         append error_text "original parameter \"$elem\" not found in restored config!\n"
+      } else {
+         if {$orig($elem) != $restored($elem)} {
+            append error_text "original parameter \"$elem\" was set to \"$orig($elem)\", but restored value is \"$restored($elem)\"\n"
+         }
+      }
+   }
+
+   if {[list length [array names orig]] != [list length [array names restored]]} {
+      append error_text "list length mismatch error"
+   }
+
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}

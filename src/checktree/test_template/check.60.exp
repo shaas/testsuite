@@ -129,8 +129,11 @@ proc __TESTSUITE_TEST_NAME_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   # restore config
-   set_config __TESTSUITE_TEST_NAME_backup
+   # restore config if there were execd config modifications
+   # reset_config_and_propagate __TESTSUITE_TEST_NAME_backup
+
+   # standard reset config
+   reset_config __TESTSUITE_TEST_NAME_backup
 
    # unset our test's global variables
    foreach var "__TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup" {

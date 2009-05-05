@@ -87,22 +87,22 @@ proc schedd_reconnect_init_level {} {
 proc schedd_reconnect_setup  {} {
    global ts_config
    global schedd_reconnect_test_globals
+   global schedd_reconnect_saved_config
 
+   get_config schedd_reconnect_saved_config
    if {[info exists schedd_reconnect_test_globals]} {
       unset schedd_reconnect_test_globals
    }
 
-   get_config help
-   set schedd_reconnect_test_globals(org_qmaster_params) $help(qmaster_params)
    set schedd_reconnect_test_globals(restart_master) true
 }
 
 proc schedd_reconnect_cleanup  {} {
    global ts_config
    global schedd_reconnect_test_globals
+   global schedd_reconnect_saved_config
 
-   set my_config(qmaster_params) $schedd_reconnect_test_globals(org_qmaster_params)
-   set_config my_config
+   reset_config schedd_reconnect_saved_config
 
    if {$schedd_reconnect_test_globals(restart_master) == true} {
       set spooldir [get_qmaster_spool_dir]

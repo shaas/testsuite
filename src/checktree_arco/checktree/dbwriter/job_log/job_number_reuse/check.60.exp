@@ -119,7 +119,6 @@ proc arco_dbwriter_job_log_reuse_setup  {} {
    
    ts_log_fine "sqlutil created ($sqlutil_id)"
    
-   array set arco_dbwriter_job_log_reuseorg_config {}
    get_config arco_dbwriter_job_log_reuseorg_config
    
    return 0
@@ -141,12 +140,7 @@ proc arco_dbwriter_job_log_reuse_cleanup  {} {
    set sqlutil_id ""
    set sqlutil_sp_id ""
    
-   set_config arco_dbwriter_job_log_reuseorg_config
-   if { [set_config config] != 0 } {
-      ts_log_severe "Can not reset configuration"
-      return -1
-   }
-   
+   reset_config arco_dbwriter_job_log_reuseorg_config
 }
 
 # -------- local test procedures: test methods ---------------------------------
@@ -189,15 +183,8 @@ proc arco_dbwriter_job_log_reuse_execute {} {
       }
    }
    
-   array set config {}
-   get_config config
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=$joblog sharelog=00:10:00"
-   
    set_config config
-   if { [set_config config] != 0 } {
-      ts_log_severe "Can not set reporting_params"
-      return -1
-   }
    
 
    if { [shutdown_dbwriter] != 0 } {

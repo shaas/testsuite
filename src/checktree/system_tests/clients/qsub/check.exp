@@ -215,7 +215,7 @@ proc qsub_cleanup {} {
    if {$ts_config(gridengine_version) >= 60} {
       reset_schedd_config
    }
-   set_config stored_configuration
+   reset_config stored_configuration
 
    # unset our test global variables
    foreach var "stored_configuration job_output_dir test_host default_args default_q_args default_h_args steps_per_queue size_interval HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE" {

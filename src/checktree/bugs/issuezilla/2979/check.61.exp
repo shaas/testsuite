@@ -99,7 +99,7 @@ proc issue_2979_cleanup {} {
    wait_for_end_of_all_jobs
 
    # restore config
-   set_config_and_propagate issue_2979_backup
+   reset_config_and_propagate issue_2979_backup
    
    # unset our test's global variables
    foreach var "issue_2979_hosts issue_2979_backup" {

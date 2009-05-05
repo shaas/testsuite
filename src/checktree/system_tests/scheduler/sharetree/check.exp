@@ -552,7 +552,7 @@ proc share_tree_cleanup  {} {
    del_project "project3"
 
    # reset configuration
-   set_config sharetree_stored_configuration
+   reset_config sharetree_stored_configuration
 }
 
 

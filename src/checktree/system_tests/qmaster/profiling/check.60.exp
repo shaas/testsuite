@@ -93,7 +93,7 @@ proc qmaster_profiling_cleanup  {} {
    global global_config
 
    ts_log_fine "reset global config"
-   set_config global_config
+   reset_config global_config
 }
 
 proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {

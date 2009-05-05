@@ -198,7 +198,7 @@ proc submit_del_cleanup  {} {
 
 
    if {$ts_config(gridengine_version) == 53} {
-      set_config submit_del_qconfig
+      reset_config submit_del_qconfig
    } else {
       reset_schedd_config
    }

@@ -141,7 +141,7 @@ proc drmaa_cleanup  {} {
    wait_for_end_of_all_jobs 60
 
    # undo configuration changes that were made for this test
-   set_config drmaa_config
+   reset_config drmaa_config
 
    # delete suspendable_sleeper.sh output file(s)
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$env(HOME)/suspendable_sleeper.sh.*"]

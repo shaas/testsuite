@@ -1,3 +1,8 @@
+CR-2009-05-05-1: Bugfix:     o fixed wrong usage of set_config() and
+                               set_config_and_propagater() in various tests
+                 Enhancem.:  o added new testsuite test "test_framework"
+                 Review:     SH            
+
 RH-2009-05-05-0: Bugfix:     Hedeby: 
                              o file_permission test fixed and reworked
                              o parse_table_output ignores log messages of sdmadm commands

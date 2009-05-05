@@ -132,10 +132,7 @@ proc arco_dbwriter_performance_setup  {} {
    get_config arco_dbwriter_performance_org_config
    
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=true sharelog=00:10:00"
-   if {[set_config config] != 0} {
-      ts_log_severe "Can not set reporting_params"
-      return -1
-   }
+   set_config config
    
    # setup some projects
    add_project "project0"
@@ -160,10 +157,7 @@ proc arco_dbwriter_performance_cleanup  {} {
    set sqlutil_id ""
    set sqlutil_sp_id ""
    
-   if {[set_config arco_dbwriter_performance_org_config] != 0} {
-      ts_log_severe "Can not reset configuration"
-      return -1
-   }
+   reset_config arco_dbwriter_performance_org_config
    
    del_project "project0"
    del_project "project1"

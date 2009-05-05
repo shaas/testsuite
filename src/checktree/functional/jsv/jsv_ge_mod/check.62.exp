@@ -181,7 +181,7 @@ proc jsv_ge_mod_setup_level {} {
    get_config jsv_org_global_conf
    set global_conf(load_report_time) "00:00:04"
    set global_conf(max_unheard) "00:00:15"
-   set_config global_conf
+   set_config_and_propagate global_conf
 
    # change schedd config
    set sched_conf(flush_submit_sec) "1"
@@ -214,7 +214,7 @@ proc jsv_ge_mod_cleanup_level {} {
    wait_for_end_of_all_jobs 60
 
    # reset configurations
-   set_config jsv_org_global_conf
+   reset_config_and_propagate jsv_org_global_conf
    reset_schedd_config
 
    # delete pe and ckpt

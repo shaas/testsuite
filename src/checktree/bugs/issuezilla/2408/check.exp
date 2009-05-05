@@ -111,7 +111,7 @@ proc issue_2408_cleanup {} {
    global HGRP_NAME QUEUE_NAME
 
    # restore config
-   set_config issue_2408_backup
+   reset_config issue_2408_backup
 
    # unset our test's global variables
    foreach var "issue_2408_hosts issue_2408_backup" {

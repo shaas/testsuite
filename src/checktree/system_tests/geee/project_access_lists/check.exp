@@ -186,7 +186,7 @@ proc project_access_lists_cleanup {} {
    # restore hosts and configurations
    set_exechost  project_access_lists_host_conf $project_access_lists_host 
    set_exechost  project_access_lists_global_host_conf "global"
-   set_config    project_access_lists_cluster_conf
+   reset_config_and_propagate project_access_lists_cluster_conf
    set_schedd_config project_access_lists_schedd_conf
 
    # enable all.q

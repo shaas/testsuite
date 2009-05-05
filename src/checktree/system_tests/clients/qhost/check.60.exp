@@ -94,7 +94,7 @@ proc qhost_setup {} {
 
 proc qhost_cleanup {} {
    global my_qhost_config_saved_value
-   set_config_and_propagate my_qhost_config_saved_value
+   reset_config_and_propagate my_qhost_config_saved_value
 }
 
 proc qhost_issue1306 {} {

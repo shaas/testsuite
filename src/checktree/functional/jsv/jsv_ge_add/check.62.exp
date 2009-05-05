@@ -201,7 +201,7 @@ proc jsv_ge_add_setup {} {
    set global_conf(load_report_time) "00:00:04"
    set global_conf(max_unheard) "00:00:15"
    set global_conf(jsv_url) "script:${jsv_base_path}/jsv.sh"   
-   set_config global_conf
+   set_config_and_propagate global_conf
 
    # change schedd config
    set sched_conf(flush_submit_sec) "1"
@@ -227,7 +227,7 @@ proc jsv_ge_add_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # reset configurations
-   set_config jsv_org_global_conf
+   reset_config_and_propagate jsv_org_global_conf
    reset_schedd_config
 
    # delete queue, pe and ckpt

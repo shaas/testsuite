@@ -151,7 +151,7 @@ proc issue_2372_cleanup {} {
    # restore config
    ts_log_fine "restarting qmaster and restore default settings"
    startup_qmaster 0
-   set_config issue_2372_backup
+   reset_config issue_2372_backup
    shutdown_system_daemon $ts_config(master_host) qmaster
 
    ts_log_fine "restarting qmaster and scheduler with default settings"

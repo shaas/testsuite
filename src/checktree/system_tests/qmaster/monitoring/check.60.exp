@@ -121,7 +121,7 @@ proc qmaster_monitoring_cleanup  {} {
    global global_config
 
    ts_log_fine "reset global config"
-   set_config global_config
+   reset_config global_config
 }
 
 

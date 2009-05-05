@@ -93,7 +93,7 @@ proc cluster_config_setup {} {
 proc cluster_config_cleanup {} {
    global config_backup
 
-   set_config config_backup   
+   reset_config config_backup   
 }
 
 

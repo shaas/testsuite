@@ -177,13 +177,16 @@ proc consumable_resources_setup {} {
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
    global consumable_complex_backup
+   global consumable_host_config_setup
 
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup
-
+   
    set consumable_resources_test_hosts [host_conf_get_suited_hosts 2]
    set consumable_resources_saved_slot_count ""
-
+   set host_a [lindex $consumable_resources_test_hosts 0]
+   get_config consumable_host_config_setup $host_a
+   
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
       lappend queue_list [get_queue_instance "all.q" $host]
@@ -214,10 +217,12 @@ proc consumable_resources_cleanup {} {
    global ts_config
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
-   global consumable_complex_backup
+   global consumable_complex_backup 
+   global consumable_host_config_setup
 
    delete_all_jobs
    wait_for_end_of_all_jobs
+   set host_a [lindex $consumable_resources_test_hosts 0]
 
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
@@ -242,6 +247,8 @@ proc consumable_resources_cleanup {} {
 
    # we changed the schedd config - reset to defaults
    reset_schedd_config
+
+   reset_config_and_propagate consumable_host_config_setup $host_a 
 }
 
 # Issue: 1306, Bugster: 6287862 - qhost -l for complexes broken

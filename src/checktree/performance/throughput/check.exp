@@ -786,7 +786,7 @@ proc throughput_cleanup_level {} {
 
    # reset configurations
    reset_schedd_config
-   set_config stored_configuration
+   reset_config_and_propagate stored_configuration
 
    # remove pe
    if {$parallel_jobs || $reservation} {

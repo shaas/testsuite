@@ -122,7 +122,7 @@ proc issue_2967_cleanup {} {
    del_queue $QUEUE_WITH_CKPT_NAME $issue_2967_hosts 1 1
 
    # restore config
-   set_config issue_2967_backup
+   reset_config issue_2967_backup
 
    # unset our test's global variables
    foreach var "issue_2967_hosts issue_2967_backup" {

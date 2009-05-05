@@ -119,7 +119,7 @@ proc accounting_cleanup {} {
    wait_for_end_of_all_jobs
 
    # restore config
-   set_config accounting_backup
+   reset_config accounting_backup
 
    # unset our test's global variables
    if {[info exists "accounting_backup"]} {

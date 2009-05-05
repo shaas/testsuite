@@ -2369,9 +2369,9 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset
    # get old config - we want to compare it to new one
    if {$do_add == 0} {
       set qconf_cmd "-mconf"
-      get_config current_values $host
+      set config_return [get_config current_values $host]
 
-      if {$do_reset} {
+      if {$do_reset && $config_return == 0} {
          # Any elem in current_values which should not be in new config
          # have to be defined in new config as parameter with empty string
          foreach elem [array names current_values] {

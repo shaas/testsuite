@@ -102,7 +102,7 @@ proc qacct_cleanup {} {
 
    if {$ts_config(gridengine_version) != 53} {
       set new_config(reporting_params) $qacct_reporting_backup
-      set_config new_config
+      reset_config new_config
    }
 }
 

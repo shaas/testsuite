@@ -130,7 +130,7 @@ proc issue_2202_cleanup {} {
    }
 
    # restore global config
-   set_config backup_config
+   reset_config backup_config
 }
 
 

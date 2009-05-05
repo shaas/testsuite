@@ -138,7 +138,7 @@ proc issue_1803_cleanup {} {
 
    ts_log_fine "restoring original configuration ..."
    reset_schedd_config
-   set_config_and_propagate issue_1803_stored_configuration
+   reset_config_and_propagate issue_1803_stored_configuration
 
    set my_conf(prolog) "none"
    set my_conf(epilog) "none"

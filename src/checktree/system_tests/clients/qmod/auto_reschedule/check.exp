@@ -206,10 +206,6 @@ proc auto_reschedule_setup {} {
    set schedd_config(schedule_interval) "00:00:04"
    set_schedd_config schedd_config
 
-   if {[info exists stored_configuration]} {
-      unset stored_configuration
-   }
-
    get_config stored_configuration
    get_config tmp_config $auto_reschedule_host2
    if {![info exists tmp_config(execd_spool_dir)]} {
@@ -242,9 +238,6 @@ proc auto_reschedule_setup {} {
    ts_log_fine "changed global config"
 
    get_config stored_auto_reschedule_host1_config $auto_reschedule_host1
-   if {[info exists stored_auto_reschedule_host1_config(reschedule_unknown)] != 1} {
-      set stored_auto_reschedule_host1_config(reschedule_unknown) ""
-   }
    set myhostconfig(reschedule_unknown) "00:00:30"
    set_config myhostconfig $auto_reschedule_host1
 
@@ -295,8 +288,8 @@ proc auto_reschedule_cleanup {} {
    set tail_id [open_remote_spawn_process $auto_reschedule_host2 $CHECK_USER "/usr/bin/tail" "-f $messages_name"]
    set sp_id [lindex $tail_id 1] 
    
-   set_config stored_configuration
-   set_config stored_auto_reschedule_host1_config $auto_reschedule_host1
+   reset_config_and_propagate stored_configuration
+   reset_config_and_propagate stored_auto_reschedule_host1_config $auto_reschedule_host1
 
    ts_log_fine "removing queues ..."
    del_queue queue1 $auto_reschedule_host1 0 1

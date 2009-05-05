@@ -197,7 +197,7 @@ proc tight_integration_cleanup {} {
    global ts_config
    global tight_global_config
 
-   set_config_and_propagate tight_global_config
+   reset_config_and_propagate tight_global_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -526,7 +526,7 @@ proc tight_integration_iz_1916 {} {
    get_config org_global_conf
    set global_conf(load_report_time) "00:00:01"
    set global_conf(max_unheard) "00:00:45"
-   set_config global_conf
+   set_config_and_propagate global_conf
   
    # start job 
 
@@ -603,7 +603,7 @@ proc tight_integration_iz_1916 {} {
    tight_integration_messages_check reschedule_test 1
 
    # reset global config
-   set_config org_global_conf
+   reset_config_and_propagate org_global_conf
 }
 
 # check if tasks are killed when they hit a wallclock limit

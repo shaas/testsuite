@@ -90,7 +90,7 @@ proc issue_2183_cleanup {} {
    global ts_config
    global config_backup
 
-   set_config config_backup
+   reset_config config_backup
 }
 
 proc issue_2183_test {} {

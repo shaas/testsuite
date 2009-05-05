@@ -1686,6 +1686,7 @@ proc qdel_force {} {
    # now restart execd
    startup_execd $qdel_host
    wait_for_load_from_all_queues 300
+   reset_config_and_propagate saved_array
 }
 
 #****** qdel/qdel_delete_large_task() ******

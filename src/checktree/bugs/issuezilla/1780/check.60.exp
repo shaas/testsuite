@@ -134,7 +134,7 @@ proc issue_1780_run  {} {
    ts_log_fine "the time qconf took to add 3000 hosts was $total_time seconds "
    
    if {$exit_code != 0} {
-      ts_log_severe "qconf -Mconf with huge amout of host entries broken:\n$result"
+      ts_log_severe "qconf -Aq with huge amout of host entries broken:\n$result"
    }
    
    set qstat_timeout 10

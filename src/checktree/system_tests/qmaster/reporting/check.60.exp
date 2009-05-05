@@ -173,8 +173,8 @@ proc reporting_cleanup {} {
    global reporting_old_config_test_host
 
    # restore old config
-   set_config reporting_old_config
-   set_config_and_propagate reporting_old_config_test_host $reporting_test_host
+   reset_config reporting_old_config
+   reset_config_and_propagate reporting_old_config_test_host $reporting_test_host
    set_exechost reporting_old_exechost $reporting_test_host
    reset_schedd_config
 

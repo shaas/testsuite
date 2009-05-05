@@ -103,8 +103,7 @@ proc SGE_Helper_Service_setup {} {
    ts_log_fine "using $host as test host"
 
    # set the accounting_flush_time to 0 to speedup writing of accounting info
-   get_config old_config
-   set qacct_reporting_backup $old_config(reporting_params)
+   get_config qacct_reporting_backup
    set new_config(reporting_params) "accounting_flush_time=00:00:00"
    set_config new_config
 
@@ -120,8 +119,7 @@ proc SGE_Helper_Service_cleanup  {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   set new_config(reporting_params) $qacct_reporting_backup
-   set_config new_config
+   reset_config qacct_reporting_backup
 
    if {$SGE_Helper_Service_was_running == 0} {
       # stop "N1 Grid Engine Helper Service" again on the exec host.

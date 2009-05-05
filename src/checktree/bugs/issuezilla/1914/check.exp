@@ -107,7 +107,7 @@ proc issue_1914_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
    del_queue $test_queue $test_host 0 1
-   set_config_and_propagate backup_config $test_host
+   reset_config_and_propagate backup_config $test_host
 }
 
 proc issue_1914_submit_test_job {job_type host user test_path} {

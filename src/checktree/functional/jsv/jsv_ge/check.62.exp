@@ -188,7 +188,7 @@ proc jsv_ge_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # reset configurations
-   set_config jsv_org_global_conf
+   reset_config_and_propagate jsv_org_global_conf
    reset_schedd_config
 
    # unset our test's global variables

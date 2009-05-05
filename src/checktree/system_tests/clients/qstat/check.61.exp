@@ -431,6 +431,6 @@ proc test_qstat_j_xml {} {
       wait_for_enter
    }
    delete_all_jobs 
-   set_config_and_propagate stored_configuration $host
+   reset_config_and_propagate stored_configuration $host
 }
 

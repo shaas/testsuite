@@ -222,7 +222,9 @@ proc qmaster_size_setup {} {
    global time_start MONITOR_SIZE_FILENAME
    global CHECK_ACT_LEVEL CHECK_PROTOCOL_DIR
    global qmaster_spool_dir
-   global ts_config
+   global ts_config config_backup
+
+   get_config config_backup
 
    # create an additional interactive only queue
    # This verifies IZ 1087
@@ -760,11 +762,8 @@ proc check_flood {} {
 
 proc check_size_config {} {
    global ts_config
-   global config_backup
 
    upvar SCHEDULE_INTERVAL        schedule_interval
-
-   get_config config_backup
 
    if { $ts_config(gridengine_version) == 53 } {
       set new_config(schedd_params) "flush_submit_sec=0,flush_finish_sec=0"
@@ -855,7 +854,7 @@ proc qmaster_size_cleanup {} {
 
    reset_schedd_config
 
-   set_config config_backup
+   reset_config config_backup
 
    del_queue interactive "" 0 1
 

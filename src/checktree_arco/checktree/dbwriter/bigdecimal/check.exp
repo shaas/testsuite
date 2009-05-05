@@ -168,7 +168,7 @@ proc bigdecimal_cleanup {} {
    set sqlutil_sp_id ""
 
    # restore config
-   set_config bigdecimal_backup
+   reset_config bigdecimal_backup
 
    del_queue $Queue_Name1 "" 1 1
    del_queue $Queue_Name2 "" 1 1

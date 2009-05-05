@@ -228,7 +228,7 @@ proc usage_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # reset config
-   set_config_and_propagate saved_config
+   reset_config_and_propagate saved_config
 
    reset_schedd_config;
    

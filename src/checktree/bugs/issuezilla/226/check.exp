@@ -109,8 +109,6 @@ proc issue_226_cleanup  {} {
    global ts_config stored_configuration
 
    # reset saved configuration
-   if {[info exists stored_configuration]} {
-      set_config stored_configuration
-   }
+   reset_config stored_configuration
 }
 

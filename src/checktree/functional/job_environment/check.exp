@@ -149,7 +149,7 @@ proc job_environment_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   set_config_and_propagate job_environment_config $job_environment_exec_host
+   reset_config_and_propagate job_environment_config $job_environment_exec_host
 
    if {$ts_config(gridengine_version) >= 60} {
       job_environment_cleanup_60

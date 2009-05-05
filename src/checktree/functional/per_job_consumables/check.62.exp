@@ -85,14 +85,10 @@ proc per_job_consumables_init_level {} {
 
 proc per_job_consumables_setup {} {
    global job_consumables_hosts 
-   global global_backup host1_backup host2_backup
    global job_args ar_args
    
    set job_consumables_hosts [host_conf_get_suited_hosts 3]
 
-   get_config global_backup
-   get_config host1_backup [lindex $job_consumables_hosts 0]
-   get_config host2_backup [lindex $job_consumables_hosts 1]
 
    set pe(slots)             "999"
    set pe(allocation_rule)   "\$round_robin"
@@ -123,15 +119,11 @@ proc per_job_consumables_setup {} {
 }
 
 proc per_job_consumables_cleanup {} {
-   global global_backup host1_backup host2_backup
    global job_consumables_hosts
  
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   set_config global_backup
-   set_config host1_backup [lindex $job_consumables_hosts 0]
-   set_config host2_backup [lindex $job_consumables_hosts 1]
 
    del_pe "round_robin"
    del_pe "fill_up"

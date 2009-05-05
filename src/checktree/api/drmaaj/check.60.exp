@@ -1119,7 +1119,7 @@ proc drmaaj_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # undo configuration changes that were made for this test
-   set_config drmaaj_config
+   reset_config drmaaj_config
 
    # restore DRMAA library version
    foreach host $hosts_in_runlevel {
