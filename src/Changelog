@@ -1,3 +1,10 @@
+RH-2009-05-05-0: Bugfix:     Hedeby: 
+                             o file_permission test fixed and reworked
+                             o parse_table_output ignores log messages of sdmadm commands
+                             o global variable install_user removed from install test 
+                 Review:     TB
+
+
 RD-2009-05-05-0: Enhancem.:  improved througput test to use lesser CPU time
                              during measurement
                  Review:     CR

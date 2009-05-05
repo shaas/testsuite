@@ -3036,6 +3036,11 @@ proc parse_table_output { output array_name delemitter } {
    for {set i 0} {$i<[llength $lines]} {incr i 1} {
       set line [lindex $lines $i]
       ts_log_finest "$line"
+
+      if {[regexp "^(ERROR|WARNING|DEBUG):" $line]} {
+         ts_log_fine "Skipping log message: $line"
+         continue
+      }
       
       if { $header_line == "" } {
          # still searching for header containing delemiter

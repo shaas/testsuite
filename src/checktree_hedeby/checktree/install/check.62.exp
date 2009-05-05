@@ -84,26 +84,19 @@ proc hedeby_install_init_level {} {
 }
 
 proc hedeby_install_setup {} {
-   global CHECK_OUTPUT
    global install_current_cluster_config
-   global install_user
 
    set install_current_cluster_config [get_current_cluster_config_nr]
 
-   set install_user [get_hedeby_startup_user]
-
    # print out system information:
-   puts $CHECK_OUTPUT "======================================="
-   puts $CHECK_OUTPUT "sys_name:          [get_hedeby_system_name]"
-   puts $CHECK_OUTPUT "installation mode: [get_hedeby_pref_type]"
-   puts $CHECK_OUTPUT "admin user:        [get_hedeby_admin_user]"
-   puts $CHECK_OUTPUT "======================================="
-
-
+   ts_log_fine "======================================="
+   ts_log_fine "sys_name:          [get_hedeby_system_name]"
+   ts_log_fine "installation mode: [get_hedeby_pref_type]"
+   ts_log_fine "admin user:        [get_hedeby_admin_user]"
+   ts_log_fine "======================================="
 }
 
 proc hedeby_install_cleanup {} {
-   global CHECK_OUTPUT
    global install_current_cluster_config 
 
    # set the current cluster config to the one used when starting
@@ -131,14 +124,14 @@ proc hedeby_setup_slos {} {
 }
 
 proc hedeby_startup_ge_services {} {
-   global CHECK_OUTPUT
    global hedeby_config
-   global install_user
    global install_current_cluster_config
  
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
+
+   set install_user [get_hedeby_startup_user]
 
    set ge_hosts [get_hedeby_default_services service_names]
    ts_log_fine "got following GE hosts: $ge_hosts"
@@ -173,9 +166,7 @@ proc hedeby_startup_ge_services {} {
 
 proc hedeby_add_ge_services {} {
    global hedeby_config
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    global install_current_cluster_config
-   global install_user
 
    # first calculate spooldirs
    set ge_hosts [get_hedeby_default_services service_names]
@@ -240,12 +231,12 @@ proc hedeby_remove_preferences {} {
 }
 
 proc hedeby_install_master_host {} {
-   global CHECK_OUTPUT
    global hedeby_config
-   global install_user
    global certificate_creation_time_on_master_host
 
-   puts $CHECK_OUTPUT "installing hedeby master host on host \"$hedeby_config(hedeby_master_host)\""
+   set install_user [get_hedeby_startup_user]
+
+   ts_log_fine "installing hedeby master host on host \"$hedeby_config(hedeby_master_host)\""
 
    # first we make sure to work on the first cluster config
    set_current_cluster_config_nr 0
@@ -280,20 +271,20 @@ proc hedeby_install_master_host {} {
    # ssl disabled
    set ssl_disabled $hedeby_config(security_disable)
 
-   puts $CHECK_OUTPUT "==Install params==========================="
-   puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
-   puts $CHECK_OUTPUT "dist_path:        $dist_path" 
-   puts $CHECK_OUTPUT "spool_dir:        $spool_dir"
-   puts $CHECK_OUTPUT "cs_port:          $cs_port"
-   puts $CHECK_OUTPUT "sge_root:         $sge_root"
-   puts $CHECK_OUTPUT "   ca_admin_mail: $ca_admin_mail"
-   puts $CHECK_OUTPUT "   ca_location:   $ca_location"
-   puts $CHECK_OUTPUT "   ca_country:    $ca_country"
-   puts $CHECK_OUTPUT "   ca_org:        $ca_org"
-   puts $CHECK_OUTPUT "   ca_org_unit:   $ca_org_unit"
-   puts $CHECK_OUTPUT "   ca_state:      $ca_state"
-   puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
-   puts $CHECK_OUTPUT "======================================="
+   ts_log_fine "==Install params==========================="
+   ts_log_fine "sdmadm_path:      $sdmadm_path"
+   ts_log_fine "dist_path:        $dist_path" 
+   ts_log_fine "spool_dir:        $spool_dir"
+   ts_log_fine "cs_port:          $cs_port"
+   ts_log_fine "sge_root:         $sge_root"
+   ts_log_fine "   ca_admin_mail: $ca_admin_mail"
+   ts_log_fine "   ca_location:   $ca_location"
+   ts_log_fine "   ca_country:    $ca_country"
+   ts_log_fine "   ca_org:        $ca_org"
+   ts_log_fine "   ca_org_unit:   $ca_org_unit"
+   ts_log_fine "   ca_state:      $ca_state"
+   ts_log_fine "ssl disabled:     $ssl_disabled"
+   ts_log_fine "======================================="
 
    # install new system ...
    set arguments "-s $hedeby_system_name\
@@ -319,7 +310,7 @@ proc hedeby_install_master_host {} {
 
    set install_master_output [sdmadm_command $hedeby_config(hedeby_master_host) $install_user $arguments]
    if { $prg_exit_state != 0 } {
-      add_proc_error "hedeby_install_master_host" -1 "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"
+      ts_log_severe "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"
    }
    # save certificate creation time to be able to check if the certs are 
    # valid on remote managed hosts when installing manages hosts later
@@ -328,10 +319,9 @@ proc hedeby_install_master_host {} {
 
 
 proc hedeby_startup_master_host {} {
-   global CHECK_OUTPUT
    global hedeby_config
-   global install_user
 
+   set install_user [get_hedeby_startup_user]
    if { [startup_hedeby_hosts "master" $hedeby_config(hedeby_master_host) $install_user] != 0} {
       add_proc_error "hedeby_startup_master_host" -2 "error starting master host \"$hedeby_config(hedeby_master_host)\"!\nSkip hard here."
       return
@@ -340,9 +330,9 @@ proc hedeby_startup_master_host {} {
 
 
 proc hedeby_startup_managed_hosts {} {
-   global CHECK_OUTPUT
    global hedeby_config
-   global install_user
+
+   set install_user [get_hedeby_startup_user]
 
    startup_hedeby_hosts "managed" [get_all_movable_resources] $install_user
 }
@@ -372,10 +362,10 @@ proc hedeby_startup_managed_hosts {} {
 #
 #*******************************************************************************
 proc hedeby_install_managed_hosts { { host_list "" } { error_text_var ""} } {
-   global CHECK_OUTPUT
    global hedeby_config
-   global install_user
    global certificate_creation_time_on_master_host
+
+   set install_user [get_hedeby_startup_user]
 
    if { $error_text_var != "" } {
       upvar $error_text_var error_text
@@ -444,13 +434,18 @@ proc hedeby_install_managed_hosts { { host_list "" } { error_text_var ""} } {
       wait_for_remote_file $managed_host $install_user $admin_keystore_file
       wait_for_remote_file $managed_host $install_user $ca_file
 
-      # check that managed host time is older than creation time of certificates ...
-      set local_time [get_remote_time $managed_host]
-      while { $local_time < $certificate_creation_time_on_master_host } {
-         set time_diff [expr ( $local_time - $certificate_creation_time_on_master_host )]
-         ts_log_finest "time difference between certificate creation time on master host \"$hedeby_config(hedeby_master_host)\" and managed host \"$managed_host\": $time_diff"
-         after 2000
+      # If the method is used standalone (outside from the hedeby install test)
+      # the global variable is not set
+      # => In this case it is assumed that the certificates are already valid
+      if {[info exists certificate_creation_time_on_master_host]} {
+         # check that managed host time is older than creation time of certificates ...
          set local_time [get_remote_time $managed_host]
+         while { $local_time < $certificate_creation_time_on_master_host } {
+            set time_diff [expr ( $local_time - $certificate_creation_time_on_master_host )]
+            ts_log_finest "time difference between certificate creation time on master host \"$hedeby_config(hedeby_master_host)\" and managed host \"$managed_host\": $time_diff"
+            after 2000
+            set local_time [get_remote_time $managed_host]
+         }
       }
    }
 

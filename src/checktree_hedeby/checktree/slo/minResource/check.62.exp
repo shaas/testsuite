@@ -319,7 +319,7 @@ proc min_resource_check {} {
    }
 
    ####################################################################################################
-   # step 2: examine OS names and availabe services
+   # step 2: examine OS names and available services
    #
    #   sets up:
    #     this(os,X) - the architecture for service X (A or B)

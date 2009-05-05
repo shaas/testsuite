@@ -46,20 +46,32 @@ set check_category               "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)         "check hedeby install file permissions after installation"
 set check_needs                  "hedeby_install"
 set check_highest_level          0 
-set check_init_level_procedure   "file_permissions_init_level"
+set check_init_level_procedure   "hedeby_file_permissions_init_level"
 set check_functions              {}  ;# functions to call (in order)
-set check_setup_function "file_permissions_setup"
-set check_cleanup_function "file_permissions_cleanup"
+set check_setup_function "hedeby_file_permissions_setup"
+set check_cleanup_function "hedeby_file_permissions_cleanup"
 
 lappend check_functions "hedeby_check_master_host_file_permissions"
-lappend check_functions "hedeby_check_managed_host_file_permissions"
+lappend check_functions "hedeby_file_permissions_check_managed_host"
 
 
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 
-proc file_permissions_init_level {} {
+#****** hedeby_file_permissions_init_level() **************************
+#  NAME
+#     hedeby_file_permissions_init_level() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_init_level { } 
+#
+#  FUNCTION
+#
+#     This test supports only level 0
+#
+#*******************************************************************************
+proc hedeby_file_permissions_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
@@ -70,7 +82,18 @@ proc file_permissions_init_level {} {
    return -1
 }
 
-proc file_permissions_setup {} {
+#****** hedeby_file_permissions_setup() *******************************
+#  NAME
+#     hedeby_file_permissions_setup() --
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_setup { } 
+#
+#  FUNCTION
+#
+#     Setup function for this test
+#*******************************************************************************
+proc hedeby_file_permissions_setup {} {
    upvar #0 hedeby_file_permisssion_ctx ctx
    set ctx(cl_nr) [get_current_cluster_config_nr]
    set ctx(user) [get_hedeby_startup_user]
@@ -86,7 +109,19 @@ proc file_permissions_setup {} {
 
 }
 
-proc file_permissions_cleanup {} {
+#****** hedeby_file_permissions_cleanup() *****************************
+#  NAME
+#     hedeby_file_permissions_cleanup() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_cleanup { } 
+#
+#  FUNCTION
+#
+#     Cleanup function for this test. Resets the current cluster number
+#
+#*******************************************************************************
+proc hedeby_file_permissions_cleanup {} {
    upvar #0 hedeby_file_permisssion_ctx ctx
 
    # set the current cluster config to the one used when starting
@@ -96,643 +131,595 @@ proc file_permissions_cleanup {} {
 
 
 
+#****** hedeby_check_master_host_file_permissions() *******************
+#  NAME
+#     hedeby_check_master_host_file_permissions() -- 
+#
+#  SYNOPSIS
+#     hedeby_check_master_host_file_permissions { } 
+#
+#  FUNCTION
+#
+#     Checks the permissions of all files in local spool directory on
+#     set hedeby master host
+#
+#*******************************************************************************
 proc hedeby_check_master_host_file_permissions {} {
    upvar #0 hedeby_file_permisssion_ctx ctx
    global hedeby_config
-   set ge_master_hosts [get_hedeby_default_services service_names]
-   set expected_ge_jvm_hosts {}
-   foreach ge_host $ge_master_hosts {
-      if { [lsearch -exact $expected_ge_jvm_hosts $ge_host] < 0 } {
-         lappend expected_ge_jvm_hosts $ge_host
-      }
-   }
 
-   ts_log_fine "checking file permissions on master host ..."
+   ts_log_heading "Checking file permissions on master host ..."
    set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
-
    set host $hedeby_config(hedeby_master_host)
    set startup_user [get_hedeby_startup_user]
    set admin_user [get_hedeby_admin_user]
 
+
+   set expected_files(files) ""
+
+   hedeby_file_permissions_add_dir "log"
+   hedeby_file_permissions_add_dir "run"
+   hedeby_file_permissions_add_dir "security"
+   hedeby_file_permissions_add_dir "security/ca"
+   hedeby_file_permissions_add_dir "spool"
+   hedeby_file_permissions_add_dir "spool/spare_pool"
+   hedeby_file_permissions_add_dir "spool/reporter"
+   hedeby_file_permissions_add_dir "tmp"
+   hedeby_file_permissions_add_dir "tmp/ca"
+
+   hedeby_file_permissions_add_file "logging.properties"
+
+   # For system preferences admin_user is the check user and startup user is
+   # root
+   # For user preferences admin_user and startup user is the check user
+   set admin_users $admin_user
+   if { $startup_user != $admin_user } {
+      lappend admin_users $startup_user
+   }
+
+   set daemons(list) { cs_vm rp_vm executor_vm }
+   set daemons(cs_vm,owner) $admin_user
+   set daemons(rp_vm,owner) $admin_user
+   set daemons(executor_vm,owner) $startup_user
+
+   hedeby_file_permissions_add_jvm_files daemons expected_files
+
+   # Add files created by CA
+   hedeby_file_permissions_add_dir "security/ca/ca_top"
+   hedeby_file_permissions_add_dir "security/ca/ca_top/certs"
+   hedeby_file_permissions_add_dir "security/ca/ca_top/crl"
+   hedeby_file_permissions_add_dir "security/ca/ca_top/newcerts"
+   hedeby_file_permissions_add_dir "security/ca/ca_top/usercerts"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/userkeys"
+
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/daemons"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/daemons/cs_vm"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/daemons/executor_vm"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/daemons/rp_vm"
+   hedeby_file_permissions_add_dir "security/ca/ca_local_top/private"
+
+   hedeby_file_permissions_add_file "security/ca/ca_top/certs/cert.pem"    
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/01.pem"                     "-rw-------"    
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/02.pem"                     "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/03.pem"                     "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/04.pem"                     "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/05.pem"                     "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/newcerts/06.pem"                     "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/serial"                              "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/index.txt"                           "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_top/dn.info"
+   hedeby_file_permissions_add_file "security/ca/ca_top/cacert.pem"
+   hedeby_file_permissions_add_file "security/ca/ca_top/index.txt.attr"                      "-rw-------"
+   hedeby_file_permissions_add_file "security/ca/ca_top/index.txt.attr.old"                  "-rw-------"
+   hedeby_file_permissions_add_file "security/ca/ca_top/serial.old"                          "-rw-------"
+   hedeby_file_permissions_add_file "security/ca/ca_top/index.txt.old"                       "-rw-------"
+   hedeby_file_permissions_add_dir  "security/ca/ca_local_top/userkeys"
+
+   hedeby_file_permissions_add_dir "security/users"
+   hedeby_file_permissions_add_dir "security/daemons"
+
+   foreach user $admin_users {
+      hedeby_file_permissions_add_dir  "security/ca/ca_local_top/userkeys/$user"
+      hedeby_file_permissions_add_dir  "security/ca/ca_top/usercerts/$user"
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/userkeys/$user/rand.seed"   "-rw-------" $user
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/userkeys/$user/key.pem"     "-rw-------" $user 
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/userkeys/$user/req.pem"     "-rw-------" $user
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/userkeys/$user/cert.pem"    "-rw-------" $user
+      hedeby_file_permissions_add_file "security/ca/ca_top/usercerts/$user/cert.pem"
+      hedeby_file_permissions_add_file "security/users/$user.keystore"                       "-rw-------" $user
+   }
+ 
+   foreach daemon $daemons(list) {
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/daemons/$daemon/rand.seed"  "-rw-------"
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/daemons/$daemon/key.pem"    "-rw-------"
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/daemons/$daemon/req.pem"    "-rw-------"
+      hedeby_file_permissions_add_file "security/ca/ca_local_top/daemons/$daemon/cert.pem"   "-rw-------"
+   }
+
+ 
+   hedeby_file_permissions_add_file "security/ca/ca_local_top/private/rand.seed"             "-rw-------"
+   hedeby_file_permissions_add_file "security/ca/ca_local_top/private/cakey.pem"             "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_local_top/private/key.pem"               "-rw-------"
+   hedeby_file_permissions_add_file "security/ca/ca_local_top/private/req.pem"               "-rw-------" 
+   hedeby_file_permissions_add_file "security/ca/ca_local_top/lock"                          ""           $startup_user
+
+   hedeby_file_permissions_add_file "security/java.policy"
+   hedeby_file_permissions_add_file "security/jaas.config"
+
+   # CS has spooled some files
+   hedeby_file_permissions_add_dir "spool/cs"
+   hedeby_file_permissions_add_dir "spool/cs/component"
+   hedeby_file_permissions_add_dir "spool/cs/active_component"
+   hedeby_file_permissions_add_dir "spool/cs/active_jvm"
+   hedeby_file_permissions_add_dir "spool/cs/module"
+   hedeby_file_permissions_add_dir "spool/cs/module/ge-service-adapter"
+   hedeby_file_permissions_add_dir "spool/cs/module/ge-service-adapter/complex_mapping"
+   hedeby_file_permissions_add_dir "spool/resource_provider"
+   hedeby_file_permissions_add_dir "spool/resource_provider/resource_provider"
+   hedeby_file_permissions_add_dir "spool/resource_provider/spare_pool"
+
+
+
+   foreach res [get_all_spare_pool_resources] {
+      hedeby_file_permissions_add_file "spool/resource_provider/spare_pool/$res*.srf"
+   }
+   hedeby_file_permissions_add_file "spool/cs/global.xml"
+   hedeby_file_permissions_add_file "spool/cs/security.xml"
+   hedeby_file_permissions_add_file "spool/cs/component/executor.xml"
+   hedeby_file_permissions_add_file "spool/cs/component/ca.xml"
+   hedeby_file_permissions_add_file "spool/cs/component/resource_provider.xml"
+   hedeby_file_permissions_add_file "spool/cs/component/spare_pool.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/executor@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/ca@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/spare_pool@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/resource_provider@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_component/reporter@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/module/ge-service-adapter/complex_mapping/default.xml"
+   hedeby_file_permissions_add_file "spool/cs/component/reporter.xml"
+   hedeby_file_permissions_add_file "spool/reporter/report-*.log.lck"
+   hedeby_file_permissions_add_file "spool/reporter/report-*.log"
+   
+   foreach managed_host [get_all_movable_resources] {
+      hedeby_file_permissions_add_file "spool/cs/active_component/executor@$managed_host*.xml"
+      hedeby_file_permissions_add_file "spool/cs/active_component/executor_vm@$managed_host*.xml"
+   }
+   
+   hedeby_file_permissions_add_file "spool/cs/active_jvm/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_jvm/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
+   hedeby_file_permissions_add_file "spool/cs/active_jvm/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
+   foreach managed_host [get_all_movable_resources] {
+      hedeby_file_permissions_add_file "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
+   }
+
+   foreach resource_host [get_all_spare_pool_resources] {
+      hedeby_file_permissions_add_file "spool/spare_pool/$resource_host*"
+   }
+
+   
    set ignore_path {}
    lappend ignore_path "${spool_dir}/tmp/executor"
    lappend ignore_path "${spool_dir}/tmp/executor/*"
-   analyze_directory_structure $host $startup_user $spool_dir spool_directories spool_files permissions $ignore_path
 
-   set expected_dirs {}
-   lappend expected_dirs "log"
-   lappend expected_dirs "run"
-   lappend expected_dirs "security"
-   lappend expected_dirs "security/ca"
-   lappend expected_dirs "security/ca/ca_top"
-   lappend expected_dirs "security/ca/ca_top/certs"
-   lappend expected_dirs "security/ca/ca_top/crl"
-   lappend expected_dirs "security/ca/ca_top/newcerts"
-   lappend expected_dirs "security/ca/ca_top/usercerts"
-   lappend expected_dirs "security/ca/ca_top/usercerts/$startup_user"
-   if { $startup_user != $admin_user } {
-      lappend expected_dirs "security/ca/ca_top/usercerts/$admin_user"
-   }
-   lappend expected_dirs "security/ca/ca_local_top"
-   lappend expected_dirs "security/ca/ca_local_top/userkeys"
-   lappend expected_dirs "security/ca/ca_local_top/userkeys/$startup_user"
-   if { $startup_user != $admin_user } {
-      lappend expected_dirs "security/ca/ca_local_top/userkeys/$admin_user"
-   }
-   lappend expected_dirs "security/ca/ca_local_top/daemons"
-   lappend expected_dirs "security/ca/ca_local_top/daemons/cs_vm"
-   lappend expected_dirs "security/ca/ca_local_top/daemons/executor_vm"
-   lappend expected_dirs "security/ca/ca_local_top/daemons/rp_vm"
-   lappend expected_dirs "security/ca/ca_local_top/private"
-   lappend expected_dirs "security/users"
-   lappend expected_dirs "security/daemons"
-   lappend expected_dirs "spool"
-   lappend expected_dirs "spool/cs"
-   lappend expected_dirs "spool/cs/component"
-   lappend expected_dirs "spool/cs/active_component"
-   lappend expected_dirs "spool/cs/active_jvm"
-   lappend expected_dirs "spool/cs/module"
-   lappend expected_dirs "spool/cs/module/ge-service-adapter"
-   lappend expected_dirs "spool/cs/module/ge-service-adapter/complex_mapping"
-   lappend expected_dirs "spool/resource_provider"
-   lappend expected_dirs "spool/resource_provider/resource_provider"
-   lappend expected_dirs "spool/resource_provider/spare_pool"
+
+   get_hedeby_default_services service_names
    foreach service $service_names(services) {
-      lappend expected_dirs "spool/resource_provider/$service"
-   }
-   lappend expected_dirs "spool/spare_pool"
-   lappend expected_dirs "spool/reporter"
-   lappend expected_dirs "tmp"
-   lappend expected_dirs "tmp/ca"
+      hedeby_file_permissions_add_dir  "spool/resource_provider/$service"
+      hedeby_file_permissions_add_file "spool/cs/component/$service.xml"
+      hedeby_file_permissions_add_file "spool/cs/active_component/$service@$service_names(master_host,$service)*.xml"
+      hedeby_file_permissions_add_file "spool/cs/active_component/rp_vm@$service_names(master_host,$service)*.xml"
+      hedeby_file_permissions_add_file "spool/cs/active_jvm/rp_vm@$service_names(master_host,$service)*.xml"
 
-   ts_log_heading "STEP 1. Checking directories on master host"
-   if { [llength $spool_directories] != [llength $expected_dirs] } {
-      set error_text ""
-      append error_text "expected dirs length ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
-      append error_text "Missing dirs:\n"
-      foreach dir $expected_dirs {
-         if { [lsearch -exact $spool_directories "./$dir"] < 0 } {
-            append error_text "   $dir\n"
-         }
-      }
-      append error_text "Not expected dirs:\n"
-      set expected_dirs_helper {}
-      foreach dir $expected_dirs {
-         lappend expected_dirs_helper "./$dir"
-      }
-      foreach dir $spool_directories {
-         if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
-            append error_text "   $dir\n"
-         }
-      }
-      ts_log_severe $error_text
-      set ctx(error) 1
-      return
-   }
-   ts_log_heading "STEP 1. DONE"
-   ts_log_heading "STEP 2. Checking files on master host"
-
-   set expected_files {}
-   lappend expected_files "log/cs_vm-0.log.lck"
-   lappend expected_files "log/cs_vm-0.log"
-   lappend expected_files "log/cs_vm.stdout"
-   lappend expected_files "log/cs_vm.stderr"
-   lappend expected_files "log/executor_vm-0.log.lck"
-   lappend expected_files "log/executor_vm-0.log"
-   lappend expected_files "log/executor_vm.stdout"
-   lappend expected_files "log/executor_vm.stderr"
-   lappend expected_files "log/rp_vm-0.log.lck"
-   lappend expected_files "log/rp_vm-0.log"
-   lappend expected_files "log/rp_vm.stdout"
-   lappend expected_files "log/rp_vm.stderr"
-   lappend expected_files "logging.properties"
-   lappend expected_files "run/cs_vm@$hedeby_config(hedeby_master_host)*"
-   lappend expected_files "run/executor_vm@$hedeby_config(hedeby_master_host)*"
-   lappend expected_files "run/rp_vm@$hedeby_config(hedeby_master_host)*"
-   lappend expected_files "security/ca/ca_top/certs/cert.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/01.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/02.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/03.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/04.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/05.pem"
-   lappend expected_files "security/ca/ca_top/newcerts/06.pem"
-   lappend expected_files "security/ca/ca_top/serial"
-   lappend expected_files "security/ca/ca_top/index.txt"
-   lappend expected_files "security/ca/ca_top/dn.info"
-   lappend expected_files "security/ca/ca_top/cacert.pem"
-   lappend expected_files "security/ca/ca_top/index.txt.attr"
-   lappend expected_files "security/ca/ca_top/index.txt.attr.old"
-   lappend expected_files "security/ca/ca_top/serial.old"
-   lappend expected_files "security/ca/ca_top/index.txt.old"
-   lappend expected_files "security/ca/ca_top/usercerts/$startup_user/cert.pem"
-   if { $startup_user != $admin_user } {
-      lappend expected_files "security/ca/ca_top/usercerts/$admin_user/cert.pem"
-   }
-   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/rand.seed"
-   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/key.pem"
-   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/req.pem"
-   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/cert.pem"
-   if { $startup_user != $admin_user } {
-      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/rand.seed"
-      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/key.pem"
-      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/req.pem"
-      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/cert.pem"
-   }
-   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/rand.seed"
-   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/key.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/req.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/cert.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/rand.seed"
-   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/key.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/req.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/cert.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/rand.seed"
-   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/key.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/req.pem"
-   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/cert.pem"
-   lappend expected_files "security/ca/ca_local_top/private/rand.seed"
-   lappend expected_files "security/ca/ca_local_top/private/cakey.pem"
-   lappend expected_files "security/ca/ca_local_top/private/key.pem"
-   lappend expected_files "security/ca/ca_local_top/private/req.pem"
-   lappend expected_files "security/ca/ca_local_top/lock"
-   lappend expected_files "security/users/$admin_user.keystore"
-   lappend expected_files "security/daemons/cs_vm.keystore"
-   lappend expected_files "security/daemons/executor_vm.keystore"
-   lappend expected_files "security/daemons/rp_vm.keystore"
-   lappend expected_files "security/java.policy"
-   lappend expected_files "security/jaas.config"
-   foreach service $service_names(services) {
       foreach res $service_names(execd_hosts,$service) {
-         lappend expected_files "spool/resource_provider/$service/$res*.srf"
-      }
-   }
-   foreach res [get_all_spare_pool_resources] {
-      lappend expected_files "spool/resource_provider/spare_pool/$res*.srf"
-   }
-   lappend expected_files "spool/cs/component/executor.xml"
-   lappend expected_files "spool/cs/component/ca.xml"
-   lappend expected_files "spool/cs/component/resource_provider.xml"
-   lappend expected_files "spool/cs/component/spare_pool.xml"
-   foreach ge_host $expected_ge_jvm_hosts {
-      foreach service $service_names(service,$ge_host) {
-         ts_log_fine "expecting component configuration for service \"$service\" on host $ge_host"
-         lappend expected_files "spool/cs/component/$service.xml"
-      }
-   }
-   lappend expected_files "spool/cs/active_component/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/executor@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/ca@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/spare_pool@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/resource_provider@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_component/reporter@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/module/ge-service-adapter/complex_mapping/default.xml"
-   lappend expected_files "spool/cs/component/reporter.xml"
-   lappend expected_files "spool/reporter/report-0.log.lck"
-   
-   set ignore1 {}
-   analyze_directory_structure $host $startup_user "${spool_dir}/spool/reporter" spool_directories1 spool_files1 permissions1 $ignore1
-   for {set i 0} {$i < 4} {incr i} {
-        if { [lsearch -exact $spool_files1 "./report-${i}.log"] != -1 } {
-            lappend expected_files "spool/reporter/report-${i}.log"
-        }
-   }
-
-   foreach managed_host [get_all_movable_resources] {
-      lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"
-      lappend expected_files "spool/cs/active_component/executor_vm@$managed_host*.xml"
-   }
-   
-   foreach ge_host $expected_ge_jvm_hosts {
-      ts_log_fine "expecting active component jvm \"rp_vm\" on host \"$ge_host\""
-      lappend expected_files "spool/cs/active_component/rp_vm@$ge_host*.xml"
-      foreach service $service_names(service,$ge_host) {
-         ts_log_fine "expecting active component for service \"$service\" on host \"$ge_host\""
-         lappend expected_files "spool/cs/active_component/$service@$ge_host*.xml"
+         hedeby_file_permissions_add_file "spool/resource_provider/$service/$res*.srf"
       }
    }
 
-   
+   hedeby_file_permissions_add_ge_service_files $hedeby_config(hedeby_master_host) ignore_path expected_files
 
-
-
-   lappend expected_files "spool/cs/active_jvm/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_jvm/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
-   lappend expected_files "spool/cs/active_jvm/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
-   foreach managed_host [get_all_movable_resources] {
-      lappend expected_files "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
-   }
-
-   foreach jvm_host $expected_ge_jvm_hosts {
-      ts_log_fine "expecting active jvm \"rp_vm\" on host \"$jvm_host\""
-      lappend expected_files "spool/cs/active_jvm/rp_vm@$jvm_host*.xml"
-   }
-   foreach resource_host [get_all_spare_pool_resources] {
-      lappend expected_files "spool/spare_pool/$resource_host*"
-   }
-
-   lappend expected_files "spool/cs/global.xml"
-   lappend expected_files "spool/cs/security.xml"
-   
-   if { [llength $spool_files] != [llength $expected_files] } {
-      set error_text ""
-      append error_text "\nExpected files length ([llength $expected_files]) != found files length ([llength $spool_files])\n"
-      append error_text "Missing files:\n"
-      foreach file $expected_files {
-         if { [lsearch $spool_files "./$file"] < 0 } {
-            append error_text "   $file\n"
-         }
-      }
-      append error_text "Not expected files:\n"
-      set expected_files_helper {}
-      foreach file $spool_files {
-         set match 0
-         foreach fileb $expected_files {
-            if { [string match "./$fileb" $file] } {
-               set match 1
-               break
-            }
-         }
-         if { $match == 0 }  {
-            append error_text "   $file\n"
-         }
-      }
-      ts_log_severe $error_text
+   if {[hedeby_file_permissions_check_files $host $startup_user $spool_dir expected_files $ignore_path] != 0 } {
       set ctx(error) 1
       return
    }
-   
-   ts_log_heading "STEP 2. DONE"
-   ts_log_heading "STEP 3. Checking permission for master host"
-   set default_owner [get_hedeby_admin_user]
-   set default_perms "-rw-r--r--"
-
-
-   set user_rw_perms "-rw-------"
-   set user_rw_match {}
-   lappend user_rw_match "*.pem"
-   lappend user_rw_match "serial*"
-   lappend user_rw_match "index.*"
-   lappend user_rw_match "rand.seed"
-   lappend user_rw_match "*.keystore"
-   set user_rw_ignore_match {}
-   lappend user_rw_ignore_match "security/ca/ca_top/certs/cert.pem"
-   lappend user_rw_ignore_match "security/ca/ca_top/cacert.pem"
-   lappend user_rw_ignore_match "security/ca/ca_top/usercerts/$startup_user/cert.pem"
-   if { $startup_user != $admin_user } {
-      lappend user_rw_ignore_match "security/ca/ca_top/usercerts/$admin_user/cert.pem"
-   }
-
-
-   set startup_user_owner [get_hedeby_startup_user]
-   set startup_user_match {}
-   lappend startup_user_match "log/executor_vm*"
-   lappend startup_user_match "run/executor_vm*"
-   lappend startup_user_match "security/ca/ca_local_top/userkeys/$startup_user_owner/*"
-   lappend startup_user_match "security/ca/ca_local_top/lock"
-   lappend startup_user_match "security/daemons/executor_vm.keystore"
-   foreach expect_file $expected_files {
-      set expected_owner($expect_file) $default_owner
-      set expected_perms($expect_file) $default_perms
- 
-      set tailed_file [file tail $expect_file]
-
-      set ignore 0
-      foreach igmatch $user_rw_ignore_match {
-         if {[string match $igmatch $expect_file]} {
-            ts_log_finer "expect $default_perms permissions for file: $expect_file"
-            set ignore 1 
-            break
-         }
-      }
-      if { $ignore == 0 } {
-         foreach match $user_rw_match {
-            if {[string match $match $tailed_file]} {
-               set expected_perms($expect_file) $user_rw_perms
-               ts_log_fine "expect $user_rw_perms permissions for file: $expect_file"
-            }
-         }
-      }
-
-      foreach match $startup_user_match {
-         if {[string match $match $expect_file]} {
-            set expected_owner($expect_file) $startup_user_owner
-            ts_log_fine "expect owner $startup_user_owner for file: $expect_file"
-         } else {
-            ts_log_finer "expect owner $default_owner for file: $expect_file"
-         }
-      }
-   }
-   set permission_errors ""
-   set owner_errors ""
-   set error_text ""
-
-   
-
-
-   foreach expect_file $expected_files {
-      set file "./$expect_file"
-
-      if {[info exists permissions($file,perm)]} {
-         set perm  $permissions($file,perm)
-         set owner $permissions($file,owner)
-         set group $permissions($file,group)
-      } else {
-         # here we have to find the file with string matching
-         set perm "n.a."
-         set owner "n.a."
-         set group "n.a."
-         set match 0
-         set match_file ""
-         foreach sp_file $spool_files {
-            if {[string match $file $sp_file]} {
-               incr match 1
-               set match_file $sp_file
-            }
-         }
-         if { $match != 1 }  {
-            append error_text "   $file matches \"$match\" times!\n"
-         } else {
-            set perm  $permissions($match_file,perm)
-            set owner $permissions($match_file,owner)
-            set group $permissions($match_file,group)
-         }
-      }
-
-      if {$error_text != ""} {
-            ts_log_severe $error_text
-            set ctx(error) 1
-            return
-      }
-
-
-      ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
-      if { $perm != $expected_perms($expect_file) } {
-         append permission_errors "$expect_file: wrong permissions: \"$perm\" (expected: \"$expected_perms($expect_file)\")\n"
-      }
-      if { $owner != $expected_owner($expect_file) } {
-         append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
-      }
-   }
-   if { $owner_errors != "" } {
-      append error_text "\nOwnership errors:\n$owner_errors\n"
-   }
-   if { $permission_errors != "" } {
-      append error_text "\nPermission errors:\n$permission_errors\n"
-   }
-
-   if { $error_text != "" } {
-      ts_log_severe $error_text
-      set ctx(error) 1
-      return
-   }
-
-   ts_log_heading "STEP 3. DONE"
 }
 
-
-proc hedeby_check_managed_host_file_permissions {} {
-    set nr 4
+#****** hedeby_file_permissions_check_managed_host() ******************
+#  NAME
+#     hedeby_file_permissions_check_managed_host() -- file permission test 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_check_managed_host { } 
+#
+#  FUNCTION
+#
+#     Checks the file permissions of the files in the local spool directory
+#     of all managed hosts of a hedeby system
+# 
+#*******************************************************************************
+proc hedeby_file_permissions_check_managed_host {} {
     upvar #0 hedeby_file_permisssion_ctx ctx
     if {$ctx(error) != 0} {
         return
     }
    global hedeby_config
 
-   set ge_master_hosts [get_hedeby_default_services service_names]
+   set startup_user [get_hedeby_startup_user]
+   set admin_user [get_hedeby_admin_user]
    set error_text ""
-   foreach managed_host [get_all_movable_resources] {
 
-      ts_log_heading "STEP $nr. Checking directories, files and file permissions on managed host \"$managed_host\" ..."
-      if { [lsearch -exact $ge_master_hosts $managed_host] >= 0 } {
-         ts_log_fine "host \"$managed_host\" is GE service host"
-         set is_ge_service_host 1
-      } else {
-         set is_ge_service_host 0
-      }
-      set host $managed_host
+   foreach host [get_all_movable_resources] {
+
+      ts_log_heading "Checking directories, files and file permissions on managed host \"$host\" ..."
       set spool_dir [get_hedeby_local_spool_dir $host]
-      set startup_user [get_hedeby_startup_user]
-      set admin_user [get_hedeby_admin_user]
 
       set ignore_path {}
       lappend ignore_path "./tmp/executor"
       lappend ignore_path "./tmp/executor/*"
-      analyze_directory_structure $host $startup_user $spool_dir spool_directories spool_files permissions $ignore_path
 
-      set expected_dirs {}
-      lappend expected_dirs "log"
-      lappend expected_dirs "run"
-      lappend expected_dirs "security"
-      lappend expected_dirs "security/ca"
-      lappend expected_dirs "security/ca/ca_top"
-      lappend expected_dirs "security/ca/ca_local_top"
-      lappend expected_dirs "security/users"
-      lappend expected_dirs "security/daemons"
-      lappend expected_dirs "spool"
-      lappend expected_dirs "tmp"
-      lappend expected_dirs "tmp/ca"
+      hedeby_file_permissions_add_dir "log"
+      hedeby_file_permissions_add_dir "run"
+      hedeby_file_permissions_add_dir "security"
+      hedeby_file_permissions_add_dir "security/ca"
+      hedeby_file_permissions_add_dir "security/ca/ca_top"
+      hedeby_file_permissions_add_dir "security/ca/ca_local_top"
+      hedeby_file_permissions_add_dir "security/users"
+      hedeby_file_permissions_add_dir "security/daemons"
+      hedeby_file_permissions_add_dir "spool"
+      hedeby_file_permissions_add_dir "tmp"
+      hedeby_file_permissions_add_dir "tmp/ca"
+      hedeby_file_permissions_add_file "security/java.policy"
+      hedeby_file_permissions_add_file "security/jaas.config"
+      hedeby_file_permissions_add_file "logging.properties"
+      hedeby_file_permissions_add_file "security/ca/ca_top/cacert.pem"         ""           $startup_user
 
-      if {$is_ge_service_host} {
-         foreach service_name $service_names(service,$host) {
-            ts_log_fine "expecting spool dir for service \"$service_name\""
-            lappend expected_dirs "spool/$service_name"
-         }
-      }
+      hedeby_file_permissions_add_file "security/users/$admin_user.keystore"   "-rw-------" $admin_user
 
-      ts_log_fine "checking directories ..."
-      if { [llength $spool_directories] != [llength $expected_dirs] } {
-         append error_text "expected dirs length on host \"$host\" ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
-         append error_text "Missing dirs:\n"
-         foreach dir $expected_dirs {
-            if { [lsearch -exact $spool_directories "./$dir"] < 0 } {
-               append error_text "   $dir\n"
-            }
-         }
-         append error_text "Not expected dirs:\n"
-         set expected_dirs_helper {}
-         foreach dir $expected_dirs {
-            lappend expected_dirs_helper "./$dir"
-         }
-         foreach dir $spool_directories {
-            if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
-               append error_text "   $dir\n"
-            }
-         }
-         ts_log_severe $error_text
+      # We have always keystores for cs_vm and rp_vm
+      # even if those jvms are not started 
+      hedeby_file_permissions_add_file "security/daemons/cs_vm.keystore" "-rw-------" $admin_user
+      hedeby_file_permissions_add_file "security/daemons/rp_vm.keystore" "-rw-------" $admin_user
+
+      set daemons(list) executor_vm
+      set daemons(executor_vm,owner) $startup_user
+      hedeby_file_permissions_add_jvm_files daemons expected_files
+      unset daemons
+
+      hedeby_file_permissions_add_ge_service_files $host ignore_path expected_files
+
+      if {[hedeby_file_permissions_check_files $host $startup_user $spool_dir expected_files $ignore_path] != 0 } {
+         set ctx(error) 1
          return
       }
-
-      set expected_files {}
-      lappend expected_files "log/executor_vm-0.log.lck"
-      lappend expected_files "log/executor_vm-0.log"
-      lappend expected_files "log/executor_vm.stdout"
-      lappend expected_files "log/executor_vm.stderr"
-      lappend expected_files "logging.properties"
-      lappend expected_files "run/executor_vm@$host*"
-      lappend expected_files "security/ca/ca_top/cacert.pem"
-      lappend expected_files "security/users/$admin_user.keystore"
-      lappend expected_files "security/daemons/cs_vm.keystore"
-      lappend expected_files "security/daemons/executor_vm.keystore"
-      lappend expected_files "security/daemons/rp_vm.keystore"
-      lappend expected_files "security/java.policy"
-      lappend expected_files "security/jaas.config"
-      if {$is_ge_service_host} {
-         ts_log_fine "expecting files for service vm for service(s) \"$service_names(service,$host)\""
-         lappend expected_files "log/rp_vm.stdout"
-         lappend expected_files "log/rp_vm.stderr"
-         lappend expected_files "log/rp_vm-0.log.lck"
-         lappend expected_files "log/rp_vm-0.log"
-         lappend expected_files "run/rp_vm@$host*"
-         foreach service $service_names(service,$host) {
-            foreach execd $service_names(execd_hosts,$service) {
-               ts_log_fine "expecting files for service \"$service\" execd \"$execd\""
-               lappend expected_files "spool/$service/$execd*"
-            }
-         }
-      }
-
-      ts_log_fine "checking files ..."
-      if { [llength $spool_files] != [llength $expected_files] } {
-         append error_text "\nExpected files length on host \"$host\" ([llength $expected_files]) != found files length ([llength $spool_files])\n"
-         append error_text "Missing files:\n"
-         foreach file $expected_files {
-            if { [lsearch $spool_files "./$file"] < 0 } {
-               append error_text "   $file\n"
-            }
-         }
-         append error_text "Not expected files:\n"
-         set expected_files_helper {}
-         foreach file $spool_files {
-            set match 0
-            foreach fileb $expected_files {
-               if { [string match "./$fileb" $file] } {
-                  set match 1
-                  break
-               }
-            }
-            if { $match == 0 }  {
-               append error_text "   $file\n"
-            }
-         }
-         ts_log_severe $error_text
-         return
-      }
-
-      set default_owner [get_hedeby_admin_user]
-      set default_perms "-rw-r--r--"
-
-
-      set user_rw_perms "-rw-------"
-      set user_rw_match {}
-      lappend user_rw_match "*.pem"
-      lappend user_rw_match "serial*"
-      lappend user_rw_match "index.*"
-      lappend user_rw_match "rand.seed"
-      lappend user_rw_match "*.keystore"
-      set user_rw_ignore_match {}
-      lappend user_rw_ignore_match "security/ca/ca_top/certs/cert.pem"
-      lappend user_rw_ignore_match "security/ca/ca_top/cacert.pem"
-
-
-      set startup_user_owner [get_hedeby_startup_user]
-      set startup_user_match {}
-      lappend startup_user_match "log/executor_vm*"
-      lappend startup_user_match "run/executor_vm*"
-      lappend startup_user_match "security/ca/ca_local_top/userkeys/$startup_user_owner/*"
-      lappend startup_user_match "security/ca/ca_local_top/lock"
-      lappend startup_user_match "security/daemons/executor_vm.keystore"
-      lappend startup_user_match "security/ca/ca_top/cacert.pem"
-      
-      foreach expect_file $expected_files {
-         set expected_owner($expect_file) $default_owner
-         set expected_perms($expect_file) $default_perms
-    
-         set tailed_file [file tail $expect_file]
-
-         set ignore 0
-         foreach igmatch $user_rw_ignore_match {
-            if {[string match $igmatch $expect_file]} {
-               set ignore 1 
-               break
-            }
-         }
-         if { $ignore == 0 } {
-            foreach match $user_rw_match {
-               if {[string match $match $tailed_file]} {
-                  set expected_perms($expect_file) $user_rw_perms
-                  ts_log_fine "expect $user_rw_perms permissions for file: $expect_file"
-               }
-            }
-         }
-
-         foreach match $startup_user_match {
-            if {[string match $match $expect_file]} {
-               set expected_owner($expect_file) $startup_user_owner
-               ts_log_fine "expect owner $startup_user_owner for file: $expect_file"
-            } else {
-               ts_log_finer "expect owner $default_owner for file: $expect_file"
-            }
-         }
-      }
-      set permission_errors ""
-      set owner_errors ""
-      foreach expect_file $expected_files {
-         set file "./$expect_file"
-
-         if {[info exists permissions($file,perm)]} {
-            set perm  $permissions($file,perm)
-            set owner $permissions($file,owner)
-            set group $permissions($file,group)
-         } else {
-            # here we have to find the file with string matching
-            set perm "n.a."
-            set owner "n.a."
-            set group "n.a."
-            set match 0
-            set match_file ""
-            foreach sp_file $spool_files {
-               if {[string match $file $sp_file]} {
-                  incr match 1
-                  set match_file $sp_file
-               }
-            }
-            if { $match != 1 }  {
-               append error_text "   $file matches \"$match\" times!\n"
-            } else {
-               set perm  $permissions($match_file,perm)
-               set owner $permissions($match_file,owner)
-               set group $permissions($match_file,group)
-            }
-         }
-         if {$error_text != ""} {
-            ts_log_severe $error_text
-            return
-         }
-         ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
-
-         if { $perm != $expected_perms($expect_file) } {
-            append permission_errors "$expect_file: wrong permissions: \"$perm\" (expected: \"$expected_perms($expect_file)\")\n"
-         }
-         if { $owner != $expected_owner($expect_file) } {
-            append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
-         }
-      }
-      if { $owner_errors != "" } {
-         append error_text "\nOwnership errors on host \"$host\":\n$owner_errors\n"
-      }
-      if { $permission_errors != "" } {
-         append error_text "\nPermission errors on host \"$host\":\n$permission_errors\n"
-      }
-
-      ts_log_heading "STEP $nr. DONE"
-      incr nr
+      unset expected_files
    }
-   if { $error_text != "" } {
+   
+}
+
+#****** hedeby_file_permissions_add_ge_service_files() ****************
+#  NAME
+#     hedeby_file_permissions_add_ge_service_files() --
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_add_ge_service_files { host ignore_path_var 
+#     { ef_var "" } } 
+#
+#  FUNCTION
+#
+#     Define the expected files produced by a GE service if it is running on
+#     $host
+#
+#  INPUTS
+#     host            - the host
+#     ignore_path_var - upvar defines a list of pathes which should be ignored 
+#     { ef_var "" }   - array with the expected variables 
+#
+#*******************************************************************************
+proc hedeby_file_permissions_add_ge_service_files { host ignore_path_var { ef_var "" } } {
+
+   if { $ef_var == "" } {
+      upvar expected_files ef
+   } else {
+      upvar $ef_var ef
+   }
+
+   upvar $ignore_path_var ignore_path
+
+   set ge_master_hosts [get_hedeby_default_services service_names]
+   set startup_user [get_hedeby_startup_user]
+   set admin_user [get_hedeby_admin_user]
+
+   if { [lsearch -exact $ge_master_hosts $host] >= 0 } {
+      ts_log_fine "host \"$host\" is GE service host"
+      foreach service $service_names(service,$host) {
+         ts_log_fine "expecting spool dir for service \"$service\""
+         hedeby_file_permissions_add_dir  "spool/$service"  "" $admin_user ef
+
+         # Ignore all protocol files of failed execd (un)installations
+         lappend ignore_path "./log/$service"
+         lappend ignore_path "./log/$service/*"
+
+         foreach execd $service_names(execd_hosts,$service) {
+            ts_log_fine "expecting files for service \"$service\" execd \"$execd\""
+            hedeby_file_permissions_add_file "spool/$service/$execd*" "" $admin_user ef
+         }
+      }
+
+      # Add the files for the rp_vm
+      set jvms(list) "rp_vm"
+      set jvms(rp_vm,owner) $admin_user
+      hedeby_file_permissions_add_jvm_files jvms ef
+   }
+}
+
+#****** hedeby_file_permissions_add_jvm_files() ***********************
+#  NAME
+#     hedeby_file_permissions_add_jvm_files() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_add_jvm_files { jvms_var { ef_var "" } } 
+#
+#  FUNCTION
+#
+#     Add the files for a list of jvms
+#
+#  INPUTS
+#     jvms_var      - (upvar) array with the followning elements:
+#                     - jvms_var(list)  list of all jvms
+#                     - jvms_var(jvm,owner)  owner of the jvm with name jvm
+#     { ef_var "" } - array where the expected files are defined 
+#
+#*******************************************************************************
+proc hedeby_file_permissions_add_jvm_files { jvms_var { ef_var "" } } {
+
+   upvar $jvms_var jvms
+   if { $ef_var == "" } {
+      upvar expected_files ef
+   } else {
+      upvar $ef_var ef
+   }
+
+   foreach jvm $jvms(list) {
+      hedeby_file_permissions_add_file "security/daemons/$jvm.keystore" "-rw-------" $jvms($jvm,owner)  ef
+      hedeby_file_permissions_add_file "log/$jvm-*.log.lck"             "" $jvms($jvm,owner)  ef
+      hedeby_file_permissions_add_file "log/$jvm-*.log"                 "" $jvms($jvm,owner)  ef
+      hedeby_file_permissions_add_file "log/$jvm.stdout"                "" $jvms($jvm,owner)  ef
+      hedeby_file_permissions_add_file "log/$jvm.stderr"                "" $jvms($jvm,owner)  ef
+      hedeby_file_permissions_add_file "run/$jvm@*"                     "" $jvms($jvm,owner)  ef
+   }
+}
+
+#****** hedeby_file_permissions_add_file() ****************************
+#  NAME
+#     hedeby_file_permissions_add_file() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_add_file { file { perm "" } { owner "" } 
+#     { ef_var "" } } 
+#
+#  FUNCTION
+#
+#     Adds a file to the list of expected files
+#
+#  INPUTS
+#     file          - file path
+#     { perm "" }   - expected permissions
+#     { owner "" }  - expected owner
+#     { ef_var "" } - array where the expected files are stored (default expected_files)
+#
+#*******************************************************************************
+proc hedeby_file_permissions_add_file { file { perm "" } { owner "" } { ef_var "" } } {
+   if { $ef_var == "" } {
+      upvar expected_files ef
+   } else {
+      upvar $ef_var ef
+   }
+
+   set ef($file,type) "file"
+   hedeby_file_permissions_set_perm_and_owner $file $perm $owner ef
+}
+
+#****** hedeby_file_permissions_add_dir() *****************************
+#  NAME
+#     hedeby_file_permissions_add_dir() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_add_dir { file { perm "" } { owner "" } 
+#     { ef_var "" } } 
+#
+#  FUNCTION
+#     Adds a directory to the list of expected files
+#
+#  INPUTS
+#     file          - path of the directory
+#     { perm "" }   - expected permissions
+#     { owner "" }  - expected owner
+#     { ef_var "" } - array where the expected files are stored (default expected_files)
+#
+#*******************************************************************************
+proc hedeby_file_permissions_add_dir { file { perm "" } { owner "" } { ef_var "" } } {
+
+   if { $ef_var == "" } {
+      upvar expected_files ef
+   } else {
+      upvar $ef_var ef
+   }
+
+   set ef($file,type) "dir"
+   hedeby_file_permissions_set_perm_and_owner $file $perm $owner ef
+}
+
+#****** hedeby_file_permissions_set_perm_and_owner() ******************
+#  NAME
+#     hedeby_file_permissions_set_perm_and_owner() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_set_perm_and_owner { file { perm "" } 
+#     { owner "" } { ef_var "" } } 
+#
+#  FUNCTION
+#
+#     Set the expected owner and permission of a file in the expected_files var
+#
+#  INPUTS
+#     file          - path of the file 
+#     { perm "" }   - the expected permissions (default -rw-r--r--)
+#     { owner "" }  - the expected owner (default hedeby admin user) 
+#     { ef_var "" } - expected files array (default expected_files) 
+#
+#*******************************************************************************
+proc hedeby_file_permissions_set_perm_and_owner { file { perm "" } { owner "" } { ef_var "" } } {
+
+   if { $ef_var == "" } {
+      upvar expected_files ef
+   } else {
+      upvar $ef_var ef
+   }
+   
+   if { $perm == "" } {
+      set perm "-rw-r--r--"
+   }
+   if { $owner == "" } {
+      set owner [get_hedeby_admin_user]
+   }
+   set ef($file,perm) $perm
+   set ef($file,owner) $owner 
+   if {[info exists ef(files)] } {
+      if {[lsearch -exact $ef(files) $file] < 0 } {
+         lappend ef(files) $file
+      } else {
+         ts_log_finer "Did not add '$file' to expected file list, it already exists"
+      }
+   } else {
+      set ef(files) $file
+   }
+}
+
+#****** hedeby_file_permissions_check_files() *************************
+#  NAME
+#     hedeby_file_permissions_check_files() -- 
+#
+#  SYNOPSIS
+#     hedeby_file_permissions_check_files { host user dir ef ignore_path } 
+#
+#  FUNCTION
+#
+#     Checks the owner and the  permissions of all files in a directory
+#     (including the subdirectories) on a host
+#
+#  INPUTS
+#     host        - name of the host
+#     user        - name of the user which performs the checks
+#     dir         - the directory
+#     ef          - array with the definition of the expected files. This
+#                   array must define the following entries:
+#                   ef(files) - list of all expected files
+#                   ef($file,perm) - expected permission for the file (optional)
+#                   ef($file,owner) - expected owner of the file
+#                   ef($file,type)  - type of file (dir or file)
+#
+#     ignore_path - list of file name which are not considered 
+#
+#  RESULT
+#     0 - All expected files have been found, the permissions and the owners are 
+#         correct
+#     1 - Error
+#
+#  NOTES
+#     This method does not check the owner and permission of subdirectories It
+#     checks only the files of the subdirectories, not the directory itself
+#     (the analyze_directory_structure method does not return the permissions
+#     of the sub directories).  If there a permissions and owners for
+#     directories defined in ef they are silently ignored. 
+#
+#  SEE ALSO
+#    file_procedures/analyze_directory_structure
+#
+#*******************************************************************************
+proc hedeby_file_permissions_check_files { host user dir ef ignore_path } {
+
+   upvar $ef expected_files  
+
+   analyze_directory_structure $host $user $dir directories files permissions $ignore_path
+
+   set error_text ""
+   set unexpected_files {}
+   foreach file $directories {
+      set match 0
+      foreach fileb $expected_files(files) {
+         if { [string match "./$fileb" $file] } {
+            if { $expected_files($fileb,type) == "file" } {
+               append error_text "Found unexpected directory '$file', a file was expected\n"
+            } else {
+               set match 1
+            }
+            break
+         }
+      }
+      if { $match == 0 }  {
+         append error_text "Found unexpected directory '$file'\n"
+      }
+   }
+
+   foreach file $files {
+      set match 0
+      foreach fileb $expected_files(files) {
+         if { [string match "./$fileb" $file] } {
+            if { $expected_files($fileb,type) == "dir" } {
+               append error_text "Found unexpected file '$file', a directory was expected\n"
+            } else {
+               set match 1
+            }
+            break
+         }
+      }
+      if { $match == 0 }  {
+         append error_text "Found unexpected file '$file'\n"
+      }
+   }
+
+   foreach file $expected_files(files) {
+      set matches 0
+      if { $expected_files($file,type) == "dir" } {
+         set file_list $directories
+      } else {
+         set file_list $files
+      }
+      foreach f $file_list {
+         if { [string match "./$file" "$f" ] } {
+            incr matches
+            # The analyze_dir_structure method does not return the permissions
+            # of directories
+            # => can only check the owner and permission of files
+            if { $expected_files($file,type) == "file" } {
+               if {[info exists expected_files($file,perm)]} {
+                  ts_log_finer  "Checking permissions of file $file"
+                  if { $expected_files($file,perm) != $permissions($f,perm) } {
+                     append error_text "File $f has wrong permissions (expected '$expected_files($file,perm)' but got '$permissions($f,perm)')\n" 
+                  }
+               }
+               if {[info exists expected_files($file,owner)]} {
+                  ts_log_finer  "Checking ownership of file $file"
+                  if { $expected_files($file,owner) != $permissions($f,owner) } {
+                     append error_text "File $f has wrong ownership (expected '$expected_files($file,owner)' but got '$permissions($f,owner)')\n" 
+                  }
+               }
+            }
+         }
+      }
+      if { $matches == 0 } {
+         append error_text "Missing $expected_files($file,type) '$file'\n"
+      }
+   }
+
+   if { [string length $error_text] > 0 } {
       ts_log_severe $error_text
-      return
+      return 1
    }
+   ts_log_fine "Checked permissions and owner of [llength $expected_files(files)] files: OK"
+   return 0
 }
 
 
