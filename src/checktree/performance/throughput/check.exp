@@ -828,7 +828,6 @@ proc run_throughput_test {} {
    global ps_interval qstat_interval array_size
    global job_options
    global unexpected_out_filename
-   global last_job_id
 
    # prepare results array
    clean_current_system_status results_list result job_data schedd_data monitoring qstat_data qping_data event_data
@@ -883,12 +882,6 @@ proc run_throughput_test {} {
       set event_client_sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $event_client_bin "-ts" 0 "" "" 0 15 1]
       set event_client_id [lindex $event_client_sid 1]
    }
-
-   # open scheduler messages file
-   ts_log_fine "opening scheduler messages file (tail)"
-   set schedd_messages_file [check_schedd_messages 2]
-   set schedd_messages_sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "tail" "-f $schedd_messages_file"]
-   set schedd_messages_id [lindex $schedd_messages_sid 1]
 
    # disable queues if enable_queues_job_count is set
    if {$enable_queues_job_count > 0} {
@@ -1153,7 +1146,6 @@ proc run_throughput_test {} {
           close_spawn_process $elem
        }
        close_spawn_process $event_client_sid
-       close_spawn_process $schedd_messages_sid
        close $unexpected_out
        return -1
    }
@@ -1161,8 +1153,6 @@ proc run_throughput_test {} {
    # variables set not in main loop for speed reasons
    set event_and_msg_id_list $event_client_id
    set spawn_host_map($event_client_id) $ts_config(master_host)
-   lappend event_and_msg_id_list $schedd_messages_id
-   set spawn_host_map($schedd_messages_id) $ts_config(master_host)
 
    # job list where job start event was faster than submit
    set job_buffer_data_index 0
@@ -1179,7 +1169,6 @@ proc run_throughput_test {} {
 
    set sent_jobs 0     ;# number of sent jobs
    set resend_list {}  ;# list of commands to resend
-   set schedd_nr -1    ;# number of stored scheduler data
    set events_delivered 0 ;# number of events in one event package
 
    set timeout 120
@@ -1191,7 +1180,6 @@ proc run_throughput_test {} {
    log_user 0
    set start_time [timestamp]
    set submission_due 1
-   set max_event_age 0
 
    # wait for job submit success for all execd hosts and event client reports
    # in case of errors, we stop the test
@@ -1249,23 +1237,20 @@ proc run_throughput_test {} {
                   # of a single or array job
                   for {set i 1} {$i <= $array_size} {incr i} {
                      set job_id "$submitjob_jobid.$i"
-                     if {[info exists job_data($job_id)]} {
-                        set job_index $job_data($job_id)
-                     } else {
-                        set job_index $result(jobs_submitted)
-                        incr result(jobs_submitted)
+                     set job_index $result(jobs_submitted)
+                     incr result(jobs_submitted)
 
-                        set last_job_id $submitjob_jobid
+                     set last_job_id $submitjob_jobid
 
-                        # doubly linked data job_id <-> job_index
-                        set job_data($job_index,job_id) $job_id
-                        set job_data($job_id) $job_index
+                     # doubly linked data job_id <-> job_index
+                     set job_data($job_index,job_id) $job_id
+                     set job_data($job_id) $job_index
 
-                        set job_data($job_index,state) "pending"
-                     }
+                     set job_data($job_index,state) "pending"
 
                      set job_data($job_index,submit_time) $submitjob_time
                      set job_data($job_index,submit_start_time) $submitjob_start
+                     set job_data(index_size) $result(jobs_submitted)
                   }
 
                   # this host now can take the next submit command
@@ -1328,62 +1313,13 @@ proc run_throughput_test {} {
                   # JOB_ADD (308.0:ECL_TIME=1094812995:project=NONE)
                   incr events_delivered
 
-                  # evaluate job_id
-                  set job_s_pos [string first "(" $line]
-                  incr job_s_pos
-                  set job_e_pos [string first ":" $line]
-                  incr job_e_pos -1
-                  set full_job_id [string range $line $job_s_pos $job_e_pos]
-                  set job_id [lindex [split $full_job_id "."] 0]
-
-                  # evaluate project_name
-                  set project_pos [string first "project=" $line]
-                  incr project_pos 8
-                  set project_name [string range $line $project_pos end-1]
-
-                  # get index of this job in the job_data array
-                  # there are cases, where the JOB_ADD event will be received before
-                  # the SUBMIT OK. In this case, assign the job an index and count it
-                  # as submitted.
-                  # + handle array job
-                  for {set i 1} {$i <= $array_size} {incr i} {
-                     set array_job_id $job_id.$i
-                     set sub_id [get_submit_id_from_job_id job_data $array_job_id]
-                     if {$sub_id < 0} {
-                        set sub_id $result(jobs_submitted)
-                        incr result(jobs_submitted)
-
-                        set last_job_id $job_id
-
-                        # doubly linked data job_id <-> job_index
-                        set job_data($sub_id,job_id) $array_job_id
-                        set job_data($array_job_id) $sub_id
-
-                        set job_data($sub_id,state) "pending"
-                     }
-
-                     # store project (only number)
-                     set job_data($sub_id,project) [string index $project_name 7]
-                  }
                }
 
                "JOB_START*" {
                   # JOB_START (307.4:ECL_TIME=1094812970)
                   incr events_delivered
-                  # evaluate job_id
-                  set job_s_pos [string first "(" $line]
-                  incr job_s_pos
-                  set job_e_pos [string first ":" $line]
-                  incr job_e_pos -1
-                  set job_id [string range $line $job_s_pos $job_e_pos]
-
                   incr result(jobs_running)
 
-                  set sub_id [get_submit_id_from_job_id job_data $job_id]
-                  if {$sub_id >= 0} {
-                     set job_data($sub_id,run_start_time) [get_event_client_time $line]
-                     set job_data($sub_id,state) "running"
-                  }
                }
 
                "JOB_FINISH*" {
@@ -1405,10 +1341,6 @@ proc run_throughput_test {} {
                      set job_data($sub_id,run_end_time) [get_event_client_time $line]
                      set job_data($sub_id,state) "done"
                   }
-                  set event_age [expr $time_now - $job_data($sub_id,run_end_time)]
-                  if {$max_event_age < $event_age} {
-                     set max_event_age $event_age
-                  }
                }
 
                "ECL_STATE*" {
@@ -1423,73 +1355,9 @@ proc run_throughput_test {} {
                   incr events_delivered
                }
 
-               "*scheduled in*" {
-#  Mon Dec 16 15:01:05 2002|schedd|es-ergb01-01|I|scheduled in 0.000 s: 0 fast, 0 complex, 0 orders, 4 H, 4 Q, 13 QA, 0 J, 2 C, 1 ACL, 1 PE, 1 CONF, 0 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU
-
-#new                                                  0      1   2    3   4   5 6 7     8  9
-#  Wed Feb 12 10:53:06 2003|schedd|es-ergb01-01|I|scheduled in 0.010 (u 0.010 + s 0.000 = 0.010): 0 fast, 0 complex, 0 orders, 5 H, 30 Q, 34 QA, 0 J(qw), 0 J(r), 0 J(x), 2 C, 1 ACL, 1 PE, 1 CONF, 0 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU
-
-# newest
-#  Mon Jul 21 15:29:35 2003|schedd|es-ergb01-01|I|PROF: scheduled in 0.000 (u 0.000 + s 0.000 = 0.000): 0 fast, 0 complex, 0 orders, 4 H, 0 Q, 3 QA, 0 J(qw), 0 J(r), 0 J(s), 0 J(h), 0 J(e), 0 J(x), 0 J(all), 3 C, 1 ACL, 1 PE, 1 CONF, 0 U, 0 D, 0 PRJ, 0 ST, 1 CKPT, 0 RU
-
-# latest and greatest
-# 07/20/2005 14:11:36|schedd|dain|P|PROF: scheduled in 0.010 (u 0.020 + s 0.000 = 0.020): 0 sequential, 0 parallel, 34 orders, 34 H, 33 Q, 386 QA, 31 J(qw), 0 J(r), 0 J(s), 0 J(h), 0 J(e), 0 J(x), 31 J(all), 46 C, 1 ACL, 1 PE, 1 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU, 1 gMes, 0 jMes
-
-                  # find position of our data
-                  set st_pos [string first "|I|" $line]
-                  if {$st_pos < 0} {
-                     set st_pos [string first "|P|" $line]
-                  }
-                  incr st_pos 3
-                  set schedd_string [string range $line $st_pos end]
-
-                  # if it is "new" output prefixed by PROF: - trim it
-                  if {[string first "PROF:" $schedd_string] >= 0} {
-                     set schedd_string [string range $schedd_string 6 end ]
-                  }
-
-                  # get scheduling wallclock time
-                  set schedd_time [lindex $schedd_string 2]
-
-
-                  # find number of orders
-                  set orders_index [lsearch -exact $schedd_string "orders,"]
-                  if {$orders_index < 0} {
-                     foreach elem $remote_spawn_list {
-                        close_spawn_process $elem
-                     }
-                     close_spawn_process $event_client_sid
-                     close_spawn_process $schedd_messages_sid
-                     ts_log_severe "format error for orders (2):\n$line"
-                     close $unexpected_out
-                     return -1
-                  }
-
-                  incr orders_index -1
-                  set orders_value [lindex $schedd_string $orders_index]
-
-                  # store data
-                  # we increment it before storing new data, as we want to
-                  # monitor additional info in 6.x systems
-                  incr schedd_nr
-                  set schedd_data($schedd_nr,system_time)   [timestamp] 
-                  set schedd_data($schedd_nr,schedd_time)   $schedd_time
-                  set schedd_data($schedd_nr,schedd_orders) $orders_value
-                  set schedd_data($schedd_nr,schedd_total_time) 0
-                  set schedd_data(count) $schedd_nr
-               }
-               "*schedd run took: *" {
-                  set split_line [split $line "|"]
-                  set prof [lindex $split_line 4]
-                  set run_time [lindex $prof 4]
-                  set schedd_data($schedd_nr,schedd_total_time) $run_time
-               }
-               "*PROF:*" {
-                  # unused output - ignore it
-               }
                default {
                   # JG: TODO: does this slow us down?
-                  puts $unexpected_out "$host_name|$spawn_id|$line"
+                  # puts $unexpected_out "$host_name|$spawn_id|$line"
                }
             }
          }
@@ -1554,16 +1422,13 @@ proc run_throughput_test {} {
             
             # tasks to be done once a second
             if {$result(test_run_time) != $time_now} {
-               show_current_system_status $start_time result job_data schedd_data monitoring
-               ts_log_fine "max event age    : $max_event_age"
-               set max_event_age 0
+               show_current_system_status $start_time result schedd_data monitoring
 
                # enable queues when $enable_queues_job_count is reached
                if { ! $are_enabled && $result(jobs_submitted) >= $enable_queues_job_count } {
                   set are_enabled 1
                   enable_queue $queue_list
                }
-
             }
             set result(test_run_time) $time_now
             save_current_system_status results_list result
@@ -1575,6 +1440,8 @@ proc run_throughput_test {} {
          }
       } ;# received data ("*\n")
    } ;# expect_loop
+
+   set end_time [timestamp]
 
    log_user 1
    close $unexpected_out
@@ -1592,7 +1459,6 @@ proc run_throughput_test {} {
 
    # close qevent and tail to schedd messages file
    close_spawn_process $event_client_sid
-   close_spawn_process $schedd_messages_sid
 
    # cleanup jobs
    delete_all_jobs
@@ -1605,13 +1471,128 @@ proc run_throughput_test {} {
       ts_log_fine [format "%-15s\t%6d" $host $host_submit_count($host)]
    }
 
+   # receive job data from accounting file
+   fill_job_list_from_accounting job_data
+
+   # fill schedd data from messages file
+   fill_sched_from_messages $start_time $end_time schedd_data
+
    # create reports
    if {!$error} {
       create_reports results_list job_data schedd_data monitoring qstat_data qping_data event_data
    }
 }
 
-proc get_submit_id_from_job_id { job_array_name job_id } {
+proc fill_job_list_from_accounting {job_array_name} {
+   global ts_config
+   global array_size
+
+   upvar $job_array_name job_data
+
+   set index_size $job_data(index_size)
+   for {set job 0} {$job <= $index_size} {incr job} {
+      if {[info exists job_data($job,job_id)]} {
+         set job_index $job_data($job,job_id)
+         if {$array_size == 1} {
+            set job_index [lindex [split $job_index "."] 0]
+         }
+         if {[get_qacct $job_index qacct_info $ts_config(master_host)] == 0} {
+            set job_data($job,project) [string index $qacct_info(project) 7]
+            set job_data($job,run_start_time) $qacct_info(start_time)
+            # We still parse the job end from qevent because otherwiese we would
+            # loose the qmaster overhead
+            # set job_data($job,run_end_time) $qacct_info(end_time)
+            set job_data($job,state) "done"
+         } else {
+            set job_data($job,state) "unknown"
+         }
+      }
+   }
+}
+
+proc fill_sched_from_messages {start_time end_time schedd_data_name} {
+   global ts_config CHECK_USER
+
+   upvar $schedd_data_name schedd_data
+
+   set qmaster_host $ts_config(master_host)
+   set qmaster_spool_dir [get_spool_dir $qmaster_host qmaster]
+   if {[ge_has_feature scheduler-thread]} {
+      set messages_file "$qmaster_spool_dir/messages"
+   } else {
+      set messages_file "$qmaster_spool_dir/schedd/messages"
+   }
+
+   set schedd_nr -1    ;# number of stored scheduler data
+
+   get_file_content $qmaster_host $CHECK_USER $messages_file file_content
+   set nr_of_lines $file_content(0)
+   for {set i 1 } { $i <= $nr_of_lines} {incr i 1} {
+      set line $file_content($i)
+
+      set tokens [split $line "|"]
+      set time_stamp [transform_date_time [lindex $tokens 0]]
+      if {$time_stamp < $start_time} {
+         continue
+      } elseif {$time_stamp > $end_time} {
+         break
+      }
+
+      if {[string match "*scheduled in*" $line]} {
+         #  Mon Dec 16 15:01:05 2002|schedd|es-ergb01-01|I|scheduled in 0.000 s: 0 fast, 0 complex, 0 orders, 4 H, 4 Q, 13 QA, 0 J, 2 C, 1 ACL, 1 PE, 1 CONF, 0 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU
+
+         #new                                                  0      1   2    3   4   5 6 7     8  9
+         #  Wed Feb 12 10:53:06 2003|schedd|es-ergb01-01|I|scheduled in 0.010 (u 0.010 + s 0.000 = 0.010): 0 fast, 0 complex, 0 orders, 5 H, 30 Q, 34 QA, 0 J(qw), 0 J(r), 0 J(x), 2 C, 1 ACL, 1 PE, 1 CONF, 0 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU
+
+         # newest
+         #  Mon Jul 21 15:29:35 2003|schedd|es-ergb01-01|I|PROF: scheduled in 0.000 (u 0.000 + s 0.000 = 0.000): 0 fast, 0 complex, 0 orders, 4 H, 0 Q, 3 QA, 0 J(qw), 0 J(r), 0 J(s), 0 J(h), 0 J(e), 0 J(x), 0 J(all), 3 C, 1 ACL, 1 PE, 1 CONF, 0 U, 0 D, 0 PRJ, 0 ST, 1 CKPT, 0 RU
+
+         # latest and greatest
+         # 07/20/2005 14:11:36|schedd|dain|P|PROF: scheduled in 0.010 (u 0.020 + s 0.000 = 0.020): 0 sequential, 0 parallel, 34 orders, 34 H, 33 Q, 386 QA, 31 J(qw), 0 J(r), 0 J(s), 0 J(h), 0 J(e), 0 J(x), 31 J(all), 46 C, 1 ACL, 1 PE, 1 U, 1 D, 1 PRJ, 0 ST, 1 CKPT, 0 RU, 1 gMes, 0 jMes
+
+         set schedd_string [lindex $tokens 4]
+
+         # if it is "new" output prefixed by PROF: - trim it
+         if {[string first "PROF:" $schedd_string] >= 0} {
+            set schedd_string [string range $schedd_string 6 end ]
+         }
+
+         # get scheduling wallclock time
+         set schedd_time [lindex $schedd_string 2]
+
+         # find number of orders
+         set orders_index [lsearch -exact $schedd_string "orders,"]
+         if {$orders_index < 0} {
+            foreach elem $remote_spawn_list {
+               close_spawn_process $elem
+            }
+            close_spawn_process $event_client_sid
+            ts_log_severe "format error for orders (2):\n$line"
+            close $unexpected_out
+            return -1
+         }
+
+         incr orders_index -1
+         set orders_value [lindex $schedd_string $orders_index]
+
+         # store data
+         # we increment it before storing new data, as we want to
+         # monitor additional info in 6.x systems
+         incr schedd_nr
+         set schedd_data($schedd_nr,system_time)   $time_stamp
+         set schedd_data($schedd_nr,schedd_time)   $schedd_time
+         set schedd_data($schedd_nr,schedd_orders) $orders_value
+         set schedd_data($schedd_nr,schedd_total_time) 0
+         set schedd_data(count) $schedd_nr
+      } elseif {[string match "*schedd run took: *" $line]} {
+         set prof [lindex $tokens 4]
+         set run_time [lindex $prof 4]
+         set schedd_data($schedd_nr,schedd_total_time) $run_time
+      }
+   }
+}
+
+proc get_submit_id_from_job_id {job_array_name job_id} {
    global ts_config
    upvar $job_array_name jobs
    
@@ -2503,9 +2484,6 @@ proc analyse_dump_data_file { file { force 0 } } {
    append text "The schedule interval parameter was set to $cluster_results(schedule_interval)"
    append content [ create_html_text $text ]
    
-
-
-
    ts_log_fine "total run time     : $cluster_results(total_run_time)"
    ts_log_fine "total jobs done    : $cluster_results(total_jobs_done)"
    ts_log_fine "total submit time  : $cluster_results(total_submit_time)"
@@ -2526,8 +2504,6 @@ proc analyse_dump_data_file { file { force 0 } } {
    ts_log_fine ""
    ts_log_fine "avg. schedd time (count=$avg_schedd_values(nr_of_schedd_runs))   : $avg_schedd_values(avg_schedd_time)"
    ts_log_fine "avg. total schedd time (count=$avg_schedd_values(nr_of_schedd_runs))   : $avg_schedd_values(avg_schedd_total_time)"
-
-   
 
    append content [ create_html_text "" ]
   
@@ -2717,35 +2693,6 @@ proc analyse_dump_data_file { file { force 0 } } {
    # configurations
    set nr_of_local_spool_directories 0
 
-if {0} {
-   foreach execd $host_list(host_list) { 
-      read_array_from_file $file "execd $execd" execd_array
-      append content [create_html_target "execd $execd"]
-      append content [create_html_text "Execd $execd:"]
-      set tmp_file [get_tmp_file_name]
-      spool_array_to_file $tmp_file execd_array execd_array
-      append content [convert_spool_file_to_html $tmp_file $output_dir/index.html 1]
-      if {[info exists execd_array]} {
-         unset execd_array
-      }
-
-      read_array_from_file $file "config execd $execd" config_array
-
-      if { $execd != "global" } {
-         if { [info exists config_array(execd_spool_dir)] } {
-            incr nr_of_local_spool_directories 1
-         }
-      }
-
-      append content [create_html_target "config execd $execd"]
-      append content [create_html_text "Execd configuration for $execd:"]
-      set tmp_file [get_tmp_file_name]
-      spool_array_to_file $tmp_file config_array config_array
-      append content [convert_spool_file_to_html $tmp_file $output_dir/index.html 1]
-      unset config_array
-   }
-}
-   
    generate_html_file $output_dir/index.html "Testsuite Throughput Test Status Report from $test_config(test_date)" $content
 
    # spool addition test information into test_results_array.dat
@@ -3045,7 +2992,6 @@ proc calculate_schedd_run_xy_rows { results_array_name row_array_name test_start
 
 proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start start_numb} {
    global ts_config
-   global last_job_id
 
    upvar $results_array_name jobs
    upvar $row_array_name xy_rows
@@ -3076,14 +3022,15 @@ proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start
     if { [info exists run_time_values ] } {
        unset run_time_values
     }
-    for {set job 0} {$job < $last_job_id} {incr job} {
+   set index_size $jobs(index_size)
+    for {set job 0} {$job < $index_size} {incr job} {
        if {[info exists jobs($job,job_id)]} {
-          set submit_end_time [expr $jobs($job,submit_start_time) + ( $jobs($job,submit_time) / 1000 )]
-          set normalized_submit_end_time [ expr ( $submit_end_time - $test_start ) ]
-          set normalized_run_end_time    [ expr ( $jobs($job,run_end_time)    - $test_start ) ]
+          set submit_time [expr ($jobs($job,submit_time) / 1000.0)]
+          set submit_end_time [expr $jobs($job,submit_start_time) + $submit_time]
+          set normalized_submit_end_time [expr ($submit_end_time - $test_start)]
+          set normalized_run_end_time    [expr ($jobs($job,run_end_time) - $test_start)]
 
-          set submit_time [ expr $jobs($job,submit_time) / 1000.0 ]
-          set run_time    [ expr ( $jobs($job,run_end_time)    - $jobs($job,run_start_time)    ) ]                    
+          set run_time [expr ($jobs($job,run_end_time) - $jobs($job,run_start_time))]                    
 
           #   x->time y->submit_time
           set xy_rows($pos1,$job,x) $normalized_submit_end_time
@@ -3092,13 +3039,13 @@ proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start
           #   x->time y->run_time
           set xy_rows($pos2,$job,x) $normalized_run_end_time
           set xy_rows($pos2,$job,y) $run_time
-          if { $min_run_time > $run_time } {
+          if {$min_run_time > $run_time} {
              set min_run_time $run_time
           }
-          if { $max_run_time < $run_time } {
+          if {$max_run_time < $run_time} {
              set max_run_time $run_time
           }
-          if { [info exists run_time_values($run_time)] } {
+          if {[info exists run_time_values($run_time)]} {
              incr run_time_values($run_time) 1
           } else {
              set run_time_values($run_time) 1
@@ -3107,8 +3054,8 @@ proc calculate_submit_run_xy_rows { results_array_name row_array_name test_start
     }
 
     set counter 0
-    for { set i $min_run_time } { $i <= $max_run_time } { incr i 1 } {
-       if { [ info exists run_time_values($i)] } {
+    for {set i $min_run_time} {$i <= $max_run_time} {incr i 1} {
+       if {[info exists run_time_values($i)]} {
           #   x->job time y->number of jobs with that runtime
           set xy_rows($pos3,$counter,x) $i
           set xy_rows($pos3,$counter,y) $run_time_values($i)
@@ -3292,7 +3239,6 @@ proc calculate_qping_xy_rows { results_array_name row_array_name test_start star
 
 proc calculate_project_run_xy_rows { results_array_name job_array_name row_array_name start_numb } {
    global ts_config
-   global last_job_id
 
    upvar $results_array_name results
    upvar $job_array_name jobs
@@ -3328,7 +3274,8 @@ proc calculate_project_run_xy_rows { results_array_name job_array_name row_array
       # calculate the number of jobs finishing per project for each time 
       # where we have a job report
       set all_jobs 0
-      for {set job 0} {$job < $last_job_id} {incr job} {
+      set index_size $jobs(index_size)
+      for {set job 0} {$job < $index_size} {incr job} {
          if {[info exists jobs($job,job_id)]} {
             incr all_jobs
 
@@ -3549,25 +3496,6 @@ proc create_reports { results_array job_array_name schedd_array_name monitoring_
    set h_list_array(host_list) $host_list
    spool_array_add_data $prot_output_file "execd list" h_list_array
 
-if {0} {
-   foreach execd $host_list {
-      get_exechost execd_array $execd
-      if {[info exists execd_array]} {
-         spool_array_add_data $prot_output_file "execd $execd" execd_array
-         unset execd_array
-      }
-
-      get_config config_array $execd
-      if {[info exists config_array]} {
-         spool_array_add_data $prot_output_file "config execd $execd" config_array
-         if { [info exists config_array(execd_spool_dir)] } {
-            incr nr_of_local_spool_directories 1
-         }
-         unset config_array
-      }
-   }
-}
-   
    # save scheduler configuration into file
    get_schedd_config schedd_config
    spool_array_add_data $prot_output_file "schedd config" schedd_config
@@ -3802,12 +3730,12 @@ proc calculate_average_cluster_times { results_array monitoring_array qstat_arra
 # this happens, when a job got submitted (qevent gets the JOB_ADD event),
 # but the qsub command fails (e.g. times out while waiting for the answer from qmaster)
 proc trash_incomplete_job_records {job_array_name} {
-   global last_job_id
    upvar $job_array_name jobs
 
    set job 0
    set errors 0
-   for {set job 0} {$job <= $last_job_id} {incr job} {
+   set index_size $jobs(index_size)
+   for {set job 0} {$job <= $index_size} {incr job} {
       if {[info exists jobs($job,job_id)] && 
           (![info exists jobs($job,submit_start_time)] || 
            ![info exists jobs($job,run_start_time)] ||
@@ -3826,7 +3754,6 @@ proc trash_incomplete_job_records {job_array_name} {
 
 proc calculate_average_job_times { job_array_name job_results_array { dump_file "" }} {
    global ts_config
-   global last_job_id
 
    upvar $job_array_name jobs
    upvar $job_results_array result
@@ -3840,18 +3767,18 @@ proc calculate_average_job_times { job_array_name job_results_array { dump_file 
       set dump_file [open $dump_file w]
       puts $dump_file "nr|jobid|submit_time|run_time|state|submit_start|submit_finish|run_start|run_finish"
    }
-   for {set job 0} {$job < $last_job_id} {incr job} {
+   set index_size $jobs(index_size)
+   for {set job 0} {$job < $index_size} {incr job} {
       if {[info exists jobs($job,job_id)]} {
-         set submit_time 0
          set run_time 0
-         set submit_end_time [expr $jobs($job,submit_start_time) + ( $jobs($job,submit_time) / 1000 )]
+         set submit_time [expr $jobs($job,submit_time) / 1000.0]
+         set submit_end_time [expr $jobs($job,submit_start_time) + $submit_time]
          if { $submit_end_time > 0 && $jobs($job,submit_start_time) > 0 } {
             incr submit_job_count 1
-            set submit_time [expr double($jobs($job,submit_time)) / 1000.0]
          }
          if { $jobs($job,run_end_time) > 0 && $jobs($job,run_start_time) > 0 } {
             incr run_job_count 1
-            set run_time    [ expr ( $jobs($job,run_end_time)    - $jobs($job,run_start_time)    ) ]
+            set run_time [expr ($jobs($job,run_end_time) - $jobs($job,run_start_time))]
          }
          set job_id $jobs($job,job_id)
 
@@ -3917,7 +3844,6 @@ proc calculate_average_schedd_times { schedd_array_name schedd_results_array { d
       close $dump_file
    }
 
-
    # calculate average
    set result(avg_schedd_time) 0
    set result(avg_schedd_total_time) 0
@@ -3929,12 +3855,11 @@ proc calculate_average_schedd_times { schedd_array_name schedd_results_array { d
 }
 
 
-proc show_current_system_status { start_time array_name job_array_name schedd_array_name monitoring_name} {
+proc show_current_system_status {start_time array_name schedd_array_name monitoring_name} {
    global ts_config
    global test_scenario
 
    upvar $array_name data
-   upvar $job_array_name jobs
    upvar $schedd_array_name schedd
    upvar $monitoring_name monitoring
 

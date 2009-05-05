@@ -1398,7 +1398,7 @@ proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
 #        - taskids "unknown" are replaced by "1"
 #        - Date/Time is transformed to UNIX timestamp
 #     If multiple records are combined into one output record
-#        - queuenames, hostnames, stati and taskid's are appended as lists
+#        - queuenames, hostnames, state and taskid's are appended as lists
 #        - resource values are summed up
 #        - submit and starttime are the minimum of all values
 #        - end time is the maximum of all values

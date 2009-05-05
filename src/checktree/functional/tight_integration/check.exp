@@ -971,6 +971,8 @@ proc tight_integration_acct {job_id num_tasks} {
    } else {
       set expected [expr $num_tasks + 1]
    }
+  
+   set job_id [lindex [split $job_id "."] 0]
    get_qacct $job_id qacct_info $ts_config(master_host) "" 1 $expected 30
 
    # re-check

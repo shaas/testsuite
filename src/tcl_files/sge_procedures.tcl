@@ -5671,7 +5671,7 @@ proc get_qacct_error {result job_id raise_error} {
 #****** sge_procedures/get_qacct() ******
 # 
 #  NAME
-#     get_qacct -- get job accounting information
+#     get_qacct -- get job or task accounting information
 #
 #  SYNOPSIS
 #     get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_error 1}} 
@@ -5681,7 +5681,8 @@ proc get_qacct_error {result job_id raise_error} {
 #     up the given variable name with information.
 #
 #  INPUTS
-#     job_id                  - job identification number
+#     job_id                  - job identification number, if format is job.task only the
+#                               record for the selected task is returned
 #     {variable qacct_info}   - name of variable to save the results
 #     {on_host ""}            - execute qacct on this host
 #     {as_user ""}            - execute qacct as this user
@@ -5747,6 +5748,14 @@ proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_
       ts_log_finer "get_qacct(): increasing timeout to $timeout_value because qacct host might not be master host \"$ts_config(master_host)\"!"
    }
 
+   if {[string first "." $job_id] >= 0} {
+      set job_array [split $job_id "."]
+      set job_id [lindex $job_array 0]
+      set qacct_args "-j $job_id -t [lindex $job_array 1]"
+   } else {
+      set qacct_args "-j $job_id"
+   }
+
    set ret 0
    set my_timeout [timestamp]
    incr my_timeout $timeout_value
@@ -5755,7 +5764,7 @@ proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_
       if {[info exists qacctinfo]} {
          unset qacctinfo
       }
-      set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
+      set result [start_sge_bin "qacct" "$qacct_args" $on_host $as_user]
       if {$prg_exit_state == 0} {
          if {$expected_amount == -1} {
             # we have the qacct info without errors

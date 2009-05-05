@@ -1,3 +1,7 @@
+RD-2009-05-05-0: Enhancem.:  improved througput test to use lesser CPU time
+                             during measurement
+                 Review:     CR
+
 CR-2009-05-05-0: Bugfix:     o analyze_directory_structure()
                                 Fixed problem when called by get_spooled_jobs()
                                 and qmaster is removing job from spool directory
