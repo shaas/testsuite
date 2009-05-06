@@ -222,32 +222,10 @@ proc hedeby_issue_633_check {} {
    # ---------------------------------------------------------------------------
    ts_log_heading "Step 2: Uninstall managed host '$ctx(managed_host)'"
    # ---------------------------------------------------------------------------
-   set opts(host) $ctx(managed_host)
-   set opts(user) [get_hedeby_startup_user]
-
-   set global_options ""
-   if { $opts(user) == "root" } {
-      # If we have a system installation root must execute
-      # the uninstall_host command
-      # But root is not a admin user, we need also credentials for authenticating
-      set admin_keystore_file ""
-      set ca_file ""
-
-      if { [hedeby_copy_admin_keystore_to_shared_folder admin_keystore_file ca_file] != 0 } {
-         ts_log_severe "Could not copy the admin keystore and the cacert file into a shared folder"
-         return
-      }
-      wait_for_remote_file $ctx(managed_host) "root" $admin_keystore_file
-      wait_for_remote_file $ctx(managed_host) "root" $ca_file
-
-      set global_options "-keystore $admin_keystore_file -cacert $ca_file"
-   }
-   sdmadm_command_opt "$global_options uninstall_host" opts
-   if { $prg_exit_state != 0 } {
+   if { [hedeby_uninstall_managed_host $ctx(managed_host)] != 0 } {
       ts_log_severe "Could not uninstall managed host '$ctx(managed_host)'"
       return
    }
-   unset opts
    lappend ctx(cleanup_actions) "install_managed_host"
 
    # ---------------------------------------------------------------------------

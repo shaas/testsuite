@@ -1,3 +1,8 @@
+RH-2009-05-06-0: Enhancem:   Hedeby:
+                             o test for issue 640 added
+                             o new method hedeby_uninstall_managed_host
+                 Review:     TB 
+
 CR-2009-05-05-1: Bugfix:     o fixed wrong usage of set_config() and
                                set_config_and_propagater() in various tests
                  Enhancem.:  o added new testsuite test "test_framework"

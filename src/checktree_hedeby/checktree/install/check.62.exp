@@ -538,3 +538,70 @@ proc hedeby_copy_admin_keystore_to_shared_folder { keystore_path_var cert_path_v
    return $prg_exit_state
 }
 
+#****** hedeby_uninstall_managed_host() *******************************
+#  NAME
+#     hedeby_uninstall_managed_host() -- 
+#
+#  SYNOPSIS
+#     hedeby_uninstall_managed_host { host { opt "" } } 
+#
+#  FUNCTION
+#     Executes a 'sdmadm uninstall_host' command on a host
+#
+#     If the hedeby startup user is root the keystore and certificate files
+#     (need for authentication) are copied to a shared folder before calling
+#     the sdmadm command.
+#
+#  INPUTS
+#     host       - The hostname
+#     { opt "" } - Options for the sdmadm command
+#                  the opt(host) parameter will be overridden by the host parameter
+#                  the opt(user) parameter will be overridden by the startup user
+#                  all other possible parameter can be used as normal 
+#
+#  RESULT
+#     0 -  Host has been uninstalled
+#    -1 -  keystore or certificate could not be copied to shared folder
+#   else - Exit code of the failed sdmadm command
+#
+#  EXAMPLE
+#
+#   if {[hedeby_uninstall_managed_host "foo"] != 0 } {
+#      ts_log_severe "could not uninstall host foo"
+#   }
+#
+#  SEE ALSO
+#     hedeby_copy_admin_keystore_to_shared_folder
+#     get_hedeby_startup_user
+#     sdmadm_command_opt
+#*******************************************************************************
+proc hedeby_uninstall_managed_host { host  { opt "" } } {
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   set opts(host) $host
+   set opts(user) [get_hedeby_startup_user]
+
+   set global_options ""
+   if { $opts(user) == "root" } {
+      # If we have a system installation root must execute
+      # the uninstall_host command
+      # But root is not a admin user, we need also credentials for authenticating
+      set admin_keystore_file ""
+      set ca_file ""
+
+      if { [hedeby_copy_admin_keystore_to_shared_folder admin_keystore_file ca_file] != 0 } {
+         ts_log_severe "Could not copy the admin keystore and the cacert file into a shared folder"
+         return -1
+      }
+      wait_for_remote_file $host "root" $admin_keystore_file
+      wait_for_remote_file $host "root" $ca_file
+
+      set global_options "-keystore $admin_keystore_file -cacert $ca_file"
+   }
+   sdmadm_command_opt "$global_options uninstall_host" opts
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Could not uninstall managed host '$host'"
+   }
+   return $prg_exit_state
+}
