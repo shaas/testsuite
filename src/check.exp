@@ -5922,14 +5922,15 @@ proc print_menu_header {} {
   global ts_config
 
   set local_host [gethostname]
+  get_version_info version_info
   clear_screen
   set_users_environment $local_host env 1
   get_version_info
   puts "==============================================================================="
 
-  puts " system version     :  $CHECK_PRODUCT_VERSION_NUMBER ($ts_config(gridengine_version))"
+  puts " system version     :  $CHECK_PRODUCT_VERSION_NUMBER (interpreted as $version_info(detected_version))"
   puts " feature            :  $ts_config(product_feature)"
-  puts " current dir        :  [ format_output "                       " 54 $CHECK_ACT_PATH ]"
+  puts " current dir        :  $CHECK_ACT_PATH"
 
   set dirs [ get_checktree_dir_names $CHECK_ACT_PATH ]
   lappend dirs $CHECK_ACT_PATH

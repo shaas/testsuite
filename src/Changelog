@@ -1,3 +1,16 @@
+CR-2009-05-07-0: Enhancem.:  o ge_has_feature()
+                               Added new feature test "additional-jvm-arguments"
+                             o main menu now shows "interpreted system version"
+                             o install_core_system test:
+                               - use "additional-jvm-arguments" feature test
+                               - also check shadowd configs
+                               - also check correct testsuite system version
+                                 checking
+                             o get_version_info()
+                               - now returns major, minor and update release
+                                 version info 
+                 Review:     DG
+
 RH-2009-05-06-0: Enhancem:   Hedeby:
                              o test for issue 640 added
                              o new method hedeby_uninstall_managed_host

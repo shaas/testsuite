@@ -129,5 +129,4 @@ proc check_user_permissions {} {
       }
   }
   ts_log_fine "runtime: [expr ([timestamp] - $time)]"
-  get_version_info
 }

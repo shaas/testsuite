@@ -641,7 +641,7 @@ proc job_environment_check_env_value {env_name should_be is_name} {
       if {$had_error == 1} {
          if {$ts_config(gridengine_version) == 53 && [string compare $env_name "JOB_NAME"] == 0} {
             set message "environment variable \"$env_name\" is set to \"$is\", should be \"$should_be\"\n\n"
-            append message "This bug is not fixed for version [get_version_info]\n"
+            append message "This bug is not fixed for GE version 53 and JOB_NAME environment variable!\n"
             append message "Workaround: Use \"REQNAME\" or \"REQUEST\" instead of \"$env_name\"\n"
             append message "in your job scripts!!!\n"
             ts_log_info $message

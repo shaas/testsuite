@@ -551,19 +551,35 @@ proc setup_execd_conf {} {
    global ts_config
    global CHECK_USER
 
-   foreach host $ts_config(execd_nodes) {
-      ts_log_fine "get configuration for host $host ..."
-      if [info exists tmp_config] {
-         unset tmp_config
-      }
-      get_config tmp_config $host
-      if {[info exists elements]} {
-         unset elements
-      }
+   set have_additional_jvm_args [ge_has_feature "additional-jvm-arguments"] 
 
+
+   set host_list $ts_config(execd_nodes)
+   foreach sh_host $ts_config(shadowd_hosts) {
+      if {[lsearch -exact $host_list $sh_host] == -1} {
+         lappend host_list $sh_host
+      }
+   }
+   foreach host $host_list {
+      ts_log_fine "get configuration for host $host ..."
+      get_config tmp_config $host
       if {![info exists tmp_config]} {
          ts_log_severe "couldn't get conf - skipping $host"
          continue
+      }
+
+      if {[lsearch -exact $ts_config(execd_nodes) $host] != -1} {
+         set is_execd_host true
+         ts_log_fine "host \"$host\" is a execd host!"
+      } else {
+         set is_execd_host false
+      }
+
+      if {[lsearch -exact $ts_config(shadowd_hosts) $host] != -1} {
+         set is_shadowd_host true
+         ts_log_fine "host \"$host\" is a shadowd host!"
+      } else {
+         set is_shadowd_host false
       }
 
       set elements [array names tmp_config]
@@ -586,16 +602,14 @@ proc setup_execd_conf {} {
          set expected_entries 8
       }
 
-      # Since 6.2u3 + JMX: shadows add their local configuration (jvm_lib + args)
-      if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) > 0} {
-         set hosts_with_2_additional_parameters $ts_config(shadowd_hosts)
-         lappend hosts_with_2_additional_parameters $ts_config(master_host)
-         if {[lsearch -exact $hosts_with_2_additional_parameters $host] >= 0} {
+      # additional jvm arguments + JMX: shadows add their local configuration (jvm_lib + args)
+      if {$have_additional_jvm_args && $ts_config(jmx_port) > 0} {
+         if {$is_shadowd_host || $host == $ts_config(master_host)} {
             incr expected_entries 2
          }
       }
 
-      if {$have_exec_spool_dir != ""} {
+      if {$have_exec_spool_dir != "" && $is_execd_host} {
          ts_log_fine "host $host has spooldir in \"$have_exec_spool_dir\""
          set spool_dir 1
          incr expected_entries 1
@@ -678,7 +692,7 @@ proc setup_execd_conf {} {
       }
 
       # execd_spool_dir has to be set correctly (depending on testsuite configuration)
-      if {$spool_dir == 1 && $spool_dir_found == 0} {
+      if {$spool_dir == 1 && $spool_dir_found == 0 && $is_execd_host} {
          ts_log_config "host $host should have spool dir entry \"$have_exec_spool_dir\"\nADDING: execd_spool_dir $have_exec_spool_dir"
          if {[info exists tmp_config(execd_spool_dir)]} {
             ts_log_fine "spooldir (old): $tmp_config(execd_spool_dir)"
@@ -1184,6 +1198,27 @@ proc setup_and_check_users {} {
          }
       }
    }
+
+   # additional check testsuite version
+   set major_version [string index $ts_config(gridengine_version) 0]
+   set minor_version [string index $ts_config(gridengine_version) 1]
+
+   get_version_info version_info
+   ts_log_fine "Grid Engine version string: \"$version_info(full)\""
+   if {$version_info(major_release) != $major_version} {
+      append error_text "Installed Grid Engine reports version string \"$version_info(full)\" which doesn't match major release string \"$major_version\"\n"
+      append error_text "Testsuite release parsing returned \"$version_info(major_release).$version_info(minor_release)u$version_info(update_release)\"\n"
+      append error_text "Testsuite configuration is set to test version \"$ts_config(gridengine_version)\"! Please check testsuite config!\n"
+   }
+
+   if {$version_info(minor_release) != $minor_version} {
+      append error_text "Installed Grid Engine reports version string \"$version_info(full)\" which doesn't match minor release string \"$minor_version\"\n"
+      append error_text "Testsuite release parsing returned \"$version_info(major_release).$version_info(minor_release)u$version_info(update_release)\"\n"
+      append error_text "Testsuite configuration is set to test version \"$ts_config(gridengine_version)\"! Please check testsuite config!\n"
+   }
+
+   ts_log_fine "Testsuite parses this as Grid Engine Release \"$version_info(major_release).$version_info(minor_release)u$version_info(update_release)\""
+
    if {$error_text != ""} {
       ts_log_severe $error_text
    }

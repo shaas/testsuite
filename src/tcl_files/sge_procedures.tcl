@@ -334,8 +334,20 @@ proc get_qmaster_spool_dir {} {
 #
 #     "new-interactive-job-support": Examines if the current GE release has the
 #                                    new interactive job support enabled.
+#
 #     "scheduler-thread":            Returns true if current GE release has the
 #                                    scheduler implemented as thread in qmaster.
+#
+#     "job-submission-verify":       Returns true if current GE release supports
+#                                    SSV (Job Submission Verify). This is the
+#                                    case if global config has the parameter
+#                                    "jsv_url".
+#
+#     "job-consumable":              Returns true if current GE release supports
+#                                    job consumable type.
+#
+#     "exclusive-host-usage":        Returns true if current GE release supports
+#                                    exclusive host usage.
 #
 #  RESULT
 #     true or false if feature string is valid, "unsupported" on error
@@ -400,9 +412,18 @@ proc ge_has_feature {feature {quiet 0}} {
             set result true
          }
       }
+      "additional-jvm-arguments" {
+         # since 6.2u3
+         get_version_info vers_info
+         if {$vers_info(major_release) >= 6 && $vers_info(minor_release) >= 2 && $vers_info(update_release) >= 3 } {
+            set result true
+         } else {
+            set result false
+         }
+      }
       default {
-         ts_log_severe "unsupported feature string \"$feature\""
-         return "unsupported"
+         ts_log_severe "testsuite error: Unsupported feature string \"$feature\""
+         set result false
       }
    }
 
@@ -8138,7 +8159,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 #*******************************************************************************
 proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
    global CHECK_USER
-   global CHECK_ADMIN_USER_SYSTEM do_compile
+   global CHECK_ADMIN_USER_SYSTEM
    get_current_cluster_config_array ts_config
 
    if { [ have_root_passwd ] == -1 } {
