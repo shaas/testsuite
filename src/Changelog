@@ -1,3 +1,7 @@
+RD-2009-05-08-0: Enhancem.:  throughput test removes acccounting file to
+                             reduce qacct run time
+                 Review:     CR
+
 CR-2009-05-07-0: Enhancem.:  o ge_has_feature()
                                Added new feature test "additional-jvm-arguments"
                              o main menu now shows "interpreted system version"

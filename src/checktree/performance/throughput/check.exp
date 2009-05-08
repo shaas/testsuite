@@ -498,7 +498,7 @@ proc throughput_cleanup {} {
 }
 
 proc throughput_setup_level {} {
-   global ts_config
+   global ts_config CHECK_USER
    global CHECK_ACT_LEVEL CHECK_PRODUCT_TYPE
    global end_job_count                      ;# number of jobs
    global enable_queues_job_count             ;# after with job, enable queues
@@ -758,6 +758,9 @@ proc throughput_setup_level {} {
    if {$consumables} {
       throughput_setup_consumables
    }
+
+   # clean accounting file to improve qacct run time
+   delete_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/accounting"
 }
 
 proc throughput_cleanup_level {} {
