@@ -1,3 +1,11 @@
+HP-2009-05-08-0: Enhancem.:  * Improved cluster shutdown functions
+                               - now it is checked for every host if all daemons
+                                 are really shut down
+                             * Made remote_delete_directory() function aware of
+                               local Windows users
+                 Changed:    file_procedures.tcl, sge_procedures.tcl
+                 Review:     CR
+
 RD-2009-05-08-0: Enhancem.:  throughput test removes acccounting file to
                              reduce qacct run time
                  Review:     CR

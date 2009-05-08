@@ -7983,7 +7983,7 @@ proc shutdown_daemon { host service } {
 #*******************************
 proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    global CHECK_USER
-   global CHECK_ADMIN_USER_SYSTEM do_compile
+   global CHECK_ADMIN_USER_SYSTEM 
    get_current_cluster_config_array ts_config
 
    exec_shutdown_hooks
@@ -7998,37 +7998,30 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       shutdown_all_shadowd $sh_host
    }
 
-   ts_log_fine "killing scheduler and all execds in the cluster ..."
-   set result ""
-   set do_ps_kill 0
    if {$ts_config(gridengine_version) <= 61} {
       set qconf_option "-ks -ke all"
    } else {
       set qconf_option "-ke all"
    }
+   ts_log_fine "do qconf $qconf_option ..."
    set result [start_sge_bin "qconf" $qconf_option]
    ts_log_finest "qconf $qconf_option returned $prg_exit_state"
    if { $prg_exit_state == 0} {
       ts_log_finest $result
    } else {
-      set do_ps_kill 1
-      ts_log_finer "shutdown_core_system - qconf $qconf_option failed:\n$result"
+      ts_log_fine "shutdown_core_system - qconf $qconf_option failed:\n$result"
    }
 
    # give the schedd and execd's some time to shutdown
-   wait_for_unknown_load 120 all.q 0
+   wait_for_unknown_load 60 all.q 0
 
-   ts_log_fine "killing qmaster ..."
-   set result ""
-   set do_ps_kill 0
+   ts_log_fine "do qconf -km ..."
    set result [start_sge_bin "qconf" "-km"]
-
    ts_log_finest "qconf -km returned $prg_exit_state"
    if {$prg_exit_state == 0} {
       ts_log_finest $result
    } else {
-      set do_ps_kill 1
-      ts_log_finer "shutdown_core_system - qconf -km failed:\n$result"
+      ts_log_fine "shutdown_core_system - qconf -km failed:\n$result"
    }
 
    if {[wait_till_qmaster_is_down $ts_config(master_host)] != 0} {
@@ -8064,7 +8057,6 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
                 ts_log_finest $result
                 ts_log_finest "sgecommdcntl -k -host $elem - success"
              } else {
-                set do_ps_kill 1
                 ts_log_fine "shutdown_core_system - commdcntl failed:\n$result"
              }
           }
@@ -8075,39 +8067,49 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       shutdown_system_daemon $ts_config(master_host) "execd qmaster"
    }
 
-   if {$do_compile == 0} {
-      if {$do_ps_kill == 1} {
-         ts_log_fine "perhaps master is not running, trying to shutdown cluster with ps information"
+   # check for processes on
+   # - master host
+   set hosts_to_check $ts_config(master_host)
+   # - execd hosts
+   foreach elem $ts_config(execd_nodes) {
+      if {[lsearch -exact $hosts_to_check $elem] < 0} {
+         lappend hosts_to_check $elem
       }
-      # check for processes on
-      # - master host
-      set hosts_to_check $ts_config(master_host)
-      # - execd hosts
-      foreach elem $ts_config(execd_nodes) {
-         if {[lsearch -exact $hosts_to_check $elem] < 0} {
-            lappend hosts_to_check $elem
-         }
+   }
+   # - shadowd hosts (we might have a qmaster running there!)
+   foreach elem $ts_config(shadowd_hosts) {
+      if {[lsearch -exact $hosts_to_check $elem] < 0} {
+         lappend hosts_to_check $elem
       }
-      # - shadowd hosts (we might have a qmaster running there!)
-      foreach elem $ts_config(shadowd_hosts) {
-         if {[lsearch -exact $hosts_to_check $elem] < 0} {
-            lappend hosts_to_check $elem
-         }
-      }
+   }
 
-      if {$ts_config(gridengine_version) < 62} {
-         set proccess_names "sched"
-      } else {
-         set proccess_names ""
-      }
-      lappend proccess_names "execd"
-      lappend proccess_names "qmaster"
-      if {$ts_config(gridengine_version) == 53} {
-         lappend proccess_names "commd"
-      }
+   if {$ts_config(gridengine_version) < 62} {
+      set proccess_names "sched"
+      set real_proccess_names "sge_schedd"
+   } else {
+      set proccess_names ""
+      set real_proccess_names ""
+   }
+   lappend proccess_names "execd"
+   lappend real_proccess_names "sge_execd"
+   lappend proccess_names "qmaster"
+   lappend real_proccess_names "sge_qmaster"
+   lappend proccess_names "shadowd"
+   lappend real_proccess_names "sge_shadowd"
+   if {$ts_config(gridengine_version) == 53} {
+      lappend proccess_names "commd"
+      lappend real_proccess_names "sge_commd"
+   }
 
-      foreach host $hosts_to_check {
-         shutdown_system_daemon $host $proccess_names
+
+   # now check that all daemons are gone
+   foreach host $hosts_to_check {
+      ts_log_fine "look for running \"$real_proccess_names\" processes on host \"$host\" ..."
+      foreach process $real_proccess_names {
+         if {[is_daemon_running $host $process 1] != 0} {
+            ts_log_fine "process \"$process\" on host \"$host\" is still running!"
+            shutdown_system_daemon $host $proccess_names
+         }
       }
    }
 

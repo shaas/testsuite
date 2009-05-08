@@ -2652,7 +2652,9 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
       # If we have no admin user system and we have a root password then do a chown
       if {[have_root_passwd] == 0 && $CHECK_ADMIN_USER_SYSTEM == 0 } {
          # make sure we actually can delete the directory with all its contents.
-         start_remote_prog $hostname "root" chown "-R $CHECK_USER $path" prg_exit_state 60 0 "" "" 1 0 0
+         map_special_users $hostname $CHECK_USER $win_local_user
+         ts_log_info "doing chown -R $connect_full_user $path on $hostname as user root ..."
+         start_remote_prog $hostname "root" chown "-R $connect_full_user $path" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
       }
 
       # we move the directory as CHECK_USER (admin user)
