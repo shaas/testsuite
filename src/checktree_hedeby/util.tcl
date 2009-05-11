@@ -9844,7 +9844,7 @@ proc wait_for_resource_removal { res_remove_list {opt ""} } {
       }
       set not_removed ""
       foreach res $res_remove_list {
-         if {[lsearch -exact resource_list $res] != -1} {
+         if {[lsearch -exact $resource_list $res] != -1} {
             append not_removed "\"$res\" "
          }
       }

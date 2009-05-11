@@ -1,3 +1,8 @@
+RH-2009-05-11-0: Enhancem.:  Hedeby:
+                             New test checktree_hedeby/checktree/resources/move/simhost added
+                             Tests also issue 645
+                 Review:     TB 
+
 CR-2009-05-11-0: Bugfix:     o test 1802 (only for csp systems) re-news
                                certificates, but did not copy them to remote
                                hosts.

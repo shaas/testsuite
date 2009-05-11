@@ -1,0 +1,349 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+# ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
+# "no" - we don't need root acess / "yes" - we need root access:
+set check_root_access_needs    "yes"              
+
+# name of the test (best practice: use the name of the test directory)
+set check_name                 "move_simhost"
+
+# specifiy the test categories
+# (VERIFIED if the test is QA inspected)
+# other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
+set check_category             "SYSTEM VERIFIED" 
+
+# define the highest check level
+set check_highest_level        1
+
+# a sort check description for each runlevel:
+# (runlevel 0 is mandatory)
+set check_description(0)       "Checks that simulated hosts can be moved" ;# runlevel 0
+
+# specify check dependencies
+# (name all tests which have to run sucessfull before this test can run)
+set check_needs                "hedeby_install"                  
+
+# The name of the init level procedure for this test. The procedure is defined
+# in the test file. 
+set check_init_level_procedure "hedeby_move_simhost_init_level"
+
+# define tests setup and cleanup function. The functions are called for each
+# runlevel. Before testsuite is starting with calling all check_functions
+# the setup function is called. After finishing all check_functions the 
+# cleanup function is called.
+#
+# The aim of the setup/cleanup functions is that the test should restore
+# all modifications, even when the test failes completely.
+set check_setup_level_function "hedeby_move_simhost_setup_level"
+set check_cleanup_level_function "hedeby_move_simhost_cleanup_level"
+
+
+# The check_functions array tells the testsuite which check functions should
+# be called (and in which order)
+# All check_functions should be defined at least in a file (*.tcl) in the
+# check directory.
+set check_functions            ""
+lappend check_functions "hedeby_move_simhost_check"
+
+
+# ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global hedeby_move_simhost_ctx
+
+# (the init level procedure defines which runlevels are supported)
+# short  (   0 min - 15 min / run level   0 -  99 )"
+# medium (  16 min -  1 h   / run level 100 - 199 )"
+# long   (   1 h   -  4 h   / run level 200 - 299 )"
+# day    ( > 4 h   - 24 h   / run level 300 - 399 )"
+# week   ( >24 h            / run level 400 - 499 )"
+
+#****** hedeby_move_simhost_init_level() ***************************
+#  NAME
+#     hedeby_move_simhost_init_level() -- 
+#
+#  SYNOPSIS
+#     hedeby_move_simhost_init_level { } 
+#
+#*******************************************************************************
+proc hedeby_move_simhost_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  switch -- $CHECK_ACT_LEVEL {
+      "0" { return 0 }
+      default { return -1 } 
+  }
+}
+
+#****** hedeby_move_simhost_setup_level() ********************************
+#  NAME
+#     hedeby_move_simhost_setup_level() -- 
+#
+#  SYNOPSIS
+#     hedeby_move_simhost_setup_level { } 
+#
+#  FUNCTION
+#
+#     Tries to get a hostname from NIS (with ypcat hosts). If it did not
+#     work the test is not supported.
+#
+#     Stores the following elements in the test context:
+#
+#     this(supported) -- 1 if a host could be retrieved from NIS
+#     this(simhost)   -- name of the host
+#     this(service)   -- name of a random GE service
+#
+#*******************************************************************************
+proc hedeby_move_simhost_setup_level {} {
+
+   global hedeby_config 
+   upvar #0 hedeby_move_simhost_ctx this
+
+   set this(cleanup_actions) {}
+   set this(supported) 0
+   set this(master_host) $hedeby_config(hedeby_master_host)
+
+   # Pick a random host from NIS for simulated hosts
+   set idx [expr {int(rand()*100)}]
+
+   set timeout 60
+   set background 0
+   set cd_dir ""
+   set env_list ""
+   set do_file_check 1
+   set source_settings_file 1
+   set shared_lib_path 0
+   set raise_error 0
+
+   set cmd "ypcat"
+   set cmd_args "hosts > /tmp/ypcatout.\$\$"
+   append cmd_args " && awk '\{ print \$2\}' /tmp/ypcatout.\$\$"
+   append cmd_args " | head -$idx | tail -1 && rm -f /tmp/ypcatout.\$\$"
+
+   set output [start_remote_prog $this(master_host) [get_hedeby_admin_user]    \
+                                $cmd $cmd_args                                                 \
+                                prg_exit_state $timeout $background $cd_dir $env_list          \
+                                $do_file_check $source_settings_file $shared_lib_path          \
+                                $raise_error]
+
+   if { $prg_exit_state != 0 } {
+      set this(supported) 0
+
+      set    msg "Test hedeby_move_simhost is not supported!!!\n"
+      append msg "It needs a hostname from NIS, however 'ypcat hosts'\n"
+      append msg "command did not work:\n"
+      append msg "$output"
+
+      ts_log_config $msg
+      return
+   }
+   set this(supported) 1
+   set this(simhost) [string trim $output]
+
+   get_hedeby_default_services service_names
+   set this(service)      [pick_random $service_names(services)]
+   set this(service_host) $service_names(master_host,$this(service))
+   set this(service_cnr)  $service_names(ts_cluster_nr,$this(service))
+}
+
+#****** hedeby_move_simhost_cleanup_level() ******************************
+#  NAME
+#     hedeby_move_simhost_cleanup_level() -- cleanup test function 
+#
+#  SYNOPSIS
+#     hedeby_move_simhost_cleanup_level { } 
+#
+#  FUNCTION
+#     Removes the simhost from the system if necessary
+#
+#**********************************************************************
+proc hedeby_move_simhost_cleanup_level {} {
+   upvar #0 hedeby_move_simhost_ctx this
+
+   if { $this(supported) == 0 } {
+      return
+   }
+   if { [lsearch $this(cleanup_actions) "remove_resource"] >= 0 } {
+      sdmadm_command_opt "remove_resource -r $this(simhost) -force"
+      if { $prg_exit_state != 0 || [wait_for_resource_removal $this(simhost)] != 0 } {
+         lappend $this(cleanup_actions) "purge_resource"
+      }
+   } 
+
+   if { [lsearch $this(cleanup_actions) "purge_resource"] >= 0 } {
+      # now we have a problem, as the resource could not be removed and even
+      # a init_core_system does not clean up the resource because the
+      # framework does not stop the SDM system before reinstalling the
+      # additional clusters. It can happen that the resource "survives" by
+      # travelling between the services. 
+      #
+      # => proper cleanup here
+
+      # shutdown Hedeby (take the easy way: performance is not an issue for
+      # error case)
+      shutdown_hedeby 1
+
+      # remember cluster config nr and set to cluster of sge service
+      set ccnr [get_current_cluster_config_nr]
+      set_current_cluster_config_nr $this(service_cnr)
+
+      # try to take out host from queue definition
+      purge_queue "all.q@$this(simhost)" "slots" "" "" 0
+
+      # try to remove host from @allhosts
+      set output [start_sge_bin "qconf" "-dattr hostgroup hostlist $this(simhost) @allhosts "]
+
+      # try to remove simhost from exechost list
+      set output [start_sge_bin "qconf" "-de $this(simhost)"]
+
+      # reset cluster config nr
+      set_current_cluster_config_nr $ccnr
+
+      # remove spool files from master host and service host:
+      set host_hash($this(master_host)) 1
+      set host_hash($this(service_host)) 1
+      foreach host [array names host_hash] {
+         set spool_dir [get_hedeby_local_spool_dir $host]
+         ts_log_fine "Removing spooled files for simhost '$this(simhost)' on host '$host', spool_dir=$spool_dir/spool"
+         set output [start_remote_prog  $host [get_hedeby_admin_user] "rm" "`find $spool_dir/spool -name $this(simhost).srf`"]
+         if { $prg_exit_state != 0 } {
+            ts_log_severe "Could delete spool files on host '$host', RC=$prg_exit_state\n$output"
+         }
+      }
+
+      # startup SDM
+      startup_hedeby
+   }
+
+   unset this
+}
+
+
+#****** hedeby_move_simhost_check() ********************************
+#  NAME
+#     hedeby_move_simhost_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_move_simhost_check { } 
+#
+#  FUNCTION
+#     This check performs the following steps:
+#
+#     o add the sim host to the spare_pool
+#     o move the sim host to the GE service
+#     o remove the sim host from the system
+#
+#*******************************************************************************
+proc hedeby_move_simhost_check {} {
+   upvar #0 hedeby_move_simhost_ctx this
+   
+   if { $this(supported) == 0 } {
+      return
+   }
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Adding simulated host '$this(simhost)' to spare_pool"
+   # ---------------------------------------------------------------------------
+
+   # The sim host must have set the property simhost otherwise GE service will
+   # reject the resource. Pipe the resource definition into the sdmadm command
+   set    tasks(STANDARD_IN) "resourceHostname=$this(simhost)\n"
+   append tasks(STANDARD_IN) "simhost=true\n"
+   append tasks(STANDARD_IN) "===\n"
+   set opt(interactive_tasks) tasks
+
+   sdmadm_command_opt "add_resource -f - -s spare_pool" opt
+   unset opt
+   unset tasks
+   if { $prg_exit_state != 0 } {
+      return
+   }
+   lappend this(cleanup_actions) "remove_resource"
+
+   set eri($this(simhost),service) "spare_pool" 
+   set eri($this(simhost),state)   "ASSIGNED"
+
+   if {[wait_for_resource_info_opt eri] != 0 } {
+      return
+   }
+   unset eri
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Moving simulated host '$this(simhost)' to GE service '$this(service)'"
+   # ---------------------------------------------------------------------------
+   sdmadm_command_opt "move_resource -r $this(simhost) -s $this(service)" 
+   if { $prg_exit_state != 0 } {
+      return
+   }
+
+   set eri($this(simhost),service) "$this(service)" 
+   set eri($this(simhost),state)   "ASSIGNED"
+
+   if {[wait_for_resource_info_opt eri] != 0 } {
+      return
+   }
+   unset eri
+
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Removing simulated host '$this(simhost)' from system"
+   # ---------------------------------------------------------------------------
+   sdmadm_command_opt "remove_resource -r $this(simhost)"
+   if { $prg_exit_state != 0 } {
+      return
+   }
+   if {[wait_for_resource_removal $this(simhost)] != 0 } {
+      set    msg "It seems that we ran into issue 645 again!!!\n"
+      append msg "============================================\n"
+      append msg "\n"
+      append msg "The removal of simhost '$this(simhost)' did not work"
+      ts_log_severe $msg
+      set this(cleanup_actions) "purge_resource"
+      return
+   }
+   # simhost has been removed, no further cleanup necessary
+   set this(cleanup_actions) {}
+}
+
+
+
