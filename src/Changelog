@@ -1,3 +1,9 @@
+CR-2009-05-11-1: Bugfix:     qmaster/profiling test
+                               - enhanced error reporting
+                               - give thread profiling more time to propagate
+                                 the changes
+                 Review:     RD
+
 RH-2009-05-11-0: Enhancem.:  Hedeby:
                              New test checktree_hedeby/checktree/resources/move/simhost added
                              Tests also issue 645
