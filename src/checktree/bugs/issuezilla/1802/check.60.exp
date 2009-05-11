@@ -109,6 +109,23 @@ proc issue_1802_cleanup  {} {
             ts_log_severe "can't re-create user certificate for user $CHECK_USER again"
          }
       }
+
+      set my_csp_host_list $ts_config(execd_nodes)
+      if {$ts_config(submit_only_hosts) != "none"} {
+         foreach elem $ts_config(submit_only_hosts) {
+           lappend my_csp_host_list $elem
+         }
+      }
+      foreach exec_host $my_csp_host_list {
+         if {$exec_host == $ts_config(master_host)} {
+            continue
+         }
+         set result [copy_certificates $exec_host]
+      }
+      set output [start_sge_bin "qstat" "-f" $ts_config(master_host)]
+      if {$prg_exit_state != 0} {
+         ts_log_severe "qstat -f not working after re-creating certificates"
+      }
    }
 }
 

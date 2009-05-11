@@ -1,3 +1,8 @@
+CR-2009-05-11-0: Bugfix:     o test 1802 (only for csp systems) re-news
+                               certificates, but did not copy them to remote
+                               hosts.
+                 Review:     MD
+
 HP-2009-05-08-0: Enhancem.:  * Improved cluster shutdown functions
                                - now it is checked for every host if all daemons
                                  are really shut down
