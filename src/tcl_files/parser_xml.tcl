@@ -1879,29 +1879,82 @@ proc qstat_r_xml_parse { output } {
 
 proc qstat_j_xml_par { output job_id xmloutput} {
    upvar $output xml
+   get_current_cluster_config_array ts_config
       
    set doc [dom parse $xmloutput]
    set root [$doc documentElement]
    
    # parse xml output and create array based on the attributes
-   set jobNumber [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_number/text()]
-   set project [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_project/text()]
-   set stderrPath [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_stderr_path_list/path_list/PN_path/text()]
-   set stdoutPath [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_stdout_path_list/path_list/PN_path/text()]
-   set execFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_exec_file/text()]
-   set subTime [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_submission_time/text()]
-   set owner [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_owner/text()]
-   set uid [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_uid/text()]
-   set group [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_group/text()]
-   set gid [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_gid/text()]
-   set account [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_account/text()]
-   set merge [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_merge_stderr/text()]
-   set mailListUser [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_mail_list/element/MR_user/text()]
-   set mailListHost [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_mail_list/element/MR_host/text()]
-   set notify [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_notify/text()]
-   set jobName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_name/text()]
-   set jobShare [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_jobshare/text()]
-   set shellList [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_shell_list/path_list/PN_path/text()]
+   # JB_job_number
+   set jobNumber [$root getElementsByTagName JB_job_number]
+   foreach elem $jobNumber {
+      set xml(job_number) [[$elem firstChild] nodeValue]
+   }
+   # JB_project
+   set project [$root getElementsByTagName JB_project]
+   foreach elem $project {
+      set xml(project) [[$elem firstChild] nodeValue]
+   }
+   # JB_exec_file
+   set execFile [$root getElementsByTagName JB_exec_file]
+   foreach elem $execFile {
+      set xml(exec_file) [[$elem firstChild] nodeValue]
+   }
+   # JB_submission_time
+   set subTime [$root getElementsByTagName JB_submission_time]
+   foreach elem $subTime {
+      set xml(submission_time) [[$elem firstChild] nodeValue]
+   }
+   # JB_owner
+   set owner [$root getElementsByTagName JB_owner]
+   foreach elem $owner {
+      set xml(owner) [[$elem firstChild] nodeValue]
+   }
+   # JB_uid
+   set uid [$root getElementsByTagName JB_uid]
+   foreach elem $uid {
+      set xml(uid) [[$elem firstChild] nodeValue]
+   }
+   # JB_gid
+   set gid [$root getElementsByTagName JB_gid]
+   foreach elem $gid {
+      set xml(gid) [[$elem firstChild] nodeValue]
+   }
+   # JB_group
+   set group [$root getElementsByTagName JB_group]
+   foreach elem $group {
+      set xml(group) [[$elem firstChild] nodeValue]
+   }
+   # JB_account
+   set account [$root getElementsByTagName JB_account]
+   foreach elem $account {
+      set xml(account) [[$elem firstChild] nodeValue]
+   }
+   # JB_merge_stderr
+   set merge [$root getElementsByTagName JB_merge_stderr]
+   foreach elem $merge {
+      if {[string compare [[$elem firstChild] nodeValue] "true"] == 0} {  
+         set xml(merge) y
+      } else {
+         set xml(merge) n
+      }
+   }
+   # JB_notify
+   set notify [$root getElementsByTagName JB_notify]
+   foreach elem $notify {
+      set xml(notify) [string toupper [[$elem firstChild] nodeValue]]
+   }
+   # JB_job_name
+   set jobName [$root getElementsByTagName JB_job_name]
+   foreach elem $jobName {
+      set xml(job_name) [[$elem firstChild] nodeValue]
+   }
+   # JB_jobshare
+   set jobShare [$root getElementsByTagName JB_jobshare]
+   foreach elem $jobShare {
+      set xml(jobshare) [[$elem firstChild] nodeValue]
+   }
+   # JB_env_list
    set envList [$root getElementsByTagName JB_env_list]
    foreach elemin $envList {
       set jobList [$elemin getElementsByTagName job_sublist]
@@ -1912,6 +1965,7 @@ proc qstat_j_xml_par { output job_id xmloutput} {
          set xml(sge_o[string tolower $varName]) [$val nodeValue]
       }
    }
+   # JAT_scaled_usage_list
    set usgList [$root getElementsByTagName JAT_scaled_usage_list]
    foreach usg $usgList {
       set paramList [$usg getElementsByTagName scaled]
@@ -1930,48 +1984,119 @@ proc qstat_j_xml_par { output job_id xmloutput} {
          
       }
    }
-   set jobArgs [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_args/element/ST_name/text()]
-   set xml(job_args) [$jobArgs nodeValue]
-   set scriptFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_script_file/text()]
-   set hardQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_queue_list/destin_ident_list/QR_name/text()]
-   set softQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_queue_list/destin_ident_list/QR_name/text()]
-   set hardRes [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_resource_list/qstat_l_requests/CE_stringval/text()]
-   set hardResName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_resource_list/qstat_l_requests/CE_name/text()]
-   set softRes [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_resource_list/qstat_l_requests/CE_stringval/text()]
-   set softResName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_resource_list/qstat_l_requests/CE_name/text()]
-   set schedInfo [$root selectNodes /detailed_job_info/messages/qmaster_response/SME_global_message_list/element/MES_message/text()]
-
-   set xml(job_number) [$jobNumber nodeValue]
-   set xml(project) [$project nodeValue]
-   set xml(stderr_path_list) [$stderrPath nodeValue]
-   if {[string compare [$merge nodeValue] "true"] == 0} {  
-      set xml(merge) y
-   } else {
-      set xml(merge) [$merge nodeValue]
+   # JB_stderr_path_list
+   set stderrPath [$root getElementsByTagName JB_stderr_path_list]
+   foreach elem $stderrPath {
+      set path [$elem getElementsByTagName PN_path]
+      set pnHost [$elem getElementsByTagName PN_host]
+      set fileHost [$elem getElementsByTagName PN_file_host]
+      if {$ts_config(gridengine_version) < 62} {
+         set xml(stderr_path_list) [[$path firstChild] nodeValue]
+      } else {
+         if {[$pnHost hasChildNodes] == 0} {
+            set pnHost "NONE"
+         } else {
+            set pnHost [[$pnHost firstChild] nodeValue]
+         }
+         if {[$fileHost hasChildNodes] == 0} {
+            set fileHost "NONE"
+         } else {
+            set fileHost [[$fileHost firstChild] nodeValue]
+         }
+         set xml(stderr_path_list) "$pnHost:$fileHost:[[$path firstChild] nodeValue]"
+      }
    }
-   set xml(stdout_path_list) [$stdoutPath nodeValue]
-
-   set xml(exec_file) [$execFile nodeValue]
-   set xml(submission_time) [$subTime nodeValue]
-   set xml(owner) [$owner nodeValue]
-   set xml(uid) [$uid nodeValue]
-   set xml(group) [$group nodeValue]
-   set xml(gid) [$gid nodeValue]
-   set xml(account) [$account nodeValue]
-   set xml(mail_list) [$mailListUser nodeValue]@[$mailListHost nodeValue]
-   set xml(notify) [string toupper [$notify nodeValue]]
-   set xml(job_name) [$jobName nodeValue]
-   set xml(jobshare) [$jobShare nodeValue]
-   set xml(shell_list) [$shellList nodeValue]
-   set xml(envList) [$envList nodeValue]
-   set xml(script_file) [$scriptFile nodeValue]
-   set xml(hard_queue_list) [$hardQueue nodeValue]
-   set xml(soft_queue_list) [$softQueue nodeValue]
-   set hrl "hard resource_list"
-   set srl "soft resource_list"
-   set xml($hrl) "[$hardResName nodeValue]=[$hardRes nodeValue]"
-   set xml($srl) "[$softResName nodeValue]=[$softRes nodeValue]"
-   set sched "scheduling info"
-   set xml($sched) [$schedInfo nodeValue]
+   # JB_stdout_path_list
+   set stdoutPath [$root getElementsByTagName JB_stdout_path_list]
+   foreach elem $stdoutPath {
+      set path [$elem getElementsByTagName PN_path]
+      set pnHost [$elem getElementsByTagName PN_host]
+      set fileHost [$elem getElementsByTagName PN_file_host]
+      if {$ts_config(gridengine_version) < 62} {
+         set xml(stdout_path_list) [[$path firstChild] nodeValue]
+      } else {
+         if {[$pnHost hasChildNodes] == 0} {
+            set pnHost "NONE"
+         } else {
+            set pnHost [[$pnHost firstChild] nodeValue]
+         }
+         if {[$fileHost hasChildNodes] == 0} {
+            set fileHost "NONE"
+         } else {
+            set fileHost [[$fileHost firstChild] nodeValue]
+         }
+         set xml(stdout_path_list) "$pnHost:$fileHost:[[$path firstChild] nodeValue]"
+      }      
+   }
+   # JB_mail_list
+   set mailList [$root getElementsByTagName JB_mail_list]
+   foreach elem $mailList {
+      set user [$elem getElementsByTagName MR_user]
+      set host [$elem getElementsByTagName MR_host]
+      set xml(mail_list) [[$user firstChild] nodeValue]@[[$host firstChild] nodeValue]
+   }
+   # JB_shell_list
+   set shellList [$root getElementsByTagName JB_shell_list]
+   foreach elem $shellList {
+      set path [$elem getElementsByTagName PN_path]
+      set pnHost [$elem getElementsByTagName PN_host]
+      if {$ts_config(gridengine_version) < 62} {
+         set xml(shell_list) [[$path firstChild] nodeValue]
+      } else {
+         if {[$pnHost hasChildNodes] == 0} {
+            set pnHost "NONE"
+         } else {
+            set pnHost [[$pnHost firstChild] nodeValue]
+         }
+         set xml(shell_list) "$pnHost:[[$path firstChild] nodeValue]"
+      }      
+   }
+   # JB_job_args
+   set jobArgs [$root getElementsByTagName JB_job_args]
+   foreach elem $jobArgs {
+      set name [$elem getElementsByTagName ST_name]
+      set xml(job_args) [[$name firstChild] nodeValue]
+   }
+   # JB_script_file
+   set scriptFile [$root getElementsByTagName JB_script_file]
+   foreach elem $scriptFile {
+      set xml(script_file) [[$elem firstChild] nodeValue]
+   }
+   # JB_hard_queue_list
+   set hardQueue [$root getElementsByTagName JB_hard_queue_list]
+   foreach elem $hardQueue {
+      set name [$elem getElementsByTagName QR_name]
+      set xml(hard_queue_list) [[$name firstChild] nodeValue]
+   }
+   # JB_soft_queue_list
+   set softQueue [$root getElementsByTagName JB_soft_queue_list]
+   foreach elem $softQueue {
+      set name [$elem getElementsByTagName QR_name]
+      set xml(soft_queue_list) [[$name firstChild] nodeValue]
+   }
+   # JB_hard_resource_list
+   set hardRes [$root getElementsByTagName JB_hard_resource_list]
+   foreach elem $hardRes {
+      set stringVal [$elem getElementsByTagName CE_stringval]
+      set name [$elem getElementsByTagName CE_name]
+      set hrl "hard resource_list"
+      set xml($hrl) "[[$name firstChild] nodeValue]=[[$stringVal firstChild] nodeValue]"
+   }
+   # JB_soft_resource_list
+   set softRes [$root getElementsByTagName JB_soft_resource_list]
+   foreach elem $softRes {
+      set stringVal [$elem getElementsByTagName CE_stringval]
+      set name [$elem getElementsByTagName CE_name]
+      set srl "soft resource_list"
+      set xml($srl) "[[$name firstChild] nodeValue]=[[$stringVal firstChild] nodeValue]"
+   }
+   # SME_global_message_list
+   set schedInfo [$root getElementsByTagName SME_global_message_list]
+   foreach elem $schedInfo {
+      set message [$elem getElementsByTagName MES_message]
+      set sched "scheduling info"
+      set xml($sched) [[$message firstChild] nodeValue]
+   }
+      
 }
 

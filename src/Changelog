@@ -1,3 +1,7 @@
+MP-2009-05-11-0: Bugfix:     fixed broken qstat test by re-writing xml parser function
+                 Issue:      294
+                 Review:     CR
+
 CR-2009-05-11-1: Bugfix:     qmaster/profiling test
                                - enhanced error reporting
                                - give thread profiling more time to propagate
