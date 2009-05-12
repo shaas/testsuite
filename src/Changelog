@@ -5,7 +5,16 @@
 ################################################################################
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
---------------------------------------------------------------------------------
+-----------------+-----------+--------------------------------------------------
+
+RH-2009-05-12-0: Bugfix:     Hedeby:
+                             o move_simhost test did not cleanup the qmaster params
+                               (If a simhost is assigned to a GE service the
+                               global qmaster parameter SIM_HOSTS is set to true)
+                             o file_permission: analyze_directory script accepts
+                               only relative pathnames in the ingore_path list 
+                 Belongs to: RH-2009-05-11-0 and RH-2009-05-05-0
+                 Review:     TB
 
 TB-2009-05-12-0: Bugfix:     Hedeby:
                              check for issue 640 breaks file_permissions test

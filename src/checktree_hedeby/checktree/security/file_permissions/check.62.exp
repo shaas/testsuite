@@ -301,8 +301,8 @@ proc hedeby_check_master_host_file_permissions {} {
 
    
    set ignore_path {}
-   lappend ignore_path "${spool_dir}/tmp/executor"
-   lappend ignore_path "${spool_dir}/tmp/executor/*"
+   lappend ignore_path "./tmp/executor"
+   lappend ignore_path "./tmp/executor/*"
 
 
    get_hedeby_default_services service_names
@@ -414,6 +414,7 @@ proc hedeby_file_permissions_check_managed_host {} {
 #  INPUTS
 #     host            - the host
 #     ignore_path_var - upvar defines a list of pathes which should be ignored 
+#                       (must be relative to the local spool directory and start with .)
 #     { ef_var "" }   - array with the expected variables 
 #
 #*******************************************************************************

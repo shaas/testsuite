@@ -138,6 +138,7 @@ proc hedeby_move_simhost_init_level {} {
 proc hedeby_move_simhost_setup_level {} {
 
    global hedeby_config 
+   upvar #0 hedeby_move_simhost_qmaster_config qmaster_config
    upvar #0 hedeby_move_simhost_ctx this
 
    set this(cleanup_actions) {}
@@ -184,7 +185,13 @@ proc hedeby_move_simhost_setup_level {} {
    get_hedeby_default_services service_names
    set this(service)      [pick_random $service_names(services)]
    set this(service_host) $service_names(master_host,$this(service))
-   set this(service_cnr)  $service_names(ts_cluster_nr,$this(service))
+
+   set this(ccnr) [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(service))
+
+   # GEAdapter install script for sim_hosts modifies the global qmaster params
+   # => save configuration and restore it in cleanup
+   get_config qmaster_config
 }
 
 #****** hedeby_move_simhost_cleanup_level() ******************************
@@ -199,6 +206,7 @@ proc hedeby_move_simhost_setup_level {} {
 #
 #**********************************************************************
 proc hedeby_move_simhost_cleanup_level {} {
+   upvar #0 hedeby_move_simhost_qmaster_config qmaster_config
    upvar #0 hedeby_move_simhost_ctx this
 
    if { $this(supported) == 0 } {
@@ -224,10 +232,6 @@ proc hedeby_move_simhost_cleanup_level {} {
       # error case)
       shutdown_hedeby 1
 
-      # remember cluster config nr and set to cluster of sge service
-      set ccnr [get_current_cluster_config_nr]
-      set_current_cluster_config_nr $this(service_cnr)
-
       # try to take out host from queue definition
       purge_queue "all.q@$this(simhost)" "slots" "" "" 0
 
@@ -236,9 +240,6 @@ proc hedeby_move_simhost_cleanup_level {} {
 
       # try to remove simhost from exechost list
       set output [start_sge_bin "qconf" "-de $this(simhost)"]
-
-      # reset cluster config nr
-      set_current_cluster_config_nr $ccnr
 
       # remove spool files from master host and service host:
       set host_hash($this(master_host)) 1
@@ -255,6 +256,14 @@ proc hedeby_move_simhost_cleanup_level {} {
       # startup SDM
       startup_hedeby
    }
+
+   # Restore the global qmaster config
+   reset_config qmaster_config
+
+   unset qmaster_config
+
+   # reset cluster config nr
+   set_current_cluster_config_nr $this(ccnr)
 
    unset this
 }
