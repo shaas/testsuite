@@ -1,3 +1,18 @@
+################################################################################
+# This is the Changelog for testsuite source code changes.                     #
+# Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #
+#                    "Merged from", "Cleanup"                                  #
+################################################################################
+          1         2         3         4         5         6         7
+01234567890123456789012345678901234567890123456789012345678901234567890123456789
+--------------------------------------------------------------------------------
+
+CR-2009-05-12-0: Bugfix:     o job_environment test:
+                                test now supports also linux platform
+                             o enhanced startup_execd():
+                                new optional parameter: startup_user
+                 Review:     DG 
+
 MP-2009-05-11-0: Bugfix:     fixed broken qstat test by re-writing xml parser function
                  Issue:      294
                  Review:     CR

@@ -554,32 +554,29 @@ proc check_shadowd_settings { shadowd_host } {
 }
 
 
-#                                                             max. column:     |
-#****** sge_procedures/startup_execd() ******
-# 
+
+#****** sge_procedures.60/startup_execd() ***********************************
 #  NAME
-#     startup_execd -- ??? 
+#     startup_execd() -- start execd daemon
 #
 #  SYNOPSIS
-#     startup_execd { hostname } 
+#     startup_execd { hostname {envlist ""} {startup_user ""} } 
 #
 #  FUNCTION
-#     ??? 
+#     This procedure will startup the execd on the specified host. If the envlist
+#     variable is set the tcl array specified by name is upvar'ed and used
+#     as parameter for start_remote_prog() in order to setup the user environment
+#     variables which should be set by the startup user. If the startup_user
+#     is set the user specified will be the execd startup user.
 #
 #  INPUTS
-#     hostname - ??? 
+#     hostname          - host where execd should be started
+#     {envlist ""}      - optional: environment array used to set before starting
+#     {startup_user ""} - optional: user who starts the execd
 #
 #  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
+#     0  on success
+#     -1 on error
 #
 #  SEE ALSO
 #     sge_procedures/shutdown_core_system()
@@ -589,22 +586,23 @@ proc check_shadowd_settings { shadowd_host } {
 #     sge_procedures/startup_qmaster()
 #     sge_procedures/startup_execd()
 #     sge_procedures/startup_shadowd()
-#*******************************
-proc startup_execd { hostname {envlist ""}} {
+#*******************************************************************************
+proc startup_execd { hostname {envlist ""} {startup_user ""} } {
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $envlist my_envlist
 
-   if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
- 
-      if { [have_root_passwd] != 0  } {
-         ts_log_warning "no root password set or ssh not available"
-         return -1
+   if {$startup_user == ""} {
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+         if { [have_root_passwd] != 0  } {
+            ts_log_warning "no root password set or ssh not available"
+            return -1
+         }
+         set startup_user "root"
+      } else {
+         set startup_user $CHECK_USER
       }
-      set startup_user "root"
-   } else {
-      set startup_user $CHECK_USER
    }
 
    ts_log_fine "starting up execd on host \"$hostname\" as user \"$startup_user\""

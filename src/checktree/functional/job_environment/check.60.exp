@@ -60,7 +60,7 @@ lappend check_functions "job_environment_SET_LIB_PATH"
 ################################################################################
 proc job_environment_setup_60 {} {
    global job_environment_exec_host job_environment_libpath
-   global job_environment_libvar ts_config
+   global job_environment_libvar ts_config CHECK_USER
 
    # Stop first execd
    shutdown_system_daemon $job_environment_exec_host "execd"
@@ -76,10 +76,21 @@ proc job_environment_setup_60 {} {
    set my_environment(THISIS) "atest"
    set my_environment($job_environment_libvar) $job_environment_libpath
 
-   # Restart execd
-   startup_execd $job_environment_exec_host my_environment
+   # Restart execd (workaround for LINUX hosts: Startup user is admin user)
+   set host_arch [resolve_arch $job_environment_exec_host]
+   if {[string match "*lx*" $host_arch] && $ts_config(commd_port) >= 1024} {
+      set log_text "this is a linux host - restarting execd as user $CHECK_USER. Most linux systems\n"
+      append log_text "do not allow inherit environment from root processes started by root user."
+      startup_execd $job_environment_exec_host my_environment $CHECK_USER
+   } else {
+      set log_text ""
+      startup_execd $job_environment_exec_host my_environment 
+   }
 
    ts_log_frame
+   if {$log_text != ""} {
+      ts_log_fine $log_text
+   }
    ts_log_fine "$job_environment_libvar before starting of execd on \"$job_environment_exec_host\""
    ts_log_fine "is set to \"$job_environment_libpath\""
    ts_log_frame
@@ -320,32 +331,60 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
    ts_log_fine "Expected SGE lib path is \"$expected_lib_path\" on host $job_environment_exec_host"
 
    set errors ""
-   # Test that lib path is "SGE lib path":"execd path"
-   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
+   # Test that lib path is "SGE lib path":"execd path", get job id of job
+   if {[job_environment_qsub_job "jobenv.sh" job_env $args job_id] == 0} {
       append errors "\nFailed submitting job, with $new_config(execd_params)"
       return
+   }
+
+   # JOB_ID should be set correctly
+   if {![info exists job_env(JOB_ID)]} {
+      append errors "\njob environment variable \"JOB_ID\" is not set"
+   } else {
+      if {$job_env(JOB_ID) != $job_id} {
+         append errors "\njob environment variable \"JOB_ID\" is set to \"$job_env(JOB_ID)\", but job id is \"$job_id\""
+      } else {
+         ts_log_fine "job environment \"JOB_ID\" correctly set to \"$job_id\""
+      }
    }
 
    if { $expected_lib_path == "TEST_UNSET" } {
       # library path should not be set at all
       if {[info exists job_env($job_environment_libvar)]} {
-         append errors "\nShared library IS set, with $new_config(execd_params) (host=$job_environment_exec_host)"
-         append errors "\n   expected $job_environment_libvar not to be set!"
-         append errors "\n   $job_environment_libvar is wrongly set to \"$job_env($job_environment_libvar)\""
+         append errors "\nShared library IS set, with $new_config(execd_params) (host=$job_environment_exec_host)!"
+         append errors "\nexpected $job_environment_libvar not to be set!"
+         append errors "\n$job_environment_libvar is wrongly set to \"$job_env($job_environment_libvar)\""
          return
       } else {
          ts_log_frame
-         ts_log_fine "libpath correctly NOT set at all for execd_params"
+         ts_log_fine "libpath correctly NOT set for execd_params"
          ts_log_fine "set to \"$execd_params\""
          ts_log_frame
          return
       }
    } else {
-      # library path should be set
-      if {[info exists job_env($job_environment_libvar)] == 0} {
-         append errors "\nShared library path NOT set, with $new_config(execd_params) (host=$job_environment_exec_host)"
-         append errors "\n   expected \"$expected_lib_path\""
-         return
+      # library path should be set 
+      set host_arch [resolve_arch $job_environment_exec_host]
+      if {[string match "*lx*" $host_arch] && $ts_config(commd_port) < 1024} {
+         if {![info exists job_env($job_environment_libvar)]} {
+            set config_error ""
+            append config_error "Job environment \"$job_environment_libvar\" is not set!\n"
+            append config_error "Shared library path NOT set, with $new_config(execd_params) (host=$job_environment_exec_host)!\n"
+            append config_error "Expected following setting: \"$expected_lib_path\"\n"
+            append config_error "Since the test host is a linux host and the process (execd) is started\n"
+            append config_error "as root user the inherited test is not working. Most linux systems does not\n"
+            append config_error "allow inherited environment variables for processes started as root user!\n"
+            ts_log_config $config_error
+            return
+         }
+      } else {
+         if {![info exists job_env($job_environment_libvar)]} {
+            append errors "\njob environment \"$job_environment_libvar\" is not set"
+            append errors "\nShared library path NOT set, with $new_config(execd_params) (host=$job_environment_exec_host)!"
+            append errors "\nExpected following setting: \"$expected_lib_path\""
+            append errors "\n\njob environment is set to:\n[format_array job_env]"
+            return
+         }
       }
    }
 
@@ -360,23 +399,21 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
          # problem: since the sgeexecd script is not updated and an existing shared lib path is set
          # we have to check if the exepected path is contained in the lib path 
          append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
-         append errors "\n   Should be set to \"$expected_lib_path\""
+         append errors "\n   Should be set to \"$expected_lib_path\""  
          return
       } else {
          if {$expected_lib_path != $job_env($job_environment_libvar)} {
             set warning ""
             append warning "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
-            append warning "\n   Should be set to \"$expected_lib_path\""
+            append warning "\n   Should be set to \"$expected_lib_path\". The expected lib path is only a substring of the real found path!"
             ts_log_config $warning 
          }
       }
    }
-
+   
    ts_log_frame
-   ts_log_fine "libpath correctly set set to"
-   ts_log_fine "\"$expected_lib_path\""
-   ts_log_fine "for execd_params"
-   ts_log_fine "set to \"$execd_params\""
+   ts_log_fine "libpath ($job_environment_libvar) correctly set set to \"$expected_lib_path\""
+   ts_log_fine "for execd_params set to \"$execd_params\""
    ts_log_frame
 }
 
@@ -405,28 +442,41 @@ proc job_environment_SET_LIB_PATH {} {
    set arch [resolve_arch $job_environment_exec_host]
    set sge_path "$ts_config(product_root)/lib/$arch"
 
+   set error_text ""
    # test 1
+   ts_log_frame
+   ts_log_fine "Scenario A:\n"
    test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=true" "$sge_path:$job_environment_libpath"
    if {$errors != ""} {
-      ts_log_severe [string trim $errors]
+      append error_text "Scenario A failed:\n[string trim $errors]\n"
    }
   
    # test 2
+   ts_log_frame
+   ts_log_fine "Scenario B:\n"
    test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=false" "$job_environment_libpath"
    if {$errors != ""} {
-      ts_log_severe [string trim $errors]
+      append error_text "Scenario B failed:\n[string trim $errors]\n"
    }
 
    # test 3
+   ts_log_frame
+   ts_log_fine "Scenario C:\n"
    test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=true" "$sge_path"
    if {$errors != ""} {
-      ts_log_severe [string trim $errors]
+      append error_text "Scenario C failed:\n[string trim $errors]\n"
    }
 
    # test 4
+   ts_log_frame
+   ts_log_fine "Scenario D:\n"
    test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=false" "TEST_UNSET"
    if {$errors != ""} {
-      ts_log_severe [string trim $errors]
+      append error_text "Scenario D failed:\n[string trim $errors]\n"
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
 

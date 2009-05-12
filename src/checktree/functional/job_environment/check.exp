@@ -115,7 +115,8 @@ proc job_environment_setup {} {
    global queue job_environment_exec_host job_environment_config
 
    # we do qsh, this doesn't work on windows, and in our lab also not on hp
-   set job_environment_exec_host [host_conf_get_suited_hosts 1 {} {} {hp11 hp11-64 win32-x86}]
+   set job_environment_exec_host [host_conf_get_suited_hosts 1 {} {} {hp11 hp11-64 win32-x86} 1]
+   set job_environment_exec_host "aragog"
    set queue [get_queue_instance "all.q" $job_environment_exec_host]
 
    get_config job_environment_config $job_environment_exec_host
@@ -229,11 +230,14 @@ proc job_environment_parse_env_test_output {file array} {
 #  SEE ALSO
 #     job_environment_parse_env_test_output()
 ################################################################################
-proc job_environment_qsub_job { jobname array arguments } {
+proc job_environment_qsub_job { jobname array arguments {job_id_array_name ""}} {
    global ts_config
    global CHECK_PROTOCOL_DIR
    global queue
    upvar $array job_env_array
+   if {$job_id_array_name != ""} {
+      upvar $job_id_array_name job_id
+   }
 
    set ret 1
    ts_log_fine "job environment should be written to $CHECK_PROTOCOL_DIR"
