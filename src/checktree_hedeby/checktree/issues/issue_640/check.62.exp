@@ -137,7 +137,7 @@ proc hedeby_issue_640_setup_level {} {
    set this(unknown_user) "humple_pump" 
    set this(managed_host) [pick_random [get_all_spare_pool_resources]]
 
-   set this(org_owner) [get_hedeby_startup_user]
+   set this(org_owner) [get_hedeby_admin_user]
    set this(jvm)          "cs_vm"
 
    switch -- $CHECK_ACT_LEVEL {
@@ -201,7 +201,17 @@ proc hedeby_issue_640_cleanup_level {} {
          ts_log_fine "Could not install managed host $this(managed_host)"
          set doReset 1
       }
-   } 
+   } elseif { $doReset == 0 } {
+      # the managed host IS already installed
+      # => reinstall with correct parameters, ie. ca/owner is already reset.
+      #    For reinstall we need to shutdown and uninstall first
+      shutdown_hedeby_hosts "managed" $this(managed_host) [get_hedeby_admin_user]
+      hedeby_uninstall_managed_host $this(managed_host)
+      if {[hedeby_install_managed_hosts $this(managed_host)] != 0} {
+         ts_log_fine "Could not reinstall managed host $this(managed_host)"
+         set doReset 1
+      }
+   }
 
    if { $doReset == 0 && [lsearch $this(cleanup_actions) "startup_managed_host"] >= 0 } {
       set opts(user) [get_hedeby_startup_user]

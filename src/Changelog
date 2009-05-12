@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 --------------------------------------------------------------------------------
 
+TB-2009-05-12-0: Bugfix:     Hedeby:
+                             check for issue 640 breaks file_permissions test
+                 Belongs to: RH-2009-05-06-0
+                 Review:     RH
+
 CR-2009-05-12-0: Bugfix:     o job_environment test:
                                 test now supports also linux platform
                              o enhanced startup_execd():
