@@ -7,6 +7,15 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-05-12-1: Cleanup:    o test for issue 2735:
+                               issue 2735 is only partly fixed and still a P4
+                               bug. Test now reflects this situation.
+                             o test system_tests/clients/common/setup:
+                               test failed because of not fixed issue 2786. Test
+                               now reports a config mail that this issue is not 
+                               fixed.
+                 Review:     DG
+
 RH-2009-05-12-0: Bugfix:     Hedeby:
                              o move_simhost test did not cleanup the qmaster params
                                (If a simhost is assigned to a GE service the

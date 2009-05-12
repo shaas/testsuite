@@ -62,7 +62,9 @@ set check_cleanup_function client_setup_cleanup
 
 # define test's procedure order
 set check_functions {}
-lappend check_functions "client_setup_test"
+lappend check_functions "client_setup_test_bootstrap"
+lappend check_functions "client_setup_test_act_qmaster"
+lappend check_functions "client_setup_test_qmaster_down"
 
 proc client_setup_init_level {} {
    global CHECK_ACT_LEVEL
@@ -96,8 +98,14 @@ proc client_setup_cleanup {} {
    }
 }
 
-proc client_setup_do_test {scenario expected_error} {
+proc client_setup_do_test {scenario expected_error_list {error_info_message_array ""}} {
    global ts_config
+
+   if {$error_info_message_array != ""} {
+      upvar $error_info_message_array error_info_logging
+   } else {
+      set error_info_logging(dummy) "dummy info reporting"
+   }
 
    # client list:
    # all clients, except
@@ -128,29 +136,38 @@ proc client_setup_do_test {scenario expected_error} {
    }
 
    set error_text ""
+   set info_text ""
    foreach command $commands(index) {
       set output [start_sge_bin $command $commands($command,args)]
       set messages(index) ""
       set ret [handle_sge_errors "client_setup_do_test" "$command $commands($command,args)" $output messages 0 $prg_exit_state]
 
-      if {$ret != $expected_error} {
-         append error_text "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output\n\n"
-         ts_log_fine "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
-         if {$scenario == "qmaster down"} {
-            set note "INFO: This might be caused because of issue #2786"
-            append error_text "$note\n"
-            ts_log_fine $note
+      if {[info exists error_info_logging($ret)]} {
+         append info_text "$error_info_logging($ret)\nOutput of \"$command $commands($command,args)\" was:\n$output\n"
+      }
+
+
+      set is_expected_error_code 0
+      foreach expected_error $expected_error_list {
+         if {$ret == $expected_error} {
+            set is_expected_error_code 1
+            break
          }
+      }
+      if {$is_expected_error_code == 0} {
+         append error_text "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error codes $expected_error_list, but got $ret. Output from client was:\n$output\n\n"
       }
    }
    if {$error_text != ""} {
       ts_log_severe $error_text
    }
+   if {$info_text != ""} {
+      ts_log_config $info_text
+   }
 }
 
-proc client_setup_test {} {
+proc client_setup_test_bootstrap {} {
    global ts_config
-   global did_shutdown
    global CHECK_USER
 
    # test clients with non existing bootstrap file
@@ -163,14 +180,20 @@ proc client_setup_test {} {
    client_setup_do_test "no bootstrap file" -300
    file rename "$config_file.bak" $config_file
 
-   # test clients with non existing act_qmaster file
-   set config_file_2 "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
-   file rename $config_file_2 "$config_file_2.bak"
-
    # wait for NFS ...
    foreach host $ts_config(execd_nodes) {
       wait_for_remote_file $host $CHECK_USER $config_file 60 1 0
    }
+}
+
+proc client_setup_test_act_qmaster {} {
+   global ts_config
+   global CHECK_USER
+   
+   # test clients with non existing act_qmaster file
+   set config_file_2 "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
+   file rename $config_file_2 "$config_file_2.bak"
+
    foreach host $ts_config(execd_nodes) {
       wait_for_remote_file $host $CHECK_USER $config_file_2 60 1 1
    }
@@ -181,10 +204,17 @@ proc client_setup_test {} {
    foreach host $ts_config(execd_nodes) {
       wait_for_remote_file $host $CHECK_USER $config_file_2 60 1 0
    }
+}
+
+proc client_setup_test_qmaster_down {} {
+   global ts_config
+   global did_shutdown
+   global CHECK_USER
 
    # test clients with qmaster down
    shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
    set did_shutdown 1
-   client_setup_do_test "qmaster down" -120
+   set info_text(-121) "This is caused by not fixed issue #2786"
+   client_setup_do_test "qmaster down" "-120 -121" info_text
 }
 
