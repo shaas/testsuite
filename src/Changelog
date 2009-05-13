@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+JF-2009-05-13-0: Enhancem.:  Added test for issue 3024.
+                 Review:     JG
+
 TB-2009-05-13-0: Cleanup:    Hedeby:
                              Reduced verbosity of output of Hedeby startup and
                              shutdown (51/52), e.g. used in jvms_stress_test
