@@ -601,21 +601,11 @@ proc check_miniworm {} {
 }
 
 proc get_last_jobid {} {
-   global qmaster_spool_dir
-
-   set seqfile $qmaster_spool_dir/jobseqnum
-
-   if {![file exists $seqfile]} {
-      set last_job 0
-   } else {
-      set f [open $seqfile r]
-      if {[gets $f last_job] <= 0} {
-         set last_job 0
-      }
-      close $f
+   set ret [get_jobseqnum]
+   if {$ret < 0} {
+      set ret 0
    }
-
-   return $last_job
+   return $ret
 }
 
 proc get_job_count {} {

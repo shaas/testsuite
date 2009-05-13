@@ -104,16 +104,9 @@ proc issue_2028_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   # shutdown qmaster and restore jobseqnum
-   set qmaster_spool_dir [get_qmaster_spool_dir]
-   shutdown_qmaster $ts_config(master_host) $qmaster_spool_dir
-
    if {$issue_2028_backup_seqno >= 0} {
       set_jobseqnum $issue_2028_backup_seqno
    }
-
-   # restart qmaster
-   startup_qmaster 0
 }
 
 proc issue_2028_submit {scenario {jobcount 5}} {
@@ -144,25 +137,59 @@ proc issue_2028_test {} {
 
    set qmaster_spool_dir [get_qmaster_spool_dir]
 
-   # shutdown qmaster
-   shutdown_qmaster $ts_config(master_host) $qmaster_spool_dir
 
-   # set jobseqnum file shortly before wraparound
+   # set jobseqnum file shortly before wraparound (will shutdown and restart qmaster)
    set max_jobseqnum 9999999
    set_jobseqnum [expr $max_jobseqnum - 2]
 
-   # startup qmaster
-   startup_qmaster 0
-
    # submit some jobs, force wraparound
-   set id_list1 [issue_2028_submit "at wraparound"]
+   set id_list [issue_2028_submit "at wraparound"]
+
+   ts_log_fine "id_list: $id_list"
+   set high_number_count 0
+   set low_number_count 0
+   
+   foreach job_id $id_list {
+      if {$job_id > 1000 } {
+         incr high_number_count 1
+      } 
+      if {$job_id >= 1 && $job_id <= 1000 } {
+         incr low_number_count 1
+      } 
+   }
+   if {$high_number_count == 0} {
+      ts_log_severe "expected at least one high job number"
+   }
+   if {$low_number_count == 0} {
+      ts_log_severe "expected at least one low job number"
+   }
 
    # shutdown and restart qmaster
-   shutdown_qmaster $ts_config(master_host) $qmaster_spool_dir
-   startup_qmaster 0
+   shutdown_master_and_scheduler $ts_config(master_host) $qmaster_spool_dir
+   startup_qmaster 
 
    # submit some jobs - must be successfull
-   set id_list2 [issue_2028_submit "after wraparound and qmaster restart"]
+   set id_list [issue_2028_submit "after wraparound and qmaster restart"]
+
+   ts_log_fine "id_list: $id_list"
+   set high_number_count 0
+   set low_number_count 0
+   
+   foreach job_id $id_list {
+      if {$job_id > 1000 } {
+         incr high_number_count 1
+      } 
+      if {$job_id >= 1 && $job_id <= 1000 } {
+         incr low_number_count 1
+      } 
+   }
+   if {$high_number_count != 0} {
+      ts_log_severe "expected no high job number"
+   }
+   if {$low_number_count != 5} {
+      ts_log_severe "expected at least one low job number"
+   }
+
 }
 
 

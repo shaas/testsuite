@@ -76,7 +76,7 @@ proc issue_2328_init_level {} {
 }
 
 proc issue_2328_setup {} {
-   global ts_config max_queue_count  
+   global ts_config max_queue_count 
 
    # 1. Setup the complex FOO1-F0010
    set tmp_complex(F001) "F001 INT  <= YES YES 0 0"

@@ -82,28 +82,18 @@ proc issue_2564_init_level {} {
 
 proc issue_2564_setup {} {
    global ts_config
-   global seqfile
    global project_1
    global project_2
    global project_3
    global queue_name
    global grace_period
    global old_schedd_config
-   #
-   # Establish exit handler.
-   #
-   exp_exit -onexit my_exit_handler
+   global issue_2564_backup_seqno
    #
    # Make up JobID sequence file.
    #
-   set qmaster_spool_dir [ get_qmaster_spool_dir ]
-   set seqfile $qmaster_spool_dir/jobseqnum
-   #
-   #
-   #
-   delete_all_jobs
-   wait_for_end_of_all_jobs 10
-   infrastructure_file_cleanup
+   set issue_2564_backup_seqno [get_jobseqnum]
+
 
    set project_1 "micky"
    set project_2 "maus"
@@ -170,42 +160,18 @@ proc issue_2564_setup {} {
 proc issue_2564_check {} {
    global CHECK_USER
    global ts_config
-   global seqfile
    global project_1
    global project_2
    global project_3
    global jid_list
    global grace_period
-   #
-   # Shutdown qmaster to make change in sequence file effective.
-   #
-   # INFO:
-   # We kill scheduler also because restarting it is faster than
-   # waiting for its re-connect.
-   #
-   shutdown_system_daemon $ts_config(master_host) qmaster
-   shutdown_system_daemon $ts_config(master_host) sched
-   #
-   # Next, push job sequence number to provoke JobID wraparound.
-   # Save original sequence number file.
-   # 
-   file rename -force $seqfile $seqfile.original
+
    #
    # Create new sequence file and store new sequence number.
    #
    set start_jid 9999990
    set max_jid   9999999
-   start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$start_jid > $seqfile"  
-   #
-   # Restart qmaster and schedd.
-   #
-   startup_qmaster
-
-   # If we have no scheduler the test will fail ...
-   if {[wait_for_connected_scheduler 90] != 0 } {
-      ts_log_severe "No scheduler connected to qmaster!"
-      return
-   }
+   set_jobseqnum $start_jid
    
    #
    # Prepare dummy jobs.
@@ -259,8 +225,7 @@ proc issue_2564_check {} {
    # test to avoid a global test suite screw-up.
    #
    set iterations 0
-   set jobs_active 1
-   while { $jobs_active == 1 } {
+   while { $iterations < 120 } {
       ts_log_fine "Starting iteration $iterations"
       ts_log_fine "======================"
       #
@@ -359,7 +324,6 @@ proc issue_2564_check {} {
 
 proc issue_2564_cleanup  {} {
    global CHECK_USER
-   global seqfile
    global ts_config
    global project_1
    global project_2
@@ -367,11 +331,12 @@ proc issue_2564_cleanup  {} {
    global queue_name
    global jid_list
    global old_schedd_config
+   global issue_2564_backup_seqno
 
+   
    set_schedd_config old_schedd_config
 
    delete_all_jobs
-
    wait_for_end_of_all_jobs 100
 
    del_queue $queue_name $ts_config(master_host) 1
@@ -379,52 +344,17 @@ proc issue_2564_cleanup  {} {
    del_project $project_1
    del_project $project_2
    del_project $project_3
+
    #
    # Restore original JobID file
    #
-   start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "$seqfile.original $seqfile"
-   infrastructure_file_cleanup
-}
-
-proc infrastructure_file_cleanup {} {
-
-   global CHECK_USER
-   global ts_config
-
-   set qmaster_host $ts_config(master_host)
-   set qmaster_spool_dir [ get_qmaster_spool_dir ]
-   #
-   # Clean up infrastructure files possibly left over from previous (failed) tests.
-   # This is really important since we are starting the test always with the same
-   # job sequence number. This in turn will confuse the daemons by faking non-existing
-   # jobs.
-   #
-   # qmaster:
-   #
-   ts_log_finest "File Cleanup $CHECK_USER $qmaster_spool_dir \n"
-   start_remote_prog $qmaster_host $CHECK_USER "rm" "-rf $qmaster_spool_dir/jobs/*"
-   start_remote_prog $qmaster_host $CHECK_USER "rm" "-rf $qmaster_spool_dir/job_scripts/*"
-   #
-   # execd:
-   #
-   foreach execd_host $ts_config(execd_hosts) {
-      set execd_spool_dir [ get_execd_spool_dir $execd_host ]
-      set execd_spool_dir $execd_spool_dir/$execd_host
-      ts_log_finest "File Cleanup $CHECK_USER $execd_spool_dir \n"
-      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/jobs/*"
-      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/job_scripts/*"
-      start_remote_prog $execd_host $CHECK_USER "rm" "-rf $execd_spool_dir/active_jobs/*"
+   if {$issue_2564_backup_seqno >= 0} {
+      set_jobseqnum $issue_2564_backup_seqno
    }
 }
 
-proc my_exit_handler {} {
-   global seqfile
 
-   if { [ file exists $seqfile.original ] } { 
-      ts_log_finest "Trying to restore $seqfile from $seqfile.orininal"
-      file rename -force $seqfile.original $seqfile
-   }
-}
+
 proc submit_dummy_jobs { job_script project_name is_array { task_range 1-5 } } {
 
    if { $is_array == 1 } {

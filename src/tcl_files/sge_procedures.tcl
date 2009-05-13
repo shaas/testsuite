@@ -3651,7 +3651,7 @@ proc get_spooled_jobs {} {
          set execute_host $ts_config(bdb_server)
          # don't know if this is necessary (execute host = dbd server host)
       }
-      start_sge_bin "spooledit" "list" $execute_host $CHECK_USER prg_exit_state 60 "" "utilbin" out ""
+      start_sge_bin "spooledit" "list" $execute_host $CHECK_USER prg_exit_state 120 "" "utilbin" out ""
       for {set i 0} {$i <= $out(0)} {incr i 1} {
          if {[string match "*JOB*" $out($i)]} {
             set job_id [string trim [lindex [split $out($i) ":"] 1]]
@@ -5744,10 +5744,10 @@ proc get_qacct_error {result job_id raise_error} {
 #     parser/parse_qacct()
 #     sge_procedures/get_qacct_error()
 #*******************************
-proc get_qacct {job_id {variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_amount -1} {atimeout_value 0} {sum_up_tasks 1}} {
+proc get_qacct {job_id {my_variable "qacct_info"} {on_host ""} {as_user ""} {raise_error 1} {expected_amount -1} {atimeout_value 0} {sum_up_tasks 1}} {
    get_current_cluster_config_array ts_config
 
-   upvar $variable qacctinfo
+   upvar $my_variable qacctinfo
    set timeout_value $atimeout_value
 
    if {[info exists qacctinfo]} {

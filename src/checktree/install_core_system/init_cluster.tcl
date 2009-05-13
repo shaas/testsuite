@@ -1197,6 +1197,8 @@ proc setup_and_check_users {} {
             }
          }
       }
+      set output [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 1" 1 60 "" $user]
+      ts_log_fine "job id of job submitted as user \"$user\": $output"
    }
 
    # additional check testsuite version
@@ -1222,6 +1224,8 @@ proc setup_and_check_users {} {
    if {$error_text != ""} {
       ts_log_severe $error_text
    }
+
+   wait_for_end_of_all_jobs
 }
 
 #****** init_cluster/setup_win_user_passwd() ***********************************

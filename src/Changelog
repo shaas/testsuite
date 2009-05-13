@@ -7,6 +7,21 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-05-13-0: Cleanup:    o tcl error in qstat test
+                             o documented set/get_jobseqnum() procedures
+                             o set_jobseqnum() procedure now restarts qmaster
+                             o enhanced timeout in analyze_directory_structure()
+                               and get_spooled_jobs()
+                             o set_exechost() now will fail when get_exechost()
+                               returns an error  
+                             o install_core_system/init_cluster.tcl:
+                               test job submition for every user after install
+                             o cleanup of issue test 2028
+                             o cleanup of qmaster/size test
+                             o cleanup of issue test 2564
+                             o cleanup of job_number_reuse test (arco checktree)
+                 Review:     SH
+
 JF-2009-05-13-0: Enhancem.:  Added test for issue 3024.
                  Review:     JG
 

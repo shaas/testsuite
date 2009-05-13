@@ -225,7 +225,11 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
  
    set values [array names chgar]
 
-   get_exechost old_values $host
+   set return_value [get_exechost old_values $host]
+   if {$return_value != 0} {
+      ts_log_severe "get_exechost() returned: $return_value" $raise_error
+      return -100
+   }
 
    foreach elem $values {
       set old_values($elem) "$chgar($elem)"

@@ -341,29 +341,9 @@ proc arco_dbwriter_job_log_reuse_execute {} {
 
 proc arco_dbwriter_job_log_reuse_reset_job_number { job_number } {
    global ts_config CHECK_USER
-   
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-   
-   # shutdown the qmaster
-   set spooldir [get_qmaster_spool_dir]   
-   shutdown_master_and_scheduler $ts_config(master_host) $spooldir
-   
-   # Write the job number into the job sequence number file
-   
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$job_number > $spooldir/jobseqnum"]
-   set cat_result $prg_exit_state
-   
-   # restart qmaster
-   startup_qmaster 1
-   
-   if { $cat_result != 0 } {
-      ts_log_severe "Can not write job number into $spooldir/jobseqnum:\n$output"
-      return -1
-   }
-   
-   
-   return 0
+   return [set_jobseqnum $job_number]
 }
 
 

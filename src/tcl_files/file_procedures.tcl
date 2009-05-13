@@ -261,7 +261,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
 
    
    if {$dirs != ""} {
-      set tmp [start_remote_prog $host $user $script "$path dirs" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+      set tmp [start_remote_prog $host $user $script "$path dirs" prg_exit_state 120 0 "" "" 1 0 0 1 1]
       set tmp2 [split $tmp "\n"]
       set spool_directories {}
       if {$prg_exit_state == 0} {
@@ -289,7 +289,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
       }
    }
 
-   set tmp [start_remote_prog $host $user $script "$path files" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set tmp [start_remote_prog $host $user $script "$path files" prg_exit_state 120 0 "" "" 1 0 0 1 1]
    set tmp2 [split $tmp "\n"]
    set spool_files {}
    if {$prg_exit_state == 0} {
@@ -317,7 +317,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
    }
 
    if {$permissions != ""} {
-      set tmp [start_remote_prog $host $user $script "$path fileperm" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+      set tmp [start_remote_prog $host $user $script "$path fileperm" prg_exit_state 120 0 "" "" 1 0 0 1 1]
       set tmp2 [split $tmp "\n"]
       if {$prg_exit_state == 0} {
          foreach file $spool_files {
@@ -4161,6 +4161,26 @@ proc get_fstype {path {host ""} {raise_error 1}} {
    return $ret
 }
 
+#****** file_procedures/get_jobseqnum() ****************************************
+#  NAME
+#     get_jobseqnum() -- get current job sequence number fro jobseqnum file
+#
+#  SYNOPSIS
+#     get_jobseqnum { } 
+#
+#  FUNCTION
+#     The function reads in the jobseqnum file from the qmaster spooling 
+#     directory and returns the content. If there is a problem reading the
+#     file the procedure returns -1 and reports an error.
+#  
+#  INPUTS
+#
+#  RESULT
+#     current job sequence number, -1 on error
+#
+#  SEE ALSO
+#     file_procedures/set_jobseqnum()
+#*******************************************************************************
 proc get_jobseqnum {} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
@@ -4179,6 +4199,27 @@ proc get_jobseqnum {} {
    return $ret
 }
 
+#****** file_procedures/set_jobseqnum() ****************************************
+#  NAME
+#     set_jobseqnum() -- set actual job sequence number
+#
+#  SYNOPSIS
+#     set_jobseqnum { jobseqnum } 
+#
+#  FUNCTION
+#     This procedure is used to change the current job sequence file. It will
+#     automatically shutdown and restart the qmaster (and scheduler) process
+#     to make the qmaster use of the changed sequence file content.
+#
+#  INPUTS
+#     jobseqnum - new jobseqnum file content
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     file_procedures/get_jobseqnum()
+#*******************************************************************************
 proc set_jobseqnum {jobseqnum} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
@@ -4186,13 +4227,14 @@ proc set_jobseqnum {jobseqnum} {
    set ret 0
    set qmaster_spool_dir [get_qmaster_spool_dir]
 
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$jobseqnum >$qmaster_spool_dir/jobseqnum"]
-
+   shutdown_master_and_scheduler $ts_config(master_host) $qmaster_spool_dir
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$jobseqnum > $qmaster_spool_dir/jobseqnum"]
    if {$prg_exit_state == 0} {
       set ret 1
    } else {
       ts_log_severe "setting job sequence number failed:\n$output"
    }
+   startup_qmaster
    
    return $ret
 }
