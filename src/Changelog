@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-05-13-1: Bugfix:     fixed job_environment test
+                 Belongs to: CR-2009-05-12-0
+                 Review:     AA
+
 CR-2009-05-13-0: Cleanup:    o tcl error in qstat test
                              o documented set/get_jobseqnum() procedures
                              o set_jobseqnum() procedure now restarts qmaster

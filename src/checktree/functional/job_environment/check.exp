@@ -116,7 +116,6 @@ proc job_environment_setup {} {
 
    # we do qsh, this doesn't work on windows, and in our lab also not on hp
    set job_environment_exec_host [host_conf_get_suited_hosts 1 {} {} {hp11 hp11-64 win32-x86} 1]
-   set job_environment_exec_host "aragog"
    set queue [get_queue_instance "all.q" $job_environment_exec_host]
 
    get_config job_environment_config $job_environment_exec_host
