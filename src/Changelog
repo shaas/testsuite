@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+TB-2009-05-13-0: Cleanup:    Hedeby:
+                             Reduced verbosity of output of Hedeby startup and
+                             shutdown (51/52), e.g. used in jvms_stress_test
+                 Review:     RH
+
 CR-2009-05-12-1: Cleanup:    o test for issue 2735:
                                issue 2735 is only partly fixed and still a P4
                                bug. Test now reflects this situation.

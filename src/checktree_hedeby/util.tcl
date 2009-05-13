@@ -1586,23 +1586,21 @@ proc get_hedeby_current_services { service_names } {
 #*******************************************************************************
 proc is_hedeby_process_running { host pid } {
 
-   ts_log_fine "checking pid $pid on host $host ..."
+   ts_log_finer "checking pid $pid on host $host ..."
    get_ps_info $pid $host ps_info
 
-   set result 0
    if {$ps_info($pid,error) == 0} {
         if { [string match "*java*" $ps_info($pid,string)] >= 0 } {
-           ts_log_fine "process string of pid $pid is $ps_info($pid,string)"
-           set result 1
+           ts_log_finer "process string of pid $pid is $ps_info($pid,string)"
+           return 1
         } else {
            ts_log_fine "hedeby process should have java string in command line"
-           set result 0
+           return 0
         }
    } else {
-        ts_log_fine "pid $pid not found!"
-        set result 0
+        ts_log_finer "pid $pid not found!"
+        return 0
    }
-   return $result
 }
 
 #****** util/kill_hedeby_process() *********************************************
@@ -2281,13 +2279,13 @@ proc startup_hedeby_hosts { type host_list user } {
                    set jvm  $ss_out($i,jvm)
                    set res $ss_out($i,result)
                    set mes $ss_out($i,message)
-                   debug_puts "Found jvm $jvm on host $host, with result $res"
+                   ts_log_finer "Found jvm $jvm on host $host, with result $res"
                    
                    foreach match_jvm $expected_jvms($host_tmp) {
                        if { $match_jvm == $jvm } {
                            incr match_count
                            if { $res == $success } {
-                               ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
+                               ts_log_finer "output match for jvm: $jvm, host: $host, result: $res"
                            } else {
                               append error_text "startup hedeby host ${host} failed:\n"
                               append error_text "\"$output\"\n"
@@ -2309,7 +2307,7 @@ proc startup_hedeby_hosts { type host_list user } {
                     if {$is_pid_running != 1} {
                         append error_text "The process is not running for $pid pid number\n"
                     } else {
-                        ts_log_fine "Process for pid $pid is running"
+                        ts_log_finer "Process for pid $pid is running"
                     }
                }
             }
@@ -2319,18 +2317,18 @@ proc startup_hedeby_hosts { type host_list user } {
                 incr expected_count
             }
             if { $match_count == $expected_count } {
-               ts_log_fine "output matched expected number of jvms: $match_count"
+               ts_log_finer "output matched expected number of jvms: $match_count"
             } else {
                append error_text "startup hedeby host ${host_tmp} failed:\n"
                append error_text "\"$output\"\n"
                append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"               
             } 
 
-            debug_puts "----------------------------------"
-            debug_puts "host: $host"
-            debug_puts "exit status: $exit_state"
-            debug_puts "output:\n$output"
-            debug_puts "----------------------------------"
+            ts_log_finer "----------------------------------"
+            ts_log_finer "host: $host"
+            ts_log_finer "exit status: $exit_state"
+            ts_log_finer "output:\n$output"
+            ts_log_finer "----------------------------------"
          }
       }
       "master" {
@@ -2349,13 +2347,13 @@ proc startup_hedeby_hosts { type host_list user } {
                    set jvm  $ss_out($i,jvm)
                    set res $ss_out($i,result)
                    set mes $ss_out($i,message)
-                   debug_puts "Found jvm $jvm on host $host, with result $res"
+                   ts_log_finer "Found jvm $jvm on host $host, with result $res"
                    
                    foreach match_jvm $expected_jvms($host_tmp) {
                        if { $match_jvm == $jvm } {
                            incr match_count
                            if { $res == $success } {
-                               ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
+                               ts_log_finer "output match for jvm: $jvm, host: $host, result: $res"
 
                            } else {
                               append error_text "startup hedeby host ${host} failed:\n"
@@ -2377,7 +2375,7 @@ proc startup_hedeby_hosts { type host_list user } {
                     if {$is_pid_running != 1} {
                         append error_text "The process is not running for $pid pid number\n"
                     } else {
-                        ts_log_fine "Process for pid $pid is running"
+                        ts_log_finer "Process for pid $pid is running"
                     }
                 }
             }
@@ -2387,7 +2385,7 @@ proc startup_hedeby_hosts { type host_list user } {
                 incr expected_count
             }
             if { $match_count == $expected_count } {
-               ts_log_fine "output matched expected number of jvms: $match_count"
+               ts_log_finer "output matched expected number of jvms: $match_count"
             } else {
                append error_text "startup hedeby host ${host_tmp} failed:\n"
                append error_text "\"$output\"\n"
@@ -2399,7 +2397,7 @@ proc startup_hedeby_hosts { type host_list user } {
    }
    
    if { $error_text != "" } {
-      add_proc_error "startup_hedeby_hosts" -1 $error_text
+      ts_log_severe $error_text
       return 1
    }
 
@@ -4532,7 +4530,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    foreach val $exp_values {
       append expected_component_info "$val=\"$exp_cmp_info($val)\"\n"
    }
-   ts_log_fine "expected component infos:\n$expected_component_info"
+   ts_log_finer "expected component infos:\n$expected_component_info"
 
    while {1} {
       set retval [get_component_info $host $user component_info $raise_error]
@@ -6162,35 +6160,37 @@ proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
    upvar $pidlist pid_list
    upvar $pidlistinfo run_list
    set pid_list {}
-   set ret_val 0
 
-   ts_log_fine "check if host \"$host\" has running hedeby jvms ..."
+   ts_log_finer "check if host \"$host\" has running hedeby jvms ..."
    if { [remote_file_isdirectory $host $run_dir] } {
+      set msg "Hedeby jvms on host '$host': "
       set running_jvm_names [start_remote_prog $host $user "ls" "$run_dir"]
       if { [llength $running_jvm_names] == 0 } {
          ts_log_fine "no hedeby jvm running on host $host!"
-         return $ret_val
+         return 0
       }
       foreach jvm_name $running_jvm_names {
          if {[read_hedeby_jvm_pid_file pid_info $host $user $run_dir/$jvm_name] != 0} {
             ts_log_fine "cannot get pid info for host $host!"
-            set ret_val 1
-            return $ret_val
+            return 1
          }
          set pid $pid_info(pid)
          set port $pid_info(port)
          
          lappend pid_list $pid
          lappend run_list "$pid:$jvm_name:$port"
-         ts_log_fine "run_list = $run_list"
-         ts_log_fine "jvm $jvm_name has pid \"$pid\""
-         ts_log_fine "jvm $jvm_name has port \"$port\""
+         # delete host part of $jvm_name (jvm@host)
+         set only_jvm_name [regsub {@.*} $jvm_name ""]
+         append msg "${only_jvm_name}(pid=$pid, port=$port) "
+         ts_log_finer "jvm $jvm_name has pid \"$pid\""
+         ts_log_finer "jvm $jvm_name has port \"$port\""
       }
+      ts_log_fine $msg
    } else {
-      ts_log_fine "no hedeby run directory found on host $host!"
+      ts_log_fine "no hedeby run directory found on host '$host'!"
       ts_log_fine "run directory was \"$run_dir\""
    }
-   return $ret_val
+   return 0
 }
 
 
