@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-05-14-1: Bugfix:     fixed qhost test procedure:
+                             qhost_l_with_multiple_attributes()
+                 Review:     SH
+
 TB-2009-05-14-1: Enhancem.:  Hedeby:
                              Added test for issue 651 as general
                              move/resource/option_static test.

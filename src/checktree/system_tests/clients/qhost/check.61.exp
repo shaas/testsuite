@@ -67,16 +67,15 @@ proc test_issue245 {} {
 #     qhost_l_with_multiple_attributes 
 #
 #  SYNOPSIS
-#    This function will randomly choose one host name and one architecture
-#    from the list of exection hosts and run qhost -l h=host arch=arch using
-#    those two values.
+#    This function will randomly choose 1 host names and one architecture
+#    from the list of exection hosts and run qhost -l h=host arch=host_arch
 #
 #  FUNCTION
 #     The function of this procedure is to test whether using the qhost -l with 
 #     h=host can still be used with other attribute/value pairs afterwards.
 #
 #  EXAMPLE
-#     qhost -l h=oin arch=aix51
+#     qhost -l h=oin -l arch=sol-sparc64
 #*******************************
 proc qhost_l_with_multiple_attributes {} {
    get_current_cluster_config_array ts_config
@@ -86,18 +85,10 @@ proc qhost_l_with_multiple_attributes {} {
 
    # randomly choose a host name
    set host [host_conf_get_suited_hosts]
-   set arch ""
-   
-   # randomly choose an arch for a host other than our chosen host
-   foreach exec $exec_hosts {
-      if {[string compare $host $exec] != 0} {
-         set arch [resolve_arch $exec]
-         break
-      }       
-   }
-   
+   set host_arch [resolve_arch $host]
+
    # set our qhost arguments and submit the request
-   set args "-l h=$host arch=$arch"
+   set args "-l h=$host arch=$host_arch"
    ts_log_fine "submitting qhost $args"
    set results [qhost_parse plain job $args]
 
@@ -107,24 +98,34 @@ proc qhost_l_with_multiple_attributes {} {
    set foundArch 0
    for {set ind 0} {$ind < $job} {incr ind 1} {
       if {[string compare [string trim $plain(host$ind,name)] $host] == 0} {
-         set foundHost 1
+         incr foundHost 1
       }
 
-      if {[string compare [string trim $plain(host$ind,arch_string)] $arch] == 0} {
-         set foundArch 1
+      if {[string compare [string trim $plain(host$ind,arch_string)] $host_arch] == 0} {
+         incr foundArch 1
       }
    }
 
    # if not found give error as to why
-   if {$foundHost != 1} {
+   if {$foundHost == 0} {
       ts_log_severe "Expected to see host $host is qhost output, but it did not appear"
       return
    }
 
-   if {$foundArch != 1} {
-      ts_log_severe "Expected to see a host with arch $arch is qhost output, but it did not appear"     
+   if {$foundArch == 0} {
+      ts_log_severe "Expected to see a host with arch $host_arch is qhost output, but it did not appear"     
       return
    }
-   
-   ts_log_fine "qhost -l h=hostname arch=arch test ok!"
+
+   if {$foundHost > 1} {
+      ts_log_severe "Expected to see only one line with host $host in qhost output"
+      return
+   }
+
+   if {$foundArch > 1} {
+      ts_log_severe "Expected to see only one line with arch $host_arch is qhost output"     
+      return
+   }
+
+   ts_log_fine "qhost -l h=hostname arch=$host_arch test ok!"
 }
