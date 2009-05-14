@@ -144,7 +144,7 @@ proc hedeby_issue571_setup_level {} {
 #  FUNCTION
 #
 #  The cleanup function uses the global variable hedeby_issue571_ctx to perform a proper cleanup
-#  if the test. The element hedeby_issue571_ctx(cleanup_actions) contains a list of actions name
+#  of the test. The element hedeby_issue571_ctx(cleanup_actions) contains a list of actions name
 #  which must be executed for the cleanup. 
 #
 #  The following actions are defined:

@@ -1,11 +1,18 @@
 ################################################################################
 # This is the Changelog for testsuite source code changes.                     #
 # Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #
-#                    "Merged from", "Cleanup"                                  #
+#                    "Merged from", "Cleanup", "Issue"                         #
 ################################################################################
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-05-14-1: Enhancem.:  Hedeby:
+                             Added test for issue 651 as general
+                             move/resource/option_static test.
+                 Issue:      651
+                 Review:     RH
+
 SH-2009-05-14-1: Enhancem.:  Allow only ports >= 1024 for COMMD and JMX port.
                              Check if reserved port is < 1024.
                  Review:     CR
