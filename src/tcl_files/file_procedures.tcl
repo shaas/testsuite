@@ -3227,7 +3227,7 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
       ts_log_fine "deleting file $path on host $hostname as user $user ..."
       set output [start_remote_prog $hostname $user "rm" "$path" prg_exit_state 60 0 "" "" 0 0 0 1 $win_local_user]
       ts_log_finest $output
-      wait_for_remote_file $hostname $user $path 60 1 1
+      wait_for_remote_file $hostname $user $path 90 1 1
    } else {
       ts_log_fine "file $path not found on host $hostname as user $user!"
    }

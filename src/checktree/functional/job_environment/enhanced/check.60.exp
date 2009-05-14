@@ -1,0 +1,556 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+# define a level initialization procedure:
+set check_init_level_procedure "job_environment_enhanced_init_level"
+
+# define test's name and run level descriptions
+set check_name            "job_environment_enhanced"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "enhanced job environment variables test"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function "job_environment_enhanced_setup"
+set check_cleanup_function "job_environment_enhanced_cleanup"
+
+set check_root_access_needs "yes"
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "job_environment_enhanced_INHERIT_ENV"
+lappend check_functions "job_environment_enhanced_SET_LIB_PATH"
+
+
+proc job_environment_enhanced_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
+}
+
+
+####### job_environment_enhanced_setup() #############################################
+#  NAME
+#     job_environment_enhanced_setup() -- setup the job env test
+#
+#  SYNOPSIS
+#     job_environment_enhanced_setup { } 
+#
+#  FUNCTION
+#     Do required setup for the job environment test for 6.0.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#
+#  SEE ALSO
+#     job_environment_enhanced_setup()
+################################################################################
+proc job_environment_enhanced_setup {} {
+   global ts_config
+   global job_environment_enhanced_exec_host job_environment_enhanced_config 
+   global job_environment_enhanced_libpath job_environment_enhanced_queue
+   global job_environment_enhanced_libvar ts_config CHECK_USER
+
+
+   set job_environment_enhanced_exec_host [host_conf_get_suited_hosts 1 {} {} {} 1]
+   set job_environment_enhanced_queue [get_queue_instance "all.q" $job_environment_enhanced_exec_host]
+
+   get_config job_environment_enhanced_config $job_environment_enhanced_exec_host
+
+
+
+   # Stop first execd
+   shutdown_system_daemon $job_environment_enhanced_exec_host "execd"
+
+   # Set marker var
+   set job_environment_enhanced_libvar [get_shared_lib_var $job_environment_enhanced_exec_host]
+
+    # The test suite will add the SGE path to the lib path
+   set arch [resolve_arch $job_environment_enhanced_exec_host]
+   set sge_path "$ts_config(product_root)/lib/$arch/../$arch"
+   set job_environment_enhanced_libpath ".:$sge_path"
+
+   set my_environment(THISIS) "atest"
+   set my_environment($job_environment_enhanced_libvar) $job_environment_enhanced_libpath
+
+   # Restart execd (workaround for LINUX hosts: Startup user is admin user)
+   set host_arch [resolve_arch $job_environment_enhanced_exec_host]
+   if {[string match "*lx*" $host_arch] && $ts_config(commd_port) >= 1024} {
+      set log_text "this is a linux host - restarting execd as user $CHECK_USER. Most linux systems\n"
+      append log_text "do not allow inherit environment from root processes started by root user."
+      startup_execd $job_environment_enhanced_exec_host my_environment $CHECK_USER
+   } else {
+      set log_text ""
+      startup_execd $job_environment_enhanced_exec_host my_environment 
+   }
+
+   ts_log_frame
+   if {$log_text != ""} {
+      ts_log_fine $log_text
+   }
+   ts_log_fine "$job_environment_enhanced_libvar before starting of execd on \"$job_environment_enhanced_exec_host\""
+   ts_log_fine "is set to \"$job_environment_enhanced_libpath\""
+   ts_log_frame
+}
+
+####### job_environment_enhanced_cleanup() ###########################################
+#  NAME
+#     job_environment_enhanced_cleanup() -- clean up after the job env test
+#
+#  SYNOPSIS
+#     job_environment_enhanced_cleanup { } 
+#
+#  FUNCTION
+#     Clean up changes made during the job environment 6.0 test.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#
+#  SEE ALSO
+#     job_environment_enhanced_cleanup()
+################################################################################
+proc job_environment_enhanced_cleanup {} {
+   global job_environment_enhanced_exec_host job_environment_enhanced_config
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # Stop execd
+   shutdown_system_daemon $job_environment_enhanced_exec_host "execd"
+
+   # Restart execd without marker variable
+   startup_execd $job_environment_enhanced_exec_host
+
+   reset_config_and_propagate job_environment_enhanced_config $job_environment_enhanced_exec_host
+}
+
+
+
+#****** job_environment_enhanced_INHERIT_ENV() ******************************************
+#  NAME
+#     job_environment_enhanced_INHERIT_ENV() -- test that env vars are inherited
+#                                      correctly
+#
+#  SYNOPSIS
+#     job_environment_enhanced_INHERIT_ENV { } 
+#
+#  FUNCTION
+#     Tests whether the shepherd correctly sets the environment
+#     variables based on the execd_param, INHERIT_ENV.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#*******************************************************************************
+proc job_environment_enhanced_INHERIT_ENV {} {
+   global env job_environment_enhanced_exec_host
+
+   set args "-l h=$job_environment_enhanced_exec_host -o /dev/null -j yes"
+
+   set errors ""
+
+   ts_log_fine "Testing effects of INHERIT_ENV=false"
+
+   # Set INHERIT_ENV=false
+   set new_config(execd_params) "INHERIT_ENV=false"
+   set_config_and_propagate new_config $job_environment_enhanced_exec_host
+
+   # Submit job
+   if {[job_environment_enhanced_qsub_job "jobenv.sh" job_env $args]} {
+      # Check for presence of THISIS env var
+      if {[info exists job_env(THISIS)]} {
+         append errors "\nEnvironment variable was inherited when it shouldn't have been, with INHERIT_ENV=false"
+      }
+   } else {
+      append errors "\nFailed submitting job, with INHERIT_ENV=false"
+   }
+
+   ts_log_fine "Testing effects of execd_params=none, after INHERIT_ENV=false"
+
+   # Set exced_params=none
+   set new_config(execd_params) "none"
+   set_config_and_propagate new_config $job_environment_enhanced_exec_host
+
+   # Submit job
+   if {[job_environment_enhanced_qsub_job "jobenv.sh" job_env $args]} {
+      # Check for presence of THISIS env var
+      if {![info exists job_env(THISIS)]} {
+         append errors "\nEnvironment variable was not inherited, with execd_params=none after INHERIT_ENV=false"
+      }
+   } else {
+      append errors "\nFailed submitting job, with execd_params=none after INHERIT_ENV=false"
+   }
+
+   ts_log_fine "Testing effects of INHERIT_ENV=true"
+
+   # Set INHERIT_ENV=true
+   set new_config(execd_params) "INHERIT_ENV=true"
+   set_config_and_propagate new_config $job_environment_enhanced_exec_host
+
+   # Submit job
+   if {[job_environment_enhanced_qsub_job "jobenv.sh" job_env $args]} {
+      # Check for presence of THISIS env var
+      if {![info exists job_env(THISIS)]} {
+         append errors "\nEnvironment variable was not inherited, with INHERIT_ENV=true"
+      }
+   } else {
+      append errors "\nFailed submitting job, with INHERIT_ENV=true"
+   }
+
+   ts_log_fine "Testing effects of execd_params=none, after INHERIT_ENV=true"
+
+   # Set exced_params=none
+   set new_config(execd_params) "none"
+   set_config_and_propagate new_config $job_environment_enhanced_exec_host
+
+   # Submit job
+   if {[job_environment_enhanced_qsub_job "jobenv.sh" job_env $args]} {
+      # Check for presence of THISIS env var
+      if {![info exists job_env(THISIS)]} {
+         append errors "\nEnvironment variable was inherited when it shouldn't have been, with execd_params=none after INHERIT_ENV=true"
+      }
+   } else {
+      append errors "\nFailed submitting job, with execd_params=none after INHERIT_ENV=true"
+   }
+
+   if {$errors != ""} {
+      ts_log_severe [string trim $errors]
+   }
+}
+
+#****** check.60/test_job_environment_enhanced_lib_path() *******************************
+#  NAME
+#     test_job_environment_enhanced_lib_path() -- used by job_environment_enhanced_SET_LIB_PATH
+#
+#  SYNOPSIS
+#     test_job_environment_enhanced_lib_path { error_var execd_params expected_lib_path 
+#     } 
+#
+#  FUNCTION
+#     starts job with specified execd_params and tests for correct
+#     expected lib path
+#
+#  INPUTS
+#     error_var         - string for reporting errors (upvared)
+#     execd_params      - execd_params to set before starting job
+#     expected_lib_path - expected LD_LIBRARY_PATH
+#                         if expected_lib_path set to "TEST_UNSET" the
+#                         procedure assumes that no LD_LIBRARY_PATH
+#                         is set at all
+#
+#*******************************************************************************
+proc test_job_environment_enhanced_lib_path {error_var execd_params expected_lib_path} {
+   global job_environment_enhanced_exec_host job_environment_enhanced_libvar ts_config
+   upvar $error_var errors
+
+   set args "-l h=$job_environment_enhanced_exec_host -o /dev/null -j yes"
+
+   set new_config(execd_params) "$execd_params"
+   set_config_and_propagate new_config $job_environment_enhanced_exec_host
+   ts_log_fine "Testing with execd_params set to $new_config(execd_params)"
+   ts_log_fine "Expected SGE lib path is \"$expected_lib_path\" on host $job_environment_enhanced_exec_host"
+
+   set errors ""
+   # Test that lib path is "SGE lib path":"execd path", get job id of job
+   if {[job_environment_enhanced_qsub_job "jobenv.sh" job_env $args job_id] == 0} {
+      append errors "\nFailed submitting job, with $new_config(execd_params)"
+      return
+   }
+
+   # JOB_ID should be set correctly
+   if {![info exists job_env(JOB_ID)]} {
+      append errors "\njob environment variable \"JOB_ID\" is not set"
+   } else {
+      if {$job_env(JOB_ID) != $job_id} {
+         append errors "\njob environment variable \"JOB_ID\" is set to \"$job_env(JOB_ID)\", but job id is \"$job_id\""
+      } else {
+         ts_log_fine "job environment \"JOB_ID\" correctly set to \"$job_id\""
+      }
+   }
+
+   if { $expected_lib_path == "TEST_UNSET" } {
+      # library path should not be set at all
+      if {[info exists job_env($job_environment_enhanced_libvar)]} {
+         append errors "\nShared library IS set, with $new_config(execd_params) (host=$job_environment_enhanced_exec_host)!"
+         append errors "\nexpected $job_environment_enhanced_libvar not to be set!"
+         append errors "\n$job_environment_enhanced_libvar is wrongly set to \"$job_env($job_environment_enhanced_libvar)\""
+         return
+      } else {
+         ts_log_frame
+         ts_log_fine "libpath correctly NOT set for execd_params"
+         ts_log_fine "set to \"$execd_params\""
+         ts_log_frame
+         return
+      }
+   } else {
+      # library path should be set 
+      set host_arch [resolve_arch $job_environment_enhanced_exec_host]
+      if {[string match "*lx*" $host_arch] && $ts_config(commd_port) < 1024} {
+         if {![info exists job_env($job_environment_enhanced_libvar)]} {
+            set config_error ""
+            append config_error "Job environment \"$job_environment_enhanced_libvar\" is not set!\n"
+            append config_error "Shared library path NOT set, with $new_config(execd_params) (host=$job_environment_enhanced_exec_host)!\n"
+            append config_error "Expected following setting: \"$expected_lib_path\"\n"
+            append config_error "Since the test host is a linux host and the process (execd) is started\n"
+            append config_error "as root user the inherited test is not working. Most linux systems does not\n"
+            append config_error "allow inherited environment variables for processes started as root user!\n"
+            ts_log_config $config_error
+            return
+         }
+      } else {
+         if {![info exists job_env($job_environment_enhanced_libvar)]} {
+            append errors "\njob environment \"$job_environment_enhanced_libvar\" is not set"
+            append errors "\nShared library path NOT set, with $new_config(execd_params) (host=$job_environment_enhanced_exec_host)!"
+            append errors "\nExpected following setting: \"$expected_lib_path\""
+            append errors "\n\njob environment is set to:\n[format_array job_env]"
+            return
+         }
+      }
+   }
+
+   if {$ts_config(gridengine_version) > 60} {
+      if {$expected_lib_path != $job_env($job_environment_enhanced_libvar)} {
+         # problem
+         append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_enhanced_libvar)\", with $new_config(execd_params)"
+         append errors "\n   Should be set to \"$expected_lib_path\""
+      }
+   } else {
+      if {[string first $expected_lib_path $job_env($job_environment_enhanced_libvar)] == -1} {
+         # problem: since the sgeexecd script is not updated and an existing shared lib path is set
+         # we have to check if the exepected path is contained in the lib path 
+         append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_enhanced_libvar)\", with $new_config(execd_params)"
+         append errors "\n   Should be set to \"$expected_lib_path\""  
+         return
+      } else {
+         if {$expected_lib_path != $job_env($job_environment_enhanced_libvar)} {
+            set warning ""
+            append warning "\nShared library path is incorrectly set to \"$job_env($job_environment_enhanced_libvar)\", with $new_config(execd_params)"
+            append warning "\n   Should be set to \"$expected_lib_path\". The expected lib path is only a substring of the real found path!"
+            ts_log_config $warning 
+         }
+      }
+   }
+   
+   ts_log_frame
+   ts_log_fine "libpath ($job_environment_enhanced_libvar) correctly set set to \"$expected_lib_path\""
+   ts_log_fine "for execd_params set to \"$execd_params\""
+   ts_log_frame
+}
+
+####### job_environment_enhanced_qsub_job() #############################################
+#  NAME
+#     job_environment_enhanced_qsub_job() -- qsub jobenv.sh
+#
+#  SYNOPSIS
+#     job_environment_enhanced_qsub_job { jobname array arguments } 
+#
+#  FUNCTION
+#     Submit the jobenv.sh script via qsub and parse the resulting output file.
+#
+#  INPUTS
+#     jobname     the name the job will have when submitted
+#     array       the name of the array in which results will be placed
+#     arguments   switches to be passed to qsub
+#
+#  RESULT
+#     0 -> ok   1 -> error
+################################################################################
+proc job_environment_enhanced_qsub_job { jobname array arguments {job_id_array_name ""}} {
+   global ts_config CHECK_USER
+   global CHECK_PROTOCOL_DIR
+   global job_environment_enhanced_queue
+   upvar $array job_env_array
+   if {$job_id_array_name != ""} {
+      upvar $job_id_array_name job_id
+   }
+
+   set ret 1
+   ts_log_fine "job environment should be written to $CHECK_PROTOCOL_DIR"
+
+   set tmp_host [host_conf_get_suited_hosts 1]
+   wait_for_remote_file $tmp_host $CHECK_USER "$CHECK_PROTOCOL_DIR/job_env.out" 60 1 1
+   set job_id [submit_job "$arguments -q $job_environment_enhanced_queue $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR" 1 60 $tmp_host]
+
+   if {$job_id <= 0} {
+      set ret 0
+   }
+
+   if {$ret && [wait_for_jobstart $job_id $jobname 120 1 1] != 0} {
+      set ret 0
+      delete_all_jobs
+   }
+
+   if {$ret && [wait_for_jobend $job_id $jobname 120 0 1] != 0} {
+      set ret 0
+      delete_all_jobs
+   }
+
+   wait_for_end_of_all_jobs
+
+   if {$ret} {
+      job_environment_enhanced_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
+   }
+
+   return $ret
+}
+
+####### job_environment_enhanced_parse_env_test_output() ################################
+#  NAME
+#     job_environment_enhanced_parse_env_test_output() -- parse jobenv.sh output
+#
+#  SYNOPSIS
+#     job_environment_enhanced_parse_env_test_output { file array } 
+#
+#  FUNCTION
+#     Parses the output file from the jobenv.sh script and places the results
+#     in the given array.  This function will wait until the output file is
+#     available if it does not exist at the time this function is run.
+#
+#  INPUTS
+#     file     the name of the jobenv.sh output file
+#     array    the name of the array in which results will be placed
+#
+#  RESULT
+#     0 -> ok   1 -> error
+################################################################################
+proc job_environment_enhanced_parse_env_test_output {file array} {
+   global CHECK_USER
+   global ts_config
+
+   upvar $array job_env_array
+
+   if {[info exists job_env_array]} {
+      unset job_env_array
+   }
+
+   ts_log_fine "waiting for file $file on host $ts_config(master_host) as user $CHECK_USER ..."
+   if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $file] == 0} {
+      get_file_content $ts_config(master_host) $CHECK_USER $file file_array
+      for {set index 1} {$index < $file_array(0)} {incr index 1} {
+         set line $file_array($index)
+         set pos [string first "=" $line]
+         incr pos -1
+         set variable [string range $line 0 $pos]
+         incr pos 2
+         set value [string range $line $pos end]
+         ts_log_finest "variable=\"$variable\", value=\"$value\""
+         set job_env_array($variable) $value
+         lappend variable_names_list $variable
+      } 
+      set job_env_array(index) $variable_names_list
+      delete_remote_file $ts_config(master_host) $CHECK_USER $file
+   }
+}
+
+#****** job_environment_enhanced_SET_LIB_PATH() *****************************************
+#  NAME
+#     job_environment_enhanced_SET_LIB_PATH() -- test that the lib path gets set
+#                                       correctly
+#
+#  SYNOPSIS
+#     job_environment_enhanced_SET_LIB_PATH { } 
+#
+#  FUNCTION
+#     Tests whether the shepherd correctly sets the shared library path
+#     environment variable based on the execd_params, INHERIT_ENV and
+#     SET_LIB_PATH.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#*******************************************************************************
+proc job_environment_enhanced_SET_LIB_PATH {} {
+
+   global ts_config
+   global job_environment_enhanced_exec_host job_environment_enhanced_libvar
+   global job_environment_enhanced_libpath
+
+   set arch [resolve_arch $job_environment_enhanced_exec_host]
+   set sge_path "$ts_config(product_root)/lib/$arch"
+
+   set error_text ""
+   # test 1
+   ts_log_frame
+   ts_log_fine "Scenario A:\n"
+   test_job_environment_enhanced_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=true" "$sge_path:$job_environment_enhanced_libpath"
+   if {$errors != ""} {
+      append error_text "Scenario A failed:\n[string trim $errors]\n"
+   }
+  
+   # test 2
+   ts_log_frame
+   ts_log_fine "Scenario B:\n"
+   test_job_environment_enhanced_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=false" "$job_environment_enhanced_libpath"
+   if {$errors != ""} {
+      append error_text "Scenario B failed:\n[string trim $errors]\n"
+   }
+
+   # test 3
+   ts_log_frame
+   ts_log_fine "Scenario C:\n"
+   test_job_environment_enhanced_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=true" "$sge_path"
+   if {$errors != ""} {
+      append error_text "Scenario C failed:\n[string trim $errors]\n"
+   }
+
+   # test 4
+   ts_log_frame
+   ts_log_fine "Scenario D:\n"
+   test_job_environment_enhanced_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=false" "TEST_UNSET"
+   if {$errors != ""} {
+      append error_text "Scenario D failed:\n[string trim $errors]\n"
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+

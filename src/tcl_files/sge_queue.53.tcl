@@ -78,7 +78,7 @@ proc vdep_validate_queue {change_array} {
 
 proc vdep_set_queue_values {hostlist change_array} {
    # nothing special to do
-   }
+}
 
 #****** sge_procedures.53/queue/set_queue() ************************************
 #  NAME

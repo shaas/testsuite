@@ -920,6 +920,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       } else {
          set host [host_conf_get_suited_hosts]
       }
+      ts_log_finer "starting \"$bin $args\" on host \"$host\"!"
    }
 
    if {$user == ""} {
