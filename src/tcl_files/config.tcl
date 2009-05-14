@@ -2833,8 +2833,15 @@ proc config_commd_port { only_check name config_array } {
    }
 
    set value [config_generic $only_check $name config $help_text "port" 0 1 "" params]
+   
+   if { $value < 1024 } {
+      puts "Need COMMD_PORT value >= 1024"
+      return -1
+   }
 
-   if { $value != -1 } { set CHECK_COMMD_PORT $value }
+   if { $value != -1 } {
+      set CHECK_COMMD_PORT $value
+   }
 }
 
 #****** config/config_jmx_port() ***********************************************
@@ -2871,9 +2878,16 @@ proc config_jmx_port { only_check name config_array } {
    if { [info exists config(commd_port)] } {
       set params(exclude_list) $config(commd_port)
       set params(exclude_list) [expr $config(commd_port) + 1]
-}
+   }
 
-   return [config_generic $only_check $name config $help_text "port" 1 1 "" params ]
+   set value [config_generic $only_check $name config $help_text "port" 1 1 "" params ]
+
+   if { $value < 1024 } {
+      puts "Need JMX_PORT value >= 1024"
+      return -1
+   }
+   
+   return $value
 }
 
 #****** config/config_jmx_ssl() ************************************************
@@ -3006,7 +3020,14 @@ proc config_reserved_port { only_check name config_array } {
    
    array set params { port_type reserved }
 
-   return [config_generic $only_check $name config $help_text "port" 0 1 "" params]
+   set value [config_generic $only_check $name config $help_text "port" 0 1 "" params]
+   
+   if { $value >= 1024 } {
+      puts "Need an unused port number < 1024."
+      return -1
+   } 
+
+   return $value
 }
 
 #****** config/config_product_root() *******************************************
@@ -3049,7 +3070,7 @@ proc config_product_root { only_check name config_array } {
          puts "path for product_root_directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
          puts "The testsuite tries to find processes via ps output most ps output is truncated"
          puts "for longer lines."
-           return -1
+         return -1
       }
    }
 
