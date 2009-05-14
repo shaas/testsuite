@@ -248,7 +248,7 @@ proc issue_126_check {} {
 
          append error_output "[clock format [clock seconds]] process group info from ps output:\n$process_group_info"
 
-         if { [string compare $state1 "T" ] == 0 } {
+         if { [string match "*T*" $state1] == 1 } {
             break
          } 
          if { $my_timeout < [timestamp] } {

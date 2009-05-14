@@ -147,8 +147,15 @@ proc resource_reservation_setup {} {
 
    set rr_queue_name               "rr_queue.q"
    set rr_cal_queue_name           "rr_cal_queue.q"
-   set rr_host [lindex $ts_config(execd_nodes) 0]
- 
+
+   foreach host $ts_config(execd_nodes) {
+      if {[resolve_arch $host] != "win32-x86"} {
+         # there must be at least one non-win32-x86-host
+         set rr_host $host
+         break
+      }
+   }
+
    # Setup the scheduler
    set schedconf(schedule_interval)          "0:0:05"
    set schedconf(weight_tickets_functional)  "0"

@@ -6,6 +6,12 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+HP-2009-05-14-0: Bugfix:     Wrong parsing of ps output on win32-x86 in
+                             get_ps_info()
+                 Bugfix:     Wrong parsing of ps "state" field in issue 126
+                 Bugfix:     Selection of win32-x86 host for drmaa test in
+                             resource_reservation test.
+                 Review:     MD
 
 TB-2009-05-14-0: Bugfix:     Function control_procedures/handle_vi_edit used
                              incorrectly global ts_config array instead of

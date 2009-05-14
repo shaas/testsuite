@@ -1709,8 +1709,8 @@ proc get_ps_info { { pid 0 } { host "local"} { info_array ps_info } {additional_
 
       "win32-x86" {
          set myenvironment(COLUMS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,group=\"GROUPNAMEGROUPNAMEGROUPNAME\",ppid,user=\"FULLUSERNAMEFULLUSERNAMEFULLUSERNAME\",state,stime,vsz,time,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "   PID GROUPNAMEGROUPNAMEGROUPNAME   PPID FULLUSERNAMEFULLUSERNAMEFULLUSERNAME STATE       STIME    VSZ     TIME COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,pgid,ppid,user,state,stime,vsz,time,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 "" myenvironment]
+         set index_names "   PID   PGID   PPID       USER STATE       STIME    VSZ     TIME COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
