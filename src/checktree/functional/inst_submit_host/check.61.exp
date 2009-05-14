@@ -173,7 +173,11 @@ proc inst_submit_host_setup {} {
          }
          # Errors
          -i $sp_id "Certificates couldn't be copied!" {
-            ts_log_config "rsh is not working for host: $submit_host"
+            if {[info exists submit_host]} {
+               ts_log_config "rsh is not working for host: $submit_host"
+            } else {
+               ts_log_config "rsh is not working"
+            }
             continue   
          }
          -i $sp_id "Permission denied" {
