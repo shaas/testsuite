@@ -7,6 +7,12 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+TB-2009-05-14-0: Bugfix:     Function control_procedures/handle_vi_edit used
+                             incorrectly global ts_config array instead of
+                             get_current_cluster_config_array for determining
+                             master host and path to vi
+                 Review:     RH
+
 CR-2009-05-13-1: Bugfix:     fixed job_environment test
                  Belongs to: CR-2009-05-12-0
                  Review:     AA

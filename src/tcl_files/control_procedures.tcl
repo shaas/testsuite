@@ -430,7 +430,8 @@ proc build_rqs_vi_array { change_array } {
 #     ???/???
 #*******************************
 proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {additional_expected_result5 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1} {additional_expected_result6 "___ABCDEFG___"}} {
-   global env CHECK_DEBUG_LEVEL CHECK_USER ts_config
+   global env CHECK_DEBUG_LEVEL CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set expected_result              [string trimright $expected_result "*"]
    set additional_expected_result   [string trimright $additional_expected_result "*"]
@@ -446,7 +447,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set vi_env(EDITOR) [get_binary_path $host_for_vi "vim"]
    set result -100
 
-   ts_log_finest "using EDITOR=$vi_env(EDITOR)"
+   ts_log_finer "using vi editor on host '$host_for_vi' in path '$vi_env(EDITOR)'"
    # start program (e.g. qconf)
    set id [open_remote_spawn_process $host_for_vi $CHECK_USER $prog_binary "$prog_args" 0 "" vi_env]
    set sp_id [ lindex $id 1 ] 
