@@ -4897,11 +4897,11 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    # add the standard/error output options if necessary
    if { [string first "-o " $args] == -1 && $dev_null == 1} {
       set args "-o /dev/null $args"
-      ts_log_finest "added submit argument: -o /dev/null"
+      ts_log_fine "added submit argument: -o /dev/null"
    }
    if { [string first "-e " $args] == -1 && $dev_null == 1} {
       set args "-e /dev/null $args"
-      ts_log_finest "added submit argument: -e /dev/null"
+      ts_log_fine "added submit argument: -e /dev/null"
    }
 
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
