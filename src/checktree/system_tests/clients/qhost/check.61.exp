@@ -87,8 +87,17 @@ proc qhost_l_with_multiple_attributes {} {
    set host [host_conf_get_suited_hosts]
    set host_arch [resolve_arch $host]
 
+   # randomly choose an arch for a host other than our chosen host
+   set diff_arch ""
+   foreach exec $exec_hosts {
+      if {$host != $exec && [resolve_arch $exec] != $host_arch } {
+         set diff_arch [resolve_arch $exec]
+         break
+      }       
+   }
+
    # set our qhost arguments and submit the request
-   set args "-l h=$host arch=$host_arch"
+   set args "-l h=$host,arch=$host_arch"
    ts_log_fine "submitting qhost $args"
    set results [qhost_parse plain job $args]
 
@@ -128,4 +137,31 @@ proc qhost_l_with_multiple_attributes {} {
    }
 
    ts_log_fine "qhost -l h=hostname arch=$host_arch test ok!"
+
+
+   if {$diff_arch != ""} {
+      ts_log_fine "we found another host with different arch \"$diff_arch\" - check that no request is matching.."
+      # set our qhost arguments and submit the request
+      set args "-l h=$host,arch=$diff_arch"
+      ts_log_fine "submitting qhost $args"
+      set results [qhost_parse plain job $args]
+
+      # loop through the output from qhost and make sure that both the host and arch
+      # we selected above are listed in the output
+      set foundHost 0
+      set foundArch 0
+      for {set ind 0} {$ind < $job} {incr ind 1} {
+         if {[string compare [string trim $plain(host$ind,name)] $host] == 0} {
+            incr foundHost 1
+         }
+
+         if {[string compare [string trim $plain(host$ind,arch_string)] $diff_arch] == 0} {
+            incr foundArch 1
+         }
+      }
+      if {$foundHost != 0 || $foundArch != 0} {
+         ts_log_severe "Expected to see no qhost output for \"qhost $args\" !"     
+         return
+      }
+   }
 }

@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-05-15-0: Enhancem.:  additional qhost test case
+                 Review:     RD
+
 SH-2009-05-15-1: Enhancem.:  changed loglevel from finest to fine for 
                              -e and -o argument of submit_job
                  Review:     CR
