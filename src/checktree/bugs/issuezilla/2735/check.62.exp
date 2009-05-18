@@ -200,7 +200,7 @@ proc issue_2735_test {} {
       ts_log_fine "no shepherd found - good"
       if {$error_text != ""} {
          append error_text "No shepherd found, this is good!\nBut job qlogin > /dev/null should run. Issue 2735 found!\n"
-         set report_error 0   ;# The sheperd problem is fixed, P4 issue 2735 still not fixed!
+         set report_error 1
       }
    } else {
       ts_log_fine "found more than one possible shepherd: $possible_sheperd_pid_list"

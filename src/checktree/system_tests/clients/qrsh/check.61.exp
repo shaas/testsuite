@@ -31,10 +31,9 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
 lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd options
 lappend check_functions "qrsh_w_v_test"
-
+lappend check_functions "qrsh_pty_yes_redirect"
 
 #                                                             max. column:     |
 #****** qrsh/replace_automount_prefix() ***************************************
@@ -223,4 +222,121 @@ proc qrsh_w_v_test {} {
    }
 
    wait_for_end_of_all_jobs
+}
+
+#****** qrsh/qrsh_pty_yes_redirect() ******
+#
+#  NAME
+#     qrsh_pty_yes_redirect
+#
+#  SYNOPSIS
+#     proc qrsh_pty_yes_redirect { }
+#
+#  FUNCTION
+#     Tests if "qrsh -pty yes > out.txt" works properly
+#
+#  SEE ALSO
+#     
+#*******************************
+proc qrsh_pty_yes_redirect {} {
+   global ts_config CHECK_USER
+   global qrsh_hostlist
+  
+   foreach submit_host $qrsh_hostlist {
+      foreach host $qrsh_hostlist {
+         set arch [resolve_arch $submit_host]
+         set tmpfile [get_tmp_file_name $submit_host]
+
+         # Start "qrsh -pty yes > $tmpfile"
+         ts_log_fine "executing $ts_config(product_root)/bin/$arch/qrsh -verbose\
+                      -l h=$host -pty yes > $tmpfile on host $submit_host as $CHECK_USER"
+         set qrsh_id [open_remote_spawn_process $submit_host $CHECK_USER \
+                      $ts_config(product_root)/bin/$arch/qrsh "-verbose -l h=$host -pty yes > $tmpfile"]
+         set sp_id [lindex $qrsh_id 1]
+
+         # Scan the verbose output of qrsh for job id and check if an error message was print
+         ts_log_fine "waiting for qrsh -pty yes to be scheduled"
+         set job_id 0
+         set remote_host ""
+
+         set HAS_BEEN_SCHEDULED [translate_macro MSG_QSH_INTERACTIVEJOBHASBEENSCHEDULED_S "*"]
+         set ESTABLISHING_SESSION [translate_macro MSG_QSH_ESTABLISHINGREMOTESESSIONTO_SS "*" "*"]
+         set timeout 20
+         expect {
+            -i $sp_id full_buffer {
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               close_spawn_process $qrsh_id
+               return
+            }
+            -i $sp_id timeout {
+               if {$job_id == 0} {
+                  ts_log_severe "timeout waiting for qrsh -pty yes to be submitted"
+                  close_spawn_process $qrsh_id
+                  return
+               }
+            }
+            -i $sp_id eof {
+               ts_log_severe "eof waiting for qrsh -pty yes to be submitted"
+               close_spawn_process $qrsh_id
+               return
+            }
+            -i $sp_id $HAS_BEEN_SCHEDULED {
+               set job_id [lindex $expect_out(0,string) 3]
+               set timeout 2
+               exp_continue
+            }
+            -i $sp_id $ESTABLISHING_SESSION {
+               set remote_host [lindex $expect_out(0,string) 5]
+               set timeout 2
+               exp_continue
+            }
+            -i $sp_id "Can't set terminal mode*" {
+               ts_log_severe "qrsh printed an error"
+               close_spawn_process $qrsh_id
+               return
+            }
+            -i $sp_id default {
+               ts_log_fine "default: $expect_out(0,string)"
+            }
+         }
+         if {$job_id != 0 && $remote_host != ""} {
+            ts_log_fine "qrsh job $job_id correctly scheduled to remote host $remote_host"
+         } else {
+            ts_log_severe "qrsh job wasn't submitted"
+            close_spawn_process $qrsh_id
+            return
+         }
+         
+         # Wait until job runs
+         ts_log_fine "waiting until the job runs"
+         if {[wait_for_jobstart $job_id "QRLOGIN" 60] != 0} {
+            ts_log_severe "job $job_id does not start"
+            close_spawn_process $qrsh_id
+            delete_all_jobs
+            return
+         }
+
+         # Write "exit" to the qrsh
+         ts_log_fine "sending \"exit\" to the qrsh"
+         ts_send $sp_id "exit\n"
+         close_spawn_process $qrsh_id
+
+         # Wait until job ends
+         ts_log_fine "waiting until the job ends"
+         wait_for_jobend $job_id "QRLOGIN" 60 0 1
+
+         # Check if tmp.txt contains some login message
+         get_file_content $submit_host $CHECK_USER $tmpfile file_content
+         ts_log_fine "there are $file_content(0) lines in $tmpfile"
+         for {set i 1} {$i<=$file_content(0)} {incr i} {
+            ts_log_fine "line $i: $file_content($i)"
+         }
+         if {$file_content(0) == 0} {
+            ts_log_severe "no output was redirected!"
+            delete_all_jobs
+            return
+         }
+      }
+   }
+   wait_for_end_of_all_jobs 60
 }
