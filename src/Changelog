@@ -7,6 +7,12 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-05-15-2: Bugfix:     Queue for tight integrated pe jobs in the 
+                             enforce_limit test has to be in unix_behavior 
+                             startmode to make sure that important env 
+                             variables will not be overwritten
+                 Review:     CR
+
 CR-2009-05-15-0: Enhancem.:  additional qhost test case
                  Review:     RD
 

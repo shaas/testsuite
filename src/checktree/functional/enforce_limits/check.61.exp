@@ -170,6 +170,7 @@ proc enforce_limits_setup {} {
    # create a queue
    set queue_conf(load_thresholds) "np_load_avg=11"
    set queue_conf(slots) 10
+   set queue_conf(shell_start_mode) "unix_behavior"
    set queue_conf(rerun) "true"
    set queue_conf(h_rt) "00:00:30"
    add_queue tight.q "@allhosts" queue_conf
@@ -264,7 +265,7 @@ proc enforce_limits_tight_execd_limit_enforcement {} {
 
          # if the job was running 60 seconds and more that the limit enforcement failed 
          if {$wallclock < 30 || $wallclock > 40} {
-            ts_log_severe "wallclock limit seems not to be enfoced in execd for tight PE job"
+            ts_log_severe "wallclock limit seems not to be enforced in execd for tight PE job $job_id"
          }
       } else {
          ts_log_severe "field exit_status is missing in qacct output"
@@ -531,7 +532,7 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
       startup_execd $tight_master_node
 
       # wait for termination of job
-      wait_for_job_end $job_id 100 
+      wait_for_job_end $job_id 100
       set end [clock seconds]
 
       # so we give it 70 seconds plus 15 seconds for the execd startup
@@ -546,7 +547,7 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
          set failed [lindex $task 0]
 
          if {$failed != 100} {
-            ts_log_severe "job $job_id died trough limit exceeding executed by the execution deamon. Therefore it should end with failed=100 but it failed with $failed"
+            ts_log_severe "job $job_id died through limit exceeding executed by the execution deamon. Therefore it should end with failed=100 but it failed with $failed"
          }
       } else {
          ts_log_severe "didn't find accounting entry of job $job_id"
