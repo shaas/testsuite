@@ -13,7 +13,6 @@ SH-2009-05-18-2: Bugifx:     Consider new possible error msg in qsub test
 HP-2009-05-18-0: Enhancem.:  Added test for IZ 3025
                  Review:     HP
 
->>>>>>> 1.981
 SH-2009-05-18-1: Bugfix:     Expanded file_parsing test for TS IZ 19
                  Review:     DG
 
