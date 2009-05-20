@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+JG-2009-05-20-0: Bugfix:     Made functional/usage wait for accounting records
+                             to appear (can be delayed due to buffering and NFS
+                             issues)
+                 Review:     AP
+
 SH-2009-05-18-2: Bugifx:     Consider new possible error msg in qsub test
                  Review:     DG
 

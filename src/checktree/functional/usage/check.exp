@@ -379,10 +379,14 @@ proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
    set online_cpu $online_info(cpu)
    set online_mem $online_info(mem)
 
-   # on SGE >= 60, the accounting file is buffered - wait for all records being written
    wait_for_end_of_all_jobs
 
-   get_qacct $jobid
+   # on SGE >= 60, the accounting file is buffered - wait for all records being written
+   set qacct_wait_for $acct_slots
+   if {$usage_accounting_summary} {
+      set qacct_wait_for 1
+   }
+   get_qacct $jobid qacct_info $ts_config(master_host) "" 1 $qacct_wait_for
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
    set acct_count [llength $qacct_info(exit_status)]
