@@ -232,16 +232,16 @@ proc check_sync_failover {} {
    # Delete any remaining jobs
    delete_all_jobs
    
-   set spool_dir [get_spool_dir $ts_config(master_host)  "qmaster"] 
-   set host [gethostname]
+   set spool_dir [get_spool_dir $ts_config(master_host) "qmaster"] 
+   set host $ts_config(master_host)
    set arch [resolve_arch $host]
    set error_text ""
    set error 0
    set timeout 60
 
    # qconf -km before qsub -sync y
-   shutdown_master_and_scheduler $ts_config(master_host) $spool_dir 
-   set output [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 10"]
+   shutdown_master_and_scheduler $ts_config(master_host) $spool_dir
+   set output [start_sge_bin "qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 10" $host $CHECK_USER]
    set text [translate_macro MSG_GDI_UNABLE_TO_CONNECT_SUS "qmaster" "*" "*"]
    set text2 [translate_macro MSG_GDI_CANT_SEND_MSG_TO_PORT_ON_HOST_SUSS "qmaster" "*" "*" "*"]
    if {[string match "*$text*" $output] == 0 && [string match "*$text2*" $output] == 0} {
@@ -249,7 +249,7 @@ proc check_sync_failover {} {
       set error 1
    }
    startup_qmaster 1
-   
+
    # qconf -km after qsub -sync y
    set id [open_remote_spawn_process $host $CHECK_USER \
       "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 30" 1]
@@ -284,7 +284,7 @@ proc check_sync_failover {} {
          set recon 1
       }
    }
-   
+
    close_spawn_process $id 
 
    if {$output != 1} {
@@ -393,7 +393,7 @@ proc check_sync_failover {} {
          append error_text "Could no reconnect to qmaster\n"
       }
    }
-   
+
    close_spawn_process $id 
 
    if {$output != 1} {

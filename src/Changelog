@@ -1,3 +1,11 @@
+AP-2009-05-21-0: Enhancem.:  Running testsuite on a different host from the qmaster
+                             host
+                 Issue:      299
+                 Bugfix:     Fixed issuezilla/1802 test - adding expected message
+                 Bugfix:     Additional configuration file must be different from
+                             the testsuite configuration file
+                 Review:     CR
+
 ################################################################################
 # This is the Changelog for testsuite source code changes.                     #
 # Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #

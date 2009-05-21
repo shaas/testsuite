@@ -87,7 +87,11 @@ set jsv_enabled ""
 set jsv_base_path ""
 
 proc file_touch {name} {
-   file mtime $name [clock seconds]
+   global ts_config CHECK_USER
+
+   set expect_bin [get_binary_path $ts_config(master_host) expect]
+   start_remote_prog $ts_config(master_host) $CHECK_USER $expect_bin "-c \"file mtime $name [clock seconds]\""
+
 }
 
 proc jsv_script_get_script_file {shell_basename extension} {

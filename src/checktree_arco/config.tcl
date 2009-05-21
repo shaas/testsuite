@@ -555,16 +555,13 @@ proc config_arco_source_dir { only_check name config_array } {
 }
 
 proc config_dbwriter_host { only_check name config_array } {
+   global ts_config
 
    upvar $config_array config
-   
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts "Could not get local host name" 
-         return -1
-      }
 
-   set config($name,default) $local_host
+   if {$config($name,default) == ""} {
+      set config($name,default) $ts_config(master_host)
+   }
    array set params { verify "compile" }
 
    return [config_generic $only_check $name config "" "host" 0 1 "" params]
@@ -619,14 +616,10 @@ proc config_swc_host {only_check name config_array} {
 
    upvar $config_array config
 
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts "Could not get local host name" 
-      return -1
+   if {$config($name,default) == ""} {
+      set config($name,default) $ts_config(master_host)
    }
-   
-   set config($name,default) $local_host
-      
+         
    set swc_host [config_generic $only_check $name config "" "host" 0 1 ]
 
    if { $swc_host == -1 } { return -1 }

@@ -532,7 +532,7 @@ proc modify_setup2 {} {
    } else {
       set numSetups 4
    }
-   
+
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,setup_hooks_${ii}_name)]} {incr ii 1} {
          incr numSetups 1
@@ -1936,7 +1936,7 @@ proc config_additional_checktree_dirs { only_check name config_array } {
          ts_log_fine "setting $dep_par to $ret"
          puts ""
       } else { return -1 }
-         }
+   }
 
    if { [string match "*checktree_hedeby" $value] == 1 } {
       if { "$config(additional_config)" == "none" } {
@@ -1967,6 +1967,7 @@ proc config_additional_checktree_dirs { only_check name config_array } {
 
 proc config_additional_config { only_check name config_array } {
    global fast_setup
+   global CHECK_CUR_CONFIG_FILE
 
    upvar $config_array config
    
@@ -1994,7 +1995,8 @@ proc config_additional_config { only_check name config_array } {
                    "configuration." }
    if { $allow_null } { lappend help_text "Enter \"none\" for no additional configuration." }
 
-   set value [config_generic $only_check "$name" config $help_text "filename" $allow_null 0]
+   set add_param(exclude_list) "$CHECK_CUR_CONFIG_FILE"
+   set value [config_generic $only_check "$name" config $help_text "filename" $allow_null 0 "" add_param]
 
    if { $value == -1 || "$value" == "none" } { return $value }
 
@@ -2664,26 +2666,17 @@ proc config_master_host { only_check name config_array } {
    set old_value $config($name)
 
    array set params { verify compile }
-   # for the main testsuite configuration user must set the master host to localhost,
-   # since some tests would fail
-   # aja: TODO: fix the tests, so that the master host can be any host
-   if { $CHECK_CUR_CONFIG_FILE == $CHECK_DEFAULTS_FILE } {
-      array set master { }
-      set master($local_host) ""
-      # there is only one possible value
-      set params(selected) 1
-      return [config_generic $only_check $name config "" "host" 0 1 master params]
-   } else {
-      set value [config_generic $only_check $name config "" "host" 0 1 "" params]
-      if { $value != $old_value } {
-         # qmaster host must be first in the shadowd and execd hostlist
-         set config(execd_hosts) [config_check_host_in_hostlist $config(execd_hosts) $value]
-         set config(shadowd_hosts) [config_check_host_in_hostlist $config(shadowd_hosts) $value]
-   } 
-      return $value
-      }
 
-      }
+   set value [config_generic $only_check $name config "" "host" 0 1 "" params]
+
+   if { $value != $old_value } {
+      # qmaster host must be first in the shadowd and execd hostlist
+      set config(execd_hosts) [config_check_host_in_hostlist $config(execd_hosts) $value]
+      set config(shadowd_hosts) [config_check_host_in_hostlist $config(shadowd_hosts) $value]
+      return $value
+   }
+
+}
 
 #****** config/config_execd_hosts() ********************************************
 #  NAME
@@ -2709,16 +2702,12 @@ proc config_execd_hosts { only_check name config_array } {
    global ts_host_config fast_setup
 
    upvar $config_array config
-   
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts "Could not get local host name" 
-      return -1
-   }
+
+   set master_host $config(master_host)
 
    if { $config($name,default) == "" } {
-      set config($name,default) $local_host
-         }
+      set config($name,default) $master_host
+   }
 
    array set params { verify "compile" }
 
@@ -2726,11 +2715,8 @@ proc config_execd_hosts { only_check name config_array } {
 
    if { $value == -1 } { return -1 }
 
-   # put the local_host at the first place in the list
-   if { [info exists config(master_host)] } {
-      set check_host $config(master_host)
-   } else { set check_host "" }
-   set value [config_check_host_in_hostlist $value $check_host]
+   # put the master_host at the first place in the list
+   set value [config_check_host_in_hostlist $value $master_host]
 
    # set host lists
    # we need a mapping from node to physical hosts
@@ -4232,15 +4218,11 @@ proc config_shadowd_hosts { only_check name config_array } {
    set CHECK_CORE_SHADOWD ""
 
    upvar $config_array config
- 
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts "Could not get local host name" 
-      return -1
-   }
 
+   set master_host $config(master_host)
+ 
    if { $config($name,default) == "" } {
-      set config($name,default) $local_host
+      set config($name,default) $master_host
    }
 
    array set params { verify "compile" }
@@ -4253,15 +4235,11 @@ proc config_shadowd_hosts { only_check name config_array } {
       if { $value == "" } {
          set value $config($name,default)
          if { $value == "" } {
-            set value $local_host
+            set value $master_host
          }
       }
-
-      # check_host must be first host in the list
-      if { [info exists config(master_host)] } {
-         set check_host $config(master_host)
-      } else { set check_host "" }
-      set value [config_check_host_in_hostlist $value $check_host]
+      # master_host must be first host in the list
+      set value [config_check_host_in_hostlist $value $master_host]
    } 
    
    # at least one shadowd must run on qmaster host

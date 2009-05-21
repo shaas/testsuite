@@ -56,7 +56,6 @@ set check_cleanup_level_function "qmaster_size_cleanup"
 
 # define test's procedure order
 set check_functions     ""
-lappend check_functions "init_ps"                      ;# init ps commands, find pids
 lappend check_functions "check_size_config"            ;# set initial config
 lappend check_functions "check_idle"                   ;# wait for execd's to connect etc.
 lappend check_functions "check_qstat"                  ;# do qstats
@@ -77,7 +76,7 @@ lappend check_functions "check_idle"                   ;# wait for system to sta
 # constants / global variables for monitor_size
 global MONITOR_SIZE_FILENAME MONITOR_SIZE_INTERVAL MONITOR_SIZE_ERROR
 global NUM_ZOMBIES
-global time_start last_size next_report size_unit
+global time_start last_size next_report
 
 
 set time_start [clock seconds]
@@ -274,155 +273,42 @@ proc qmaster_size_setup {} {
    set time_start [clock seconds]
 }
 
-proc init_ps {} {
-   global cmd_ps size_unit
-   global qmaster_spool_dir
+proc get_size {who} {
    global ts_config
 
-   # get qmaster pid
-   set qmaster_pid [get_qmaster_pid]
-   ts_log_fine "qmaster pid: $qmaster_pid"
-
-   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-      # get schedd pid
-      set schedd_pid [get_schedd_pid]
-      ts_log_fine "schedd  pid: $schedd_pid "
-   }
-
-
-   if { $qmaster_pid == -1 } {
-      ts_log_severe "could not evaluate pid of qmaster"
-      return
-   }
-
-   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-      if { $schedd_pid == -1 } {
-         ts_log_severe "could not evaluate pid of schedd"
-         return
+   if {$who == "master"} {
+      set pid [get_qmaster_pid]
+      if { $pid == -1 } {
+         ts_log_severe "could not evaluate pid of qmaster"
+         return -1
       }
-   }
-
-   set local_arch [resolve_arch [gethostname]]
-   # create ps command
-   switch -exact $local_arch {
-      "aix42" -
-      "aix43" -
-      "aix51" -
-      "darwin" -
-      "darwin-ppc" -
-      "darwin-x86" -
-      "irix6" -
-      "irix65" -
-      "osf4" -
-      "sol-amd64" -
-      "solaris" -
-      "sol-sparc" -
-      "solaris64" -
-      "sol-sparc64" -
-      "solaris86" -
-      "sol-x86" -
-      "usol-sparc" -
-      "usol-sparc64" -
-      "usol-x86" -
-      "tru64" {
-         set cmd_ps(master) "ps -p $qmaster_pid -o vsz | tail -1"
-         #set cmd_ps(master) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$qmaster_pid ' | awk '{print \$2}'"
-         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-            set cmd_ps(schedd) "ps -p $schedd_pid -o vsz | tail -1"
+      ts_log_fine "qmaster pid: $pid"
+   } elseif {$who == "schedd"} {
+      if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
+         set pid [get_schedd_pid]
+         if { $pid == -1 } {
+            ts_log_severe "could not evaluate pid of schedd"
+            return -1
          }
-         #set cmd_ps(schedd) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$schedd_pid ' | awk '{print \$2}'"
-         set size_unit kB
+         ts_log_fine "schedd  pid: $pid"
+      } else {
+         return 0
       }
-      "alinux" -
-      "lx24-alpha" {
-         set cmd_ps(master) "ps lhp $qmaster_pid | awk '{print \$7}'"
-         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-            set cmd_ps(schedd) "ps lhp $schedd_pid  | awk '{print \$7}'"
-         }
-         set size_unit kB
-      }
-      "lx24-x86" -
-      "lx26-x86" -
-      "lx24-ia64" -
-      "lx26-ia64" -
-      "lx24-amd64" -
-      "lx26-amd64" -
-      "ulx24-x86" -
-      "ulx24-amd64" {
-         set cmd_ps(master) "ps -p $qmaster_pid --no-heading -o vsz"
-         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-            set cmd_ps(schedd) "ps -p $schedd_pid --no-heading -o vsz"
-         }
-         set size_unit kB
-      }
-      "hp10" -
-      "hp11" -
-      "hp11-64" {
-         set cmd_ps(master) "ps -p $qmaster_pid -l | tail -1 | awk '{print \$10}'"
-         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-            set cmd_ps(schedd) "ps -p $schedd_pid  -l | tail -1 | awk '{print \$10}'"
-         }
-         set size_unit pages
-      }
-      default {
-         ts_log_config "this check has never been ported to architecture $local_arch"
-         return
-      }
-   }
-
-   # try to execute ps command
-   set result [catch {set size [get_size master]} output]
-
-   if { $result != 0 } {
-      ts_log_info "executing ps command\n$cmd_ps(master)\nfailed\n$output"
-      return
-   }
-
-   # everything ok
-   puts $cmd_ps(master)
-   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-      puts $cmd_ps(schedd)
-   }
-}
-
-proc get_size {who} {
-   global cmd_ps
-
-   set result [catch {set size [exec /bin/sh -c $cmd_ps($who)]} output]
-
-   set local_arch [resolve_arch [gethostname]]
-   switch -exact $local_arch {
-      osf4 -
-      tru64 {
-         set raw_size [string range $size 0 [expr [string length $size] - 2]]
-         set unit     [string range $size [expr [string length $size] - 1] end]
-         switch -exact $unit {
-            K {
-               set size [format "%.0f" $raw_size]
-            }
-            M {
-               set size [format "%.0f" [expr $raw_size * 1024]]
-            }
-            G {
-               set size [format "%.0f" [expr $raw_size * 1024 * 1024]]
-            }
-            default {
-               set size 0
-            }
-         }
-      }
-   }
-
-   if { $result != 0 } {
-      ts_log_fine $output
-      return 0
-   }
-
-   if { $size == "" } {
-      return 0
    } else {
-      return $size
+      return 0
    }
+
+   if {[info exists ps_info]} {
+      unset ps_info
+   }
+
+   set result [get_ps_info $pid $ts_config(master_host) ps_info]
+
+   if {$ps_info($pid,error) != 0} {
+      ts_log_severe "cannot get info about process $job_pid"
+      return -1
+   }
+   return $ps_info($pid,vsz)
 }
 
 proc monitor_header {} {
@@ -440,12 +326,8 @@ proc monitor_size {jobs {when ""}} {
    global ts_config
 
    set now  [clock seconds]
-   set size(master) [get_size master]
-   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
-      set size(schedd) [get_size schedd]
-   } else {
-      set size(schedd) 0
-   }
+   set size(master) [get_size "master"]
+   set size(schedd) [get_size "schedd"]
 
    if { $last_size(master) != $size(master) ||
         $last_size(schedd) != $size(schedd) ||
@@ -483,17 +365,16 @@ proc stabilize {text delay interval commands} {
 
 proc output_monitor_result {start_size end_size} {
    global MONITOR_SIZE_ERROR
-   global size_unit
 
    if { $start_size < $end_size } {
-      set message "size of qmaster increased from $start_size $size_unit to $end_size $size_unit"
+      set message "size of qmaster increased from $start_size to $end_size"
       ts_log_fine $message
       ts_log $MONITOR_SIZE_ERROR $message
    } else {
       if { $start_size == $end_size } {
-         set message "size of qmaster remained $end_size $size_unit"
+         set message "size of qmaster remained $end_size"
       } else {
-         set message "size of qmaster reduced from $start_size $size_unit to $end_size $size_unit"
+         set message "size of qmaster reduced from $start_size to $end_size"
       }
    }
 }
@@ -502,7 +383,7 @@ proc monitor {text duration interval commands} {
    if { $duration > 0 } {
       ts_log_fine "monitoring size for $duration s $text"
 
-      set start_size [get_size master]
+      set start_size [get_size "master"]
       set now 0
       set end [expr [clock seconds] + $duration]
       while { $now < $end } {
@@ -532,10 +413,14 @@ proc check_idle {} {
 }
 
 proc qstat_test {} {
-   global CHECK_ACTUAL_TEST_PATH
-   set result [catch {exec $CHECK_ACTUAL_TEST_PATH/sge_start.sh $CHECK_ACTUAL_TEST_PATH/qstat.sh} output]
-   if { $result != 0 } {
-      ts_log_fine $output
+   global ts_config CHECK_USER
+      set output [start_sge_bin "qstat" "-f" $ts_config(master_host) $CHECK_USER]
+   if { $prg_exit_state != 0 } {
+      ts_log_error $output
+   }
+   set output [start_sge_bin "qstat" "-s r" $ts_config(master_host) $CHECK_USER]
+   if { $prg_exit_state != 0 } {
+      ts_log_error $output
    }
 }
 
@@ -555,7 +440,6 @@ proc check_qstat {} {
 proc check_miniworm {} {
    global ts_config
    global CHECK_ACTUAL_TEST_PATH CHECK_USER
-   global size_unit
 
    upvar check_idle_after when
    upvar CHECK_MINIWORM_TYPES types
@@ -571,8 +455,11 @@ proc check_miniworm {} {
 
    foreach host $ts_config(execd_nodes) {
       foreach i $types {
-         catch {
-            exec $CHECK_ACTUAL_TEST_PATH/redir_stderr.sh $CHECK_ACTUAL_TEST_PATH/pminiworm.sh "$CHECK_ACTUAL_TEST_PATH" "$i" "0" "$i"
+         set result [submit_job "-j y $CHECK_ACTUAL_TEST_PATH/pminiworm.sh $CHECK_ACTUAL_TEST_PATH $i 0 $i"]
+         if {$result >= 0} {
+            ts_log_finest "pminiworm submitted"
+         } else {
+            ts_log_severe "pminiworm didn't start"
          }
       }
    }
@@ -589,7 +476,7 @@ proc check_miniworm {} {
    ts_log_fine "deleting miniworms"
 
    while {[get_job_count] > 0} {
-      exec "$CHECK_ACTUAL_TEST_PATH/sge_start.sh" "qdel" "-u" "$CHECK_USER"
+      start_sge_bin "qdel" "-u $CHECK_USER"
       after 5000
    }
    ts_log_fine "enabling queues $queue_list"
@@ -731,7 +618,7 @@ proc check_flood {} {
       stabilize "after enabling queues" $flood_stab_delay $flood_stab_interval {}
 
       ts_log_fine "monitoring size until no jobs remain"
-      set start_size [get_size master]
+      set start_size [get_size "master"]
       set job_count [get_job_count]
       while { $job_count > 0 } {
          set size [monitor_size $job_count]

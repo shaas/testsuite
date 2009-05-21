@@ -90,7 +90,8 @@ proc install_execd {} {
  
    read_install_list
 
-   set catch_result [catch {eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2"} INST_VERSION]
+   set INST_VERSION [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" ]
+
    ts_log_fine "inst_sge version: $INST_VERSION"
 
    if {!$check_use_installed_system} {

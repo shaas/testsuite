@@ -1615,9 +1615,6 @@ proc check_executable_files {  } {
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qtcsh/qtask_local.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/pminiworm.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/flood_sleeper.sh"
-   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/qstat.sh"
-   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/redir_stderr.sh"
-   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/sge_start.sh"
    lappend filelist "$ts_config(source_dir)/aimk"
    lappend filelist "$ts_config(source_dir)/dist/examples/jobs/array_submitter.sh"
    lappend filelist "$ts_config(source_dir)/dist/examples/jobs/env-tester.csh"
@@ -8046,8 +8043,8 @@ proc operate_additional_clusters {operation} {
    set ret_val 0
 
    if {$ts_config(additional_config) != "none"} {
-      foreach filename $ts_config(additional_config) {
-         if {[operate_add_cluster $filename $operation] != 0} {
+       foreach filename $ts_config(additional_config) {
+          if {[operate_add_cluster $filename $operation] != 0} {
             set ret_val 1
          }
       }

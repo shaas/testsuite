@@ -672,13 +672,6 @@ proc drmaaj_check { } {
    # test the 32 bit lib on 64 bit virtual machine 
    set do_an_additional_32_bit_test "true"
 
-   # read host setting
-   set local_host [gethostname]
-   set local_arch [resolve_arch $local_host]
-
-   ts_log_fine "arch is $local_arch"
-   ts_log_fine "host is $local_host"
-
    # make sure that we have a drmaa.jar, drmaa-test.jar and
    # suspendable_sleeper.sh
    set needed_files ""

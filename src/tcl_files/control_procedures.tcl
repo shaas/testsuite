@@ -1406,7 +1406,7 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 #                            ps_info([given pid],error) array is always set when 
 #                            the pid is given. You have always access to 
 #                            ps_info($pid,error)
-#     { host "local"}      - host on which the ps command should be started
+#     { host "master"}     - host on which the ps command should be started
 #     { variable ps_info } - array name where the ps command output should be 
 #                            stored the default for this value is "ps_info"
 #     {additional_run 0}   - if it is neccessary to start more than one ps command
@@ -1487,12 +1487,12 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 #  SEE ALSO
 #     control_procedures/ps_grep
 #*******************************
-proc get_ps_info { { pid 0 } { host "local"} { info_array ps_info } {additional_run 0} } {
-   global CHECK_USER
+proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional_run 0} } {
+   global CHECK_USER ts_config
    upvar $info_array psinfo
 
-   if { [string compare $host "local" ] == 0 } {
-      set host [gethostname]
+   if { [string compare $host "master" ] == 0 } {
+      set host $ts_config(master_host)
    } 
 
    if {[info exists psinfo]} {

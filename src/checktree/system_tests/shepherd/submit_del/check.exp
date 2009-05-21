@@ -105,9 +105,6 @@ proc submit_del_test { } {
    global CHECK_DEBUG_LEVEL
    global CHECK_L10N ts_config
 
-   set arch [resolve_arch $ts_config(master_host)]
-   set qsub_program "$ts_config(product_root)/bin/$arch/qsub"
-   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
    set job_list ""
@@ -148,24 +145,10 @@ proc submit_del_test { } {
    set runs [ expr ( [llength $ts_config(execd_nodes) ] * 5 ) ]
    while { $runs > 0 } { 
       foreach host $ts_config(execd_nodes) {
-         set arguments "-o /dev/null -e /dev/null -l h=$host"
-         set catch_return [ catch { eval exec "$qsub_program $arguments $job_script" } result ]
-         ts_log_fine $result
-         if { $CHECK_L10N == 0 } {   
-            set job_id [lindex $result 2]    
-         } else {
-            set id_pos [string first $job_id_prefix $result]
-            incr id_pos $job_id_prefix_length
-            set job_id [string range $result $id_pos end]
-            set space_pos [ string first " " $job_id ]
-            set job_id [string range $job_id 0 $space_pos ]
-            set job_id [string trim $job_id]
-         }
-         ts_log_fine "job id is: $job_id"
+         set job_id [submit_job "-l h=$host $job_script"]
          wait_for_jobstart $job_id "leeper" 60
          ts_log_fine "job $job_id started, deleting it"
-         set catch_return [ catch { eval exec "$qdel_program $job_id" } result ]
-         ts_log_fine $result
+         delete_job $job_id
          incr runs -1
       }
    }

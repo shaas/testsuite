@@ -40,7 +40,7 @@ append_check_and_exclude_in_jgdi "qconf_de_check" "Does not use start_sge_bin, s
 append_check_and_exclude_in_jgdi "qconf_backslash_default_space_check" "Options a/rattr not implemented" ;# functions to call (in order)
 append_check_and_exclude_in_jgdi "qconf_backslash_default_comma_check" "Options a/rattr not implemented"
 append_check_and_exclude_in_jgdi "qconf_backslash_custom_space_check" "Options a/rattr not implemented"
-append_check_and_exclude_in_jgdi "qconf_backslash_custom_comma_check" "Options a/rattr not implemented" 
+append_check_and_exclude_in_jgdi "qconf_backslash_custom_comma_check" "Options a/rattr not implemented"
 append_check_and_exclude_in_jgdi "qconf_backslash_space_output_check" "Options a/rattr not implemented"
 append_check_and_exclude_in_jgdi "qconf_backslash_comma_output_check" "Options a/rattr not implemented"
 
@@ -925,42 +925,43 @@ proc check_double_output { string1 string2 } {
 #     check_double_output
 #*******************************************************************************
 proc qconf_issue1767 {} {
-   global ts_config
+   global ts_config CHECK_USER
    
    set master_host [resolve_host $ts_config(master_host)]
 
    set tmp_file1 [ get_tmp_file_name ]
    set tmp_file2 [ get_tmp_file_name ]
 
-   set local_arch [resolve_arch [gethostname]]
    #invalid urgency_slots setting
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_REJECTINGURGENCYSLOTS_S ] "invalid" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe > $tmp_file1  } result ]
-   set exit_code [catch { exec sed "s/min/invalid/" $tmp_file1 > $tmp_file2  } result ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file2  } result ]
+   set result [start_sge_bin "qconf" "-sp mytestpe > $tmp_file1" $master_host $CHECK_USER]
+   set result [start_remote_prog $master_host $CHECK_USER "sed" "\"s/min/invalid/\" $tmp_file1 > $tmp_file2"]
+   ts_log_fine $result
+   set result [start_sge_bin "qconf" "-Mp $tmp_file2" $master_host $CHECK_USER]
    check_double_output $REJECTED $result
 
    #invalid pe name
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_INVALIDCHARACTERINPE_S ] ".mytestpe" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe > $tmp_file1  } result ]
-   set exit_code [catch { exec sed "s/mytestpe/.mytestpe/" $tmp_file1 > $tmp_file2  } result ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Ap $tmp_file2  } result ]
+   set result [start_sge_bin "qconf" "-sp mytestpe > $tmp_file1" $master_host $CHECK_USER]
+   set result [start_remote_prog $master_host $CHECK_USER "sed" "\"s/mytestpe/.mytestpe/\" $tmp_file1 > $tmp_file2"]
+   set result [start_sge_bin "qconf" "-Ap $tmp_file2" $master_host $CHECK_USER]
    check_double_output $REJECTED $result
 
    #invalid startprocargs 
    set REJECTED [translate $master_host 1 0 0 [ sge_macro  MSG_PE_STARTPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /start_proc_args/d > $tmp_file1  } result ]
-   set exit_code [catch { exec echo "start_proc_args '\$invalid'" >> $tmp_file1 } result ]
+   set result [start_sge_bin "qconf" "-sp mytestpe | sed /start_proc_args/d > $tmp_file1" $master_host $CHECK_USER]
+   set result [start_remote_prog $master_host $CHECK_USER "echo" "start_proc_args '\$invalid' >> $tmp_file1"]
    ts_log_fine $result
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
+   set result [start_sge_bin "qconf" "-Mp $tmp_file1" $master_host $CHECK_USER]
    check_double_output $REJECTED $result
 
    #invalid stopprocargs 
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_STOPPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /stop_proc_args/d > $tmp_file1  } result ]
-   set exit_code [catch { exec echo "stop_proc_args '\$invalid'" >> $tmp_file1 } result ]
+   set result [start_sge_bin "qconf" "-sp mytestpe | sed /stop_proc_args/d > $tmp_file1" $master_host $CHECK_USER]
+   set result [start_remote_prog $master_host $CHECK_USER "echo" "stop_proc_args '\$invalid' >> $tmp_file1"]
    ts_log_fine $result
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
+   set result [start_sge_bin "qconf" "-Mp $tmp_file1" $master_host $CHECK_USER]
+
    check_double_output $REJECTED $result
 }
 
@@ -1275,23 +1276,23 @@ proc qconf_de_check {} {
 
    # the tmp_file is automatically removed from testsuite
    set tmp_file [get_tmp_file_name]
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf -se $execd | grep -v load_values | grep -v processors > $tmp_file" } result ]
-   if { $catch_result != 0 } {
+   set result [start_sge_bin "qconf" "-se $execd | grep -v load_values | grep -v processors > $tmp_file" $ts_config(master_host) $CHECK_USER]
+   if { $prg_exit_state != 0 } {
       ts_log_severe "could not store execd config: $result"
    }
    ts_log_fine "tmp file is: $tmp_file"
    ts_log_fine "doing qconf -dattr hostgroup hostlist $execd @allhosts:"
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf -dattr hostgroup hostlist $execd @allhosts @qconf_test" } result ]
+   set result [start_sge_bin "qconf" "-dattr hostgroup hostlist $execd @allhosts @qconf_test" $ts_config(master_host) $CHECK_USER]
    ts_log_fine $result
  
-   if { $catch_result != 0 } {
+   if { $prg_exit_state != 0 } {
       ts_log_severe "could not remove host from hostgroup @allhosts: $result"
    }
 
  
    # Test
    ts_log_fine "doing qconf -de $execd"
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-de" "$execd" } result ]
+   set result [start_sge_bin "qconf" "-de $execd" $ts_config(master_host) $CHECK_USER]
    ts_log_fine $result
    
    set EXEC_HOST_REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] [resolve_host $execd 1] "execution host"]
@@ -1305,11 +1306,11 @@ proc qconf_de_check {} {
    ts_log_fine "removed execd $execd from cluster"
 
    ts_log_fine "doing qconf -Ae $tmp_file"
-   catch { eval exec "$ts_config(product_root)/bin/$arch/qconf -Ae $tmp_file" } result 
+   set result [start_sge_bin "qconf" "-Ae $tmp_file" $ts_config(master_host) $CHECK_USER]
    ts_log_fine $result
 
    ts_log_fine "doing qconf -aattr hostgroup hostlist $execd @allhosts"
-   catch { eval exec "$ts_config(product_root)/bin/$arch/qconf -aattr hostgroup hostlist $execd @allhosts" } result
+   set result [start_sge_bin "qconf" "-aattr hostgroup hostlist $execd @allhosts" $ts_config(master_host) $CHECK_USER]
    ts_log_fine $result
 
    ts_log_fine "added execd $execd to cluster"

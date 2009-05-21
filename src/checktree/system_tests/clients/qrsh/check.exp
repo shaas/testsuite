@@ -791,7 +791,7 @@ proc qrsh_accounting {} {
 
       ts_log_fine "now check accounting of job ..."
       if {$job_id != ""} {
-         if {[get_qacct $job_id] == 0} {
+         if {[get_qacct $job_id qacct_info $ts_config(master_host)] == 0} {
             set cpu [expr $qacct_info(ru_utime) + $qacct_info(ru_stime)]
             # we allow 1 second loose at startup/end of job. We calculate error tolerance
             set my_allowed_cpu_value [expr ( $job_run_time * ( ( $job_run_time - 2.0 ) / $job_run_time ) )]

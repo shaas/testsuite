@@ -2090,7 +2090,7 @@ proc hedeby_config_upgrade_1_2 { config_array } {
       # new parameter security_enabled
       set parameter "preferences_mode"
       set config($parameter)            ""
-      set config($parameter,desc)       "hedeby preferences location"
+      set config($parameter,desc)       "Hedeby preferences location"
       set config($parameter,default)    "system"
       set config($parameter,setup_func) "config_$parameter"
       set config($parameter,onchange)   "install"
@@ -2140,7 +2140,7 @@ proc hedeby_config_upgrade_1_3 { config_array } {
       # new parameter security_enabled
       set parameter "hedeby_java_version"
       set config($parameter)            ""
-      set config($parameter,desc)       "java version used for hedeby"
+      set config($parameter,desc)       "Java version used for hedeby"
       set config($parameter,default)    "1.5"
       set config($parameter,setup_func) "config_$parameter"
       set config($parameter,onchange)   "install"

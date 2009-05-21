@@ -203,6 +203,42 @@ proc reporting_cleanup {} {
    }
 }
 
+#****** system_tests/qmaster/reporting/reporting_get_timestamp() ***************
+#
+#  NAME
+#     reporting_get_timestamp -- get the timestamp
+#
+#  SYNOPSIS
+#     reporting_get_timestamp {{filename ""}}
+#
+#  FUNCTION
+#     If the filename is specified it returns a timestamp when the file was last
+#     modified. This must run on a master host (a host where the file was modified),
+#     since the file could be located on nfs and the timestamp could be seen
+#     with a delay (~10s) on a different host.
+#     Otherwise it returns the current timestamp.
+#
+#  INPUTS
+#     {filename ""} ... the name of file
+#  RESULT
+#     timestamp
+#
+#  SEE ALSO
+#     built-in command file mtime <filename>
+#     built-in command clock seconds
+#*******************************************************************************
+proc reporting_get_timestamp {{filename ""}} {
+   global ts_config CHECK_USER
+
+   set expect_bin [get_binary_path $ts_config(master_host) expect]
+   if {$filename == ""} {
+      set tmstamp [start_remote_prog $ts_config(master_host) $CHECK_USER $expect_bin "-c \"puts \[clock seconds\]\""]
+   } else {
+      set tmstamp [start_remote_prog $ts_config(master_host) $CHECK_USER $expect_bin "-c \"puts \[file mtime $filename\]\""]
+   }
+   return $tmstamp
+}
+
 proc reporting_do_accounting_test {scenario} {
    global ts_config CHECK_USER
    global reporting_acct_file
@@ -214,8 +250,7 @@ proc reporting_do_accounting_test {scenario} {
       puts $f "# new accounting file"
       close $f
    }
-   set mtime [file mtime $reporting_acct_file]
-
+   set mtime [reporting_get_timestamp $reporting_acct_file]
    # Submit job
    # we submit an array job of short running sleepers 
    # to a queue with one slot
@@ -230,8 +265,7 @@ proc reporting_do_accounting_test {scenario} {
    # Wait for the first accounting file update
    set done 0
    while {!$done} {
-      set new_mtime [file mtime $reporting_acct_file]
-
+      set new_mtime [reporting_get_timestamp $reporting_acct_file]
       if {$mtime != $new_mtime} {
          set done 1
       }
@@ -241,10 +275,10 @@ proc reporting_do_accounting_test {scenario} {
 
    # Watch the accounting file for one flush interval
    # The accounting file should not change between flush intervals
-   while {[clock seconds] < [expr $new_mtime + 14]} {
+   while {[reporting_get_timestamp] < [expr $new_mtime + 14]} {
       after 1000
 
-      set current_time [file mtime $reporting_acct_file]
+      set current_time [reporting_get_timestamp $reporting_acct_file]
       if {$new_mtime != $current_time} {
          ts_log_severe "$scenario: accounting file was flushed before flush interval\nexpected: $new_mtime \ngot: $current_time"
          set failed 1
@@ -255,8 +289,7 @@ proc reporting_do_accounting_test {scenario} {
    if {$failed != 1} {
       # The accounting file should change at flush intervals
       after 1000
-
-      if {$new_mtime == [file mtime $reporting_acct_file]} {
+      if {$new_mtime == [reporting_get_timestamp $reporting_acct_file]} {
          ts_log_severe "$scenario: accounting file was not flushed at flush interval"
       }
    }

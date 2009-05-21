@@ -65,7 +65,7 @@ proc issue_1198_init_level {} {
 }
 
 proc issue_1198_run  {} {
-   global ts_config
+   global ts_config CHECK_USER
 
    set test_host [host_conf_get_suited_hosts]
 
@@ -89,19 +89,18 @@ proc issue_1198_run  {} {
    # Test
    ts_log_fine "Looking for slots in ${queue}@${test_host} complex values list"
 
-   set master_arch [resolve_arch $ts_config(master_host)]
-   set catch_result [catch {eval exec "$ts_config(product_root)/bin/$master_arch/qconf -sq ${queue}@${test_host} | grep complex_values | grep -v slots"} result]
+   set result [start_sge_bin "qconf" "-sq ${queue}@${test_host} | grep complex_values | grep -v slots" $ts_config(master_host) $CHECK_USER]
 
-   if {$catch_result != 0} {
+   if {$prg_exit_state != 0} {
       ts_log_severe "qconf failed to hide slots for queue ${queue}@${test_host}: $result"
       return
    }
 
    ts_log_fine "Looking for slots in ${queue}@${hostgroup} complex values list"
 
-   set catch_result [catch {eval exec "$ts_config(product_root)/bin/$master_arch/qconf -sq ${queue}@${hostgroup} | grep complex_values | grep -v slots"} result]
-
-   if {$catch_result != 0} {
+   set result [start_sge_bin "qconf" "-sq ${queue}@${hostgroup} | grep complex_values | grep -v slots" $ts_config(master_host) $CHECK_USER]
+   
+   if {$prg_exit_state != 0} {
       ts_log_severe "qconf failed to hide slots for queue ${queue}@${hostgroup}: $result"
    }
 }

@@ -61,6 +61,8 @@ set ts_checktree($arco_checktree_nr,install_binary_hooks_0) "arco_install_binari
 set ts_checktree($arco_checktree_nr,shutdown_hooks_0)       "shutdown_dbwriter"
 set ts_checktree($arco_checktree_nr,startup_hooks_0)       "startup_dbwriter"
 
+set ts_checktree($arco_checktree_nr,start_runlevel_hooks_0)   "arco_test_run_level_check"
+
 set ts_checktree($arco_checktree_nr,required_hosts_hook)    "arco_get_required_hosts"
 
 global ARCO_TABLES
@@ -1184,4 +1186,8 @@ proc check_dbwriter_log { } {
       return 0
    }
 
+}
+
+proc arco_test_run_level_check {is_starting was_error} {
+   # anything to do?
 }
