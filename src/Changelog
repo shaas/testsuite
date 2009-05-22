@@ -1,3 +1,5 @@
+MD-2009-05-22-0: Enhancem.:  changed gettext messages to work with fixed installer
+
 AP-2009-05-21-0: Enhancem.:  Running testsuite on a different host from the qmaster
                              host
                  Issue:      299
