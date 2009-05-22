@@ -209,8 +209,6 @@ proc install_qmaster {} {
 
    if {$ts_config(jmx_port) > 0} {
       append feature_install_options " -jmx"
-   } elseif {$ts_config(gridengine_version) >= 62} {
-      append feature_install_options " -no-jmx"
    }
 
    ts_log_fine "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"

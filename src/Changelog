@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+LP-2009-05-22-1: Bugfix:     Can't change JMX port value to 0
+                 Bugfix:     TS updated for removed -no-jmx option
+                 Belongs to: LP-2009-05-22-0
+                 Review:     TBD
+
 LP-2009-05-22-0: Bugfix:     Shadow autoinstall fails when classic spooling is
                              used
                  Bugfix:     TS updated for removed -no-jmx option

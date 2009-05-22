@@ -2868,7 +2868,7 @@ proc config_jmx_port { only_check name config_array } {
 
    set value [config_generic $only_check $name config $help_text "port" 1 1 "" params ]
 
-   if { $value < 1024 } {
+   if { $value != 0 && $value < 1024 } {
       puts "Need JMX_PORT value >= 1024"
       return -1
    }
