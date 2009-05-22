@@ -233,7 +233,15 @@ proc qrsh_w_v_test {} {
 #     proc qrsh_pty_yes_redirect { }
 #
 #  FUNCTION
-#     Tests if "qrsh -pty yes > out.txt" works properly
+#     Tests if "qrsh -pty yes > out.txt" works properly.
+#     To do this, this test starts a "qrsh -verbose -pty yes > $tmpfile",
+#     checks the verbose output, checks if the job runs, enters "exit" in
+#     the qrsh client, checks if the job ends properly and then checks
+#     if there is output in the $tmpfile.
+#     In runlevel long, this is done for hosts of all different architectures
+#     in the test cluster, from all architectures to all architectures.
+#
+#     This test tests the fix for Issue 3025, 3031 and a part of 2735.
 #
 #  SEE ALSO
 #     
@@ -261,7 +269,7 @@ proc qrsh_pty_yes_redirect {} {
 
          set HAS_BEEN_SCHEDULED [translate_macro MSG_QSH_INTERACTIVEJOBHASBEENSCHEDULED_S "*"]
          set ESTABLISHING_SESSION [translate_macro MSG_QSH_ESTABLISHINGREMOTESESSIONTO_SS "*" "*"]
-         set timeout 20
+         set timeout 60
          expect {
             -i $sp_id full_buffer {
                ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -269,7 +277,10 @@ proc qrsh_pty_yes_redirect {} {
                return
             }
             -i $sp_id timeout {
+               # If qrsh prints no error message, we get this timeout, but $job_id
+               # is != 0 then.
                if {$job_id == 0} {
+                  # if $job_id is still 0, there was an error
                   ts_log_severe "timeout waiting for qrsh -pty yes to be submitted"
                   close_spawn_process $qrsh_id
                   return
@@ -282,21 +293,33 @@ proc qrsh_pty_yes_redirect {} {
             }
             -i $sp_id $HAS_BEEN_SCHEDULED {
                set job_id [lindex $expect_out(0,string) 3]
-               set timeout 2
+               # After this we expect the "Establishing session..." message
                exp_continue
             }
             -i $sp_id $ESTABLISHING_SESSION {
                set remote_host [lindex $expect_out(0,string) 5]
-               set timeout 2
+               # After this we expect either a error message or the login message
                exp_continue
             }
-            -i $sp_id "Can't set terminal mode*" {
-               ts_log_severe "qrsh printed an error"
+            -i $sp_id "*Error*" {
+               # The command works not properly, likely it's the
+               # "stdout is redirected" error.
+               ts_log_severe "qrsh printed an error: $expect_out(0,string)"
                close_spawn_process $qrsh_id
                return
             }
-            -i $sp_id default {
-               ts_log_fine "default: $expect_out(0,string)"
+            -i $sp_id "?*\n" {
+               # If $job_id and $remote_host is set, this line
+               # is either an error message (which is already caugh
+               # by the block above, so we don't get here) or the first
+               # lines of a login message (which we should catch here).
+               # We can stop parsing then.
+               # If $job_id or $remote_host is not yet set, the next
+               # line is just an intermediate message we can skip and
+               # continue parsing.
+               if {$job_id == 0 || $remote_host == "" } {
+                  exp_continue
+               }
             }
          }
          if {$job_id != 0 && $remote_host != ""} {
@@ -323,13 +346,13 @@ proc qrsh_pty_yes_redirect {} {
 
          # Wait until job ends
          ts_log_fine "waiting until the job ends"
-         wait_for_jobend $job_id "QRLOGIN" 60 0 1
+         wait_for_jobend $job_id "QRLOGIN" 60 0 0
 
          # Check if tmp.txt contains some login message
          get_file_content $submit_host $CHECK_USER $tmpfile file_content
-         ts_log_fine "there are $file_content(0) lines in $tmpfile"
+         ts_log_finer "there are $file_content(0) lines in $tmpfile"
          for {set i 1} {$i<=$file_content(0)} {incr i} {
-            ts_log_fine "line $i: $file_content($i)"
+            ts_log_finer "line $i: $file_content($i)"
          }
          if {$file_content(0) == 0} {
             ts_log_severe "no output was redirected!"
@@ -338,5 +361,5 @@ proc qrsh_pty_yes_redirect {} {
          }
       }
    }
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs 60 0
 }
