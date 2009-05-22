@@ -6563,10 +6563,10 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
    }
    
    if {$ts_config(jmx_port) > 0} {
-      # For the JMX MBean Server we need java 1.5
-      set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+      # For the JMX MBean Server we need java 1.5+
+      set java_home [get_java_home_for_host $ts_config(master_host) "1.5+"]
       if {$java_home == ""} {
-         ts_log_severe "Cannot start qmaster with JMX MBean Server on host $ts_config(master_host). java1.5 is not defined in host configuration"
+         ts_log_severe "Cannot start qmaster with JMX MBean Server on host $ts_config(master_host). Java 1.5+ is not defined in host configuration"
          return                                       
       }
       set envlist(JAVA_HOME) $java_home

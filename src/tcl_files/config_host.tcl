@@ -661,7 +661,7 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
       puts "host \"$new_host\" is already in list"
       return -1
    }
-
+   
    set time [timestamp]
    set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
@@ -675,7 +675,7 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
          set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" "" 1 0]
       }
    }
-
+   
    if {$prg_exit_state != 0} {
       puts "rlogin to host $new_host doesn't work correctly"
       return -1
@@ -2084,6 +2084,7 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #
 #  INPUTS
 #    host -- name of the host
+#    {java_version "1.4"} -- e.g.: 1.5+ => "15 16"
 #
 #  RESULT
 #     
@@ -2109,11 +2110,16 @@ proc get_java_home_for_host { hosti {java_version "1.4"} {raise_error 1}} {
     global ts_host_config
     set version [get_testsuite_java_version $java_version]
     set host [node_get_host $hosti]
-    set input $ts_host_config($host,java$version)
+    foreach vers [split $version " "] {
+       set input $ts_host_config($host,java$vers)
+       if {$input != ""} {
+          break
+       }
+    }
 
     if { $input == "" } {
        if { $raise_error } {
-          ts_log_info "Error: java$version is not set for host: $host"
+          ts_log_info "Error: java $java_version is not set for host: $host"
        }
        return ""
     }
@@ -2133,7 +2139,7 @@ proc get_java_home_for_host { hosti {java_version "1.4"} {raise_error 1}} {
 #    get_jvm_lib_path_for_host() -- Get the absolute libjvm.so path for a host.
 #
 #  SYNOPSIS
-#    get_jvm_lib_path_for_host { host {java_version "1.4"} } 
+#    get_jvm_lib_path_for_host { host {java_version "1.5+"} } 
 #
 #  FUNCTION
 #     returns the absolute libjvm.so path
@@ -2160,7 +2166,7 @@ proc get_java_home_for_host { hosti {java_version "1.4"} {raise_error 1}} {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
+proc get_jvm_lib_path_for_host { host {java_version "1.5+"} } {
    set java_home [get_java_home_for_host $host $java_version]
    set arch [host_conf_get_arch $host]
    set jvm_lib_path ""
@@ -2196,8 +2202,14 @@ proc get_testsuite_java_version {{version "1.4"}} {
      "1.4" {
         return "14"
      }
+     "1.4+" {
+        return "14 15 16"
+     }
      "1.5" {
         return "15"
+     }
+     "1.5+" {
+        return "15 16"
      }
      "1.6" {
         return "16"

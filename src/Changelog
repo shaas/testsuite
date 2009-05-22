@@ -7,6 +7,14 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+LP-2009-05-22-0: Bugfix:     Shadow autoinstall fails when classic spooling is
+                             used
+                 Bugfix:     TS updated for removed -no-jmx option
+                 Bugfix:     TS fails when using first level directory (e.g.:
+                             /sge) as SGE_ROOT
+                 Enhancem.:  JMX now requires java 1.5+ and not stricly 1.5
+                 Review:     AP
+
 HP-2009-05-22-0: Enhancem.:  Improved error messages, added comments, adjusted
                              timeouts
                  Changed:    system_tests/clients/qrsh/check.61.exp

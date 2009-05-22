@@ -739,7 +739,11 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
 # 
 #*******************************************************************************
 proc tail_directory_name { directory } {
-   return "[file dirname $directory]/[file tail $directory]"
+   set first [file dirname $directory]
+   if {[string compare "/" $first] == 0} {
+      set first ""
+   }
+   return "$first/[file tail $directory]"
 }
 
 
@@ -2219,10 +2223,10 @@ proc get_binary_path {nodename binary {raise_error 1}} {
       set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
       return $binary_path 
    }
-
-   # Try to find out the path from CHECK_USER user's environment
-   set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
-   set binary_path [string trim $binary_path]
+   
+      # Try to find out the path from CHECK_USER user's environment
+      set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
+      set binary_path [string trim $binary_path]
    if {[is_remote_file $hostname $CHECK_USER $binary_path 0]} {
       # We have figured out the path from the user's environment
       # The binary path is not configured in the host configuration, report config warning
@@ -2235,8 +2239,8 @@ proc get_binary_path {nodename binary {raise_error 1}} {
    } else {
       # If we have a root password we also try to get it from root's path environment
       if {[have_root_passwd] == 0} {
-         set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
-         set binary_path [string trim $binary_path]
+            set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
+            set binary_path [string trim $binary_path]
          if {[is_remote_file $hostname "root" $binary_path 0]} {
             # We have figured out the path from the root user's environment
             # The binary path is not configured in the host configuration, report config warning

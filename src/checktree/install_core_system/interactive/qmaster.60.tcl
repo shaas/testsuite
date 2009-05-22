@@ -364,10 +364,10 @@ proc install_qmaster {} {
             continue
          }
          -i $sp_id $JMX_JAVA_HOME {
-            # For the JMX MBean Server we need java 1.5
-            set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+            # For the JMX MBean Server we need java 1.5+
+            set java_home [get_java_home_for_host $ts_config(master_host) "1.5+"]
             if {$java_home == ""} {
-               ts_log_warning "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+               ts_log_warning "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15+ is not defined in host configuration"
                close_spawn_process $id
                return
             }

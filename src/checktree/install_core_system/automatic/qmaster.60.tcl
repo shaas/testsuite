@@ -105,16 +105,14 @@ proc install_qmaster {} {
    }
 
    if {$ts_config(jmx_port) > 0} {
-      # For the JMX MBean Server we need java 1.5
-      set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+      # For the JMX MBean Server we need java 1.5+
+      set java_home [get_java_home_for_host $ts_config(master_host) "1.5+"]
       if {$java_home == ""} {
          ts_log_severe "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
          return                                       
       }
       set env_list(JAVA_HOME) $java_home
       append feature_install_options " -jmx"
-   } elseif {$ts_config(gridengine_version) >= 62} {
-      append feature_install_options " -no-jmx"
    }
 
    set my_timeout 500
@@ -189,7 +187,8 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
 
       # deleting berkeley db spool dir. autoinstall will stop, if
       # bdb spooldir exists.
-      if {$do_cleanup && $exechost == 0 && $shadowd == 0} {
+      # db_dir might be empty if classic spooling is used, need to skip removing "" directory
+      if {$do_cleanup && $exechost == 0 && $shadowd == 0 && [string compare $db_dir ""] != 0} {
          if {[remote_file_isdirectory $ts_config(master_host) $db_dir]} {
             remote_delete_directory $ts_config(master_host) $db_dir
          }
@@ -229,7 +228,7 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
          append auto_config_content "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/private/keystore\"\n"
          append auto_config_content "SGE_JMX_SSL_KEYSTORE_PW=\"$ts_config(jmx_ssl_keystore_pw)\"\n"
       } else {
-         append auto_config_content "SGE_JVM_LIB_PATH=\"\"\n"
+         append auto_config_content "SGE_JVM_LIB_PATH=\"none\"\n"
          append auto_config_content "SGE_ADDITIONAL_JVM_ARGS=\"\"\n"
          append auto_config_content "SGE_JMX_PORT=\"0\"\n"
          append auto_config_content "SGE_JMX_SSL=\"false\"\n"

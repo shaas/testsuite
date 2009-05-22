@@ -91,7 +91,7 @@ proc make_user_cert {} {
              
          # encrypt keystores by specifing -kspwf file (file is a password file)
          ts_log_fine "creating keystore files for testsuite users ..."
-         set my_env(JAVA_HOME) [get_java_home_for_host $ts_config(master_host) "1.5"]
+         set my_env(JAVA_HOME) [get_java_home_for_host $ts_config(master_host) "1.5+"]
          set result [start_remote_prog "$ts_config(master_host)" $cert_user "util/sgeCA/sge_ca" "-userks -kspwf $file" prg_exit_state 60 0 $ts_config(product_root) my_env]
          ts_log_fine $result
       } else {
