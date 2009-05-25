@@ -530,6 +530,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    set COMMD_PORT                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNUSED_PORT] "sge_qmaster"]
    set EXECD_PORT                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNUSED_PORT] "sge_execd"]
    set ENTER_ADMIN_MAIL             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL] "*"]
+   set ENTER_ADMIN_MAIL_SINCE_U3    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL_SINCE_U3] "*"]
    set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
    set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
    set ACCEPT_CONFIGURATION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
@@ -1142,6 +1143,21 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
          }
 
          -i $sp_id $ENTER_ADMIN_MAIL { 
+            if { $CHECK_REPORT_EMAIL_TO == "none" } {
+               set admin_mail "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
+            } else {
+               set admin_mail $CHECK_REPORT_EMAIL_TO
+            }
+            ts_log_fine "\n -->testsuite: sending >$admin_mail<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$admin_mail\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_ADMIN_MAIL_SINCE_U3 { 
             if { $CHECK_REPORT_EMAIL_TO == "none" } {
                set admin_mail "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
             } else {

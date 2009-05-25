@@ -87,7 +87,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_ANSWER_NO" { set value "n" }
       "DISTINST_ENTER_DEFAULT_DOMAIN" { set value "\nPlease enter your default domain >> " }
       "DISTINST_CONFIGURE_DEFAULT_DOMAIN" { set value "Do you want to configure a default domain (y/n) \[y\] >> " }
-      "DISTINST_PKGADD_QUESTION" { set value "Did you install this version with >pkgadd< or did you already verify\nand set the file permissions of your distribution (enter: y) (y/n) \[y\] >> " }
+      "DISTINST_PKGADD_QUESTION" { set value "Did you install this version with >pkgadd< or did you already\nverify and set the file permissions of your distribution (y/n) \[y\] >> " }
+      "DISTINST_PKGADD_QUESTION_SINCE_U3" { set value "Did you install this version with >pkgadd< or did you already verify\nand set the file permissions of your distribution (enter: y) (y/n) \[y\] >> " }
       "DISTINST_MESSAGES_LOGGING" { set value "Hit <RETURN> to see where Grid Engine logs messages >> " }
       "DISTINST_OTHER_SPOOL_DIR" { set value "Do you want to select another qmaster spool directory (y/n) \[n\] >> " }
       "DISTINST_OTHER_USER_ID_THAN_ROOT" { set value "Do you want to install Grid Engine\nunder an user id other than >root< (y/n) \[y\] >> " }
@@ -126,7 +127,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. You\nmust have the right to create this directory and to write into it.\n" }
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. User >%s<\nmust have the right to create this directory and to write into it.\n" }
       "DISTINST_EXECD_SPOOLING_DIR_DEFAULT" { set value "Default: \[%s\] >> " }
-      "DISTINST_ENTER_ADMIN_MAIL" { set value "\n<administrator_mail>\n\nThe email address of the administrator to whom problem reports are sent.\n\nIt is recommended to configure this parameter. You may use >none<\nif you do not wish to receive administrator mail.\n\nPlease enter an email address in the form >user@foo.com<.\n\nDefault: \[*\] >> " }
+      "DISTINST_ENTER_ADMIN_MAIL" { set value "\n<administrator_mail>\n\nThe email address of the administrator to whom problem reports are sent.\n\nIt's is recommended to configure this parameter. You may use >none<\nif you do not wish to receive administrator mail.\n\nPlease enter an email address in the form >user@foo.com<.\n\nDefault: \[*\] >> " }
+      "DISTINST_ENTER_ADMIN_MAIL_SINCE_U3" { set value "\n<administrator_mail>\n\nThe email address of the administrator to whom problem reports are sent.\n\nIt is recommended to configure this parameter. You may use >none<\nif you do not wish to receive administrator mail.\n\nPlease enter an email address in the form >user@foo.com<.\n\nDefault: \[*\] >> " }
       "DISTINST_SHOW_CONFIGURATION" { set value "\nThe following parameters for the cluster configuration were configured:\n\n   execd_spool_dir        %s\n   administrator_mail     %s\n" }
       "DISTINST_ACCEPT_CONFIGURATION" { set value "Do you want to change the configuration parameters (y/n) \[n\] >> " }
       "DISTINST_INSTALL_STARTUP_SCRIPT" { set value "\nWe can install the startup script that\nGrid Engine is started at machine boot (y/n) \[n\] >> " }

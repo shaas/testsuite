@@ -132,6 +132,7 @@ proc install_qmaster {} {
    set ENTER_DEFAULT_DOMAIN         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DEFAULT_DOMAIN] ]
    set CONFIGURE_DEFAULT_DOMAIN     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CONFIGURE_DEFAULT_DOMAIN] ] 
    set PKGADD_QUESTION              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_PKGADD_QUESTION] ]
+   set PKGADD_QUESTION_SINCE_U3     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_PKGADD_QUESTION_SINCE_U3] ]
    set MESSAGES_LOGGING             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_MESSAGES_LOGGING] ]
    set OTHER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_SPOOL_DIR] ]
    set OTHER_USER_ID_THAN_ROOT      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_USER_ID_THAN_ROOT] ]
@@ -149,6 +150,7 @@ proc install_qmaster {} {
    set EXECD_SPOOLING_DIR_NOROOT           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT] "*"]
    set EXECD_SPOOLING_DIR_DEFAULT   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_DEFAULT] "*"]
    set ENTER_ADMIN_MAIL             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL] "*"]
+   set ENTER_ADMIN_MAIL_SINCE_U3    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL_SINCE_U3] "*"]
    set SHOW_CONFIGURATION           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SHOW_CONFIGURATION] "*" "*"]
    set ACCEPT_CONFIGURATION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
    set INSTALL_STARTUP_SCRIPT       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_STARTUP_SCRIPT] ]
@@ -597,6 +599,11 @@ proc install_qmaster {} {
             continue
          }
 
+         -i $sp_id $PKGADD_QUESTION_SINCE_U3 {
+            install_send_answer $sp_id $ANSWER_NO "6"
+            continue
+         }
+
          -i $sp_id $ENTER_SPOOL_DIR {
             set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
             if {$spooldir != ""} {
@@ -712,6 +719,15 @@ proc install_qmaster {} {
          }
 
          -i $sp_id $ENTER_ADMIN_MAIL { 
+            if {$CHECK_REPORT_EMAIL_TO == "none" } {
+               install_send_answer $sp_id "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
+            } else {
+               install_send_answer $sp_id $CHECK_REPORT_EMAIL_TO
+            }
+            continue
+         }
+
+         -i $sp_id $ENTER_ADMIN_MAIL_SINCE_U3 { 
             if {$CHECK_REPORT_EMAIL_TO == "none" } {
                install_send_answer $sp_id "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
             } else {
