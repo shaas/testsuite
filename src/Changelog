@@ -1,7 +1,3 @@
-AP-2009-05-25-0: Bugfix:     fixed broken ARCo installation
-                 Belongs to: AP-2009-05-21-0
-                 Review:     JF
-
 ################################################################################
 # This is the Changelog for testsuite source code changes.                     #
 # Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #
@@ -10,6 +6,10 @@ AP-2009-05-25-0: Bugfix:     fixed broken ARCo installation
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+AP-2009-05-25-0: Bugfix:     fixed broken ARCo installation
+                 Belongs to: AP-2009-05-21-0
+                 Review:     JF
 
 MD-2009-05-25-0: Bugfix:     fixed broken installer messages
                  Belongs to: MD-2009-05-22-0
