@@ -1,3 +1,7 @@
+AP-2009-05-25-0: Bugfix:     fixed broken ARCo installation
+                 Belongs to: AP-2009-05-21-0
+                 Review:     JF
+
 ################################################################################
 # This is the Changelog for testsuite source code changes.                     #
 # Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #

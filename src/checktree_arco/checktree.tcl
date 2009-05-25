@@ -1190,4 +1190,5 @@ proc check_dbwriter_log { } {
 
 proc arco_test_run_level_check {is_starting was_error} {
    # anything to do?
+   return 0
 }
