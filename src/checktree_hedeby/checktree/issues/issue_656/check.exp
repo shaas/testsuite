@@ -1,0 +1,224 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependend parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_656"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "resource reset test of ASSIGNED spare_pool resource"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_656_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue_656_setup"
+set check_cleanup_level_function "hedeby_issue_656_cleanup"
+
+lappend check_functions "hedeby_issue_656_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+
+
+#****** assigned/hedeby_issue_656_init_level() ************************
+#  NAME
+#     hedeby_issue_656_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue_656_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0 is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue_656_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  
+  return -1
+}
+
+#****** assigned/hedeby_issue_656_setup() *****************************
+#  NAME
+#     hedeby_issue_656_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     hedeby_issue_656_setup { } 
+#
+#  FUNCTION
+#
+#     This method sets up the test for the runlevel. It store the following
+#     values in  hedeby_issue_656_ctx
+#
+#      hedeby_issue_656_ctx(service)  "spare_pool"
+#      hedeby_issue_656_ctx(res)      a randomly picked spare_pool resource
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_656_setup {} {
+   global hedeby_issue_656_ctx this
+
+   set this(reset)   0
+   set this(service) "spare_pool"
+   set this(res)     [pick_random [get_all_spare_pool_resources]]
+}
+
+#****** assigned/hedeby_issue_656_cleanup() ***************************
+#  NAME
+#     hedeby_issue_656_cleanup() -- reset the cluster nr and do hedeby reset 
+#
+#  SYNOPSIS
+#     hedeby_issue_656_cleanup { } 
+#
+#  FUNCTION
+#
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_656_cleanup {} {
+   global hedeby_issue_656_ctx this
+
+   if { $this(reset) == 1 } {
+      reset_hedeby 1
+   }
+}
+
+#****** assigned/hedeby_issue_656_check() *****************************
+#  NAME
+#     hedeby_issue_656_check() -- resource reset test of a resource in 
+#     ASSINGED state.
+#
+#  SYNOPSIS
+#     hedeby_issue_656_check { } 
+#
+#  FUNCTION
+#
+#         Step 1: Reseting resource '$this(res)'
+#         Step 2: Check that resource '$this(res)' goes into ASSIGNED state
+#         Step 3: Check that SCP sees resource '$this(res)' in ASSIGNED state
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     assigned/hedeby_issue_656_setup()
+#     assigned/hedeby_issue_656_cleanup()
+#*******************************************************************************
+proc hedeby_issue_656_check {} {
+   global hedeby_issue_656_ctx this
+
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 1: Reseting resource '$this(res)'"
+   # ---------------------------------------------------------------------------------------------
+   set opt(table_output) table
+   sdmadm_command_opt "rsr -r $this(res)" opt
+   unset opt
+
+   set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
+   set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+
+   # compare the output with the expected output ...
+   if {$expected_output != $output_message} {
+      set    msg "Reset of resource '$this(res)' did not work, because 'sdmadm rsr' produced unexpected output:\n"
+      append msg "Expected output: \"$expected_output\"\n"
+      append msg "Received output: \"$output_message\"\n"
+      ts_log_severe $msg
+      return
+   }
+
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 2: Check that resource '$this(res)' goes into ASSIGNED state"
+   # ---------------------------------------------------------------------------------------------
+   # With in the next step we check that the resource goes into ASSIGNED state and
+   # that the resource reset did not produce an ambiguous resource
+   set exp_resource_info($this(res),state) "ASSIGNED"
+
+   set retval [wait_for_resource_info_opt exp_resource_info opt] 
+   unset exp_resource_info
+
+   if { $retval != 0 } {
+      set this(reset) 1
+      return
+   }
+
+   # ---------------------------------------------------------------------------------------------
+   ts_log_heading "Step 3: Check that SCP sees resource '$this(res)' in ASSIGNED state"
+   # ---------------------------------------------------------------------------------------------
+   set exp_resource_info($this(res),state) "ASSIGNED"
+   set opt(res_info) res_info
+   set opt(cached)   1
+
+   set retval [wait_for_resource_info_opt exp_resource_info opt] 
+   unset exp_resource_info
+   unset opt
+
+   if { $retval != 0 } {
+      set msg    "It seems that we ran into issue 656 again!!!\n"
+      append msg "============================================\n\n"
+      append msg "Service sets resource '$this(res)' after reset in ASSIGNED state, however\n"
+      append msg "ServiceCachingProxy sees the resource in '$res_info($this(res),state)'\n"
+      ts_log_severe $msg
+      set this(reset) 1
+      return
+   }
+}
+

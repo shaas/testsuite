@@ -3174,6 +3174,7 @@ proc parse_table_output { output array_name delemitter } {
 #                                 (default: [get_hedeby_system_name])
 #     {preference_type ""}   - preference type of the hedeby system
 #                                 (default: [get_hedeby_pref_type])
+#     { cached 0 }           - if the cached parameter is not 0 call sdmdm sr -cached
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -3213,7 +3214,7 @@ proc parse_table_output { output array_name delemitter } {
 #     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""}} {
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""} { cached 0 } } {
    global hedeby_config
 
    # setup arguments
@@ -3258,6 +3259,10 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 
    # now we start sdmadm sr command ...
    set sdmadm_command "-d -p $pref_type -s $sys_name sr -all"
+
+   if { $cached != 0 } {
+      append sdmadm_command " -cached"
+   }
    set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0} {
       ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting\noutput:\n$output" $raise_error
@@ -3464,6 +3469,7 @@ proc get_resource_info_opt { {ri res_info} {opt ""} } {
 #     {rl res_list}          - see get_resource_info() 
 #     {da res_list_not_uniq} - see get_resource_info() 
 #     {expect_no_ambiguous_resources 0} - if set to 1: don't expect ambiguous resources
+#     { cached }             - see get_resource_info()
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -3496,7 +3502,7 @@ proc get_resource_info_opt { {ri res_info} {opt ""} } {
 #     util/wait_for_resource_info()
 #     util/wait_for_service_info()
 #*******************************************************************************
-proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {expect_no_ambiguous_resources 0} } {
+proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {expect_no_ambiguous_resources 0} { cached 0 } } {
    global hedeby_config
    # setup arguments
    upvar $exp_resinfo exp_res_info
@@ -3535,8 +3541,12 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    }
    ts_log_finer "expected resource infos:\n$expected_resource_info"
 
+   set system_name ""
+   set prefs_type ""
+
    while {1} {
-      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output]
+      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output \
+                                    $system_name $prefs_type $cached]
       if {$retval != 0} {
          append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
          append error_text "expected resource info was:\n$expected_resource_info"
@@ -3651,6 +3661,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 #                                              is stored
 #       opt(expect_not_ambiguous_resources)  - If set to 1 the command checks that no ambiguous resources are avaiable
 #                                              (default: 0)
+#       opt(cached)                          - If not 0 sdmadm sr -cached will be called to check the resources
 # 
 #  INPUTS
 #     exp_res_info - expected resource info (see wait_for_resource_info) 
@@ -3690,6 +3701,7 @@ proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
    set opts(res_list)    ""
    set opts(res_list_not_uniq) ""
    set opts(expect_no_ambiguous_resources) 0
+   set opts(cached) 0
 
    get_hedeby_proc_opt_arg $opt opts
 
@@ -3715,7 +3727,7 @@ proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
 
    return [wait_for_resource_info exp_info  $opts(timeout) $opts(raise_error) error_var\
                                   $opts(host) $opts(user) res_info res_prop res_list \
-                                  res_list_not_uniq $opts(expect_no_ambiguous_resources)]
+                                  res_list_not_uniq $opts(expect_no_ambiguous_resources) $opts(cached)]
 }
 
 #****** util/wait_for_service_info() *******************************************
