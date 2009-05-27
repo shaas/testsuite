@@ -76,19 +76,30 @@ proc jemalloc_verify {} {
    set jemalloc_test_host [host_conf_get_suited_hosts 1 "lx24-amd64 lx26-amd64"]
    set binaries "qacct qconf qmod qping qrdel qrls qrstat qselect qstat sge_execd sge_qmaster sge_shepherd qalter qdel qhost qmon qquota qresub qrsh qrsub qsh qsub sge_coshepherd sgepasswd sge_shadowd"
    set errors ""
-
+   set infos ""
    set envlist(JEMALLOC_TEST) "1"
 
    foreach binary $binaries {
+      ts_log_fine $binary
       set output [start_sge_bin $binary "-help" $jemalloc_test_host "" prg_exit_state 60 "" "bin" "output_lines" envlist]
 
-      # ts_log_fine "output: $output"
+      # qmon -help may not work when the libXm is not availabe
+      if {![string match "*usage*" $output] && $binary == "qmon"} {
+         append infos "$binary -help on host $jemalloc_test_host did not return usage text!\nskipped this binary for jemalloc test!\n"
+         append infos "This might happen when qmon cannot load libXm lib!\n"
+         append infos "output was:\n$output"
+         continue
+      }
       if {![string match "*jemalloc is enabled*" $output]} {
+         append errors "$binary -help on host $jemalloc_test_host does not return \"jemalloc is enabled\"\n"
          append errors "$binary does not use jemalloc\n"
+         append errors "output was:\n$output"
       }
    }
-
    if {$errors != ""} {
       ts_log_severe $errors
+   }
+   if {$infos != ""} {
+      ts_log_config $infos
    }
 }

@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-05-27-1: Bugfix:     fixed jemalloc test which fails for qmon -help when
+                             libXm is not installed
+                 Review:     SH
+
 CR-2009-05-27-0: Bugfix:     tight_integration_job_finished() job_state "unkown"
                              is not an indication that job is finished anymore.
                              This might be the reason why tight_integration test
