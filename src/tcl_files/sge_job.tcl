@@ -240,14 +240,14 @@ proc tight_integration_monitor {id master_node started_var finished_var jobid_va
 #*******************************************************************************
 proc tight_integration_job_finished {job_state} {
    switch -exact $job_state {
-      "unknown" -
       "timeout" -
       "eof" -
-      "master finished" -
       "error" {
+         ts_log_severe "job returned with state \"$job_state\" - not expected job termination"
          set job_finished 1
       }
       
+      "unknown" -
       "task started" -
       "task running" -
       "task finished" -
@@ -258,7 +258,12 @@ proc tight_integration_job_finished {job_state} {
          set job_finished 0
       }
 
+      "master finished" {
+         set job_finished 1
+      }
+
       default {
+         ts_log_severe "job returned with unexpected job state - not expected job termination"
          set job_finished 1
       }
    }
