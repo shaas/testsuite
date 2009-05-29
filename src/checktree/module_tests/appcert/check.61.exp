@@ -193,7 +193,9 @@ proc appcert_test {} {
          }
          2 {
             # appcert reported warnings
-            set error_text "Failed appcerts:\n"
+            set error_text ""
+            append error_text "appcert run on host \"$host\" ([resolve_arch $host])\n"
+            append error_text "Failed appcerts:\n"
             set is_error 0
             foreach line [split $output "\r\n"] {
                if {[string match "*FAIL*" $line] > 0} {
