@@ -237,6 +237,31 @@ proc cleanup_system {} {
   if { [ exec_checktree_clean_hooks ] != 0 } {
      ts_log_config "exec_checktree_clean_hooks reported an error"
   }
+
+  # if we have jvm thread enabled we check that it is a event client
+  # a) first get qping info for qmaster
+  set ping_args "-info $ts_config(master_host) $ts_config(commd_port) qmaster 1"
+  set output [start_sge_bin "qping" "$ping_args"]
+  if {![string match "*jvm*" $output]} {
+     set jvm_running false
+  } else {
+     set jvm_running true
+  }
+
+  # b) check if jmx thread is enabled
+  if {[ge_has_feature "jmx-thread"]} {
+     if {$jvm_running == false} {
+        ts_log_warning "JMX thread is not running!"
+     } else {
+        ts_log_fine "JMX thread running - FINE!"
+     }
+  } else {
+     if {$jvm_running == true} {
+        ts_log_warning "JMX thread running, but should not run!"
+     } else {
+        ts_log_fine "JMX thread not running - FINE!"
+     }
+  }
 }
 
 

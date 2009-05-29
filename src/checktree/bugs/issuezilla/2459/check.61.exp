@@ -123,12 +123,13 @@ proc issue_2459_parse_autoinstall {} {
    set exit_val 0
 
    if {$check_jmx_port > 0} {
-      ts_log_fine "inst_sge -m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf"
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set inst_sge_options "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf"
    } else {
-      ts_log_fine "inst_sge -m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set inst_sge_options "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
    }
+
+   ts_log_fine "inst_sge $inst_sge_options"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" $inst_sge_options exit_val $my_timeout 0 $ts_config(product_root)]
 
    set lines [split $output "\n"]
    foreach line $lines {
@@ -250,6 +251,7 @@ proc issue_2459_parse_autoinstall {} {
       if {$test_ok == 1} {
          ts_log_fine "test is ok!"
       } else {
+         append error_text "check_jmx_port is set to $check_jmx_port\n"
          ts_log_warning "autoinstall configfile check failed:\n$error_text\noutput was:\n$output"
       }
    } else { 
@@ -327,7 +329,7 @@ proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
          puts $fdo "SGE_JMX_SSL_CLIENT=\"tue\""
          puts $fdo "SGE_JMX_SSL_KEYSTORE=\"Please enter absolute path of server keystore file\""
          puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"Please enter the server keystore password\""
-         puts $fdo "SGE_JVM_LIB_PATH=\"\""
+         puts $fdo "SGE_JVM_LIB_PATH=\"/\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
       } else {
          puts $fdo "SGE_JMX_PORT=\"Please enter port\""

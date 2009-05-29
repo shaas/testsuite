@@ -349,6 +349,8 @@ proc get_qmaster_spool_dir {} {
 #     "exclusive-host-usage":        Returns true if current GE release supports
 #                                    exclusive host usage.
 #
+#     "jmx-thread" :                 Returns true if the jmx thread is enabled
+#
 #  RESULT
 #     true or false if feature string is valid, "unsupported" on error
 #      
@@ -373,6 +375,13 @@ proc ge_has_feature {feature {quiet 0}} {
             set result false
          } else {
             set result true
+         }
+      }
+      "jmx-thread" {
+         if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) > 0 } {
+            set result true
+         } else {
+            set result false
          }
       }
       "scheduler-thread" {
