@@ -1711,6 +1711,7 @@ proc config_check_all_usages { check_list config_array type } {
 #      config_host/config_display_hosts()
 #*******************************************************************************
 proc config_check_usage { check_list check_params config_array config_file config_name } {
+   global CHECK_DEFAULTS_FILE
 
    upvar $config_array config
    upvar $check_list checks
@@ -1727,6 +1728,9 @@ proc config_check_usage { check_list check_params config_array config_file confi
    if { $index != -1 } {
       incr index 1
       set file_name_short [string range $config_file $index end]
+   } else {
+      set index [string last "/" $CHECK_DEFAULTS_FILE]
+      set file_name_short [string range $CHECK_DEFAULTS_FILE $index end]
    }
 
    foreach name $check_params {
