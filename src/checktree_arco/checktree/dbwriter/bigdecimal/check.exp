@@ -102,6 +102,13 @@ proc bigdecimal_setup {} {
          unset AR_Name
       }
    }
+   get_user_list user_list
+   if { [lsearch -exact $user_list $CHECK_FIRST_FOREIGN_SYSTEM_USER] == -1 } {
+      add_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   }
+   if { [lsearch -exact $user_list $CHECK_SECOND_FOREIGN_SYSTEM_USER] == -1 } {
+      add_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   }
 
    if {[info exists bigdecimal_backup]} {
       unset bigdecimal_backup
@@ -172,15 +179,16 @@ proc bigdecimal_cleanup {} {
 
    del_queue $Queue_Name1 "" 1 1
    del_queue $Queue_Name2 "" 1 1
-   del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
-   del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   set chgar(default_project) "NONE"
+   mod_user $CHECK_FIRST_FOREIGN_SYSTEM_USER chgar
+   
    del_project $Prj_Name1
    del_project $Prj_Name2
 
    if { [get_dbwriter_status 0] == 0 } {
       if { [shutdown_dbwriter] != 0 } {
          ts_log_severe "Can not stop dbwriter"
-         return -1
       }
    }
 
@@ -232,9 +240,10 @@ proc bigdecimal_test {} {
       return -1
    }
 
-   # add user
+   # add project to a user
    set chgar(default_project) $Prj_Name1
-   add_user $CHECK_FIRST_FOREIGN_SYSTEM_USER chgar
+   mod_user $CHECK_FIRST_FOREIGN_SYSTEM_USER chgar
+
    array unset chgar
    # duplicate user record with big id
    if { [bigdecimal_duplicate_record "sge_user" "u_id"] != 0 } {
@@ -296,8 +305,6 @@ proc bigdecimal_test {} {
 
    # add project
    add_project $Prj_Name2
-   # add user
-   add_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
    #add queue
    set chgar(slots) "10"
    add_queue $Queue_Name2 "@allhosts" chgar

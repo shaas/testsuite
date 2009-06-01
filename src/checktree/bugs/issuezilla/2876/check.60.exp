@@ -94,12 +94,13 @@ proc issue_2876_cleanup {} {
 
 proc issue_2876_level_setup {} {
    global CHECK_USER big_file_path size_of_big_file
+   global ts_config
 
    set big_file_path [create_file_with_size 200]
 
    set args "-c $big_file_path | cut -d \" \" -f3"
    ts_log_fine "executing wc $args"
-   set size_of_big_file [start_remote_prog [gethostname] $CHECK_USER "wc" $args]
+   set size_of_big_file [start_remote_prog $ts_config(master_host) $CHECK_USER "wc" $args]
 }
 
 proc issue_2876_level_cleanup {} {

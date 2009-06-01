@@ -620,7 +620,14 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    upvar $data_array_name data
    upvar $row_array_name rows
    
-   set local_host [gethostname]
+   foreach host [get_all_hosts] {
+      set gnuplot_bin [get_binary_path $host "gnuplot" 0]
+      if { $gnuplot_bin != "gnuplot" } {
+         # binary found
+         set local_host $host
+         break
+      }
+   }
 
    # generate data files
    set file_name_list ""
@@ -707,7 +714,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    }
    close $cmd_file
 
-   set result [start_remote_prog $local_host $CHECK_USER [get_binary_path $local_host "gnuplot"] $command_file prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $local_host $CHECK_USER $gnuplot_bin $command_file prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state == 0 } {
       return $data(output_file)
    } else {

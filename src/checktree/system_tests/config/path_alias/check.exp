@@ -223,10 +223,8 @@ proc path_alias_main {} {
    global PATH_ALIAS_OUTPUT2
    global CHECK_USER
 
-
-   set files1_old [get_file_names $PATH_ALIAS_OUTPUT1]
-   set files2_old [get_file_names $PATH_ALIAS_OUTPUT2]
-
+   set files1_old [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$PATH_ALIAS_OUTPUT1"]
+   set files2_old [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$PATH_ALIAS_OUTPUT2"]
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 10"
    foreach elem $ts_config(unique_arch_nodes) {
@@ -261,9 +259,8 @@ proc path_alias_main {} {
 
    after 10000
 
-   set files1 [get_file_names $PATH_ALIAS_OUTPUT1]
-   set files2 [get_file_names $PATH_ALIAS_OUTPUT2]
-
+   set files1 [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$PATH_ALIAS_OUTPUT1"]
+   set files2 [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$PATH_ALIAS_OUTPUT2"]
 
    set nr_new_files1 [ expr ([llength $files1] - [llength $files1_old]) ]
    set nr_new_files2 [ expr ([llength $files2] - [llength $files2_old]) ]
