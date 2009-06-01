@@ -108,13 +108,61 @@ proc hedeby_issue619_setup_level {} {
    set this(admin) [get_hedeby_admin_user]
    set this(managed) [pick_random [get_all_movable_resources]]
    set this(spare) "new_spare"
-   set this(added) "false"
+   #flag indicating that service was addded to system
+   set this(added) 0
+   #in all in one jvm setup cs_vm on managed will be already running, flag reflecting this state
+   set this(has_running_jvm) 0
+   #flag indicating that jvm on managed host was started
+   set this(started) 0  
    set this(managed_spool_dir) [get_hedeby_local_spool_dir $this(managed)]
+   
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Setup : Check if jvm is already running"
+   # ------------------------------------------------------------------ 
+   
+   set exp_ji($this(jvm),$this(managed),state) "STARTED" 
+   set err_ji($this(jvm),$this(managed),state) "STOPPED"
+   set err_ji($this(jvm),$this(managed),state) "STOPPING"
+   set ji_opts(jvm_name) $this(jvm)
+   set ji_opts(jvm_host) $this(managed)
+   set ji_opts(error_jvm_info) err_ji
+   set ji_opts(raise_error) 0
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg "Jvm $this(jvm) on host $this(managed) is not running, start it"
+      ts_log_fine $msg
+   } else {
+      set this(has_running_jvm) 1
+      #jvm was already running, service added but jvm will be restrted to have service running
+      # ------------------------------------------------------------------ 
+      ts_log_heading "Setup : Stop master jvm on managed host - it was already running"
+      # ------------------------------------------------------------------ 
+      set output [sdmadm_command_opt "sdj -j $this(jvm) -h $this(managed)"] 
+      if {$prg_exit_state != 0} {
+         set    msg "There was a problem stopping master jvm on managed host.\n"
+	 append msg "Output was\n"
+	 append msg $output
+	 ts_log_severe $msg
+	 return
+      }
+      set exp_ji1(jvm_list) "" 
+      set err_ji1($this(jvm),$this(managed),state) "STARTED"
+      set err_ji1($this(jvm),$this(managed),state) "STARTING"
+      set ji_opts1(jvm_name) $this(jvm)
+      set ji_opts1(jvm_host) $this(managed)
+      set ji_opts1(error_jvm_info) err_ji1
+      if {[wait_for_jvm_info exp_ji1 ji_opts1] != 0} {
+         set msg "Jvm $this(jvm) didnt stop"
+	 ts_log_severe $msg
+	 return 
+      }
+      unset exp_ji1
+   }
+   unset exp_ji
    
    # ------------------------------------------------------------------ 
    ts_log_heading "Setup : Add a new spare_pool component with name: $this(spare) to master jvm: $this(jvm) on host $this(managed)"
    # ------------------------------------------------------------------ 
-   set output [sdmadm_command_opt "asps -j cs_vm -h $this(managed) -s new_spare"]
+   set output [sdmadm_command_opt "asps -j $this(jvm) -h $this(managed) -s new_spare"]
    if {$prg_exit_state != 0} {
       set    msg "There was a problem adding $this(spare) to jvm $this(jvm) on host $this(managed).\n"
       append msg "Output was\n"
@@ -122,7 +170,7 @@ proc hedeby_issue619_setup_level {} {
       ts_log_severe $msg
       return
    }
-   set this(added) "true"
+   set this(added) 1
    
    # ------------------------------------------------------------------ 
    ts_log_heading "Setup : Setup for issue619 finished"
@@ -152,13 +200,28 @@ proc hedeby_issue619_setup_level {} {
 proc hedeby_issue619_cleanup_level {} {
    upvar #0 hedeby_issue619_ctx this
    
+   if { $this(added) == 1 } {
+      # ------------------------------------------------------------------ 
+      ts_log_heading "Cleanup 1 : Remove spare_pool: $this(spare) defined in jvm $this(jvm) from system"
+      # ------------------------------------------------------------------ 
+      set output [sdmadm_command_opt "rs -s $this(spare)"] 
+      if {$prg_exit_state != 0} {
+         set    msg "There was a problem removing spare_pool $this(spare).\n"
+         append msg "Output was\n"
+         append msg $output
+         ts_log_severe $msg
+         set this(reset) 1
+      }
+      set this(added) 0 
+   }
+
    # ------------------------------------------------------------------ 
-   ts_log_heading "Cleanup 0 : Stop master jvm on managed host"
+   ts_log_heading "Cleanup : Stop/start master jvm on managed host"
    # ------------------------------------------------------------------ 
-   if {$this(started)} {
+   if {$this(started) == 1 && $this(has_running_jvm) == 0} {
       set output [sdmadm_command_opt "sdj -j $this(jvm) -h $this(managed)"] 
       if {$prg_exit_state != 0} {
-	 set    msg "There was a problem stopping master jvm on managed host.\n"
+	 set    msg "There was a problem stopping $this(jvm) jvm on managed host $this(managed).\n"
 	 append msg "Output was\n"
 	 append msg $output
 	 ts_log_fine $msg
@@ -179,33 +242,46 @@ proc hedeby_issue619_cleanup_level {} {
       }
    }
    
-   
-   if { $this(added) == "true" } {
-           # ------------------------------------------------------------------ 
-           ts_log_heading "Cleanup 1 : Remove spare_pool: $this(spare) defined in jvm $this(jvm) from system"
-           # ------------------------------------------------------------------ 
-           set output [sdmadm_command_opt "rs -s $this(spare)"] 
-           if {$prg_exit_state != 0} {
-              set    msg "There was a problem removing spare_pool $this(spare).\n"
-              append msg "Output was\n"
-              append msg $output
-              ts_log_severe $msg
-              set this(reset) 1
-           }
-           set this(added) "false" 
-   }
+   if {$this(started) == 0 && $this(has_running_jvm) == 1} {
+      set opt(host) $this(managed)
+      set opt(user) [get_hedeby_startup_user]
+      set output [sdmadm_command_opt "suj -j $this(jvm)" opt] 
+      if {$prg_exit_state != 0} {
+         set    msg "There was a problem starting master jvm on managed host.\n"
+	 append msg "Output was\n"
+	 append msg $output
+	 ts_log_severe $msg
+	 return
+      }
+      set exp_ji($this(jvm),$this(managed),state) "STARTED" 
+      set err_ji($this(jvm),$this(managed),state) "STOPPED"
+      set err_ji($this(jvm),$this(managed),state) "STOPPING"
+      set ji_opts(jvm_name) $this(jvm)
+      set ji_opts(jvm_host) $this(managed)
+      set ji_opts(error_jvm_info) err_ji
 
+      if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+         set msg "Jvm $this(jvm) didnt start"
+	 ts_log_severe $msg	 
+      } else {
+	 set this(reset) 0
+      }
+      unset exp_ji
+   }
+     
    if {$this(reset)} {
       reset_hedeby 1
    }
 
-   # ------------------------------------------------------------------ 
-   ts_log_heading "Cleanup 2 : Delete files from local spool dir '$this(managed_spool_dir)' on host $this(managed)"
-   # ------------------------------------------------------------------ 
-   set log_dir "$this(managed_spool_dir)/log"
-   set files   "$this(managed_spool_dir)/spool/$this(spare) $log_dir/cs_vm-0.log $log_dir/cs_vm.stdout $log_dir/cs_vm.stderr"
-   start_remote_prog $this(managed) "root" "rm" "-rf $files"
-
+   #Do this step only if cs_vm was not running before test was started
+   if { $this(has_running_jvm) == 0 } {
+      # ------------------------------------------------------------------ 
+      ts_log_heading "Cleanup 2 : Delete files from local spool dir '$this(managed_spool_dir)' on host $this(managed)"
+      # ------------------------------------------------------------------ 
+      set log_dir "$this(managed_spool_dir)/log"
+      set files   "$this(managed_spool_dir)/spool/$this(spare) $log_dir/cs_vm-0.log $log_dir/cs_vm.stdout $log_dir/cs_vm.stderr"
+      start_remote_prog $this(managed) "root" "rm" "-rf $files"
+   }
    unset this
    # ------------------------------------------------------------------ 
    ts_log_heading "Cleanup : Cleanup for issue619 finished"
@@ -222,6 +298,7 @@ proc hedeby_issue619_cleanup_level {} {
 #  FUNCTION
 #
 #    This test will check that components can run in cs_vm on managed host.
+#    Note in simple installation mode the cs_vm is already running on managed host.
 # 
 #    Test performs the following steps:
 #
@@ -242,11 +319,12 @@ proc hedeby_issue619_check {} {
    upvar #0 hedeby_issue619_ctx this
 
    
-  
    # ------------------------------------------------------------------ 
    ts_log_heading "TEST Step 1 : Start master jvm on managed host"
    # ------------------------------------------------------------------ 
+   
    set opt(host) $this(managed)
+   set opt(user) [get_hedeby_startup_user]
    set output [sdmadm_command_opt "suj -j $this(jvm)" opt] 
    if {$prg_exit_state != 0} {
       set    msg "There was a problem starting master jvm on managed host.\n"
@@ -272,9 +350,7 @@ proc hedeby_issue619_check {} {
    set this(started) 1
    # ------------------------------------------------------------------ 
    ts_log_heading "TEST Step 2 : Check if new spare_pool is running"
-   # ------------------------------------------------------------------ 
-   
-         
+   # ------------------------------------------------------------------        
       set si_exp($this(spare),cstate) "STARTED"  
       set si_exp($this(spare),sstate) "RUNNING"
       # check if service is running

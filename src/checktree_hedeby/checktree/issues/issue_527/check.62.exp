@@ -101,7 +101,7 @@ proc hedeby_issue527_setup_level {} {
 
    set service [lindex $service_names(services) 0]
    set hedeby_issue527_ctx(service) $service
-   set hedeby_issue527_ctx(service_host) $service_names(master_host,$service)
+   set hedeby_issue527_ctx(service_host) [get_service_host $service_names(master_host,$service)]
    set hedeby_issue527_ctx(service_stopped) "false"
    set hedeby_issue527_ctx(component_stopped) "false"
 }

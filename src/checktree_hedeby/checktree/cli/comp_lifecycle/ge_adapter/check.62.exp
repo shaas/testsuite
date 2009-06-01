@@ -116,8 +116,8 @@ proc ge_adapter_restart_test_check {} {
    set master_host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
    foreach host $ge_qmaster_hosts {      
-      set ge_adapters_started_expect($service_names(service,$host),$host,state) "STARTED"
-      set ge_adapters_stopped_expect($service_names(service,$host),$host,state) "STOPPED"
+      set ge_adapters_started_expect($service_names(service,$host),[get_service_host $host],state) "STARTED"
+      set ge_adapters_stopped_expect($service_names(service,$host),[get_service_host $host],state) "STOPPED"
    }
 
    set resources [sdmadm_command_opt "sr"]
@@ -131,7 +131,7 @@ proc ge_adapter_restart_test_check {} {
       set start_time [expr [clock seconds] - 60]
 
       foreach host $ge_qmaster_hosts {
-         sdmadm_command_opt "sdc -c $service_names(service,$host) -h $host"
+         sdmadm_command_opt "sdc -c $service_names(service,$host) -h [get_service_host $host]"
       }
       
       # check if ge_adapter components are shutdown
@@ -141,7 +141,7 @@ proc ge_adapter_restart_test_check {} {
       }
       
       foreach host $ge_qmaster_hosts {
-          sdmadm_command_opt "suc -c $service_names(service,$host) -h $host"
+          sdmadm_command_opt "suc -c $service_names(service,$host) -h [get_service_host $host]"
           if {$prg_exit_state != 0} {
             append error_text "The ge_adapter components start up was not successful.\n"
           }

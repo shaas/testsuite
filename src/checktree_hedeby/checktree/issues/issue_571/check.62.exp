@@ -128,7 +128,7 @@ proc hedeby_issue571_setup_level {} {
    set this(moving_host) [pick_random [get_all_spare_pool_resources]]
    
    set this(ge_service)  [lindex $service_names(services) 0]
-   set this(master_host)  $service_names(master_host,$this(ge_service))
+   set this(master_host)  [get_service_host $service_names(master_host,$this(ge_service))]
 }
 
 #****** issue571/hedeby_issue571_cleanup_level() *******************************

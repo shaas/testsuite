@@ -111,33 +111,14 @@ proc hedeby_issue609_setup_level {} {
    set this(filemoved) false
    set this(dir) "rep[timestamp]"
    set this(dircreated) false
+   set this(jvm) [get_reporter_jvm]
+   # Check the owner of reporter spool dir
+   set this(owner) [get_jvm_owner $this(jvm)]
    
    # ------------------------------------------------------------------ 
-   ts_log_heading "Setup 1 : Shutdown rp_vm jvm with reporter component on host $this(master)"
+   ts_log_heading "Setup 1 : Shutdown $this(jvm) jvm with reporter component on host $this(master)"
    # ------------------------------------------------------------------ 
-   set output [sdmadm_command_opt "sdj -j rp_vm -h $this(master)"]
-   set this(rpdown) true
-   if {$prg_exit_state != 0} {
-      set    msg "There was a problem shutting down rp_vm on host $this(master).\n"
-      append msg "Output was\n"
-      append msg $output
-      ts_log_severe $msg
-      return
-   }
-
-   set exp_ji(jvm_list) "" 
-   set err_ji(rp_vm,$this(master),state) "STARTED"
-   set err_ji(rp_vm,$this(master),state) "STARTING"
-   set ji_opts(jvm_name) "rp_vm"
-   set ji_opts(jvm_host) $this(master)
-   set ji_opts(error_jvm_info) err_ji
-
-   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
-      set msg "Jvm rp_vm didnt stop"
-      ts_log_severe $msg
-      return 
-   }
-   unset exp_ji
+   hedeby_issue609_shutdown_jvm $this(jvm) $this(master)
    set this(rpdown) true
    
    # ------------------------------------------------------------------ 
@@ -154,7 +135,7 @@ proc hedeby_issue609_setup_level {} {
       return
    }
    #create tmp directory for reporter original files
-   set output [start_remote_prog $this(master) $this(admin) "mkdir" "/tmp/$this(dir)"] 
+   set output [start_remote_prog $this(master) $this(owner) "mkdir" "/tmp/$this(dir)"] 
    if {$prg_exit_state != 0} {
       set    msg "There was a problem with creating the temp directory for reporter files\n"
       append msg "Output was\n"
@@ -164,7 +145,7 @@ proc hedeby_issue609_setup_level {} {
    }
    set this(dircreated) true
    #move the original files to the tmp directory 
-   set output [start_remote_prog $this(master) $this(admin) "mv" "${this(reppath)}/* /tmp/$this(dir)"] 
+   set output [start_remote_prog $this(master) $this(owner) "mv" "${this(reppath)}/* /tmp/$this(dir)"] 
    if {$prg_exit_state != 0} {
       set    msg "There was a problem with moving the reporter files to temp directory\n"
       append msg "Output was\n"
@@ -200,7 +181,7 @@ proc hedeby_issue609_setup_level {} {
    set data(20) "1228827985108:NOTIFICATION:41233:REQUEST_PROCESS:30105:p8420:Request is being processed in resource provider."
    set data(21) "1228827985108:NOTIFICATION:41234:REQUEST_PROCESSED:30106:p8420:Request was processed by resource provider."
 
-   set output [write_remote_file $this(master) $this(admin) $this(reppath)/report-0.log data] 
+   set output [write_remote_file $this(master) $this(owner) $this(reppath)/report-0.log data] 
    if {$prg_exit_state != 0} {
       set    msg "There was a problem with writing the new reporter files\n"
       append msg "Output was\n"
@@ -210,25 +191,27 @@ proc hedeby_issue609_setup_level {} {
    }
 
    # ------------------------------------------------------------------ 
-   ts_log_heading "Setup 4 : Startup rp_vm jvm with reporter component on host $this(master)"
+   ts_log_heading "Setup 4 : Startup $this(jvm) jvm with reporter component on host $this(master)"
    # ------------------------------------------------------------------ 
-   set output [sdmadm_command_opt "suj -j rp_vm"] 
+   
+   set opt(user) [get_hedeby_startup_user]
+   set output [sdmadm_command_opt "suj -j $this(jvm)" opt]
    if {$prg_exit_state != 0} {
-      set    msg "There was a problem starting rp_vm on host $this(master).\n"
+      set    msg "There was a problem starting $this(jvm) on host $this(master).\n"
       append msg "Output was\n"
       append msg $output
       ts_log_severe $msg
       return
    }
-   set exp_ji(rp_vm,$this(master),state) "STARTED" 
-   set err_ji(rp_vm,$this(master),state) "STOPPED"
-   set err_ji(rp_vm,$this(master),state) "STOPPING"
-   set ji_opts(jvm_name) "rp_vm"
+   set exp_ji($this(jvm),$this(master),state) "STARTED" 
+   set err_ji($this(jvm),$this(master),state) "STOPPED"
+   set err_ji($this(jvm),$this(master),state) "STOPPING"
+   set ji_opts(jvm_name) "$this(jvm)"
    set ji_opts(jvm_host) $this(master)
    set ji_opts(error_jvm_info) err_ji
 
    if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
-      set msg "Jvm rp_vm didnt start"
+      set msg "Jvm $this(jvm) didnt start"
       ts_log_severe $msg
       return 
    }
@@ -265,35 +248,16 @@ proc hedeby_issue609_cleanup_level {} {
    if { $this(filemoved) == "true" } {
        if { $this(rpdown) == "false" } {
            # ------------------------------------------------------------------ 
-           ts_log_heading "Cleanup 1 : Shutdown rp_vm jvm with reporter component on host $this(master)"
+           ts_log_heading "Cleanup 1 : Shutdown $this(jvm) jvm with reporter component on host $this(master)"
            # ------------------------------------------------------------------ 
-           set output [sdmadm_command_opt "sdj -j rp_vm -h $this(master)"] 
-           if {$prg_exit_state != 0} {
-              set    msg "There was a problem shutting down rp_vm on host $this(master).\n"
-              append msg "Output was\n"
-              append msg $output
-              ts_log_severe $msg
-              return
-           }
-           set exp_ji(jvm_list) "" 
-           set err_ji(rp_vm,$this(master),state) "STARTED"
-           set err_ji(rp_vm,$this(master),state) "STARTING"
-           set ji_opts(jvm_name) "rp_vm"
-           set ji_opts(jvm_host) $this(master)
-           set ji_opts(error_jvm_info) err_ji
-
-           if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
-              set msg "Jvm rp_vm didnt stop"
-              ts_log_severe $msg
-              return 
-           }
-           unset exp_ji
+           
+	   hedeby_issue609_shutdown_jvm $this(jvm) $this(master)
            set this(rpdown) true
        }
        # ------------------------------------------------------------------ 
        ts_log_heading "Cleanup 2 : Copy the original reporter files back to reporter spool directory"
        # ------------------------------------------------------------------ 
-       set output [start_remote_prog $this(master) $this(admin) "mv" "/tmp/$this(dir)/* $this(reppath)"] 
+       set output [start_remote_prog $this(master) $this(owner) "mv" "/tmp/$this(dir)/* $this(reppath)"] 
        if {$prg_exit_state != 0} {
           set    msg "There was a problem with moving the reporter files back to origianl directory\n"
           append msg "Output was\n"
@@ -304,9 +268,10 @@ proc hedeby_issue609_cleanup_level {} {
    }
    if { $this(rpdown) == "true" } {
         # ------------------------------------------------------------------ 
-        ts_log_heading "Cleanup 3 : Startup rp_vm jvm with reporter component on host $this(master)"
+        ts_log_heading "Cleanup 3 : Startup $this(jvm) jvm with reporter component on host $this(master)"
         # ------------------------------------------------------------------
-        set output [sdmadm_command_opt "suj -j rp_vm"] 
+	set opt(user) [get_hedeby_startup_user]
+        set output [sdmadm_command_opt "suj -j $this(jvm)" opt] 
         if {$prg_exit_state != 0} {
           set    msg "There was a problem starting rp_vm on host $this(master).\n"
           append msg "Output was\n"
@@ -314,24 +279,24 @@ proc hedeby_issue609_cleanup_level {} {
           ts_log_severe $msg
           return
         }
-       set exp_ji(rp_vm,$this(master),state) "STARTED" 
-       set err_ji(rp_vm,$this(master),state) "STOPPED"
-       set err_ji(rp_vm,$this(master),state) "STOPPING"
-       set ji_opts(jvm_name) "rp_vm"
-       set ji_opts(jvm_host) $this(master)
-       set ji_opts(error_jvm_info) err_ji
+        set exp_ji($this(jvm),$this(master),state) "STARTED" 
+        set err_ji($this(jvm),$this(master),state) "STOPPED"
+        set err_ji($this(jvm),$this(master),state) "STOPPING"
+        set ji_opts(jvm_name) "$this(jvm)"
+        set ji_opts(jvm_host) $this(master)
+        set ji_opts(error_jvm_info) err_ji
 
-       if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
-          set msg "Jvm rp_vm didnt start"
-          ts_log_severe $msg
-          return 
-       }
+        if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+           set msg "Jvm $this(jvm) didnt start"
+           ts_log_severe $msg
+           return 
+        }
    }
    if { $this(dircreated) == "true" } {
        # ------------------------------------------------------------------ 
        ts_log_heading "Cleanup 4 : Delete temp /tmp/$this(dir) directory"
        # ------------------------------------------------------------------
-       set output [start_remote_prog $this(master) $this(admin) "rm" "-r /tmp/$this(dir)"] 
+       set output [start_remote_prog $this(master) $this(owner) "rm" "-r /tmp/$this(dir)"] 
        if {$prg_exit_state != 0} {
           set    msg "There was a problem with deleting the reporter temp directory\n"
           append msg "Output was\n"
@@ -382,4 +347,35 @@ proc hedeby_issue609_check {} {
       ts_log_severe $msg
       return
    }
+}
+
+proc hedeby_issue609_shutdown_jvm { jvm host } {
+   read_hedeby_jvm_pid_info pid_info $host "root" $jvm
+   set pid $pid_info(pid)
+   
+   ts_log_heading "Shutting down $jvm on host \"$host\" (pid=$pid)..."
+   sdmadm_command_opt "sdj -j $jvm -h $host"
+   if {$prg_exit_state != 0} {
+      set    msg "There was a problem shutting down $jvm on host $host.\n"
+      append msg "Output was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+
+   set my_timeout [timestamp]
+   incr my_timeout 60
+   while { 1 } {
+      ts_log_fine "Waiting for shutdown of process \"$pid\" ..."
+      if { [is_hedeby_process_running $host $pid] == 0 } {
+         ts_log_fine "Process not found - fine!"
+         break
+      }
+      if { [timestamp] > $my_timeout} {
+         ts_log_severe "Timeout while waiting for shutdown of $jvm on host $host!"
+         break
+      }
+      after 1000
+   }
+
 }

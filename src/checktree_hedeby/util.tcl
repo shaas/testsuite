@@ -2210,10 +2210,10 @@ proc start_parallel_sdmadm_command_opt {host_list task_info {opt ""}} {
 #*******************************************************************************
 proc startup_hedeby_hosts { type host_list user } {
    global hedeby_config
-   set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm rp_vm"
+   set expected_jvms($hedeby_config(hedeby_master_host)) [get_expected_jvms $hedeby_config(hedeby_master_host)]
    # setup managed host expectations ...
    foreach host_temp [get_all_movable_resources] {
-      set expected_jvms($host_temp) "executor_vm"
+      set expected_jvms($host_temp) [get_expected_jvms $host_temp]
    }
 
    set success [create_bundle_string "StartJVMCommand.success"]
@@ -2699,7 +2699,7 @@ proc hedeby_check_default_services {} {
          # check service host
          if {[info exists service_info($service,host)]} {
             set service_info_host [resolve_host $service_info($service,host)]
-            set expected_host $service_names(master_host,$service)
+            set expected_host [get_service_host $service_names(master_host,$service)]
             if {$service_info_host != $expected_host} {
                append error_text "Service \"$service\" is running on host \"$service_info_host\""
                append error_text ", should be \"$expected_host\"\n"
@@ -10251,7 +10251,7 @@ proc copy_hedeby_proc_opt_arg_exclude { old_opts new_opts { exclude_what "" } } 
 #    cluster_procedures/set_current_cluster_config_nr
 #*******************************************************************************
 proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
-
+   global hedeby_config
    get_hedeby_proc_opt_arg $opt opts
 
    set org_ccn [get_current_cluster_config_nr]
@@ -10277,6 +10277,10 @@ proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
       set sopts(use_ssl) "true"
       set sopts(keystore_file)  "/var/sgeCA/port$sopts(master_port)/$sopts(cell)/userkeys/$sopts(user)/keystore"
       set sopts(keystore_pw) $ts_config(jmx_ssl_keystore_pw)
+      if { [is_simple_install_system] == 1 } {
+         copy_certificates $hedeby_config(hedeby_master_host) 0
+      }
+      
    } else {
       set msg "JMX server of the qmaster of cluster '$ts_config(cluster_name)' is not running in ssl mode\n"
       append msg "Authentication with a keystore will not work. User name/password authentication can not be used\n"
@@ -10377,7 +10381,7 @@ proc add_hedeby_ge_service { service_opts { opt "" } } {
    if { $sopts(use_ssl) == "true" } {
      if {![info exists sopts(keystore_file)]} {
         lappend errors "Service options keystore_file is mandatory for ssl mode"
-     }
+     } 
      if {![info exists sopts(keystore_pw)]} {
         lappend errors "Service options keystore_pw is mandatory for ssl mode"
      }
@@ -10399,8 +10403,8 @@ proc add_hedeby_ge_service { service_opts { opt "" } } {
    # ---------------------------------------------------------------------------
    # Start the sdmadm ags command
    # ---------------------------------------------------------------------------
-   ts_log_fine "adding GE service \"$sopts(service_name)\" for cluster on host \"$sopts(host)\" ..."
-   set ispid [hedeby_mod_setup_opt "ags -h $sopts(host) -j rp_vm -s $sopts(service_name)" error_text opts]
+   ts_log_fine "adding GE service \"$sopts(service_name)\" for cluster on host \"[get_service_host $sopts(host)]\" ..."
+   set ispid [hedeby_mod_setup_opt "ags -h [get_service_host $sopts(host)] -j [get_service_jvm] -s $sopts(service_name)" error_text opts]
 
    set sequence {}
    lappend sequence "[format "%c" 27]" ;# ESC
@@ -10634,3 +10638,214 @@ proc hedeby_master_jvm_name { } {
    #currently our system is supporting "cs_vm", names of jvm in hedeby should be accessed by utility functions
    return "cs_vm"
 }
+
+#****** util/get_expected_jvms() ***************************************************
+#  NAME
+#     get_expected_jvms() -- return string which is representing master jvm name of current system
+#
+#  SYNOPSIS
+#     get_expected_jvms { host } 
+#
+#  FUNCTION
+#     return string which is representing master jvm name of current system
+#
+#  INPUTS
+#     host - name of the host
+#
+#  RESULT
+#     string - name of master jvm (by default "cs_vm")
+#
+#*******************************************************************************
+proc get_expected_jvms { host } {
+   global hedeby_config
+   #currently our system is supporting "cs_vm", names of jvm in hedeby should be accessed by utility functions
+   if { [is_simple_install_system] == 0 } {
+      if { $hedeby_config(hedeby_master_host) == $host } {
+	 return "cs_vm rp_vm executor_vm"
+      } else {
+	 return "executor_vm"
+      }
+   } else {
+      return "cs_vm"
+   }
+}
+
+#****** util/get_service_jvm() ***************************************************
+#  NAME
+#     get_service_jvm() -- return name of jvm in which service adapter should run
+#
+#  SYNOPSIS
+#     get_service_jvm { } 
+#
+#  FUNCTION
+#     return name of jvm in which service adapter should run
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     string - name of jvm in which service adapter should run
+#
+#*******************************************************************************
+proc get_service_jvm { } {
+ 
+   if { [is_simple_install_system] == 1 } {
+      return "cs_vm"
+   } else {
+      return "rp_vm"
+   }
+}
+
+#****** util/get_service_host() ***************************************************
+#  NAME
+#     get_service_host() -- return host on which adapter for service should be running
+#
+#  SYNOPSIS
+#     get_service_host { host } 
+#
+#  FUNCTION
+#     return host on which adapter for service should be running
+#
+#  INPUTS
+#     host - name of the host where service is running
+#
+#  RESULT
+#     string - host on which adapter is runing
+#
+#*******************************************************************************
+proc get_service_host { service_host } {
+   global hedeby_config
+   #currently our system is supporting "cs_vm", names of jvm in hedeby should be accessed by utility functions
+   if { [is_simple_install_system] == 0 } {
+      return $service_host
+   } else {
+      return $hedeby_config(hedeby_master_host)
+   }
+}
+
+
+#****** util/get_RP_jvm() ***************************************************
+#  NAME
+#     get_RP_jvm() -- return string which is representing jvm name where resource provider resides
+#
+#  SYNOPSIS
+#     get_RP_jvm { } 
+#
+#  FUNCTION
+#     return string which is representing jvm name where resource provider resides
+#
+#  INPUTS
+#     NONE
+#
+#  RESULT
+#     string - name of jvm for RP ("normal" system - "rp_vm", simple system "cs_vm")
+#
+#*******************************************************************************
+proc get_RP_jvm { } {
+	
+   if { [is_simple_install_system] == 1 } {
+      return "cs_vm"
+   } else {
+      return "rp_vm"
+   }
+}
+
+#****** util/get_reporter_jvm() ***************************************************
+#  NAME
+#     get_reporter_jvm() -- return string which is representing reporter jvm name of current system
+#
+#  SYNOPSIS
+#     get_reporter_jvm { } 
+#
+#  FUNCTION
+#     return string which is representing jvm name where reporter component resides
+#
+#  INPUTS
+#     NONE
+#
+#  RESULT
+#     string - name of jvm for reporter ("normal" system - "rp_vm", simple system "cs_vm")
+#
+#*******************************************************************************
+proc get_reporter_jvm { } {
+   
+   if { [is_simple_install_system] == 1 } {
+      return "cs_vm"
+   } else {
+      return "rp_vm"
+   }
+}
+
+#****** util/get_jvm_owner() ***************************************************
+#  NAME
+#     get_jvm_owner() -- return string which is representing reporter jvm name of current system
+#
+#  SYNOPSIS
+#     get_jvm_owner { jvm } 
+#
+#  FUNCTION
+#     return string which is representing jvm name where RP resides
+#
+#  INPUTS
+#     jvm - name of jvm for which owner should be determined
+#
+#  RESULT
+#     string - containing owner from global.xml
+#
+#*******************************************************************************
+proc get_jvm_owner { jvm } {
+   global hedeby_config ts_config
+   
+   set script "$ts_config(testsuite_root_dir)/scripts/hedeby_config_parser.sh"
+   set spool [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   set tmp_file [get_tmp_file_name $hedeby_config(hedeby_master_host)]
+   set res [start_remote_prog $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $script "$spool/spool/cs/global.xml $tmp_file user $jvm" prg_exit_state 120 0 "" "" 1 0 0 1 1]
+   if { $res == "" } {
+      ts_log_severe "Could not get owner of jvm: $jvm"
+      return
+   }
+   #we should get just one element
+   set tmp [split $res "\n"]
+   set res ""
+   foreach e $tmp {
+      if { $e != "" } {
+	 if { $res != "" } {
+            ts_log_severe "Found more than one owner elements for jvm $jvm. Found: $res and $e"
+	 } else {
+	    set res [string trim $e]
+	 }
+      }
+   }		   
+   if { $res == "" } {	
+      ts_log_severe "Found no valid users for $jvm."
+      return
+   }
+   
+   return $res
+}
+#****** util/is_simple_install_system() ***************************************************
+#  NAME
+#     is_simple_install_system() -- check if system is simple installation system
+#
+#  SYNOPSIS
+#     is_simple_install_system { } 
+#
+#  FUNCTION
+#     return 1 if system is using simple_install
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     int - 0 normal installation, 1 simple installation
+#
+#*******************************************************************************
+proc is_simple_install_system { } {
+   global hedeby_config
+   if { $hedeby_config(hedeby_install_mode) == "normal" } {
+      return 0
+   } else {
+      return 1
+   }
+}
+

@@ -184,7 +184,7 @@ proc hedeby_move_simhost_setup_level {} {
 
    get_hedeby_default_services service_names
    set this(service)      [pick_random $service_names(services)]
-   set this(service_host) $service_names(master_host,$this(service))
+   set this(service_host) [get_service_host $service_names(master_host,$this(service))]
 
    set this(ccnr) [get_current_cluster_config_nr]
    set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(service))

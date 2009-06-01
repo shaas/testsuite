@@ -38,6 +38,7 @@ global check_name check_description check_needs check_functions
 global check_root_access_needs check_category      
 global check_use_installed_system check_init_level_procedure
 
+
 # This file shows some check spezific things
 set check_root_access_needs    "yes"
 set check_name                 "unassign_resources"
@@ -64,7 +65,6 @@ lappend check_functions "ge_unassign_resources_check"
 
 proc ge_unassign_resources_init_level {} {
   global CHECK_ACT_LEVEL
-
   switch -- $CHECK_ACT_LEVEL {
      0 { return 0 }
      1 { return 0 }
@@ -79,8 +79,6 @@ proc ge_unassign_resources_init_level {} {
 
 proc ge_unassign_resources_setup {} {
    upvar #0 ge_unassign_resources_ctx this
-   
-   # get some global settings
    get_hedeby_default_services service_names
    
    set service_name [lindex $service_names(services) 0]
@@ -126,7 +124,7 @@ proc ge_unassign_resources_cleanup {} {
    set_current_cluster_config_nr $this(org_cluster_nr)
    
    set_hedeby_default_job_suspend_policy $this(service_name)
-   reload_hedeby_component $this(service_name) $this(master_host)
+   reload_hedeby_component $this(service_name) [get_service_host $this(master_host)]
    unset this
 }
 
@@ -267,7 +265,7 @@ proc ge_unassign_resources_check {} {
    }
    
    # reload the service config 
-   if {[reload_hedeby_component $this(service_name) $this(master_host)] != 0} {
+   if {[reload_hedeby_component $this(service_name) [get_service_host $this(master_host)] ] != 0} {
       ts_log_severe "skipping test, cannot reload hedeby component!"
       return
    }

@@ -104,7 +104,7 @@ proc hedeby_issue_632_setup_level {} {
 
    set ctx(resource) [pick_random [get_all_spare_pool_resources]]
    set ctx(ge_service) [pick_random $service_names(services)]
-   set ctx(ge_host) $service_names(master_host,$ctx(ge_service))
+   set ctx(ge_host) [get_service_host $service_names(master_host,$ctx(ge_service))]
 
    # remember old ts_cluster_nr and set cluster for test
    set ctx(old_cluster_nr) [get_current_cluster_config_nr]

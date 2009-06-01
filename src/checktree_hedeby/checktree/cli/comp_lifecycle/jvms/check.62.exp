@@ -121,7 +121,7 @@ proc jvms_stress_test_check {} {
    # setup managed host expectations ...
    foreach host [get_all_movable_resources] {
       if { [lsearch -exact $ge_qmaster_hosts $host] >= 0 } {
-         set expected_components($service_names(service,$host),$host,state) "STARTED"
+         set expected_components($service_names(service,$host),[get_service_host $host],state) "STARTED"
       }
       set expected_components(executor,$host,state) "STARTED"
    }

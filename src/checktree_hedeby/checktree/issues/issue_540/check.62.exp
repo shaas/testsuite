@@ -93,7 +93,7 @@ proc hedeby_issue540_init_level {} {
 #    Stores in the global variable hedeby_issue540_ctx the following values:
 #
 #    hedeby_issue540_ctx(service_name)   -  name of the used GE service (randomly selected)
-#    hedeby_issue540_ctx(master_host)    -  master host of the GE service
+#    hedeby_issue540_ctx(master_host)    -  host of the GE service adapter
 #    hedeby_issue540_ctx(sge_root)       -  correct sge_root directory of the GE service
 #    hedeby_issue540_ctx(cleanup_action) -  empty list, the check will added the different
 #                                           cleanup actions to this list
@@ -113,8 +113,8 @@ proc hedeby_issue540_setup_level {} {
    get_hedeby_default_services service_names
 
    set this(service_name)  [pick_random $service_names(services)]
-   set this(master_host)  $service_names(master_host,$this(service_name))
-
+   set this(master_host)  [get_service_host $service_names(master_host,$this(service_name))]
+   set this(jvm) [get_service_jvm]
    # get sge_root dir: store and reset current cluster for this
    set org_cluster_nr [get_current_cluster_config_nr]
    set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(service_name))
@@ -152,24 +152,38 @@ proc hedeby_issue540_cleanup_level {} {
 
    set doReset 0
 
-   if {[lsearch -exact $this(cleanup_actions) "shutdown_jvm"] >= 0} {
-      sdmadm_command_opt "sdj -j rp_vm -h $this(master_host)"
-      if {$prg_exit_state != 0} {
-         set doReset 1
-      }
-   }
+   
 
    if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "reset_config"] >= 0} {
+      if {[lsearch -exact $this(cleanup_actions) "startup_jvm"] >= 0} {
+         set suj_opts(host) $this(master_host)
+         set suj_opts(user) [get_hedeby_startup_user]
+         sdmadm_command_opt "suj -j $this(jvm)" suj_opts
+         if {$prg_exit_state != 0} {
+            set doReset 1
+         }
+	 unset suj_opts
+	 lappend this(cleanup_actions) "shutdown_jvm"
+      }
+      
       set seq {}
       lappend seq ":%s#root=\".*\"#root=\"$this(sge_root)\"#\n"
       if {[hedeby_issue540_mod_service $seq] != 0} {
          set doReset 1
       }
    }
+   
+   if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "shutdown_jvm"] >= 0} {
+      sdmadm_command_opt "sdj -j $this(jvm) -h $this(master_host)"
+      if {$prg_exit_state != 0} {
+         set doReset 1
+      }
+   }
 
    if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "startup_jvm"] >= 0} {
       set suj_opts(host) $this(master_host)
-      sdmadm_command_opt "suj -j rp_vm"
+      set suj_opts(user) [get_hedeby_startup_user]
+      sdmadm_command_opt "suj -j $this(jvm)" suj_opts
       if {$prg_exit_state != 0} {
          set doReset 1
       }
@@ -202,8 +216,8 @@ proc hedeby_issue540_cleanup_level {} {
 #
 #  The following steps are performed:
 #
-#    Step 1: Shutdown the jvm where the ge service is running
-#    Step 2: Configure an invalid sge_root for the ge_service
+#    Step 1: Configure an invalid sge_root for the ge_service
+#    Step 2: Shutdown the jvm where the ge service is running
 #    Step 3: Startup the jvm where the ge service should run
 #    Step 4: Check that the jvm has been started
 #    Step 5: Check that the component state of the GE service is STOPPED
@@ -219,17 +233,7 @@ proc hedeby_issue540_check {} {
    upvar #0 hedeby_issue540_ctx this
 
    # --------------------------------------------------------------------------
-   # Step 1: Shutdown the jvm where the ge service is running
-   # --------------------------------------------------------------------------
-   sdmadm_command_opt "sdj -j rp_vm -h $this(master_host)"
-   if {$prg_exit_state != 0} {
-      # error is already reported
-      return
-   }
-   lappend this(cleanup_actions) "startup_jvm"
-
-   # --------------------------------------------------------------------------
-   # Step 2: Configure an invalid sge_root for the ge_service
+   # Step 1: Configure an invalid sge_root for the ge_service
    # --------------------------------------------------------------------------
    set fake_sge_root "/tmp"
    set seq {}
@@ -242,10 +246,22 @@ proc hedeby_issue540_check {} {
    lappend this(cleanup_actions) "reset_config"
 
    # --------------------------------------------------------------------------
+   # Step 2: Shutdown the jvm where the ge service is running
+   # --------------------------------------------------------------------------
+   sdmadm_command_opt "sdj -j $this(jvm) -h $this(master_host)"
+   if {$prg_exit_state != 0} {
+      # error is already reported
+      return
+   }
+   lappend this(cleanup_actions) "startup_jvm"
+
+   
+   # --------------------------------------------------------------------------
    # Step 3: Startup the jvm where the ge service should run
    # --------------------------------------------------------------------------
-   set suj_opt(host) $this(master_host) ;# execute command on ge service master host
-   sdmadm_command_opt "suj -j rp_vm" suj_opt
+   set suj_opt(host) $this(master_host) ;# execute command on ge service adapter host
+   set suj_opt(user) [get_hedeby_startup_user]
+   sdmadm_command_opt "suj -j $this(jvm)" suj_opt
    if { $prg_exit_state != 0 } {
       # error is already reported
       return
@@ -254,10 +270,10 @@ proc hedeby_issue540_check {} {
    # --------------------------------------------------------------------------
    # Step 4: Check that the jvm has been started
    # --------------------------------------------------------------------------
-   set exp_ji(rp_vm,$this(master_host),state) "STARTED" 
-   set err_ji(rp_vm,$this(master_host),state) "STOPPED"
-   set err_ji(rp_vm,$this(master_host),state) "STOPPING"
-   set ji_opts(jvm_name) "rp_vm"
+   set exp_ji($this(jvm),$this(master_host),state) "STARTED" 
+   set err_ji($this(jvm),$this(master_host),state) "STOPPED"
+   set err_ji($this(jvm),$this(master_host),state) "STOPPING"
+   set ji_opts(jvm_name) "$this(jvm)"
    set ji_opts(jvm_host) $this(master_host)
    set ji_opts(error_jvm_info) err_ji
 
@@ -275,8 +291,8 @@ proc hedeby_issue540_check {} {
       return 
    }
 
-   # We can remove the startup_jvm action (first element in cleanup actions)
-   set this(cleanup_actions) [lreplace $this(cleanup_actions) 0 0]
+   # We can remove the startup_jvm action (second element in cleanup actions)
+   set this(cleanup_actions) [lreplace $this(cleanup_actions) 1 1]
 
    # --------------------------------------------------------------------------
    # Step 5: Check that the component state of the GE service is STOPPED

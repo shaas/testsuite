@@ -136,16 +136,17 @@ proc hedeby_issue566_cleanup_level {} {
    if {$this(err) == "true"} {
         #we will try to stop and start again JVM
         ts_log_heading "CLEANUP 1. Stopping JVM with spare pool component"
+	rp_vm [get_service_jvm]
         #shutdown of the JVM
-        sdmadm_command_opt "sdj -j rp_vm -h $this(master)"
+        sdmadm_command_opt "sdj -j $rp_vm -h $this(master)"
         if {$prg_exit_state != 0} {
             #error is already reported
             set reset "true"
         }
         #we will check if the JVM is stopped
-        set exp_ji(rp_vm,$this(master),state) "STOPPED"
-        set err_ji(rp_vm,$this(master),state) "RELOADING"
-        set ji_opts(jvm_name) "rp_vm"
+        set exp_ji($rp_vm,$this(master),state) "STOPPED"
+        set err_ji($rp_vm,$this(master),state) "RELOADING"
+        set ji_opts(jvm_name) "$rp_vm"
         set ji_opts(jvm_host) $this(master)
         set ji_opts(error_jvm_info) err_ji
         if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
@@ -154,13 +155,14 @@ proc hedeby_issue566_cleanup_level {} {
         }
         ts_log_heading "CLEANUP 2. Starting JVM with spare pool component"
         #starting of the JVM
-        sdmadm_command_opt "suj -j rp_vm -h $this(master)"
+	set opt(user) [get_hedeby_startup_user]
+        sdmadm_command_opt "suj -j $rp_vm -h $this(master)" opt
         if {$prg_exit_state != 0} {
             #error is already reported
             set reset "true"
         }
         #we will check if the JVM is started
-        set exp_ji(rp_vm,$this(master),state) "STARTED"
+        set exp_ji($rp_vm,$this(master),state) "STARTED"
         if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
             ts_log_severe "CLEANUP Cannot start JVM with spare pool component"
             set reset "true"

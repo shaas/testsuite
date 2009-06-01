@@ -51,7 +51,7 @@ set ts_checktree($hedeby_checktree_nr,setup_hooks_0_init_func)    hedeby_init_co
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_verify_func)  hedeby_verify_config               
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_save_func)    hedeby_save_configuration        
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "hedeby" ]
-set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.3"
+set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.4"
 
 set ts_checktree($hedeby_checktree_nr,checktree_clean_hooks_0)  "hedeby_checktree_clean"            
 set ts_checktree($hedeby_checktree_nr,compile_hooks_0)          "hedeby_compile"                    
@@ -1188,6 +1188,50 @@ proc config_preferences_mode { only_check name config_array } {
    return $value
 }
 
+#****** checktree_hedeby/config_hedeby_install_mode() ************************************
+#  NAME
+#     config_hedeby_install_mode() -- configure procedure for "hedeby_install_mode"
+#
+#  SYNOPSIS
+#     config_hedeby_install_mode { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_install_mode) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
+proc config_hedeby_install_mode { only_check name config_array } {
+ 
+   upvar $config_array config
+
+   set help_text { "Choose the installation mode for hedeby"
+                   }
+   array set modes {
+      "normal" "regular mode - 3 jvms"
+      "simple" "all components in one jvm"
+   }
+   set value [config_generic $only_check $name config $help_text "choice" 0 1 modes]
+
+   return $value
+}
+
 #****** checktree_hedeby/config_hedeby_source_cvs_release() *********************************
 #  NAME
 #     config_hedeby_source_cvs_release() -- configure procedure for "hedeby_source_cvs_release"
@@ -1498,6 +1542,7 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    hedeby_config_upgrade_1_1 config
    hedeby_config_upgrade_1_2 config
    hedeby_config_upgrade_1_3 config
+   hedeby_config_upgrade_1_4 config
 
    # unset required host cache when verify config is called
    if {[info exists hedeby_required_host_cache]} {
@@ -2150,4 +2195,55 @@ proc hedeby_config_upgrade_1_3 { config_array } {
       set config(version) "1.3"
    }
 }
+
+#****** checktree_hedeby/hedeby_config_upgrade_1_4() **********************************
+#  NAME
+#     hedeby_config_upgrade_1_4() -- upgrade procedure to version 1.4
+#
+#  SYNOPSIS
+#     hedeby_config_upgrade_1_4 { config_array } 
+#
+#  FUNCTION
+#     This procedure is used to update (if necessary) the hedeby configuration
+#     version 1.3 to config version 1.4
+#
+#  INPUTS
+#     config_array - current configuration 
+#
+#  RESULT
+#     none
+#*******************************************************************************
+proc hedeby_config_upgrade_1_4 { config_array } {
+   global CHECK_OUTPUT   
+
+   upvar $config_array config
+
+   if { $config(version) == "1.3" } {
+      puts $CHECK_OUTPUT "Upgrade to version 1.4"
+      # insert new parameter after hedeby_product_root
+      set insert_pos $config(hedeby_product_root,pos)
+      incr insert_pos 1
+      
+      # move positions of following parameters
+      set names [array names config "*,pos"]
+      foreach name $names {
+         if { $config($name) >= $insert_pos } {
+            set config($name) [ expr ( $config($name) + 1 ) ]
+         }
+      }
+   
+      # new parameter install mode
+      set parameter "hedeby_install_mode"
+      set config($parameter)            ""
+      set config($parameter,desc)       "hedeby installation mode"
+      set config($parameter,default)    "normal"
+      set config($parameter,setup_func) "config_$parameter"
+      set config($parameter,onchange)   "install"
+      set config($parameter,pos) $insert_pos
+   
+      # now we have a configuration version 1.4
+      set config(version) "1.4"
+   }
+}
+
 

@@ -84,15 +84,16 @@ proc hedeby_install_init_level {} {
 }
 
 proc hedeby_install_setup {} {
-   global install_current_cluster_config
+   global install_current_cluster_config hedeby_config
 
    set install_current_cluster_config [get_current_cluster_config_nr]
 
    # print out system information:
    ts_log_fine "======================================="
    ts_log_fine "sys_name:          [get_hedeby_system_name]"
-   ts_log_fine "installation mode: [get_hedeby_pref_type]"
+   ts_log_fine "preferences mode:  [get_hedeby_pref_type]"
    ts_log_fine "admin user:        [get_hedeby_admin_user]"
+   ts_log_fine "install mode:      $hedeby_config(hedeby_install_mode)"
    ts_log_fine "======================================="
 }
 
@@ -126,21 +127,24 @@ proc hedeby_setup_slos {} {
 proc hedeby_startup_ge_services {} {
    global hedeby_config
    global install_current_cluster_config
- 
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
-
    set install_user [get_hedeby_startup_user]
 
-   set ge_hosts [get_hedeby_default_services service_names]
-   ts_log_fine "got following GE hosts: $ge_hosts"
-   set rp_vms_to_start {}
+   if { [is_simple_install_system] == 0 } {
+      set ge_hosts [get_hedeby_default_services service_names]
+      ts_log_fine "got following GE hosts: $ge_hosts"
+   } else {
+      set ge_hosts $hedeby_config(hedeby_master_host)
+      ts_log_fine "got following GE hosts: $ge_hosts"
+   }	
+   set hosts_with_jvm {}
    foreach ge_host $ge_hosts {
       # master host has already running rp_vm
       if {$ge_host != $hedeby_config(hedeby_master_host)} {
-         if {[lsearch -exact $rp_vms_to_start $ge_host] < 0} {
-            lappend rp_vms_to_start $ge_host
+         if {[lsearch -exact $hosts_with_jvm $ge_host] < 0} {
+            lappend hosts_with_jvm $ge_host
          }
       } else {
          ts_log_fine "shutting down hedeby master host \"$ge_host\" ..."
@@ -154,13 +158,13 @@ proc hedeby_startup_ge_services {} {
          #sdmadm_command $ge_host [get_hedeby_admin_user] $sdmadm_command
       }
    }
-   ts_log_fine "starting rp_vm on hosts: $rp_vms_to_start"
+   ts_log_fine "starting jvm: [get_service_jvm] on hosts: $hosts_with_jvm"
 
-   foreach host $rp_vms_to_start {
+   foreach host $hosts_with_jvm {
       set task_info($host,expected_output) ""
-      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name suj -j rp_vm"
+      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name suj -j [get_service_jvm]"
    }
-   start_parallel_sdmadm_command rp_vms_to_start [get_hedeby_admin_user] task_info
+   start_parallel_sdmadm_command hosts_with_jvm $install_user task_info
 }
 
 
@@ -284,6 +288,7 @@ proc hedeby_install_master_host {} {
    ts_log_fine "   ca_org_unit:   $ca_org_unit"
    ts_log_fine "   ca_state:      $ca_state"
    ts_log_fine "ssl disabled:     $ssl_disabled"
+   ts_log_fine "install mode:     $hedeby_config(hedeby_install_mode)"
    ts_log_fine "======================================="
 
    # install new system ...
@@ -308,6 +313,9 @@ proc hedeby_install_master_host {} {
       append arguments " -nossl"
    }
 
+   if { $hedeby_config(hedeby_install_mode) == "simple" } {
+      append arguments " -si"
+   }
    set install_master_output [sdmadm_command $hedeby_config(hedeby_master_host) $install_user $arguments]
    if { $prg_exit_state != 0 } {
       ts_log_severe "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"

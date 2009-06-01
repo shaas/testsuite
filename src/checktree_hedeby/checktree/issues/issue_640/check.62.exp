@@ -137,9 +137,10 @@ proc hedeby_issue_640_setup_level {} {
    set this(unknown_user) "humple_pump" 
    set this(managed_host) [pick_random [get_all_spare_pool_resources]]
 
-   set this(org_owner) [get_hedeby_admin_user]
+   set this(ca_owner) [get_hedeby_admin_user]
    set this(jvm)          "cs_vm"
-
+   set this(jvm_owner)    [get_jvm_owner $this(jvm)]
+ 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          # -------------------------------------------------------------------------
@@ -183,14 +184,14 @@ proc hedeby_issue_640_cleanup_level {} {
 
    set doReset 0 
    if { [lsearch $this(cleanup_actions) "reset_ca_config"] >= 0 } {
-      if {[hedeby_set_ca_admin_user $this(org_owner) ] != 0 } {
+      if {[hedeby_set_ca_admin_user $this(ca_owner) ] != 0 } {
          ts_log_fine "Could not reset the ca configuration"
          set doReset 1
       }
    } 
 
    if { $doReset == 0 && [lsearch $this(cleanup_actions) "reset_jvm_owner"] >= 0 } {
-      if {[hedeby_change_jvm_owner $this(jvm) $this(org_owner) ] != 0 } {
+      if {[hedeby_change_jvm_owner $this(jvm) $this(jvm_owner) ] != 0 } {
          ts_log_fine "Could not reset the owner of jvm '$this(jvm)'"
          set doReset 1
       }

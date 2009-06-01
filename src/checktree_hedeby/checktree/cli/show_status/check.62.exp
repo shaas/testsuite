@@ -113,7 +113,13 @@ proc show_status_init_level {} {
 # cluster config nr in a global variable.
 proc show_status_setup {} {
    global show_status_current_cluster_config
-   
+   global show_status_ctx
+   set show_status_ctx(skip) 0
+   if { [is_simple_install_system] == 1 } {
+      ts_log_config "Simple installation not supported in this test"
+      set show_status_ctx(skip) 1
+      return;
+   }
    ts_log_fine "doing setup ..."
    set show_status_current_cluster_config [get_current_cluster_config_nr]
 }
@@ -123,9 +129,12 @@ proc show_status_setup {} {
 # be the setup function.
 proc show_status_cleanup {} {
    global show_status_current_cluster_config
-
+   global show_status_ctx
+   if { $show_status_ctx(skip) == 1 } {
+      return;
+   }
    ts_log_fine "doing cleanup ..."
-
+   
    set_current_cluster_config_nr $show_status_current_cluster_config
 }
 
@@ -250,7 +259,10 @@ proc parse_show_component_output { output_var {status_array "ss_out" } } {
 # status the test will fail.
 proc show_status_check {} {
    global hedeby_config
-
+   global show_status_ctx
+   if { $show_status_ctx(skip) == 1 } {
+      return;
+   }
 
    set ge_qmaster_hosts [get_hedeby_default_services service_names]
 

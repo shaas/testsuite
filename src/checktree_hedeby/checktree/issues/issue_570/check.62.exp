@@ -98,6 +98,7 @@ proc hedeby_issue570_init_level {} {
 #    hedeby_issue570_ctx(changed)      -  determine if configuration was changed 
 #    hedeby_issue570_ctx(file)         -  new resource corrupted spool file 
 #    hedeby_issue570_ctx(admin)        -  hedeby admin user
+#    hedeby_issue570_ctx(owner)        -  owner of the jvm
 #    
 #  INPUTS
 #     no input parameters
@@ -114,8 +115,9 @@ proc hedeby_issue570_setup_level {} {
 
    set this(master) $hedeby_config(hedeby_master_host)
    set this(ge_name) [pick_random $service_names(services)]   
-   set this(ge_host) $service_names(master_host,$this(ge_name))
+   set this(ge_host) [get_service_host $service_names(master_host,$this(ge_name))]
    set this(file) "[get_hedeby_local_spool_dir $this(ge_host)]/spool/${this(ge_name)}/res[timestamp].srf"
+   set this(owner) [get_jvm_owner [get_service_jvm] ]
    set this(err) "false"
    set this(changed) "false"
    set this(admin) [get_hedeby_admin_user]
@@ -140,14 +142,13 @@ proc hedeby_issue570_setup_level {} {
 #*******************************************************************************
 proc hedeby_issue570_cleanup_level {} {
    upvar #0 hedeby_issue570_ctx this
-
+   
    if {$this(err) == "true"} {
       if {$this(changed) == "true"} {
-          start_remote_prog $this(ge_host) $this(admin) "rm" "$this(file)"
+         start_remote_prog $this(ge_host) $this(owner) "rm" "$this(file)"
       }
-      reset_hedeby 1
+   reset_hedeby 1
    }
-   
    unset this
 }
 
@@ -183,9 +184,10 @@ proc hedeby_issue570_check {} {
    # --------------------------------------------------------------------------
    ts_log_heading "Step 1: We will add new corrupted resource spool file to one of ge adapter spool directory"  
    # --------------------------------------------------------------------------
-   set output [start_remote_prog $this(ge_host) $this(admin) "touch" "$this(file)"] 
+
+   set output [start_remote_prog $this(ge_host) $this(owner) "touch" "$this(file)"] 
    if {$prg_exit_state != 0} {
-      set    msg "Step 1. There was a problem with creating file $this(file) on host $this(ge_host) as user $this(admin).\n"
+      set    msg "Step 1. There was a problem with creating file $this(file) on host $this(ge_host) as user $this(owner).\n"
       append msg "Output was\n"
       append msg $output
       ts_log_severe $msg
@@ -212,9 +214,9 @@ proc hedeby_issue570_check {} {
    # --------------------------------------------------------------------------
    ts_log_heading "Step 4: We will remove corrupted file."  
    # --------------------------------------------------------------------------
-   set output [start_remote_prog $this(ge_host) $this(admin) "rm" "$this(file)"] 
+   set output [start_remote_prog $this(ge_host) $this(owner) "rm" "$this(file)"] 
    if {$prg_exit_state != 0} {
-      set    msg "Step 4. There was a problem with removing file $this(file) on host $this(ge_host) as user $this(admin)."
+      set    msg "Step 4. There was a problem with removing file $this(file) on host $this(ge_host) as user $this(owner)."
       append msg "Output was\n"
       append msg $output
       set this(err) "true"

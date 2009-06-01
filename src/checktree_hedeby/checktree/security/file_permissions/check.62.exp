@@ -94,7 +94,14 @@ proc hedeby_file_permissions_init_level {} {
 #     Setup function for this test
 #*******************************************************************************
 proc hedeby_file_permissions_setup {} {
+   
    upvar #0 hedeby_file_permisssion_ctx ctx
+   set ctx(skip) 0
+   if { [is_simple_install_system] == 1 } {
+      ts_log_config "Simple installation not supported in this test"
+      set ctx(skip) 1
+      return;
+   }
    set ctx(cl_nr) [get_current_cluster_config_nr]
    set ctx(user) [get_hedeby_startup_user]
    set ctx(error) 0
@@ -123,7 +130,9 @@ proc hedeby_file_permissions_setup {} {
 #*******************************************************************************
 proc hedeby_file_permissions_cleanup {} {
    upvar #0 hedeby_file_permisssion_ctx ctx
-
+   if { $ctx(skip) == 1 } {
+      return;
+   }
    # set the current cluster config to the one used when starting
    # the test
    set_current_cluster_config_nr $ctx(cl_nr)
@@ -146,6 +155,9 @@ proc hedeby_file_permissions_cleanup {} {
 #*******************************************************************************
 proc hedeby_check_master_host_file_permissions {} {
    upvar #0 hedeby_file_permisssion_ctx ctx
+   if { $ctx(skip) == 1 } {
+      return;
+   }
    global hedeby_config
 
    ts_log_heading "Checking file permissions on master host ..."
@@ -341,6 +353,9 @@ proc hedeby_check_master_host_file_permissions {} {
 #*******************************************************************************
 proc hedeby_file_permissions_check_managed_host {} {
     upvar #0 hedeby_file_permisssion_ctx ctx
+    if { $ctx(skip) == 1 } {
+      return;
+   }
     if {$ctx(error) != 0} {
         return
     }
@@ -419,7 +434,7 @@ proc hedeby_file_permissions_check_managed_host {} {
 #
 #*******************************************************************************
 proc hedeby_file_permissions_add_ge_service_files { host ignore_path_var { ef_var "" } } {
-
+   
    if { $ef_var == "" } {
       upvar expected_files ef
    } else {

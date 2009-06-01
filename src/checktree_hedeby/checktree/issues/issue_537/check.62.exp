@@ -182,9 +182,9 @@ proc hedeby_issue537_check {} {
    get_hedeby_proc_default_opt_args opt
    # error checking is done manually here
    set opt(raise_error) 0
-
+   set service_vm [get_service_jvm]
    #Step1
-   set arguments "asps -j rp_vm -s $ctx(spare_pool) -h $fakehost"
+   set arguments "asps -j $service_vm -s $ctx(spare_pool) -h $fakehost"
    set output [sdmadm_command_opt $arguments opt]
    if {$prg_exit_state != 2} {
       ts_log_severe "Executing command add spare pool service didn't fail while adding service $ctx(spare_pool) on host $fakehost\nprg_exit_state=$prg_exit_state"
@@ -228,7 +228,7 @@ proc hedeby_issue537_check {} {
    }
    
    #step2
-   set arguments "ags -j rp_vm -s $ctx(geadapter) -h $fakehost"
+   set arguments "ags -j $service_vm -s $ctx(geadapter) -h $fakehost"
    set ispid [hedeby_mod_setup_opt $arguments error_text3]
    set sequence {}
 
@@ -268,7 +268,7 @@ proc hedeby_issue537_check {} {
    }
 
    #step 3
-   set arguments "asps -j rp_vm -s $ctx(spare_pool) -h localhost"
+   set arguments "asps -j $service_vm -s $ctx(spare_pool) -h localhost"
    set opt(table_output) table1
    set output [sdmadm_command_opt $arguments opt]
    unset opt(table_output)
@@ -276,8 +276,8 @@ proc hedeby_issue537_check {} {
       ts_log_severe "Executing command add spare pool service failed while adding service $ctx(spare_pool) on the localhost\nprg_exit_state=$prg_exit_state"
       return
    }
-   if {$table1(jvm_name,0) != "rp_vm"} {
-      ts_log_severe "Jvm name '$table1(jvm_name,0)' is different than expected 'rp_vm'" 
+   if {$table1(jvm_name,0) != "$service_vm"} {
+      ts_log_severe "Jvm name '$table1(jvm_name,0)' is different than expected '$service_vm'" 
       return
    }
    if {$table1(service_name,0) != $ctx(spare_pool)} {
@@ -315,7 +315,7 @@ proc hedeby_issue537_check {} {
    }
    
    #step 4
-   set arguments "ags -j rp_vm -s $ctx(geadapter) -h localhost"
+   set arguments "ags -j $service_vm -s $ctx(geadapter) -h localhost"
    set ispid [hedeby_mod_setup_opt $arguments error_text3]
    set sequence {}
 

@@ -162,7 +162,8 @@ proc hedeby_issue_374_check {} {
    get_hedeby_default_services service_names
    set services $service_names(services)
    lappend services "spare_pool"
-
+   set rp_vm [get_RP_jvm]
+   
    foreach service $services {
 
       # step 1
@@ -191,12 +192,12 @@ proc hedeby_issue_374_check {} {
       unset err_hist
 
       # step 2
-      read_hedeby_jvm_pid_info pid_info $this(host) $this(user) "rp_vm"
+      read_hedeby_jvm_pid_info pid_info $this(host) $this(user) $rp_vm
       set pid $pid_info(pid)
 
       # step 3
-      ts_log_heading "Shutting down rp_vm on host \"$this(host)\" (pid=$pid)..."
-      sdmadm_command_opt "sdj -j rp_vm -h $this(host)"
+      ts_log_heading "Shutting down $rp_vm on host \"$this(host)\" (pid=$pid)..."
+      sdmadm_command_opt "sdj -j $rp_vm -h $this(host)"
 
       set my_timeout [timestamp]
       incr my_timeout 60
@@ -207,16 +208,16 @@ proc hedeby_issue_374_check {} {
             break
          }
          if { [timestamp] > $my_timeout} {
-            ts_log_severe "Timeout while waiting for shutdown of rp_vm on host $host!"
+            ts_log_severe "Timeout while waiting for shutdown of $rp_vm on host $host!"
             break
          }
          after 1000
       }
       
       # step 4
-      ts_log_heading "Startup rp_vm on host \"$this(host)\" ..."
-      sdmadm_command_opt "suj -j rp_vm"
-
+      ts_log_heading "Startup $rp_vm on host \"$this(host)\" ..."
+      set opts(user) [get_hedeby_startup_user]
+      sdmadm_command_opt "suj -j $rp_vm" opts
       # ... wait until RP is STARTED
       set exp_comp_info(resource_provider,$this(host),state) "STARTED"
       wait_for_component_info exp_comp_info

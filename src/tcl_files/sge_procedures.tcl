@@ -8373,11 +8373,13 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
 #  INPUTS
 #     host - host where the certificates has to be copied. (Master installation
 #            must be called before)
+#     sync - (optional), by default "1" means that check for clock times using "qstat -f"
+#            is done, different value this check is skipped
 #
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc copy_certificates { host } {
+proc copy_certificates { host { sync 1 } } {
    global ts_user_config
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
@@ -8463,24 +8465,26 @@ proc copy_certificates { host } {
       }
 
       # check for syncron clock times
-      set my_timeout [timestamp]
-      incr my_timeout 600
-      ts_log_fine "waiting for qstat -f to work ..."
-      while {1} {
-         set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f"]
-         ts_log_finest $result
-         if {$prg_exit_state == 0} {
-            ts_log_finer "qstat -f works, fine!"
-            break
-         }
-         if {[string first "not found" $result]} {
-            ts_log_severe "$result"
-            return 1
-         }
-         after 3000
-         if {[timestamp] > $my_timeout} {
-            ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
-            break
+      if { $sync == 1 } {
+         set my_timeout [timestamp]
+         incr my_timeout 600
+         ts_log_fine "waiting for qstat -f to work ..."
+         while {1} {
+            set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f"]
+            ts_log_finest $result
+            if {$prg_exit_state == 0} {
+               ts_log_finer "qstat -f works, fine!"
+               break
+            }
+            if {[string first "not found" $result]} {
+               ts_log_severe "$result"
+               return 1
+            }
+            after 3000
+            if {[timestamp] > $my_timeout} {
+               ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
+               break
+            }
          }
       }
    } else {
