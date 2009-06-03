@@ -6769,7 +6769,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
 #     smf_procedures/startup_smf_service()
 #*******************************************************************************
 proc startup_daemon { host service } {
-   global ts_config
+   global ts_config arco_config
    
    switch -exact $service {
       "master" -
@@ -7903,7 +7903,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 #     smf_procedure/start_smf_service()
 #*******************************************************************************
 proc shutdown_daemon { host service } {
-   global ts_config
+   global ts_config arco_config
    
    switch -exact $service {
       "master" -

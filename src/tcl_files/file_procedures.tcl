@@ -619,14 +619,20 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
 
    upvar $data_array_name data
    upvar $row_array_name rows
-   
-   foreach host [get_all_hosts] {
-      set gnuplot_bin [get_binary_path $host "gnuplot" 0]
-      if { $gnuplot_bin != "gnuplot" } {
-         # binary found
-         set local_host $host
-         break
+
+   set use_local_host true
+   set local_host [gethostname]
+   set gnuplot_bin [get_binary_path $local_host "gnuplot" 0]
+   if { $gnuplot_bin == "gnuplot" } {
+      # we didn't find gnuplot binaries on a local host, use another host
+      foreach host [get_all_hosts] {
+         set gnuplot_bin [get_binary_path $host "gnuplot" 0]
+         if { $gnuplot_bin != "gnuplot" } {
+            set local_host $host
+            break
+         }
       }
+      set use_local_host false
    }
 
    # generate data files
@@ -685,7 +691,10 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    puts $test_file "set terminal gif" 
    flush $test_file
    close $test_file
-   set result [start_remote_prog $local_host $CHECK_USER [get_binary_path $local_host "gnuplot"] $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
+   if { !$use_local_host } {
+      wait_for_remote_file $local_host $CHECK_USER $test_file_name
+   }
+   set result [start_remote_prog $local_host $CHECK_USER $gnuplot_bin $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state != 0 } {
       ts_log_fine "gnuplot does not support gif terminal, using png terminal ..."
       set terminal_type "png"
@@ -713,7 +722,9 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
       puts -nonewline $cmd_file "'$filename' index 0 title \"$title\" with $drawmode"
    }
    close $cmd_file
-
+   if { !$use_local_host } {
+      wait_for_remote_file $local_host $CHECK_USER $command_file
+   }
    set result [start_remote_prog $local_host $CHECK_USER $gnuplot_bin $command_file prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state == 0 } {
       return $data(output_file)

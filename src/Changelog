@@ -6,6 +6,15 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+AP-2009-06-03-0: Bugfix:     create_gnuplot_xy_gif() - using primarily localhost
+                 Belongs to: AP-2009-06-01-0
+                 Review:     CR
+                 Bugfix:     smf test fails when no BDB server host or no ARCO is
+                             configured - should return unsupported
+                 Belongs to: CR-2008-11-19-1
+                 Issue:      286
+                 Review:     JF
+
 RM-2009-06-01-0: Enhancem.:  support for hedeby "simple" installation, adjustment 
                              of all hedeby tests to this changes
                  Review:     TB

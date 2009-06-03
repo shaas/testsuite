@@ -682,7 +682,7 @@ proc smf_advanced_restart_test {host service {timeout 30} {kill_restarts 1}} {
 }
 
 proc enable_smf_in_cluster {} {
-   global ts_config CHECK_USER
+   global ts_config CHECK_USER arco_config
    
    set host $ts_config(bdb_server)
    set service "bdb"
@@ -757,7 +757,7 @@ proc remove_smf_from_cluster {} {
 }
 
 proc smf_startup_cluster {} {
-   global ts_config
+   global ts_config arco_config
    #bdb
    set host "$ts_config(bdb_server)"
    if {[llength $host] != 0} {
