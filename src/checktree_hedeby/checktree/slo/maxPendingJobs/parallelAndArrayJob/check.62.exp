@@ -346,7 +346,6 @@ proc mpjslo_parallel_and_array_job_check {} {
    set expected_quantity [expr $task_amount_job_1 - $total_slots]
    if { [mpjslo_parallel_and_array_job_check_request $slo_name $expected_quantity] != 0 } {
       #just exit, the subroutine allready logged severly
-      wait_for_enter
       return
    }
 
