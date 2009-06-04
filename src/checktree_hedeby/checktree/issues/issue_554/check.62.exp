@@ -210,6 +210,10 @@ proc hedeby_issue554_check {} {
    }
    ts_log_fine "Step 1 finished"
 
+   foreach resource $this(resources) {
+       set tmp_resinfo($resource,state) "ASSIGNED"
+   }
+
    # ------------------------------------------------------------------ 
    ts_log_heading "Step 2: Shutdown of all services in the system with -fr flag"
    # ------------------------------------------------------------------ 
@@ -228,6 +232,14 @@ proc hedeby_issue554_check {} {
           return
        }
        unset si
+
+       # wait until all moveable resource are in ASSIGNED state
+       set retval [wait_for_resource_info tmp_resinfo 120 0 mvr_error]
+       if { $retval != 0 } {
+          ts_log_severe "Not all resources have been successfully reassigned (old owner was service 'service'"
+          return
+       }
+
    }
    # do the same for spare pool service
    set output [sdmadm_command_opt "sds -s spare_pool -fr"]
