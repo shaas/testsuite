@@ -244,6 +244,8 @@ proc get_version_info { {version_information_array_name ""} } {
    set major_help [lindex $help 0]
    set minor_help [lindex $help 1]
 
+   set rel_info(major_release) "0"
+
    foreach str [split $major_help " "] {
       if {[string is integer $str]} {
          set rel_info(major_release) [string trim $str]
