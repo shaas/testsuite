@@ -56,6 +56,7 @@ lappend check_functions    "qmod_enable"
 lappend check_functions    "qmod_suspend"
 lappend check_functions    "qmod_unsuspend"
 lappend check_functions    "qmod_clearerrorstate"
+lappend check_functions    "qmod_clearqueue"
 lappend check_functions    "qmod_forceaction"
 # ---- Wildchart test ------------------------------
 lappend check_functions    "qmod_wildcard_disable"
@@ -648,6 +649,71 @@ proc qmod_clear_all_error_states {} {
       set output [start_sge_bin "qmod" "-c $qinstance"]
    }
 }
+
+#                                                             max. column:     |
+#****** qmod/qmod_clearerrorstate() ******
+# 
+#  NAME
+#     qmod_clearqueue -- performs the cq option  
+#
+#  SYNOPSIS
+#     qmod_clearqueue { } 
+#
+#  FUNCTION
+#     Try to clear the error state of a queue.  
+#
+#*******************************
+proc qmod_clearqueue {} {
+   global ts_config
+   global test_host qmod_test_queues
+
+   set queue_list $qmod_test_queues
+   lappend queue_list "all.q"
+
+   foreach queue $queue_list {
+      set qinstance [get_queue_instance $queue $test_host]
+      set output [start_sge_bin "qmod" "-cq $qinstance"]
+      # the command itself should be successful anyway even 
+      # if the state was not in error before 
+      if {$prg_exit_state != 0} {
+         ts_log_severe "exit state of \"qmod -cq $qinstance\" is not 0:\n$output"
+      } else {
+         ts_log_fine "qmod -cq $qinstance : command successful"
+      }
+   }
+
+   # additional negative tests with wrong syntax 
+   set output [start_sge_bin "qmod" "-cq @blablub"]
+   if {$prg_exit_state == 0} {
+      ts_log_severe "exit state of \"qmod -cq @blablub\" is not 0:\n$output"
+   } else {
+      ts_log_fine "ok: qmod -cq @blablub was rejected"
+   }
+   
+   set output [start_sge_bin "qmod" "-cq blablub@"]
+   if {$prg_exit_state == 0} {
+      ts_log_severe "exit state of \"qmod -cq blablub@\" is not 0:\n$output"
+   } else {
+      ts_log_fine "ok: qmod -cq blablub@ was rejected"
+   }
+   
+   set output [start_sge_bin "qmod" "-cq blablub@@"]
+   if {$prg_exit_state == 0} {
+      ts_log_severe "exit state of \"qmod -cq blablub@@\" is not 0:\n$output"
+   } else {
+      ts_log_fine "ok: qmod -cq blablub@@ was rejected"
+   }
+   
+   set output [start_sge_bin "qmod" "-cq @@blablub"]
+   if {$prg_exit_state == 0} {
+      ts_log_severe "exit state of \"qmod -cq @@blablub\" is not 0:\n$output"
+   } else {
+      ts_log_fine "ok: qmod -cq @@blablub was rejected"
+   }
+
+}
+
+
 
 # do to:
 # 1) set running job to suspend
