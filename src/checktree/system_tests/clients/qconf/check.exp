@@ -2675,6 +2675,14 @@ proc qconf_del_sharetree {} {
 
    # delete the sharetree
    del_sharetree
+
+   # now there may be no sharetree, make sure the correct error message is
+   # returned by qconf -sstree
+   set msg [translate_macro MSG_OBJ_NOSTREEELEM]
+   set output [string trim [start_sge_bin "qconf" "-sstree"]]
+   if {![string match $msg $output]} {
+      ts_log_severe "qconf -sstree should have output\n$msg\nbut got\n$output"
+   }
 }
 
 #****** check/qconf_add_project() **********************************************

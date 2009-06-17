@@ -1,0 +1,253 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+#set check_root_access_needs "yes"
+set check_need_running_system "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3017_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_3017"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "test signal delivery with notification for qsub jobs"
+set check_description(1)  "test signal delivery with notification for qrsh jobs"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_3017_setup
+set check_setup_level_function issue_3017_setup_level
+set check_cleanup_function issue_3017_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_3017_test"
+
+proc issue_3017_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_3017_setup {} {
+   global issue_3017_host
+
+   # we test on one host
+   set issue_3017_host [host_conf_get_suited_hosts]
+
+   # create a queue with suspend_method
+   set queue(suspend_method) "SIGTSTP"
+   set queue(notify) "0:0:30"
+   add_queue "iz_3017" $issue_3017_host queue
+}
+
+proc issue_3017_setup_level {} {
+   global CHECK_ACT_LEVEL
+   global submit_command
+
+   switch -exact $CHECK_ACT_LEVEL {
+      0 {
+         set submit_command "qsub"
+      }
+      1 {
+         set submit_command "qrsh"
+      }
+   }
+}
+
+proc issue_3017_cleanup {} {
+   global ts_config
+   global submit_command issue_3017_host
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "iz_3017" "" 1 1
+
+   # unset our test's global variables
+   foreach var "submit_command issue_3017_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc issue_3017_test {} {
+   global ts_config CHECK_USER
+   global submit_command issue_3017_host
+
+   set job_id 0
+   set tasks_running 0
+   set signals(SIGTSTP) 0
+   set signals(SIGUSR1) 0
+   set job_finished 0
+
+   set submit_args "-cwd -notify -q iz_3017"
+   if {$submit_command == "qrsh"} {
+      append submit_args " -noshell"
+   }
+   set submit_script "$ts_config(testsuite_root_dir)/scripts/trap.sh"
+   set script_args "0 60"
+
+   set id [submit_with_method $submit_command $submit_args $submit_script $script_args $issue_3017_host]
+   set sp_id [lindex $id 1]
+   set timeout 40
+
+   # There is a problem, which only appears on Linux and Darwin:
+   # sge_shepherd is actually sending the SIGTSTP to the whole process group
+   # (this can be seen from the trace file), but only the job script reports
+   # receiving SIGTSTP. The child processes seem to hang, sending a SIGCONT
+   # to the process group wakes them up. But according to ps -elf, they are *not*
+   # suspended.
+   # To workaround this problem, we expect *all* SIGTSTP to be reported within
+   # 5 seconds, if we only got 1 SIGTSTP reported, we unsuspend the job.
+   # Then we immediately get the 2 missing SIGTSTP reports.
+   set linux_workaround 0
+   expect_user {
+      -i $sp_id timeout {
+         if {$linux_workaround} {
+            if {$signals(SIGTSTP) == 1} {
+               ts_log_fine "after 5 seconds timeout, only the parent process received SIGTSTP"
+               ts_log_fine "try to unsuspend job"
+               unsuspend_job $job_id
+               ts_log_info "SIGTSTP only seen on parent process on host $issue_3017_host"
+            }
+            set timeout 40
+            set linux_workaround 0
+            exp_continue
+         }
+         ts_log_severe "timeout while waiting for job output"
+      }
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof while waiting for job output"
+      }
+      -i $sp_id "?*\n" {
+         # TODO: comment describing flow
+         foreach line [string trim [split $expect_out(0,string) "\n"]] {
+            set line [string trim $line]
+            if {[string length $line] > 0} {
+               switch -glob $line {
+                  "job started with job_id *" {
+                     set job_id [lindex $line 4]
+                     ts_log_fine "job $job_id started"
+                  }
+                  "0 starting sub processes" {
+                     ts_log_fine "parent process spawned sub processes"
+                  }
+                  "? sleeping * seconds" {
+                     ts_log_fine "task started"
+                     incr tasks_running
+                     if {$tasks_running == 2} {
+                        suspend_job $job_id
+                     }
+                  }
+                  "? got signal *" {
+                     set task [lindex $line 0]
+                     set signal [lindex $line 3]
+                     ts_log_fine "tasks $task received signal $signal"
+                     incr signals($signal)
+                     if {!$linux_workaround && $signals(SIGTSTP) == 1} {
+                        ts_log_fine "prepare for linux workaround"
+                        set linux_workaround 1
+                        set timeout 5
+                     }
+                  }
+                  "? done" {
+                     set task [lindex $line 0]
+                     ts_log_fine "process $task ended"
+                  }
+                  "0 sub processes ended" {
+                     ts_log_fine "child processes ended - job is ending now"
+                     set job_finished 1
+                     break
+                  }
+                  default {
+                     ts_log_fine "unexpected output: $line"
+                  }
+               }
+            }
+         } ;# foreach line
+         if {!$job_finished} {
+            exp_continue
+         }
+      }
+   }
+
+   # close session
+   close_spawn_process $id
+
+   # when the job ran through, do some checks
+   if {$job_finished} {
+      if {$tasks_running != 2} {
+         ts_log_severe "not all sub processes have been started"
+      }
+      if {$signals(SIGUSR1) != 3} {
+         ts_log_severe "only $signals(SIGUSR1) of 3 processes have been notified (SIGUSR1)"
+      }
+      if {$signals(SIGTSTP) != 3} {
+         ts_log_severe "only $signals(SIGTSTP) of 3 processes would have got suspended (SIGTSTP)"
+      }
+   } else {
+      if {[wait_for_jobend $job_id "" 10 0 1 0] == -1} {
+         delete_job $job_id 1
+      }
+   }
+}

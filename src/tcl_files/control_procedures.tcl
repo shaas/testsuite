@@ -602,7 +602,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       set com_sent 0
       send -s -i $sp_id -- "$elem"
       send -s -i $sp_id -- ""
-      set timeout 1
+      set timeout 10
       expect {
          -i $sp_id full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -765,7 +765,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          ts_log_finest "vi terminated! (4)"
          close_spawn_process $id
          set error_text ""
-         append error_text "got timeout while sending vi commands\n"
+         append error_text "got timeout while sending vi commands (1)\n"
          append error_text "please make sure that no single vi command sequence\n"
          append error_text "leaves the vi in \"insert mode\" !!!"
          ts_log_severe $error_text
@@ -1060,7 +1060,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       set com_sent 0
       send -s -i $sp_id -- "$elem"
       send -s -i $sp_id -- ""
-      set timeout 1
+      set timeout 10
       expect {
          -i $sp_id full_buffer {
             set result $BUFF_OVERFLOW
@@ -1080,7 +1080,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
             incr timeout_count 1
             if { $timeout_count > 15 } {
                set error_text ""
-               append error_text "got timeout while sending vi commands\n"
+               append error_text "got timeout while sending vi commands (2)\n"
                append error_text "please make sure that no single vi command sequence\n"
                append error_text "leaves the vi in \"insert mode\" !!!"
                set result $error_text
