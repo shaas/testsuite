@@ -47,6 +47,7 @@ append_check_and_exclude_in_jgdi "qconf_issue_2383" "-mc fails for maintrunk" ;#
 append_check_and_exclude_in_jgdi "qconf_issue_2445" "Test for IZ 2445" ; # TS case for IZ 2445
 append_check_and_exclude_in_jgdi "qconf_help" ; # TS case for qconf [-help] return values 
 append_check_and_exclude_in_jgdi "qconf_Aconf" ; # TS case for qconf -Aconf with already existing configuration
+append_check_and_exclude_in_jgdi "qconf_delete_admin_user" ;# deleting manager or operator must fail for root and admin user
 
 lappend check_functions "qconf_issue_2960"
 
@@ -609,5 +610,48 @@ proc qconf_issue_2960 {} {
    remote_delete_directory $host $tmp_dir
    if {$error_text != ""} {
       ts_log_severe $error_text
+   }
+}
+
+#****** qconf/qconf_delete_admin_user() *************************************
+#  NAME
+#     qconf_delete_admin_user() -- check deleting of manager / operator
+#
+#  SYNOPSIS
+#     qconf_delete_admin_user { } 
+#
+#  FUNCTION
+#     Check if deleting a manager or operator fails for the user
+#     root and for the admin user.
+#     This was CR 6684465 / IZ 3053
+#*******************************************************************************
+proc qconf_delete_admin_user {} {
+   global ts_config CHECK_USER
+
+   set commands {}
+   lappend commands "-dm root"
+   lappend commands "-dm $CHECK_USER"
+   lappend commands "-do root"
+   lappend commands "-do $CHECK_USER"
+
+   foreach command $commands {
+      ts_log_fine "testing $command"
+
+      set user [lindex $command 1]
+      set msg [translate_macro MSG_SGETEXT_MAY_NOT_REMOVE_USER_FROM_LIST_SS $user "*"]
+
+      # start the command
+      set output [string trim [start_sge_bin "qconf" $command]]
+
+      # expect the command to have failed, and expect correct error message
+      # we use ts_log_warning here, as qmaster is unusable if admin user is deleted
+      if {$prg_exit_state != 1} {
+         ts_log_warning "qconf $command should have failed"
+         break
+      }
+      if {![string match $msg $output]} {
+         ts_log_warning "qconf $command should have printed\n$msg\nbut got instead\n$output"
+         break
+      }
    }
 }
