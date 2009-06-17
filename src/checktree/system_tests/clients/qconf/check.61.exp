@@ -48,6 +48,7 @@ append_check_and_exclude_in_jgdi "qconf_issue_2445" "Test for IZ 2445" ; # TS ca
 append_check_and_exclude_in_jgdi "qconf_help" ; # TS case for qconf [-help] return values 
 append_check_and_exclude_in_jgdi "qconf_Aconf" ; # TS case for qconf -Aconf with already existing configuration
 append_check_and_exclude_in_jgdi "qconf_delete_admin_user" ;# deleting manager or operator must fail for root and admin user
+append_check_and_exclude_in_jgdi "qconf_ke"	;# TS case for qconf -ke with already shutdown daemon
 
 lappend check_functions "qconf_issue_2960"
 
@@ -654,4 +655,45 @@ proc qconf_delete_admin_user {} {
          break
       }
    }
+}
+
+############# qconf/qconf_ke() *********************************************
+#  NAME
+#     qconf_ke() 
+#
+#  SYNOPSIS
+#     qconf_ke{} - tests that failure to send execd kill signal results
+#                  in a correct exit code.
+#
+#  FUNCTION
+#     try sending a kill execd to a daemon that is already shutdown.
+#
+#     After submitting the kill command we receive an error message stating
+#     that gridengine failed to send kill command to execd, and we expect the 
+#     exit code to be 1
+#
+#*******************************************************************************
+proc qconf_ke {} {
+   global ts_config CHECK_USER
+  
+   # run qconf -ke to initially kill the execd
+   set host [host_conf_get_suited_hosts]
+   set result [start_sge_bin "qconf" "-ke $host"]
+
+   wait_for_queue_state "all.q@$host" "au" 60
+
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set qconf "$ts_config(product_root)/bin/$master_arch/qconf"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-ke $host" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
+   
+   set expected_message [translate_macro MSG_COM_NONOTIFICATION_SSS "failed" "*" "*"]
+
+   if {$prg_exit_state == "0"} {
+      ts_log_severe "qconf_ke test failed.\nExpected qconf to return exit code other than 0, but got result:\n$prg_exit_state"
+   } else {
+      ts_log_fine "qconf_ke test successful"
+   }
+
+   #restart the execd on host that was shutdown
+   startup_execd $host
 }
