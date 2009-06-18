@@ -66,6 +66,7 @@ lappend check_functions "jsv_issues_job_start_user_drmaa"
 lappend check_functions "jsv_issues_wrong_w_flag"
 lappend check_functions "jsv_issues_q_soft_selection"
 lappend check_functions "jsv_issues_q_hard_selection"
+lappend check_functions "jsv_issues_cmdargs"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -376,3 +377,88 @@ proc jsv_issues_q_hard_selection {} {
    }
 }
 
+# CR 6825376: CMDARGS should not be a read-only parameter
+proc jsv_issues_cmdargs {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   # First case: Submit job with more options. Expect any more than 5 to be removed
+   set qsub_args "-jsv ${jsv_base_path}/jsv_cmdargs.sh $ts_config(product_root)/examples/jobs/sleeper.sh 5 6 7 8 9 10 11"
+   set qsub_host $ts_config(master_host)
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+
+   plain_j_parse plain $job_id $qstat_out
+
+   if {[string compare [string trim $plain(job_args)] "5,6,7,8,9"] != 0} {
+      ts_log_severe "jsv_issues_cmdargs test failed. job_args should contain 5 elements, but instead contains:\n$plain(job_args)"
+   } else {
+      ts_log_fine "jsv_issues_cmdargs test: First case passed"
+   }
+
+   # Second case: Submit job with less options. Expect added parameters to be NONE
+   set qsub_args "-jsv ${jsv_base_path}/jsv_cmdargs.sh $ts_config(product_root)/examples/jobs/sleeper.sh 5 6"
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+   
+   plain_j_parse plain $job_id $qstat_out
+
+   if {[string compare [string trim $plain(job_args)] "5,6,NONE,NONE,NONE"] != 0} {
+      ts_log_severe "jsv_issues_cmdargs test failed. job_args are:\n$plain(job_args)"
+   } else {
+      ts_log_fine "jsv_issues_cmdargs test: Second case passed"
+   }
+
+   # Third case: Submit job with exactly 5 options. Expect no change in parameters
+   set qsub_args "-jsv ${jsv_base_path}/jsv_cmdargs.sh $ts_config(product_root)/examples/jobs/sleeper.sh 5 6 7 8 9"
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+   
+   plain_j_parse plain $job_id $qstat_out
+
+   if {[string compare [string trim $plain(job_args)] "5,6,7,8,9"] != 0} {
+      ts_log_severe "jsv_issues_cmdargs test failed. Expected exactly 5 arguments. Found job_args are:\n$plain(job_args)"
+   } else {
+      ts_log_fine "jsv_issues_cmdargs test: Third case passed"
+   }
+
+   # Fourth case: Submit job with 4 parameters, and change the value of the 3rd parameter
+   set qsub_args "-jsv ${jsv_base_path}/jsv_cmdarg0.sh $ts_config(product_root)/examples/jobs/sleeper.sh 5 6 7 8"
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+   
+   plain_j_parse plain $job_id $qstat_out
+
+   if {[string compare [string trim $plain(job_args)] "5,6,7,22"] != 0} {
+      ts_log_severe "jsv_issues_cmdargs test failed. Expected value of 3rd arg to be 22. Found job_args are:\n$plain(job_args)"
+   } else {
+      ts_log_fine "jsv_issues_cmdargs test: Fourth case passed"
+   }
+
+   # Fifth case: Submit job with 2 parameters and change the 5th parameter. Additional parameters should be added
+   set qsub_args "-jsv ${jsv_base_path}/jsv_cmdarg1.sh $ts_config(product_root)/examples/jobs/sleeper.sh 5 6"
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+   set job_id [lindex $qsub_out 2]
+
+   set qstat_out [start_sge_bin qstat "-j $job_id"]
+   
+   plain_j_parse plain $job_id $qstat_out
+
+   if {[string compare [string trim $plain(job_args)] "5,6,NONE,NONE,NONE,22"] != 0} {
+      ts_log_severe "jsv_issues_cmdargs test failed. Expected 5,6,NONE,NONE,NONE,22. Found job_args are:\n$plain(job_args)"
+   } else {
+      ts_log_fine "jsv_issues_cmdargs test: Fifth case passed"
+   }
+
+
+}

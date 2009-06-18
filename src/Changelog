@@ -6,7 +6,13 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
-MP-2009-06-15-0: Enhancem:   added test for gridengine IZ 2942: qconf -ke[j] 
+MP-2009-06-18-0: Enhancem:   added test for gridengine IZ 2998 and 2999: jsv 
+                             number of arguments is handled as read-only 
+                             parameter. Changing CMDARG[1-n] always changes 
+                             the first commandline argument
+                 Review:     EB
+
+MP-2009-06-17-0: Enhancem:   added test for gridengine IZ 2942: qconf -ke[j] 
                              must return non-zero exit code on failure
                  Review:     AP
 
