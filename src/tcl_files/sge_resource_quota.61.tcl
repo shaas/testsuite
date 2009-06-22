@@ -179,33 +179,25 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       }
    }
 
+   add_message_to_container messages -5 [translate_macro MSG_RESOURCEQUOTA_INVALIDUSERFILTER]
+   add_message_to_container messages -4 [translate_macro MSG_RESOURCEQUOTA_INVALIDPROJECTFILTER]
+   add_message_to_container messages -3 [translate_macro MSG_RESOURCEQUOTA_INVALIDPEFILTER]
+   add_message_to_container messages -2 [translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*"]
+   add_message_to_container messages -1 [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "resource quota set" "*"]
+   add_message_to_container messages  0 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]
+
    # Add rqs from file?
-   if { $fast_add } {
+   if {$fast_add} {
       set tmpfile [dump_rqs_array_to_tmpfile chgar]
-      set result [start_sge_bin "qconf" "-Arqs $tmpfile" $on_host $as_user ]
-
-      set messages(index) "-2 -1 0"
-      set messages(-2) [translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*"]
-      set messages(-1) [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "resource quota set" "*"]
-      set messages(0)  [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]
-
-      set result [handle_sge_errors "add_rqs" "qconf -Arqs $tmpfile" $result messages $raise_error]
+      set qconf_args "-Arqs $tmpfile"
+      set result [start_sge_bin "qconf" $qconf_args $on_host $as_user]
    } else {
    # Use vi
-      # localize messages
-      # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "resource quota set"]
-      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "resource quota set" "*"]
-      set UNKNOWN_ATTRIBUTE [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_UNKNOWNATTRIBUTENAME_S] "*"]
-
       set vi_commands [build_rqs_vi_array chgar]
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-arqs $rqs_names" $vi_commands $ADDED $ALREADY_EXISTS $UNKNOWN_ATTRIBUTE]
-      if { $result != 0 } {
-         ts_log_severe "could not add resource quota set (error: $result)" $raise_error
-      }
+      set qconf_args "-arqs"
+      set result [start_vi_edit "qconf" $qconf_args $vi_commands messages $on_host $as_user]
    }
-  return $result
+   return [handle_sge_errors "add_rqs" $qconf_args $result messages $raise_error]
 }
 
 #****** sge_resource_quota.61/mod_rqs() ******************************************

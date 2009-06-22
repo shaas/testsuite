@@ -91,7 +91,7 @@ proc qconf_add_rqs {} {
 
    # Try to add invalid CLI
    set result [add_rqs rqs_charray 0 "" "" 0]
-   if { [get_rqs tmp_rqs_charray $rqs_name_invalid "" "" 0] == 0} {
+   if {[get_rqs tmp_rqs_charray $rqs_name_invalid "" "" 0] == 0} {
       ts_log_severe "qconf -arqs added invalid RQS"
       del_rqs $rqs_name_invalid
    }
@@ -115,6 +115,31 @@ proc qconf_add_rqs {} {
          ts_log_severe "qconf -Arqs should have failed on host $non_cluster_host"
       }
    }
+
+   # Try to add a rqs with invalid filter rule
+   # This was CR 6810411, IZ 2899: bad RQS syntax can crash/hang qmaster process
+   # we'll use ts_log_warning in the following, as it will crash qmaster if the
+   set rules {}
+   lappend rules "projects !{testProject,testProject2} queues * hosts * to slots=10"
+   if {[info exists rqs_charray]} {
+      unset rqs_charray
+   }
+   set rqs_charray($rqs_name_invalid,limit) $rules
+   set result [string trim [add_rqs rqs_charray 1 "" "" 0]]
+   if {$result != -4} {
+      ts_log_severe "adding a rqs with invalid filter rule should have failed"
+   }
+
+   # handle case where qmaster crashed - try to restart qmaster
+   # detect gdi error
+   if {$result == -120 || $result == -121} {
+      ts_log_warning "adding a rqs with invalid filter rule probably crashed qmaster - stopping qconf test"
+      # try to repair things
+      shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+      startup_qmaster 0
+   }
+   # in case the invalid rqs has been created - delete it
+   del_rqs $rqs_name_invalid "" "" 0
 }
 
 proc qconf_modify_rqs {} {

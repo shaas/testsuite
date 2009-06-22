@@ -146,7 +146,6 @@ proc qconf_init_level {} {
 proc qconf_setup {} {
    global ts_config CHECK_USER 
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_project qconf_sched_config qconf_userlist 
-
    global backup_allhosts
    global queue_names CHECK_JGDI_ENABLED
 

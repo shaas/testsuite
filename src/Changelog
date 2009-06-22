@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+JG-2009-06-22-0: Enhancem.:  added test for IZ 2899
+                             cleanup of framework function add_rqs
+                 Review:     DG
+
 MP-2009-06-18-0: Enhancem:   added test for gridengine IZ 2998 and 2999: jsv 
                              number of arguments is handled as read-only 
                              parameter. Changing CMDARG[1-n] always changes 
