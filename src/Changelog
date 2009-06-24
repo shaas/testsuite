@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-06-24-0: Enhancem.:  Ignoring JMX configuration arguments with 61 during
+                             the installation
+                 Review:     AP
+
 JG-2009-06-22-0: Enhancem.:  added test for IZ 2899
                              cleanup of framework function add_rqs
                  Review:     DG

@@ -423,11 +423,11 @@ proc config_display_hosts { host_list host_index {selected ""} {null_value "none
 
    upvar $host_list hosts
    upvar $host_index indexes
-
+   
    if { [array size hosts] == 1 && [lsearch [array names hosts] "new"] < 0 } {
       config_display_list hosts indexes $selected $null_value
       return
-      }
+   }
 
    array set archs { }
    set comp_c ""
@@ -463,7 +463,7 @@ proc config_display_hosts { host_list host_index {selected ""} {null_value "none
          } else { set archs($arch,$host) $usage }
       }
    }
-
+   set index 1
    puts "java compile host: $comp_java\n"
    set gap 0
    foreach arch [lsort [array names archs]] {
@@ -485,11 +485,10 @@ proc config_display_hosts { host_list host_index {selected ""} {null_value "none
                incr ind 1
                set comp_host [string range $comp $ind end]
                break
-      }
-   }
+            }
+         }
 
-         set count 0
-         set index 1
+         set count 0         
          # display host list
          set host_disp "$arch:[get_spaces [expr ( $max_arch_length - [string length $arch] ) ]]"
          set arch_space "[get_spaces [string length $host_disp]]"
@@ -498,7 +497,7 @@ proc config_display_hosts { host_list host_index {selected ""} {null_value "none
                puts $host_disp
                set host_disp $arch_space
                set count 0
-}
+            }
             set space "[get_spaces [expr ( $max_length - [string length $host] ) ]]"
             foreach indx [array names indexes] {
                if { [string compare $indexes($indx) $host] == 0 } {

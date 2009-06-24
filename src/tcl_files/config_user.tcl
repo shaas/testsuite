@@ -1017,7 +1017,7 @@ proc setup_user_config { file { force_params "" } } {
                            wait_for_enter
                         } else {
                            # set the DISPLAY environment variable
-                           if { $CHECK_SET_USER_ENV_DISPLAY == 1 } {
+                           if { [info exists CHECK_SET_USER_ENV_DISPLAY] &&  $CHECK_SET_USER_ENV_DISPLAY == 1 } {
                               user_config_set_env "DISPLAY" "CHECK_DISPLAY_OUTPUT"
                            }
                         }

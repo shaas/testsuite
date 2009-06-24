@@ -209,7 +209,7 @@ proc install_qmaster {} {
       append feature_install_options "-csp"
    }
 
-   if {$ts_config(jmx_port) > 0} {
+   if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_port) > 0} {
       append feature_install_options " -jmx"
    }
 

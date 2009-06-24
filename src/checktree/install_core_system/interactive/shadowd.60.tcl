@@ -76,7 +76,7 @@ proc install_shadowd {} {
       set my_csp_host_list ""
 
       # support jmx ssl testsuite keystore and certificate creation
-      if {$ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
+      if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
          set my_csp_host_list $CHECK_CORE_SHADOWD
       }
  

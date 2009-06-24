@@ -70,7 +70,7 @@ proc make_user_cert {} {
       }
 
       # support jmx ssl testsuite keystore and certificate creation
-      if {$ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
+      if {$ts_config(gridengine_version) >=62 && $ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
          ts_log_fine "creating certificates and keystore files for jgdi jmx ssl access ..."
          set file [get_tmp_file_name]
          set script [ open $file "w" ]

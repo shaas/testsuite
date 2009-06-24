@@ -122,7 +122,7 @@ proc issue_2459_parse_autoinstall {} {
    set my_timeout 500
    set exit_val 0
 
-   if {$check_jmx_port > 0} {
+   if {$ts_config(gridengine_version) >= 62 && $check_jmx_port > 0} {
       set inst_sge_options "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf"
    } else {
       set inst_sge_options "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
