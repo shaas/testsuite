@@ -85,8 +85,7 @@ proc qacct_setup {} {
 
    # set the accounting_flush_time to 0 to speedup writing of accounting info
    if {$ts_config(gridengine_version) != 53} {
-      get_config old_config
-      set qacct_reporting_backup $old_config(reporting_params)
+      get_config qacct_reporting_backup
       set new_config(reporting_params) "accounting_flush_time=00:00:00"
       set_config new_config
    }
@@ -101,8 +100,7 @@ proc qacct_cleanup {} {
    wait_for_end_of_all_jobs
 
    if {$ts_config(gridengine_version) != 53} {
-      set new_config(reporting_params) $qacct_reporting_backup
-      reset_config new_config
+      reset_config qacct_reporting_backup
    }
 }
 

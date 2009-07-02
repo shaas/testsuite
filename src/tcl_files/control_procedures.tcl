@@ -2462,7 +2462,7 @@ proc resolve_host {name {long 0}} {
       ts_log_fine "hostgroups ($name) cannot be resolved"
       return $name
    }
-   
+
    if {$long != 0} {
       if {[info exists resolve_host_cache($name,long)]} {
          return $resolve_host_cache($name,long)
