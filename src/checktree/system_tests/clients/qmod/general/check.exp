@@ -62,6 +62,7 @@ lappend check_functions    "qmod_forceaction"
 lappend check_functions    "qmod_wildcard_disable"
 lappend check_functions    "qmod_wildcard_enable"
 lappend check_functions    "qmod_issue_1131"
+lappend check_functions    "qmod_issue_3071"
 
 global qmod_test_queues
 set qmod_test_queues {}
@@ -284,6 +285,85 @@ proc qmod_issue_1131 {} {
    if {![is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]]} {
       ts_log_severe "issue 1131 still exists (2), qmod -e \"@<host>\" crashes qmaster"
    }
+}
+
+
+
+
+#                                                             max. column:     |
+#****** qmod/qmod_issue_3071() ******
+# 
+#  NAME
+#    qmod_issue_3071 -- Tests if issue 3071 is active.  
+#
+#  SYNOPSIS
+#    qmod_issue_3071 { } 
+#
+#  FUNCTION
+#     Submits a sleeper job and suspends it afterwards. Unsuspension 
+#     of the sleeper job should work and return the exit value 0 and 
+#     not 1. 
+#
+#*************************************
+proc qmod_issue_3071 {} {
+   global ts_config
+
+   # submit sleeper job
+   set job_id [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60]  
+
+ 	set elapsed 0
+   set wait_till_running_timeout 60 
+
+   # wait till job is running 
+   while {[is_job_running $job_id ""] != 1} {
+	    after 1000
+	    incr elapsed 1
+	    if {$elapsed >= $wait_till_running_timeout} {
+	       ts_log_severe "Timeout $wait_till_running_timeout: job is still not running"
+	       return -1
+	    }
+	 }
+   # suspend job
+   set output [start_sge_bin "qmod" "-sj $job_id"]
+
+   # get job state (should be suspended)
+   set job_state [get_job_state $job_id]
+
+   if {$job_state != "s"} {
+      ts_log_severe "Job should be in state suspended and not in $job_state!" 
+   }
+
+   # check exit code (should be 0) 
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Exit state of job suspension should be 0 but was $prg_exit_state!" 
+   }
+ 
+   # unsuspend job: the error code should be 0 not 1
+   set output [start_sge_bin "qmod" "-usj $job_id"] 
+   
+   # get job state (should be running)
+   set job_state [get_job_state $job_id]
+
+   if {$job_state != "r"} {
+      ts_log_severe "Unexpected job state: $job_state"
+   }
+
+   ts_log_fine "output is: $output"
+   
+   if {$prg_exit_state == 1} {
+      if {$job_state == "r"} {
+         ts_log_severe "Bug 3071 is active: qmod job unsuspension does report error but job is running!"
+      } else {
+         ts_log_severe "Unknown error: job unsuspension didn't work"
+      }
+   } elseif {$prg_exit_state == "0"} {    
+      ts_log_fine "OK: job unsuspension does work!"
+   } else { 
+      ts_log_severe "Unexpected error appeared while unsuspension of job: exit code was: $exit_var"
+   }
+ 
+   delete_job $job_id 1 
+   wait_for_end_of_all_jobs
 }
 
 #                                                             max. column:     |
