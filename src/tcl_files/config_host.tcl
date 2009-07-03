@@ -3179,16 +3179,25 @@ proc host_conf_get_suited_hosts_candidates {preferred selected excluded preferre
 
    # check: selected archs must exist in the cluster
    set all_archs [array names suited_arch_cache]
+   set nr_of_matches 0
+   set available_selected {}
    foreach arch $selected {
       if {[lsearch -exact $all_archs $arch] < 0} {
-         ts_log_severe "selected architecture is not available in our cluster:\nselected:  $selected\navailable: $all_archs"
-         return
+         ts_log_fine "selected architecture \"$arch\" is not available in our cluster:\nselected:  $selected\navailable: $all_archs"
+      } else {
+         incr nr_of_matches 1
+         lappend available_selected $arch
       }
    }
 
+   if {$nr_of_matches == 0 && [llength $selected] > 0} {
+      ts_log_severe "none of the selected architectures is available in our cluster:\nselected:  $selected\navailable: $all_archs"
+      return
+   }
+
    # if we have selected archs, use these
-   if {$selected != {}} {
-      set all_archs $selected
+   if {$available_selected != {}} {
+      set all_archs $available_selected
    } else {
       # remove the excluded archs from all available
       foreach arch $excluded {

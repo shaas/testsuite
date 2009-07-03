@@ -6,6 +6,11 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-07-03-0: Bugfix:     fixed bug in host_conf_get_suited_hosts_candidates()
+                             which returned error when only one of the selected
+                             architectures is not availabe in TS cluster.
+                 Review:     DG
+
 JG-2009-07-02-0: Bugfix:     qacct test ended with corrupted global config
                              make known, not yet fixed issue found by qhost test
                              only produce an info message.
