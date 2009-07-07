@@ -1,0 +1,231 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category
+global check_description 
+global check_needs
+global check_functions 
+global check_errno 
+global check_errstr 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3068_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_3068"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level   0
+set check_description(0)  "h_vmem setting as JOB consumable fails to set the virtual memory limit of a job"
+
+# define test's dependencies
+set check_needs "init_core_system" 
+set check_needs "" 
+
+
+# setup and cleanup functions
+set check_setup_function "issue_3068_setup"
+set check_cleanup_function "issue_3068_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_3068_check"
+
+proc issue_3068_init_level {} {
+   global CHECK_ACT_LEVEL 
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0    
+      } 
+   }
+
+   return -1  ;# no other level else
+}
+
+proc issue_3068_setup {} {
+   global ts_config
+   global test_pe
+   global queue_name
+   global target_system
+   global CHECK_OUTPUT
+   #
+   # Create parallel environment.
+   #
+   set test_pe "my_pe"
+   set this_pe(slots) 100
+   add_pe $test_pe this_pe
+   #
+   # Create test queue
+   #
+   set queue_name "test.q"
+   set this_q(qname) $queue_name
+   set this_q(slots) 1000
+   set this_q(pe_list) $test_pe 
+   add_queue $queue_name $ts_config(execd_hosts) this_q
+   #
+   # Select target system to run dummy job. Requirement is
+   # a Solaris box where we can get process limits fairly 
+   # easily.
+   #
+   set  target_system [ host_conf_get_suited_hosts 1 {} { sol-amd64 sol-sparc64 } ]
+   
+   return 0
+}
+# -------- local test procedures -----------------------------------------------
+
+#
+# This is the test plan: 
+#
+# o first clean up any leftovers from previous (possibly failed tests)
+# o create test queue
+# o create test PE and assign with test queue
+# o set complex h_vmem with consumable NO
+# o create dummy job using test PE with 2 slots and request h_vmem limit
+#   of 1G
+# o obtain job process id
+# o run plimit() command to obtain dummy job's process limit and compare
+#   with expexcted value. For the first iteration we expect a resource
+#   limit scaled up by nslots (~>2G)
+# o set complex h_vmem with consumable JOB
+# o create another dummy and get process limit
+# o now, we expect the job resource limit NOT scaled up (~>1GB) 
+#
+proc issue_3068_check {} {
+   global ts_config
+   global test_pe
+   global target_system
+   #
+   # Setup consumable h_vmem.
+   #
+   set iteration 1
+   set test_complex(h_vmem) "h_vmem MEMORY <= YES NO 0 0"
+   set_complex test_complex
+   set return_code [ iterate $iteration ]
+   if { $return_code != 0 } {
+      ts_log_severe "Test failed in iteration (1) with h_vmem attribute NO"
+      return -1
+   }
+   #
+   #
+   #
+   delete_all_jobs
+   wait_for_end_of_all_jobs 100
+   #
+   #
+   #
+   set iteration 2
+   set test_complex(h_vmem) "h_vmem MEMORY <= YES JOB 0 0"
+   set_complex test_complex
+   set return_code [ iterate $iteration ]
+   if { $return_code != 0 } {
+      ts_log_severe "Test failed in iteration (2) with h_vmem attribute JOB"
+      return -1
+   }
+
+   return 0
+}
+
+proc iterate { iteration } {
+   global ts_config
+   global test_pe
+   global target_system
+
+   set one_gig_giga_units "1G"
+   set one_gig_kilo_units 1048576 
+   set two_gig_kilo_units 2097152
+   set job_args "-pe $test_pe 2 -N Sleeper -hard -l hostname=$target_system,h_vmem=$one_gig_giga_units $ts_config(product_root)/examples/jobs/sleeper.sh 600"
+   set job_id [ submit_job $job_args ]
+   wait_for_jobstart $job_id "Sleeper" 30 0 0
+   #
+   # Get shepherd's PID from pid file.
+   #
+   set execd_spool_dir [ get_execd_spool_dir $target_system ]
+   set pid_file $execd_spool_dir/$target_system/active_jobs/$job_id.1/job_pid
+   set job_pid [ get_pid_from_file $target_system $pid_file ]
+   #
+   # OK, now we've got the real job PID. Issue plimit command
+   # to obtain active process limits.
+   #
+   set plimit_binary [ get_binary_path $target_system "plimit" ]
+   set result [start_remote_prog $target_system "root" $plimit_binary "$job_pid" prg_exit_state 60 0 "" "" 1 0]
+   #
+   # Process plimit output.
+   #
+   set vmemory 0
+   set helper [ split $result "\n" ]
+   foreach line $helper {
+      set resource [ lindex $line 0 ]
+      if { $resource == "vmemory(kbytes)" } {
+         set vmemory [ lindex $line 1 ]
+         break
+      }
+   }
+   #
+   # Dispatch on iteration.
+   #
+   if { $iteration == 1 } {
+      set limit $two_gig_kilo_units
+   } elseif { $iteration == 2 } {
+      set limit $one_gig_kilo_units
+   }
+   if { $vmemory == $limit } {
+      ts_log_fine "$resource: $vmemory as expected. SUCCESS!!"
+      return 0
+   } else {
+      ts_log_severe "$resource: $vmemory not expected. FAILURE!!"
+      return -1
+   }
+
+}
+
+proc issue_3068_cleanup  {} {
+   global ts_config
+   global queue_name
+   global test_pe
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 100
+
+   del_queue $queue_name $ts_config(master_host) 1
+   del_pe $test_pe
+
+}
