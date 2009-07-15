@@ -1401,7 +1401,7 @@ proc get_all_subdirectories {path} {
   set directories ""
   set files [get_file_names $path] 
   set dirs [get_dir_names $path]
-  
+ 
   foreach elem $dirs {
      lappend directories "$elem"
   }
@@ -1902,7 +1902,7 @@ proc create_shell_script { scriptfile
    append script_content "# Automatic generated script from Grid Engine Testsuite\n"
    if {$no_setup == 0} {
       # script command
-      append script_content "trap 'echo \"_exit_status_:(91) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
+      append script_content "trap 'echo \"\" ; echo \"_exit_status_:(91) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
       append script_content "umask 022\n"
 
       if {$set_shared_lib_path == 1} {
@@ -2036,6 +2036,7 @@ proc create_shell_script { scriptfile
       }
       append script_content "trap 0\n"
       if {$without_start_output == 0} {
+         append script_content "echo \"\"\n"
          append script_content "echo \"_exit_status_:(\$exit_val) script: $script_tail_name\"\n"
          append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
@@ -2091,7 +2092,7 @@ proc get_file_content {host user file {file_a "file_array"}} {
    set output [start_remote_prog $host $user $program $program_arg]
    set lcounter 0
    if {$prg_exit_state != 0} {
-      ts_log_severe "\'cat\' returned error: $output"
+      ts_log_severe "\'cat\' on host \"$host\" returned error($prg_exit_state):\n$output"
    } else {
       set help [split $output "\n"]
       foreach line $help {

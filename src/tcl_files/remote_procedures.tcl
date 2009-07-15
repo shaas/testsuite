@@ -717,7 +717,7 @@ proc start_remote_prog { hostname
                  append output "$line\n"
                  incr nr_of_lines 1
                  set tmp_exit_status_start [string first "_exit_status_:" $line]
-                 if { $tmp_exit_status_start >= 0 } {
+                 if { $tmp_exit_status_start == 0 } {
                     set tmp_exit_status_string [string range $line $tmp_exit_status_start end]
                     set tmp_exit_status_end [string first ")" $tmp_exit_status_string]
                     if {$tmp_exit_status_end >= 0 } {
@@ -1478,6 +1478,7 @@ proc open_remote_spawn_process { hostname
       # on interix (windows), we often get a message
       # "in.rlogind: Forkpty: Permission denied."
       # we want to try rlogin until success
+      # TODO: If forkpty error occurs on windows host we might try a telnet !!!!
       set connect_succeeded 0
       while {$connect_succeeded == 0} {
          # no open connection - open a new one
@@ -1510,8 +1511,7 @@ proc open_remote_spawn_process { hostname
             log_user 1
          }
          if {$tmp_help || $ts_config(connection_type) == "ssh_with_password" || $ts_config(connection_type) == "ssh"} {
-            set ssh_binary [get_binary_path $ts_config(master_host) "ssh"]
-            set pid [spawn $ssh_binary "-l" $connect_full_user $hostname] 
+            set pid [spawn "ssh" "-l" $connect_full_user $hostname] 
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
          }
