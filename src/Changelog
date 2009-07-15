@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-07-15-2: Enhancem.:  enhanced framework check to verify that "/bin/sh"
+                             echo call produces expected new line output
+                 Review:     SH
+
 CR-2009-07-15-1: Cleanup:    o fixed broken ts
                  Belongs to: CR-2009-07-15-0
                  Review:     SH

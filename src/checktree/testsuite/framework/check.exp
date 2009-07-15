@@ -58,6 +58,7 @@ set check_needs           "init_core_system"
 # define test's procedure order
 set check_functions {}
 lappend check_functions   "test_framework_set_config"
+lappend check_functions   "test_framework_new_line_characters"
 
 proc test_framework_init_level {} {
    global CHECK_ACT_LEVEL
@@ -136,6 +137,37 @@ proc test_framework_set_config {} {
       append error_text "list length mismatch error"
    }
 
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+proc test_framework_new_line_characters {} {
+   global ts_config CHECK_USER
+
+   set error_text ""
+   ts_log_fine "testing new line characters ..."
+  
+   foreach host [get_all_hosts] {
+      ts_log_fine "testing host $host ..."
+
+      set output [start_remote_prog $host $CHECK_USER "echo" ""]
+      ts_log_finer "output: -$output-"
+      set str_length [string length $output]
+      ts_log_finer "string length: $str_length"
+      if {$str_length != 2} {
+         append error_text "host \"$host\": the \'echo\' output string length $str_length is not 2\n"
+      }
+
+      set command {"\n"}
+      set output [start_remote_prog $host $CHECK_USER "echo" $command]
+      ts_log_finer "output: -$output-"
+      set str_length [string length $output]
+      ts_log_finer "string length: $str_length"
+      if {$str_length != 4} {
+         append error_text "host \"$host\": the \'echo $command\' output string length $str_length is not 4\n"
+      }
+   }
 
    if {$error_text != ""} {
       ts_log_severe $error_text
