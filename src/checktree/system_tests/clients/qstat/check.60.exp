@@ -54,6 +54,7 @@ set check_cleanup_function "qstat_cleanup"
 
 set check_functions      {}
 lappend check_functions  "check_core_queues"     ;# functions to call (in order)
+lappend check_functions  "qstat_help"
 lappend check_functions  "qstat_option_l"
 lappend check_functions  "qstat_option_q"
 lappend check_functions  "qstat_option_pe"
@@ -360,6 +361,41 @@ proc check_core_queues {} {
   }
 
   ts_log_fine "check_core_queues\n- number of queues: $qcount\n- qnames: $qnames\n- slots: $slots\n- load: $load"
+}
+
+proc qstat_help {} {
+   global CHECK_PRODUCT_VERSION_NUMBER
+
+   set qstat_help_lines 41
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   set output [start_sge_bin "qstat" "-help"]
+
+   ts_log_fine "qstat output    : \n---"
+   ts_log_fine "$output"
+   ts_log_fine "---\n"
+   ts_log_fine "qstat exit state: $prg_exit_state"
+
+   if {$prg_exit_state != 0} {
+      ts_log_severe "exit state is not 0"
+   }
+
+   set output [string trim $output]
+
+   if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
+      ts_log_severe "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
+   } 
+ 
+   set lines [split $output "\n"]
+   set nr_of_lines [llength $lines] 
+
+   ts_log_fine "Output has $nr_of_lines lines"
+
+   if {$nr_of_lines != $qstat_help_lines} {
+      ts_log_severe "help output has $nr_of_lines, but expected are $qstat_help_lines lines:\n$output"
+   }
 }
 
 proc qstat_option_l {} {
