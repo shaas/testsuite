@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+MD-2009-07-23-0: Bugfix:     upgrade test hangs in an endless loop, if jmx port
+                             is set to 0 (is disabled)
+                 Review:     CR
+
 JG-2009-07-22-0: Enhancem.:  test -help option in system_tests/clients/qstat
                  Review:     EB
 

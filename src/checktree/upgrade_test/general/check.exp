@@ -1303,8 +1303,13 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
          }
          
          -i $sp_id $JMX_ENABLE_JMX {
-            ts_log_fine "\n -->testsuite: sending enable jmx ><"
-            ts_send $sp_id "\n"
+            if {$ts_config(jmx_port) == 0 } {
+               ts_log_fine "\n -->testsuite: sending disable jmx -> ANSWER_NO ><"
+               ts_send $sp_id "$ANSWER_NO\n"
+            } else {
+               ts_log_fine "\n -->testsuite: sending enable jmx ><"
+               ts_send $sp_id "\n"
+            }
             continue
          }
 
