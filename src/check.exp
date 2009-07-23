@@ -370,6 +370,7 @@ global check_cur_proc_result       ;# 0 -> OK , != 0 means error (-2 = break tes
 
 
 # testsuite intern
+global overwrite_array             ;# used for the overwrite command line parameter
 global CHECK_INFORMATION_FILE      ;# filename of check information (check.exp)
 global CHECK_INFORMATION_EXT       ;# fileextension of check information (check.exp)
 global ts_checktree                ;# structure which contains checktree directory informations (see build_checktree)
@@ -889,6 +890,76 @@ proc get_user_passwd_hooks {} {
       }
    }
    return $res
+}
+
+
+#****** check/get_supported_config_parameter_list() ****************************
+#  NAME
+#     get_supported_config_parameter_list() -- return current config parameters
+#
+#  SYNOPSIS
+#     get_supported_config_parameter_list { } 
+#
+#  FUNCTION
+#     This function returns a list with the current testsuite configuration
+#     parameters. This list is used to verify the overwrite command line
+#     option.
+#
+#  INPUTS
+#
+#  RESULT
+#     tcl list with strings
+#*******************************************************************************
+proc get_supported_config_parameter_list {} {
+   set clone_argument_list {}
+   lappend clone_argument_list "gridengine_version"
+   lappend clone_argument_list "testsuite_root_dir"
+   lappend clone_argument_list "checktree_root_dir"
+   lappend clone_argument_list "additional_checktree_dirs"
+   lappend clone_argument_list "results_dir"
+   lappend clone_argument_list "connection_type"
+   lappend clone_argument_list "source_dir"
+   lappend clone_argument_list "host_config_file"
+   lappend clone_argument_list "user_config_file"
+   lappend clone_argument_list "fs_config_file"
+   lappend clone_argument_list "db_config_file"
+   lappend clone_argument_list "additional_config"
+   lappend clone_argument_list "source_cvs_hostname"
+   lappend clone_argument_list "source_cvs_release"
+   lappend clone_argument_list "master_host"
+   lappend clone_argument_list "shadowd_hosts"
+   lappend clone_argument_list "execd_hosts"
+   lappend clone_argument_list "submit_only_hosts"
+   lappend clone_argument_list "add_compile_archs"
+   lappend clone_argument_list "commd_port"
+   lappend clone_argument_list "jmx_port"
+   lappend clone_argument_list "jmx_ssl"
+   lappend clone_argument_list "jmx_ssl_client"
+   lappend clone_argument_list "jmx_ssl_keystore_pw"
+   lappend clone_argument_list "reserved_port"
+   lappend clone_argument_list "product_root"
+   lappend clone_argument_list "product_type"
+   lappend clone_argument_list "product_feature"
+   lappend clone_argument_list "cell"
+   lappend clone_argument_list "cluster_name"
+   lappend clone_argument_list "spooling_method"
+   lappend clone_argument_list "bdb_server"
+   lappend clone_argument_list "bdb_dir"
+   lappend clone_argument_list "l10n_test_locale"
+   lappend clone_argument_list "aimk_compile_options"
+   lappend clone_argument_list "dist_install_options"
+   lappend clone_argument_list "qmaster_install_options"
+   lappend clone_argument_list "execd_install_options"
+   lappend clone_argument_list "package_directory"
+   lappend clone_argument_list "package_type"
+   lappend clone_argument_list "dns_domain"
+   lappend clone_argument_list "dns_for_install_script"
+   lappend clone_argument_list "mail_application"
+   lappend clone_argument_list "mailx_host"
+   lappend clone_argument_list "report_mail_to"
+   lappend clone_argument_list "report_mail_cc"
+   lappend clone_argument_list "enable_error_mails"
+   return $clone_argument_list
 }
 
 #****** check/set_passwd() *****************************************************
@@ -2032,10 +2103,19 @@ proc save_fs_configuration { file } {
 #     check/restore_configuration()
 #*******************************************************************************
 proc save_configuration { {filename ""} {config_array ""} } {
-   global ts_config
+   global ts_config overwrite_array
    global CHECK_DEFAULTS_FILE
    global pe_for_version_check_result
 
+   # check if this is a cloned config which should not be editable
+   if {[info exists overwrite_array]} {
+      puts "ATTENTION: This is a cloned configuration. It is not allowed to modify"
+      puts "           a cloned testsuite configuration. You might copy the config"
+      puts "           file \"$CHECK_DEFAULTS_FILE\" and startup testsuite again"
+      puts "           without overwrite arguments!!!"
+      testsuite_shutdown 1
+   }
+   
    set conf_name "testsuite configuration"
 
    upvar $config_array config
@@ -2389,6 +2469,7 @@ proc get_spaces { nr } {
 #     check/__setup()
 #*******************************************************************************
 proc setup2 { } {
+   global overwrite_array
    global ts_config ts_host_config ts_user_config actual_ts_config_version
    global CHECK_DO_SETUP
    global CHECK_DEFAULTS_FILE do_nomain
@@ -2446,6 +2527,26 @@ proc setup2 { } {
    set have_defaults 0
    set configuration_updated 0
 
+   # if we have a overwrite_array defined (command line parameter overwrite)
+   # we replace the current configuration with the overwrite parameters
+   if {[info exists overwrite_array]}  {
+      if {[read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" atmp_config ] == 0} {
+         foreach param [array names overwrite_array] {
+            puts "overwrite config parameter >$param< set to \"$atmp_config($param)\" with \"$overwrite_array($param)\""
+            set atmp_config($param) $overwrite_array($param)
+         }
+         set tmp_filename [file tail $CHECK_DEFAULTS_FILE]
+         set tmp_dirname [file dirname $CHECK_DEFAULTS_FILE]
+         set CHECK_DEFAULTS_FILE "$tmp_dirname/$tmp_filename.clone"
+         puts "Creating cloned config file \"$CHECK_DEFAULTS_FILE\" ..."
+         clone_config atmp_config $CHECK_DEFAULTS_FILE
+      } else {
+         puts "Cannot read configuration file \"$CHECK_DEFAULTS_FILE\""
+         testsuite_shutdown 1
+      }   
+   }
+
+
    if {[read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" ts_config ] == 0} {
       if {$ts_config(version) != $actual_ts_config_version} {
          puts "unknown configuration file version: $ts_config(version)"
@@ -2463,7 +2564,13 @@ proc setup2 { } {
       if { [verify_config ts_config 1 err_list] != 0 } {
 
          # configuration problems
-
+         if {[info exists overwrite_array]}  {
+            puts "Error in cloned config file \"$CHECK_DEFAULTS_FILE\" ..."
+            puts "ATTENTION: It is not allowed to save a cloned configuration!"
+            puts "           In the following setup mode it is not possible to"
+            puts "           change the configuration!!!"
+            wait_for_enter
+         } 
          foreach elem $err_list {
             puts "$elem"
          }
@@ -6876,6 +6983,11 @@ proc install_binaries {arch_list a_report} {
       return -1
    }
 
+   # Wait until product root is available on all used cluster hosts
+   foreach tmp_host [get_all_hosts] {
+      wait_for_remote_dir $tmp_host $CHECK_USER "$ts_config(product_root)" 60 1 1
+   }
+
    ts_log_fine "starting installation ..."
    set result [remote_file_mkdir $install_host $ts_config(product_root)]
    report_task_add_message report $task_nr $result
@@ -6923,6 +7035,11 @@ proc install_binaries {arch_list a_report} {
    close_spawn_process $open_spawn
    ts_log_fine " done"
    ts_log_newline
+
+   # Wait until product root/bin directory is available on all used cluster hosts
+   foreach tmp_host [get_all_hosts] {
+      wait_for_remote_dir $tmp_host $CHECK_USER "$ts_config(product_root)/bin"
+   }
 
    foreach elem $ts_config(execd_hosts) {
       set host_arch [resolve_arch $elem 1]
@@ -8489,6 +8606,12 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "                      be printed to stdout. On any non zero exit status the testsuite will write a warning"
       puts "                      message which includes the output of the command." 
       puts ""
+      puts "overwrite <name=val>  With this option it is possible to overwrite settings from the testsuite configuration"
+      puts "                      file (e.g. --overwrite cell=default2). A cloned testsuite config file is created and used."
+      puts ""
+      puts "install_mode <mode>   With this option it is possible to set the default install mode for the"
+      puts "                      install_core_system test. Supported modes are \"manual\" or \"automatic\"."
+      puts "                      Default is \"manual\"."
       testsuite_shutdown 1
    }
 
@@ -8515,6 +8638,7 @@ for {set i 0} {$i < $argc} {incr i} {
       }
 
       set do_only_diff_macros 1
+      continue
    }
 
 
@@ -8541,6 +8665,7 @@ for {set i 0} {$i < $argc} {incr i} {
             testsuite_shutdown 1
          }
       }
+      continue
    }
 
    if { ( [string compare [lindex $argv $i] "--compile_clean"] == 0 ) || ([string compare [lindex $argv $i] "compile_clean"] == 0) } {
@@ -8575,9 +8700,6 @@ for {set i 0} {$i < $argc} {incr i} {
       set CHECK_SET_USER_ENV_DISPLAY 0
       continue
    }
-
-
-
 
    if { ( [string compare [lindex $argv $i] "--kill"] == 0 ) || ([string compare [lindex $argv $i] "kill"] == 0) } {
       set do_kill 1
@@ -8631,6 +8753,53 @@ for {set i 0} {$i < $argc} {incr i} {
       set ts_logging_file_name [file rootname $ts_logging_file_name]
       set ts_logging_file_name "$CHECK_CURRENT_WORKING_DIR/$ts_logging_file_name.ts.log"
       ts_log_fine "using log file \"$ts_logging_file_name\""
+      continue
+   }
+
+   if { ( [string compare [lindex $argv $i] "--overwrite"] == 0 ) || ([string compare [lindex $argv $i] "overwrite"] == 0) } {
+      incr i
+      set help_var [lindex $argv $i]
+      set o_parameter [string trim $help_var]
+      
+      # check arguments
+      if {![string match "*=*" $o_parameter ]} {
+         puts "Error: --overwrite: need parameter=value syntax!"
+         testsuite_shutdown 1
+      }
+      set o_par [lindex [split $o_parameter "="] 0]
+      if {$o_par == ""} {
+         puts "Error: --overwrite: no parameter specified! Syntax is --overwrite parameter=value"
+         testsuite_shutdown 1
+      }
+
+      if {[lsearch -exact [get_supported_config_parameter_list] $o_par] == -1} {
+         puts "Error: --overwrite: parameter \"$o_par\" not supported!"
+         puts "   Supported parameters:"
+         foreach pos_param [get_supported_config_parameter_list] {
+            puts "   $pos_param"
+         }
+         testsuite_shutdown 1
+      }
+
+      set o_val [lindex [split $o_parameter "="] 1]
+      if {$o_val == ""} {
+         puts "Error: --overwrite: no value specified for overwrite config parameter \"$o_par\""
+         testsuite_shutdown 1
+      }
+      set overwrite_array($o_par) $o_val
+      continue
+   }
+
+   if { ( [string compare [lindex $argv $i] "--install_mode"] == 0 ) || ([string compare [lindex $argv $i] "install_mode"] == 0) } {
+      incr i
+      set help_var [lindex $argv $i]
+      set o_parameter [string trim $help_var]
+      if {$o_parameter != "automatic" && $o_parameter != "manual"} {
+         puts "Error: --install_mode: parameter \"\" not supported."
+         testsuite_shutdown 1
+      }
+      set CHECK_TESTSUITE_INSTALL_MODE $o_parameter
+      puts " ---> using \"$CHECK_TESTSUITE_INSTALL_MODE\" for install_mode <---"
       continue
    }
 
@@ -8874,6 +9043,7 @@ for {set i 0} {$i < $argc} {incr i} {
    if {[string compare [lindex $argv $i] "--testsuite_trash"] == 0 || [string compare [lindex $argv $i] "testsuite_trash"] == 0} {
       set CHECK_TESTSUITE_TRASH 1
       puts "using testsuite_trash"
+      continue
    }
 
    # set logging levels via commandline
@@ -8881,18 +9051,27 @@ for {set i 0} {$i < $argc} {incr i} {
       incr i
       set help_var [lindex $argv $i]
       ts_log_set_level "output" $help_var
+      continue
    }
+
    if {[string compare [lindex $argv $i] "--logging_level"] == 0 || [string compare [lindex $argv $i] "logging_level"] == 0} {
       incr i
       set help_var [lindex $argv $i]
       ts_log_set_level "logging" $help_var
       set log_to_file 1
+      continue
    }
+
    if {[string compare [lindex $argv $i] "--mail_level"] == 0 || [string compare [lindex $argv $i] "mail_level"] == 0} {
       incr i
       set help_var [lindex $argv $i]
       ts_log_set_level "mail" $help_var
+      continue
    }
+  
+   # if this code is executed the command line parameter is not known! 
+   puts "unexpected command line parameter: \"[lindex $argv $i]\""
+   testsuite_shutdown 1
 }
 
 if {$log_to_file} {

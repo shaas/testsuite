@@ -69,7 +69,7 @@ set check_needs           "init_core_system"
 
 
 # define test's procedure order
-set check_functions ""
+set check_functions "issue_1330_check_install_mode"
 lappend check_functions "kill_running_system"
 lappend check_functions "create_autoinst_config"
 lappend check_functions "install_bdb_rpc"
@@ -117,4 +117,16 @@ proc Autoinstall_test_init_level {} {
 
 
 # -------- local test procedures: initialization------------------------------
+proc issue_1330_check_install_mode {} {
+   global CHECK_TESTSUITE_INSTALL_MODE
 
+   if {$CHECK_TESTSUITE_INSTALL_MODE != "manual"} {
+      set error_text "The testsuite install mode (see parameter --install_mode) is NOT set\n"
+      append error_text "to \"manual\". Since the install_core_system test is already testing\n"
+      append error_text "the \"automatic\" installation, running this test is not useful.\n"
+      append error_text "ATTENTION: The test is marked to fail. This test will only start\n"
+      append error_text "when the install_mode is set to \"manual\" to be sure that the system\n"
+      append error_text "was at least once installed in manual mode.\n"
+      ts_log_warning $error_text
+   }
+}

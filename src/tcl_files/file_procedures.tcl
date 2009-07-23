@@ -1927,7 +1927,9 @@ proc create_shell_script { scriptfile
       if {$source_settings_file == 1} {
          append script_content "# source settings file\n"
          append script_content "if \[ -f $ts_config(product_root)/$ts_config(cell)/common/settings.sh \]; then\n"
+         append script_content "   if \[ -r $ts_config(product_root)/$ts_config(cell)/common/settings.sh \]; then\n"
          append script_content "   . $ts_config(product_root)/$ts_config(cell)/common/settings.sh\n"
+         append script_content "   fi\n"
          append script_content "else\n"
       }
 
@@ -4370,4 +4372,474 @@ proc get_testsuite_delete_filename { {get_local_file 0} } {
       set ret_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete_local.$ts_config_name"
    }
    return $ret_file_name
+}
+
+#****** file_procedures/get_uri_hostname() *************************************
+#  NAME
+#     get_uri_hostname() -- return hostname from file URI
+#
+#  SYNOPSIS
+#     get_uri_hostname { uri } 
+#
+#  FUNCTION
+#     This function is used to get out the hostname from the specified URI.
+#
+#  INPUTS
+#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#
+#  RESULT
+#     tcl string with hostname or an empty string ("") on error
+#     
+#     If the URI is valid and no hostname is set (e.g.: file:///tmp) the
+#     local host name is returned.
+#
+#  NOTES
+#     TODO: We might use the package uri (package require uri)
+#     e.g.  uri 1.1.2 "Tcl Uniform Resource Identifier Management"
+#     package require uri 1.1.2
+#     if we want to support all URI Schemes
+#
+#     TODO: Currently only file uri is supported
+#
+#  SEE ALSO
+#     file_procedures/get_uri_hostname()
+#     file_procedures/get_uri_path()
+#     file_procedures/get_uri_scheme()
+#*******************************************************************************
+proc get_uri_hostname { uri } { 
+   set scheme [lindex [split $uri ":"] 0]
+
+   switch -exact $scheme {
+      "file" {
+         set hostname [string trim [lindex [split $uri "/"] 2]]
+         if {$hostname == ""} {
+            set hostname [gethostname]
+         }
+         return $hostname
+      }
+      default {
+         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         return ""
+      }
+   }
+}
+
+#****** file_procedures/get_uri_scheme() ***************************************
+#  NAME
+#     get_uri_scheme() -- return URI scheme
+#
+#  SYNOPSIS
+#     get_uri_scheme { uri } 
+#
+#  FUNCTION
+#     This function is used to parse the URI scheme of the specified URI string
+#
+#  INPUTS
+#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#
+#  RESULT
+#     The name of the uri scheme or empty string ("") on error
+#
+#  NOTES
+#     TODO: We might use the package uri (package require uri)
+#     e.g.  uri 1.1.2 "Tcl Uniform Resource Identifier Management"
+#     package require uri 1.1.2
+#     if we want to support all URI Schemes
+#
+#     TODO: Currently only file uri is supported
+#
+#  SEE ALSO
+#     file_procedures/get_uri_hostname()
+#     file_procedures/get_uri_path()
+#     file_procedures/get_uri_scheme()
+#*******************************************************************************
+proc get_uri_scheme { uri } { 
+   set scheme [lindex [split $uri ":"] 0]
+
+   switch -exact $scheme {
+      "file" {
+         return $scheme
+      }
+      default {
+         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         return ""
+      }
+   }
+}
+
+#****** file_procedures/get_uri_path() *****************************************
+#  NAME
+#     get_uri_path() -- return path from file URI
+#
+#  SYNOPSIS
+#     get_uri_path { uri } 
+#
+#  FUNCTION
+#     This function is used to get the path string from the specified URI.
+#
+#  INPUTS
+#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#
+#  RESULT
+#     tcl string with path or empty string ("") on error
+#
+#  NOTES
+#     TODO: We might use the package uri (package require uri)
+#     e.g.  uri 1.1.2 "Tcl Uniform Resource Identifier Management"
+#     package require uri 1.1.2
+#     if we want to support all URI Schemes
+#
+#     TODO: Currently only file uri is supported
+#
+#  SEE ALSO
+#     file_procedures/get_uri_hostname()
+#     file_procedures/get_uri_path()
+#     file_procedures/get_uri_scheme()
+#*******************************************************************************
+proc get_uri_path { uri } { 
+   set scheme [lindex [split $uri ":"] 0]
+   switch -exact $scheme {
+      "file" {
+         set path "/"
+         set split_list [split $uri "/"]
+         set length [llength $split_list]
+         if {$length <= 3} {
+            ts_log_severe "URI Scheme \"$scheme\" needs at least 3 \"/\" characters: $uri"
+            return ""
+         }
+         for {set i 3} {$i < $length} {incr i 1} {
+            set dname [string trim [lindex $split_list $i]]
+            if {[string length $dname] > 0} {
+               append path $dname
+               append path "/"
+            }
+         }
+         set str_length [string length $path]
+         if {$str_length > 1} {
+            # remove last "/"
+            incr str_length -2
+            set path [string range $path 0 $str_length]
+         }
+         return $path
+      }
+      default {
+         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         return ""
+      }
+   }
+}
+
+
+#****** file_procedures/parse_testsuite_info_file() ****************************
+#  NAME
+#     parse_testsuite_info_file() -- framework for parsing testsuite.info file
+#
+#  SYNOPSIS
+#     parse_testsuite_info_file { user uri info_file } 
+#
+#  FUNCTION
+#     This procedure is used to parse a testsuite.info file. 
+#
+#     A testsuite.info file has following syntax:
+#
+#     #Sub dir       |Release|Description             |Enabled for testing
+#     #-------------------------------------------------------------------
+#     sge6.1/6.1u6   |6:1:6  |Sun Grid Engine 6.1u6   |true
+#     sge6.1/6.1beta |6:1:0  |N1 Grid Engine 6.1 Beta |false
+#     sge6.1/6.1u3   |6:1:3  |Sun Grid Engine 6.1u3   |false
+#
+#     Sub dir:     relative path to directory where the distribution
+#                  is available
+#
+#     Release:     Syntax: MAJOR_NR:MINOR_NR:UPDATE_NR
+#                  - FCS version gets UPDATE_NR 0
+#
+#     Description: Text description of the release
+#
+#     Enabled for testing: true - usable for testsuite, false - not usable
+#
+#
+#  INPUTS
+#     user      - user who should read the file
+#     uri       - file URI to testsuite.info file (e.g.: file://hostfoo/tmp)
+#     info_file - array for storing the parsed information
+#
+#        info_file(count)                - nr of entries
+#        info_file(uri)                  - same as INPUTS uri
+#        info_file(user)                 - same as INPUTS user
+#        info_file(INDEX_NR,COLUMN_NAME) - data access
+#
+#        INDEX_NR: running number for valid distribution
+#        COLUMN_NAME: "major_release", "minor_release", "update_release",
+#                     "version", "description" and "enabled"
+#  
+#        version: e.g.: "61u2"
+#
+#  RESULT
+#     1 on success, 0 on error
+#
+#  SEE ALSO
+#     file_procedures/parse_testsuite_info_file()
+#     file_procedures/get_release_packages()
+#
+#*******************************************************************************
+proc parse_testsuite_info_file { user uri info_file } {
+   upvar $info_file pack_info
+
+   if {[info exists pack_info]} {
+      unset pack_info
+   }
+
+   # get host and path to release packages directory
+   set host [get_uri_hostname $uri]
+   set path [get_uri_path $uri]
+
+   set testsuite_info_file_name "$path/testsuite.info"
+
+   if {![is_remote_file $host $user $testsuite_info_file_name]} {
+      ts_log_severe "$host: Cannot open file \"$testsuite_info_file_name\""
+      return 0
+   }
+
+   ts_log_fine "${host}($user): reading \"$testsuite_info_file_name\" ..."
+   get_file_content $host $user $testsuite_info_file_name farray
+
+   set expected_columns 4
+   set expected_release_columns 3
+   set array_names {}
+   lappend array_names "subdir"
+   lappend array_names "major_release"
+   lappend array_names "minor_release"
+   lappend array_names "update_release"
+   lappend array_names "version"
+   lappend array_names "description"
+   lappend array_names "enabled"
+
+   set pack_info_index 1
+
+   for {set i 1} {$i <= $farray(0)} {incr i} {
+      set line [string trim $farray($i)]
+
+      # ignore comments
+      if {[string index $line 0] == "#"} {
+         continue
+      }
+     
+      # ignore empty lines
+      if {$line == ""} {
+         continue
+      }
+      set columns [split $line "|"]
+      if {[llength $columns] != $expected_columns} {
+         ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Column count not correct!"
+         continue
+      }
+#      ts_log_fine "line $i: $line"
+      
+      set was_error 0
+      for {set a 0} {$a < [llength $array_names]} {incr a 1} {
+         # get the current array name
+         set a_name [lindex $array_names $a]
+
+         # parse release column
+         set release [split [string trim [lindex $columns 1]] ":"]
+         set release_columns [llength $release]
+         if { $release_columns != $expected_release_columns } {
+            ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Column count of release column not correct!"
+            incr was_error 1
+            break
+         }
+
+         switch -exact $a_name {
+            "subdir" {
+               set pack_info($pack_info_index,$a_name) [string trim [lindex $columns 0]]
+               if {![is_remote_path $host $user "$path/$pack_info($pack_info_index,$a_name)"]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Subdir \"$pack_info($pack_info_index,$a_name)\" not found!" 
+                  incr was_error 1
+                  break
+               }
+            }
+            "major_release" {
+               set help [string trim [lindex $release 0]]
+               set pack_info($pack_info_index,$a_name) $help
+               if {![string is integer $help]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Major release version should be integer number!" 
+                  incr was_error 1
+                  break
+               }
+               if {[string length $help] == 0} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Major release version missing!" 
+                  incr was_error 1
+                  break
+               }
+            }
+            "minor_release" {
+               set help [string trim [lindex $release 1]]
+               set pack_info($pack_info_index,$a_name) $help
+               if {![string is integer $help]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Minor release version should be integer number!" 
+                  incr was_error 1
+                  break
+               }
+               if {[string length $help] == 0} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Minor release version missing!" 
+                  incr was_error 1
+                  break
+               }
+            }
+            "update_release" {
+               set help [string trim [lindex $release 2]]
+               set pack_info($pack_info_index,$a_name) $help
+               if {![string is integer $help]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Update release version should be integer number!" 
+                  incr was_error 1
+                  break
+               }
+               if {[string length $help] == 0} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Update release version missing!" 
+                  incr was_error 1
+                  break
+               }
+            }
+            "version" {
+               if {[lindex $release 2] >= 1} {
+                  set pack_info($pack_info_index,$a_name) "[lindex $release 0].[lindex $release 1]u[lindex $release 2]"
+               } else {
+                  set pack_info($pack_info_index,$a_name) "[lindex $release 0].[lindex $release 1]"
+               }
+            }
+            "description" {
+               set pack_info($pack_info_index,$a_name) [string trim [lindex $columns 2]]
+            }
+            "enabled" {
+               set help [string tolower [string trim [lindex $columns 3]]]
+               set pack_info($pack_info_index,$a_name) $help
+               if {![string is boolean $help]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Enabled for testing column value should be boolean!" 
+                  incr was_error 1
+                  break
+               }
+               if {$help} {
+                  set pack_info($pack_info_index,$a_name) "true"
+               } else {
+                  set pack_info($pack_info_index,$a_name) "false"
+               }
+            }
+            default {
+               set pack_info($pack_info_index,$a_name) "n.a."
+            }
+         }
+#         ts_log_fine "$a_name=\"$pack_info($pack_info_index,$a_name)\""
+      }
+      if {$was_error == 0} {
+         incr pack_info_index 1
+      }
+   }
+   set pack_info(count) [expr $pack_info_index - 1]
+   set pack_info(uri) $uri
+   set pack_info(user)  $user
+#   ts_log_fine "nr. of valid entries found: $pack_info(count)"
+   return 1
+}
+
+
+#****** file_procedures/get_release_packages() *********************************
+#  NAME
+#     get_release_packages() -- copy Grid Engine distribution to product root
+#
+#  SYNOPSIS
+#     get_release_packages { host user dest_path info_file nr } 
+#
+#  FUNCTION
+#     This function is used to copy and unpack the specified Grid Engine release
+#     to a destination directory.
+#
+#  INPUTS
+#     host      - hostname where the $dest_path is availabe 
+#     user      - user who is executing commands
+#     dest_path - absolut destination path on $host (Grid Engine SGE_ROOT dir)
+#     info_file - array which contains testsuiten.info data
+#     nr        - running number of distribution
+#
+#  RESULT
+#     1 on success, 0 on error
+#
+#  NOTES
+#     TODO: Currently only works for file URI.
+#     TODO: Only works when testsuite.info file and destination file is avail.
+#           on the same host
+#     TODO: Only works for *.tar.gz files
+#
+#  SEE ALSO
+#     file_procedures/parse_testsuite_info_file()
+#     file_procedures/get_release_packages()
+#*******************************************************************************
+proc get_release_packages { host user dest_path info_file nr} {
+   upvar $info_file pack_info
+
+   if {![info exists pack_info($nr,version)]} {
+      ts_log_severe "info array does not contain package nr $nr"
+      return 0
+   }
+
+   set scheme [get_uri_scheme $pack_info(uri)]
+   switch -exact $scheme {
+      "file" {
+         set source_host [get_uri_hostname $pack_info(uri)]
+         set source_path [get_uri_path $pack_info(uri)]
+         set source_release_path "$source_path/$pack_info($nr,subdir)"
+
+         if {[resolve_host $source_host] == [resolve_host $host]} {
+
+            # copy packages
+            ts_log_fine "copy from $source_host:$source_release_path to $host $dest_path as user $user"
+            set output [start_remote_prog $host $user [get_binary_path $host "cp"] "$source_release_path/*.tar.gz $dest_path" prg_exit_state 300 0 "" "" 1 0]
+            if {$output != ""} {
+               ts_log_fine "output of cp: $output"
+            }
+            if {$prg_exit_state != 0} {
+               ts_log_severe "${host}($user): Cannot copy distribution from $source_release_path !"
+               return 0
+            }
+
+            # gunzip packages
+            set output [start_remote_prog $host $user [get_binary_path $host "gunzip"] "*.gz" prg_exit_state 300 0 $dest_path "" 1 0]
+            if {$output != ""} {
+               ts_log_fine "output of gunzip: $output"
+            }
+            if {$prg_exit_state != 0} {
+               ts_log_severe "${host}($user): Cannot gunzip distribution in $dest_path!"
+               return 0
+            }
+
+            # untar packages
+            analyze_directory_structure $host $user $dest_path "" files ""
+            foreach filename $files {
+               if {[string match "*.tar*" $filename]} {
+                  ts_log_fine "untar $filename ..."
+                  set output [start_remote_prog $host $user [get_binary_path $host "tar"] "-xf $filename" prg_exit_state 300 0 $dest_path "" 1 0]
+                  if {$output != ""} {
+                     ts_log_fine "output of tar: $output"
+                  }
+                  if {$prg_exit_state != 0} {
+                     ts_log_severe "${host}($user): Cannot tar -xf $filename in $dest_path!"
+                     return 0
+                  }
+               } else {
+                  ts_log_fine "ignore $filename ..."
+               }
+            } 
+            return 1
+         } else {
+            ts_log_severe "execute copy from different host than file uri server not yet implemented"
+            return 0
+         }
+      }
+      default {
+         ts_log_severe "URI Scheme \"$scheme\" not implemented: $pack_info(uri)"
+         return 0
+      }
+   }
+   ts_log_fine "unexpected error"
+   return 0
 }

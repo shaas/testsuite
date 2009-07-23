@@ -126,10 +126,11 @@ proc ts_source {filebase {extension tcl}} {
 #     version_information_array_name is used to upvar a variable name and set additional
 #     release informations.
 #     Following array names are set:
-#       - version_information_array_name(major_release)  e.g. "6" 
-#       - version_information_array_name(minor_release)  e.g. "2"
-#       - version_information_array_name(update_release) e.g. "3"
-#       - version_information_array_name(full)           e.g. "GE 6.2u3beta"
+#       - version_information_array_name(major_release)    e.g. "6" 
+#       - version_information_array_name(minor_release)    e.g. "2"
+#       - version_information_array_name(update_release)   e.g. "3"
+#       - version_information_array_name(full)             e.g. "GE 6.2u3beta"
+#       - version_information_array_name(detected_version) e.g. "6.2u3" 
 #
 #
 #  INPUTS

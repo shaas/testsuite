@@ -203,6 +203,64 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
    return $errors
 }
 
+
+#****** config/clone_config() **************************************************
+#  NAME
+#     clone_config() -- clone testsuite config (ts_config) and save into file
+#
+#  SYNOPSIS
+#     clone_config { source_config file_path } 
+#
+#  FUNCTION
+#     This procedure is used to obtain all necessary information from the 
+#     specified testsuite configuration array and store it into a new testsuite
+#     configuration file.
+#
+#  INPUTS
+#     source_config - testsuite configuration array (e.g.: ts_config)
+#     file_path     - path to a file in which the configuration should be saved
+#
+#  RESULT
+#     none
+#*******************************************************************************
+proc clone_config { source_config file_path } {
+   upvar $source_config sconf
+
+#   ts_log_fine [format_array sconf]
+
+   set clone_argument_list [get_supported_config_parameter_list]
+
+   set source_elem_count [get_configuration_element_count sconf]
+   set clone_elem_count [llength $clone_argument_list]
+
+   if {$source_elem_count != [ expr $clone_elem_count + 1]} {
+      set error_text "Clone config seems to have to less parameters which must be copied!\n"
+      foreach elem [ array names sconf "*,pos"] {
+         set parameter [lindex [split $elem ","] 0]
+         if {$parameter == "version"} {
+            continue
+         }
+         if {[lsearch -exact $clone_argument_list $parameter] == -1} {
+            append error_text " Parameter \"$parameter\" is missing!\n"
+            ts_log_fine "appending missing parameter \"$parameter\""
+            lappend clone_argument_list $parameter
+         }
+      }    
+      ts_log_config $error_text
+   }
+
+   foreach param $clone_argument_list {
+      ts_log_finer "config parameter >$param< set to \"$sconf($param)\""
+      set cconfig($param) $sconf($param)
+   }
+   ts_log_fine [format_array cconfig]
+
+   set conf_name "testsuite configuration"
+   set filename $file_path
+   spool_array_to_file $filename $conf_name cconfig
+   ts_log_fine "cloned config written to \"$filename\""
+}
+
 #****** config/edit_setup() ****************************************************
 #  NAME
 #     edit_setup() -- edit testsuite/host/user configuration setup
@@ -224,9 +282,18 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
 #     check/verify_user_config()
 #*******************************************************************************
 proc edit_setup { array_name verify_func mod_string } {
-
+   global overwrite_array CHECK_DEFAULTS_FILE
    upvar $array_name org_config
    upvar $mod_string onchange_values
+
+   if {[info exists overwrite_array]} {
+      puts "ATTENTION: This is a cloned configuration. It is not allowed to modify"
+      puts "           a cloned testsuite configuration. You might copy the config"
+      puts "           file \"$CHECK_DEFAULTS_FILE\" and startup testsuite again"
+      puts "           without overwrite arguments!!!"
+      wait_for_enter
+      return
+   }
 
    set onchange_values ""
    set org_names [ array names org_config ]

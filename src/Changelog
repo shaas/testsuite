@@ -6,6 +6,37 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-07-23-0: Enhancem.:  Integrate upgrade test (Part I)
+                             o framework enhancements: 
+                               added new command line parameters:
+                               - overwrite
+                                 (clone configuration)
+                               - install_mode
+                                 (manual or automatic install_core_system mode)
+                             o install_binaries(): wait for SGE_ROOT dir to be
+                               available on all cluster hosts
+                             o testsuite will now fail if it gets unexpected
+                               command line parameter
+                             o create_shell_script(): additonal check if cell
+                               settings file is readable
+                             o new framework procedures for file URI:
+                                - get_uri_hostname()
+                                - get_uri_path()
+                                - get_uri_scheme()
+                             o new framework for parsing a so called
+                               testsuite.info file which contains information
+                               about available Grid Engine distributions
+                                - parse_testsuite_info_file()
+                                - get_release_packages()
+                             o new config procedure:
+                                - clone_config()
+                             o issue_1330 test: if install_mode is set to 
+                               "automatic" the test will now fail. Reason:
+                               it should be insured that the install core
+                               system test is at least started one times
+                               "manual" in QA phases.
+                 Review:     MD
+
 MD-2009-07-23-0: Bugfix:     upgrade test hangs in an endless loop, if jmx port
                              is set to 0 (is disabled)
                  Review:     CR
