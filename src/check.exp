@@ -2907,7 +2907,7 @@ proc build_checktree {} {
 
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
-   global check_highest_level check_init_level_procedure check_name
+   global check_highest_level check_init_level_procedure check_name check_needs
    global check_category
    global CHECK_ACT_LEVEL
 
@@ -2945,6 +2945,7 @@ proc read_checktree_nodes { path } {
       }
 
       set ts_checktree($nr,check_name) $check_name
+      set ts_checktree($nr,check_needs) $check_needs
       set ts_checktree($nr,check_init_level_procedure) $check_init_level_procedure
       set ts_checktree($nr,check_highest_level) $check_highest_level
       set ts_checktree($nr,check_category) $check_category
@@ -3335,6 +3336,20 @@ proc get_check_name {path} {
       set nr $ts_checktree($path)
       if {$ts_checktree($nr,test_available) == 1} {
          set name $ts_checktree($nr,check_name)
+      }
+   }
+
+   return $name
+}
+
+proc get_check_depends {path} {
+   global ts_checktree
+
+   set name ""
+   if {[info exists ts_checktree($path)]} {
+      set nr $ts_checktree($path)
+      if {$ts_checktree($nr,test_available) == 1} {
+         set name $ts_checktree($nr,check_needs)
       }
    }
 
@@ -4042,7 +4057,7 @@ proc run_tests {path runcompleted} {
       append mail_body "\n\nmissing dependencies:\n"
       append mail_body "=====================\n\n"
       foreach elem $check_missing_dep {
-         append mail_body "check [get_check_name $elem] in directory\n$elem\n"
+         append mail_body "check [get_check_name $elem] ([get_check_depends $elem]) in directory\n$elem\n"
       }
    }
 
