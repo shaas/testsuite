@@ -185,6 +185,15 @@ proc test {m p} {
    puts "test $m $p"
 }
 
+proc ge_get_gridengine_version {} {
+   global ts_config CHECK_USER
+
+   set version_script "$ts_config(testsuite_root_dir)/scripts/sge_version.sh"
+
+   set output [start_remote_prog [gethostname] $CHECK_USER $version_script $ts_config(source_dir)]
+   return [string trim $output]
+}
+
 #****** sge_procedures/get_complex_version() ***********************************
 #  NAME
 #     get_complex_version() -- get information about used qconf version
@@ -1551,11 +1560,6 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    get_current_cluster_config_array ts_config
    upvar $variable qacctinfo
 
-
-   if { $user == $CHECK_USER } {
-      ts_log_severe "This procedure only works for users != \$CHECK_USER ($CHECK_USER)"
-      return -1
-   }
    delete_all_jobs
    wait_for_end_of_all_jobs 30
 
@@ -1774,6 +1778,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                         if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
                            ts_log_fine "qlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
+                           ts_send $sp_id "exit\n"
                         }
                      }
                   }
@@ -4904,13 +4909,15 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-38)    "*[translate_macro MSG_QSUB_COULDNOTRUNJOB_S "*"]*"
 
    # add the standard/error output options if necessary
-   if { [string first "-o " $args] == -1 && $dev_null == 1} {
-      set args "-o /dev/null $args"
-      ts_log_fine "added submit argument: -o /dev/null"
-   }
-   if { [string first "-e " $args] == -1 && $dev_null == 1} {
-      set args "-e /dev/null $args"
-      ts_log_fine "added submit argument: -e /dev/null"
+   if { $qcmd == "qsub" } {
+      if { [string first "-o " $args] == -1 && $dev_null == 1} {
+         set args "-o /dev/null $args"
+         ts_log_fine "added submit argument: -o /dev/null"
+      }
+      if { [string first "-e " $args] == -1 && $dev_null == 1} {
+         set args "-e /dev/null $args"
+         ts_log_fine "added submit argument: -e /dev/null"
+      }
    }
 
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]

@@ -428,6 +428,19 @@ set CHECK_INTERRUPT 0
 set CHECK_TEST_RUNNING 0
 set CHECK_TESTS_RUNNING 0
 
+global CHECK_IS_INTERACTIVE
+set CHECK_IS_INTERACTIVE false
+
+proc check_is_interactive {} {
+   global CHECK_IS_INTERACTIVE
+   return $CHECK_IS_INTERACTIVE
+}
+
+proc check_set_interactive {mode} {
+   global CHECK_IS_INTERACTIVE
+   set CHECK_IS_INTERACTIVE $mode
+}
+
 # debuglevel 0 - none
 # debuglevel 1 - more output
 # debuglevel 2 - wait for user response (sometimes!)
@@ -8566,6 +8579,8 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "                      rtools (use rsh/rlogin/telnet, default for < 6.2)"
       puts "                      ssh (use ssh as transport)"
       puts ""
+      puts "interactive_mode      run the test in interactive mode."
+      puts ""
       puts "compile_clean         force aimk clean when no_update option is set at compile time."
       puts ""
       puts "mfile FILE            write all mails into file FILE (when mail is enabled)"
@@ -8680,6 +8695,11 @@ for {set i 0} {$i < $argc} {incr i} {
             testsuite_shutdown 1
          }
       }
+      continue
+   }
+
+   if {[string compare [lindex $argv $i] "--interactive_mode"] == 0 || [string compare [lindex $argv $i] "interactive_mode"] == 0} {
+      check_set_interactive true
       continue
    }
 

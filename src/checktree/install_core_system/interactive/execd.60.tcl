@@ -59,7 +59,7 @@
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc install_execd {} {
+proc install_execd {{report_var report}} {
    global ts_config
    global CORE_INSTALLED
    global check_use_installed_system
@@ -72,6 +72,12 @@ proc install_execd {} {
    set INST_VERSION 0 
    set LOCAL_ALREADY_CHECKED 0
 
+   upvar $report_var report
+
+   set report_id [register_test install_execd report curr_task_nr]
+
+   set report_host [get_test_host report $curr_task_nr]
+
    set execd_port [expr $CHECK_COMMD_PORT + 1]
  
    read_install_list
@@ -80,7 +86,7 @@ proc install_execd {} {
    # if yes, we'll have to copy the certificates, regardless of csp mode or not
    set have_windows_host [host_conf_have_windows]
 
-   set script_version [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" ]
+   set script_version [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" ] ;#"
 
    if {$prg_exit_state == 0} {
       set INST_VERSION $script_version
@@ -112,6 +118,8 @@ proc install_execd {} {
             if {$result != 0} {
                # failed copying the certificates
                # copy_certificates() already called ts_log_severe()
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value "Copy certificates failed."
                return
             }
          }
@@ -121,7 +129,10 @@ proc install_execd {} {
    foreach exec_host $ts_config(execd_nodes) {
       ts_log_fine "installing execd on host $exec_host ($ts_config(product_type) system) ..."
       if {[lsearch $ts_config(execd_nodes) $exec_host] == -1} {
-         ts_log_severe "host $exec_host is not in execd list"
+         set msg "host $exec_host is not in execd list"
+         ts_log_severe $msg
+         test_report report $curr_task_nr $report_id result [get_result_failed]
+         test_report report $curr_task_nr $report_id value $msg
          return 
       }
       if {$check_use_installed_system != 0} {
@@ -131,13 +142,19 @@ proc install_execd {} {
             write_install_list
             continue
          } else {
-            ts_log_warning "could not startup execd on host $exec_host"
+            set msg "could not startup execd on host $exec_host"
+            ts_log_warning $msg
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
       }
 
       if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-         ts_log_severe "install_execd file not found"
+         set msg "install_execd file not found"
+         ts_log_severe $msg
+         test_report report $curr_task_nr $report_id result [get_result_failed]
+         test_report report $curr_task_nr $report_id value $msg
          return
       }
 
@@ -228,8 +245,11 @@ proc install_execd {} {
          log_user 1 
          expect {
             -i $sp_id full_buffer {
-               ts_log_warning "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               set msg "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
 
@@ -251,15 +271,21 @@ proc install_execd {} {
                continue
             }
 
-            -i $sp_id "orry" { 
-               ts_log_warning "wrong root password"
+            -i $sp_id "orry" {
+               setm msg "wrong root password"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
 
             -i $sp_id "The installation of the execution daemon will abort now" {
-               ts_log_warning "installation error"
+               set msg "installation error"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
 
@@ -353,8 +379,11 @@ proc install_execd {} {
                   install_send_answer $sp_id ""
                   continue
                } else {
-                  ts_log_warning "host $exec_host: tried to install not as root"
+                  set msg "host $exec_host: tried to install not as root"
+                  ts_log_warning $msg
                   close_spawn_process $id
+                  test_report report $curr_task_nr $report_id result [get_result_failed]
+                  test_report report $curr_task_nr $report_id value $msg
                   return
                }
             }
@@ -409,19 +438,28 @@ proc install_execd {} {
             }
 
             -i $sp_id "Error:" {
-               ts_log_warning "$expect_out(0,string)"
+               set msg "$expect_out(0,string)"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
             -i $sp_id "can't resolve hostname*\n" {
-               ts_log_warning "$expect_out(0,string)"
+               set msg "$expect_out(0,string)"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
 
             -i $sp_id "error:\n" {
-               ts_log_warning "$expect_out(0,string)"
+               set msg "$expect_out(0,string)"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
 
@@ -460,8 +498,11 @@ proc install_execd {} {
             }
 
             -i $sp_id default {
-               ts_log_warning "undefined behaviour: $expect_out(buffer)"
+               set msg "undefined behaviour: $expect_out(buffer)"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
          } ;# expect
@@ -479,5 +520,6 @@ proc install_execd {} {
          ts_log_severe "Error starting execd!"
       }
    }
+   test_report report $curr_task_nr $report_id result [get_result_ok]
 }
 

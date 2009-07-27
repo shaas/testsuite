@@ -59,7 +59,7 @@
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc install_bdb_rpc {} {
+proc install_bdb_rpc {{report_var report}} {
    global ts_config
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
@@ -75,6 +75,12 @@ proc install_bdb_rpc {} {
       return
    }
 
+   upvar $report_var report
+
+   set report_id [register_test install_bdb_rpc report curr_task_nr]
+
+   set report_host [get_test_host report $curr_task_nr]
+
    set bdb_host $ts_config(bdb_server)
    ts_log_fine "installing BDB RPC Server on host $bdb_host ($ts_config(product_type) system) ..."
    if {$check_use_installed_system != 0} {
@@ -85,11 +91,16 @@ proc install_bdb_rpc {} {
       } else {
          ts_log_warning "could not startup BDB RPC Server on host $bdb_host"
       }
+      test_report report $curr_task_nr $report_id result [get_result_skipped]
+      test_report report $curr_task_nr $report_id value "Installation skipped."
       return
    }
 
    if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-      ts_log_severe "inst_sge file not found"
+      set msg "inst_sge file not found"
+      ts_log_severe $msg
+      test_report report $curr_task_nr $report_id result [get_result_failed]
+      test_report report $curr_task_nr $report_id value $msg
       return
    }
 
@@ -122,7 +133,10 @@ proc install_bdb_rpc {} {
    # bdb server can spool on any filesystem, no need to request a local one
    set spooldir [get_bdb_spooldir $ts_config(bdb_server) 0]
    if {$spooldir == ""} {
-      ts_log_severe "no spooldir for host $bdb_host found"
+      set msg "no spooldir for host $bdb_host found"
+      ts_log_severe $msg
+      test_report report $curr_task_nr $report_id result [get_result_failed]
+      test_report report $curr_task_nr $report_id value $msg
       return
    }
 
@@ -155,8 +169,11 @@ proc install_bdb_rpc {} {
       log_user 1 
       expect {
          -i $sp_id full_buffer {
-            ts_log_warning "inst_sge -db - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            set msg "inst_sge -db - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -273,19 +290,28 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id "Error:" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
          -i $sp_id "can't resolve hostname*\n" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "error:\n" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -315,8 +341,11 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id default {
-            ts_log_warning "inst_sge -db - undefined behaviour: $expect_out(buffer)"
+            set msg "inst_sge -db - undefined behaviour: $expect_out(buffer)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
       } ;# expect
@@ -324,5 +353,6 @@ proc install_bdb_rpc {} {
 
    # close the connection to inst_sge
    close_spawn_process $id
+   test_report report $curr_task_nr $report_id result [get_result_ok]
 }
 

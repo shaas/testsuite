@@ -60,7 +60,7 @@
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc install_qmaster {} {
+proc install_qmaster {{report_var report}} {
    global CHECK_USER
    global CORE_INSTALLED CORE_INSTALLED
    global env CHECK_COMMD_PORT local_master_spool_set
@@ -72,6 +72,12 @@ proc install_qmaster {} {
  
    global ts_config
 
+   upvar $report_var report
+
+   set report_id [register_test install_qmaster report curr_task_nr]
+
+   set report_host [get_test_host report $curr_task_nr]
+
    ts_log_fine "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
    if {$check_use_installed_system != 0} {
@@ -81,6 +87,8 @@ proc install_qmaster {} {
          lappend CORE_INSTALLED $ts_config(master_host)
          write_install_list
       }
+      test_report report $curr_task_nr $report_id result [get_result_skipped]
+      test_report report $curr_task_nr $report_id value "Installation skipped."
       return
    }
 
@@ -88,7 +96,10 @@ proc install_qmaster {} {
    write_install_list
 
    if {[file isfile "$ts_config(product_root)/install_qmaster"] != 1} {
-      ts_log_severe "install_qmaster file not found"
+      set msg "install_qmaster file not found"
+      ts_log_severe $msg
+      test_report report $curr_task_nr $report_id result [get_result_failed]
+      test_report report $curr_task_nr $report_id value $msg
       return
    }
 
@@ -249,44 +260,65 @@ proc install_qmaster {} {
       set timeout 300
       expect {
          -i $sp_id full_buffer {
-            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            set msg "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id eof {
-            ts_log_severe "unexpected eof"
+            set msg "unexpected eof"
+            ts_log_severe $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "coredump" {
-            ts_log_warning "coredump"
+            set msg "coredump"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id timeout {
-            ts_log_warning "timeout while waiting for output"
+            set msg "timeout while waiting for output"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "orry" {
-            ts_log_severe "wrong root password"
+            set msg "wrong root password"
+            ts_log_severe $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "issing" {
-            ts_log_severe "missing binary error"
+            set msg "missing binary error"
+            ts_log_severe $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "xit." {
-            ts_log_severe "installation failed"
+            set msg "installation failed"
+            ts_log_severe $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -297,8 +329,11 @@ proc install_qmaster {} {
 
             ts_log_newline FINER ; ts_log_finer "-->testsuite: admin user is \"$real_admin_user\""
             if {[string compare $real_admin_user $CHECK_USER] != 0} {
-               ts_log_severe "admin user \"$real_admin_user\" is different from CHECK_USER \"$CHECK_USER\"" 
+               set msg "admin user \"$real_admin_user\" is different from CHECK_USER \"$CHECK_USER\""
+               ts_log_severe $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
             continue
@@ -367,8 +402,12 @@ proc install_qmaster {} {
             # For the JMX MBean Server we need java 1.5+
             set java_home [get_java_home_for_host $ts_config(master_host) "1.5+"]
             if {$java_home == ""} {
-               ts_log_warning "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15+ is not defined in host configuration"
+               set msg "Cannot install qmaster with JMX MBean Server on host \
+                  $ts_config(master_host). java15+ is not defined in host configuration"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
             install_send_answer $sp_id $java_home "sending java_home"
@@ -384,8 +423,11 @@ proc install_qmaster {} {
             if {$ts_config(jmx_port) > 0} {
                install_send_answer $sp_id $ts_config(jmx_port) "jmx port $ts_config(jmx_port)"
             } else {
-               ts_log_severe "got jmx port question, but jmx port is set to $ts_config(jmx_port)"
+               set msg "got jmx port question, but jmx port is set to $ts_config(jmx_port)"
+               ts_log_severe $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
             continue
@@ -544,8 +586,11 @@ proc install_qmaster {} {
                install_send_answer $sp_id "" "2"
                continue
             } else {
-               ts_log_warning "tried to install not as root"
+               set msg "tried to install not as root"
+               ts_log_warning $msg
                close_spawn_process $id
+               test_report report $curr_task_nr $report_id result [get_result_failed]
+               test_report report $curr_task_nr $report_id value $msg
                return
             }
          }
@@ -805,8 +850,12 @@ proc install_qmaster {} {
          }
 
          -i $sp_id $DATABASE_DIR_NOT_ON_LOCAL_FS {
-            ts_log_warning "configured database directory not on y local disk\nPlease run testsuite setup and configure Berkeley DB server and/or directory"
+            set msg "configured database directory not on y local disk\nPlease run \
+               testsuite setup and configure Berkeley DB server and/or directory"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -816,8 +865,11 @@ proc install_qmaster {} {
          }
 
          -i $sp_id $DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS {
-            ts_log_warning "not yet ported for this platform"
+            set msg "not yet ported for this platform"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -868,26 +920,38 @@ proc install_qmaster {} {
          }
 
          -i $sp_id "Error:" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id -- $NOT_COMPILED_IN_SECURE_MODE {
-            ts_log_warning "sge_qmaster binary is not compiled in secure mode"
+            set msg "sge_qmaster binary is not compiled in secure mode"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "ommand failed*\n" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
          -i $sp_id "can't resolve hostname*\n" {
-            ts_log_warning "$expect_out(0,string)"
+            set msg "$expect_out(0,string)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
 
@@ -964,8 +1028,11 @@ proc install_qmaster {} {
             continue
          }
          -i $sp_id default {
-            ts_log_warning "undefined behaviour: $expect_out(buffer)"
+            set msg "undefined behaviour: $expect_out(buffer)"
+            ts_log_warning $msg
             close_spawn_process $id
+            test_report report $curr_task_nr $report_id result [get_result_failed]
+            test_report report $curr_task_nr $report_id value $msg
             return
          }
       } ;# expect
@@ -974,5 +1041,6 @@ proc install_qmaster {} {
    # close the connection to inst_sge
    log_user 0
    close_spawn_process $id
+   test_report report $curr_task_nr $report_id result [get_result_ok]
 }
 

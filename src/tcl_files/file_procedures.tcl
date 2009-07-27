@@ -1487,7 +1487,7 @@ proc get_file_names {path {ext "*"}} {
 #     file_procedures/create_html_link()
 #     file_procedures/create_html_text()
 #*******************************************************************************
-proc generate_html_file { file headliner content {return_text 0} {refresh_time 0} } {
+proc generate_html_file { file headliner content {return_text 0} {refresh_time 0} {center true}} {
 
    global CHECK_USER
 
@@ -1514,11 +1514,13 @@ proc generate_html_file { file headliner content {return_text 0} {refresh_time 0
    lappend output "<body text=\"#000000\" bgcolor=\"#FFFFFF\" link=\"#CCCCCC\" vlink=\"#999999\" alink=\"#993300\">"
    lappend output ""
    lappend output "<hr WIDTH=\"100%\">"
-   lappend output "<center><font size=+2>$headliner</font></center>"
+   if {$center} {
+      lappend output "<center><font size=+2>$headliner</font></center>"
+   } else {
+      lappend output "<font size=+2>$headliner</font>"
+   }
    lappend output ""
    lappend output "<hr WIDTH=\"100%\">"
-   lappend output "<br>&nbsp;"
-   lappend output "<br>&nbsp;"
    lappend output ""
    lappend output "$content"
    lappend output ""
@@ -1591,11 +1593,14 @@ proc generate_html_file { file headliner content {return_text 0} {refresh_time 0
 #     file_procedures/create_html_link()
 #     file_procedures/create_html_text()
 #*******************************************************************************
-proc create_html_table {array_name {border 0} {align LEFT}} {
+proc create_html_table {array_name {border 0} {align LEFT} {center true}} {
    upvar $array_name table
 
-   set back ""
-   append back "\n<center><table BORDER=$border COLS=${table(COLS)} WIDTH=\"80%\" NOSAVE >\n" 
+   set back "\n"
+   if {$center} {
+      append back <center>
+   }
+   append back "<table BORDER=$border COLS=${table(COLS)} WIDTH=\"80%\" NOSAVE >\n" 
    for {set row 1} {$row <= $table(ROWS)} {incr row} {
       append back "<tr ALIGN=$align VALIGN=CENTER BGCOLOR=\"$table($row,BGCOLOR)\" NOSAVE>\n"
       for {set col 1} {$col <= $table(COLS)} {incr col} {
@@ -1615,7 +1620,11 @@ proc create_html_table {array_name {border 0} {align LEFT}} {
       }
       append back "</tr>\n"
    }
-   append back "</table></center>\n"
+   append back "</table>"
+   if {$center} {
+      append back "</center>"
+   }
+   append back "\n"
    return $back
 }
 
@@ -1737,6 +1746,32 @@ proc create_html_text {content {center 0}} {
       append back "</center>\n"
    }
    return $back
+}
+
+proc create_html_non_formated_text {content {center false} {color ""}} {
+   set back ""
+
+   if {$content == ""}  {
+      set content "<br>"
+   }
+
+   if {$center} {
+      append back "<center>"
+   }
+   if {$color == ""} {
+      append back "<pre>$content</pre>"
+   } else {
+      append back "<pre><font color=$color>$content</font></pre>"
+   }
+
+   if {$center} {
+      append back "</center>\n"
+   }
+   return $back
+}
+
+proc create_html_line {size {width 100%} {align center}} {
+   return "<hr size=$size width=$width align=$align \>"
 }
 
 #                                                             max. column:     |

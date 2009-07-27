@@ -1,0 +1,461 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "basic_init_level"
+
+# define test's name and run level descriptions
+set check_name             "basic"
+set check_category         "COMPATIBILITY SYSTEM INTERACTIVE"
+set check_highest_level    300
+set check_description(0)   "Basic test on selected hosts"
+set check_description(100) "Basic test on all cluster hosts"
+set check_description(200) "Basic test on all compiled hosts"
+set check_description(300) "Basic test on all supported hosts"
+
+# define test's dependencies
+set check_needs           ""
+
+# setup and cleanup functions
+set check_setup_function basic_setup
+set check_cleanup_function basic_cleanup
+
+global CHECK_ACTUAL_TEST_PATH
+
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/init_cluster
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/interactive/qmaster
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/interactive/execd
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/interactive/bdb_rpc
+ts_source $CHECK_ACTUAL_TEST_PATH/../manual_util
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "basic_test_set"
+
+proc basic_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config ts_host_config
+   global basic_hosts basic_host_select basic_hosts_desc
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         set basic_host_select true
+         set basic_hosts $ts_config(master_host)
+         set basic_hosts_desc "master host"
+         return 0
+      }
+      100 {
+         set basic_host_select false
+         set basic_hosts [host_conf_get_cluster_hosts]
+         set basic_hosts_desc "all cluster hosts"
+         return 0
+      }
+      200 {
+         set basic_host_select false
+         set basic_hosts ""
+         foreach host $ts_host_config(hostlist) {
+            if {[host_conf_is_compile_host $host]} {
+               lappend basic_hosts $host
+            }
+         }
+         set basic_hosts_desc "all compile hosts"
+         return 0
+      }
+      300 {
+         set basic_host_select false
+         set basic_hosts ""
+         set basic_hosts_all_archs [host_conf_get_arch_hosts [host_conf_get_archs $ts_host_config(hostlist)]]
+         foreach host $basic_hosts_all_archs {
+            if {[host_conf_is_supported_host $host]} {
+               lappend basic_hosts $host
+            }
+         }
+         set basic_hosts_desc "all supported hosts"
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+proc basic_setup {} {
+   global ts_config ts_config_backup 
+   global basic_hosts basic_host_select basic_hosts_desc
+   global basic_test_identificator
+   global system_was_alive
+
+   if {[check_is_interactive]} {
+      set basic_host_select true
+   }
+
+   if {$basic_host_select} {
+      set name host_list
+      set my_config($name) $basic_hosts
+      set my_config($name,desc) "The basic tests will run on $basic_hosts_desc.\nAdjust the host list if necessary:"
+      while {true} {
+         set basic_hosts [config_generic 0 $name my_config "" host 0 0]
+         if {$basic_hosts == -1} {
+            set basic_hosts ""
+         }
+         puts -nonewline "You have choosed these hosts: $basic_hosts. Is the list correct? (y/n)"
+         set result [wait_for_enter 1]
+         if {$result == "y"} {
+            break
+         }
+      }
+   }
+
+   if {$basic_hosts == ""} {
+      ts_log_config "No host selected."
+      return 0
+   }
+
+   set basic_test_identificator "BASIC_TEST"
+
+   set system_was_alive false
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]]} {
+      set system_was_alive true
+      shutdown_core_system
+   }
+
+   # backup ts_config parameters
+   foreach param [array names ts_config] {
+      set ts_config_backup($param) $ts_config($param)
+   }
+
+}
+
+proc basic_cleanup {} {
+   global ts_config ts_config_backup system_was_alive
+   global basic_hosts
+
+   if {$basic_hosts == ""} {
+      return 0
+   }
+   # restore ts_config parameters
+   foreach param [array names ts_config_backup] {
+      set ts_config($param) $ts_config_backup($param)
+   }
+
+   if {$system_was_alive} {
+      startup_core_system
+   }
+
+   # unset our test's global variables
+   foreach var "ts_config_backup basic_hosts" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc basic_test_set {} {
+   global basic_hosts basic_test_identificator CHECK_HTML_DIRECTORY
+
+   if {$basic_hosts == ""} {
+      return 0
+   }
+
+   # TODO: Parallel run of basic tests is not supported. To enable it, use
+   # different port numbers for each run, different report arrays for storing
+   # data, write the results to the file.
+   array set report {}
+   report_create "Report of basic tests" report
+   report_set_html_parameters report generate_html_report basic_tests.html
+
+   foreach host $basic_hosts {
+      set task_nr [report_create_task report $basic_test_identificator $host "" 1]
+      set result [basic_test report]
+      report_finish_task report $task_nr $result
+
+      get_basic_tests_result report arch_results
+      set msg [get_basic_tests_html_message report arch_results]
+
+      report_clear_messages report
+      report_add_message report $msg
+
+      print_task_report report $task_nr
+      # TODO: add the possibility to change the test results
+   }
+
+   print_all_tasks_report report
+
+   set result [get_basic_tests_result report arch_results]
+   set msg [get_basic_tests_html_message report arch_results]
+
+   report_clear_messages report
+   report_add_message report $msg
+   report_finish report $result
+
+   # TODO: create procedure for sending e-mail notification with the link to the report
+   if {[string compare $CHECK_HTML_DIRECTORY ""] != 0} {
+      set body "testsuite - $report(name)\n"
+      append body "------------------------------------------\n\n"
+      append body " started: $report(start)\n"
+      append body "finished: $report(end)\n"
+      append body "  result: $report(result)\n"
+      append body "  link: file://$CHECK_HTML_DIRECTORY/$report(filename)"
+      mail_report "testsuite - $report(name)" $body
+   }
+}
+
+proc basic_cluster_configure {host} {
+   global ts_config
+
+   set ts_config(master_host) $host
+   set ts_config(all_nodes) $host
+   set ts_config(shadowd_hosts) ""
+   set ts_config(execd_hosts) $host
+   set ts_config(execd_nodes) $host
+   set ts_config(cell) basic_$host
+   set ts_config(submit_only_hosts) none
+}
+
+proc basic_test {report_var} {
+   global ts_config ts_host_config CHECK_USER
+   upvar $report_var report
+
+   set curr_task_nr [expr $report(task_count) - 1]
+   set host [get_test_host report $curr_task_nr]
+   basic_cluster_configure $host
+
+   if {![sge_check_host_connection report]} {
+      return [get_result_skipped]
+   }
+
+   if {![sge_check_packages report]} {
+      return [get_result_skipped]
+   }
+
+   sge_check_version report
+
+   # TODO: here we allow only a local spooling for basic tests
+   # change it in dependence on cluster configuration
+   if {![file isdirectory /tmp/$CHECK_USER]} {
+      start_remote_prog $host $CHECK_USER mkdir /tmp/$CHECK_USER
+   }
+   set spooldir /tmp/$CHECK_USER/basic_$host
+   set spooldir_bckp $ts_host_config($host,spooldir)
+   set ts_host_config($host,spooldir) $spooldir
+   if {![file isdirectory $spooldir]} {
+      start_remote_prog $host $CHECK_USER mkdir $spooldir
+   }
+   if {[string compare $ts_config(bdb_server) "none"] != 0} {
+      set ts_config(bdb_dir) $spooldir/bdb
+      install_bdb_rpc
+   }
+   install_qmaster
+   install_execd
+
+   if {[sge_check_system_running report]} {
+      sge_qconf_head report
+      sge_man report
+      sge_qhost report
+      sge_schedd_conf report
+      sge_submit_job report
+      sge_qstat report
+      sge_job_deletion report
+      sge_qacct report
+      sge_qsub_sync report
+      sge_mod_queue report
+      sge_qmon report
+      sge_qsh report
+      sge_qrsh report
+      sge_qrsh_hostname report
+      sge_qlogin report
+      sge_online_usage report
+      sge_drmaa report
+      sge_jdrmaa report
+      sge_jsv report
+      sge_qmaster_log report
+      sge_reject_other_binaries report
+      set result [get_result_ok]
+   } else {
+      set result [get_result_failed]
+   }
+
+   shutdown_core_system
+   set ts_host_config($host,spooldir) $spooldir_bckp
+   if {[file isdirectory "$ts_config(product_root)\/$ts_config(cell)"]} {
+      delete_directory "$ts_config(product_root)\/$ts_config(cell)"
+   }
+   remote_delete_directory $host $spooldir
+   if {[string compare $ts_config(bdb_server) "none"] != 0} {
+      remote_delete_directory $ts_config(bdb_server) $spooldir
+   }
+
+   return $result
+}
+
+# arch,host_list
+# arch,[get_result_failed]
+# arch,[get_result_ok]
+# arch,[get_result_skipped]
+proc get_basic_tests_result {report_var {arch_result_var arch_results}} {
+   upvar $report_var report
+   upvar $arch_result_var arch_results
+
+   array set arch_results {}
+   for {set i 0} {$i < $report(task_count)} {incr i 1} {
+      set host $report(task_$i,host)
+      set status $report(task_$i,status)
+      set arch [resolve_arch $host]
+      if {![info exists arch_results($arch,host_list)]} {
+         set arch_results($arch,host_list) $host
+         set arch_results($arch,$status) $host
+      } else {
+         if {[lsearch -exact $arch_results($arch,host_list) $host] == -1} {
+            lappend arch_results($arch,host_list) $host
+            lappend arch_results($arch,$status) $host
+         }
+      }
+   }
+   set arch_errors 0
+   set cur_arch ""
+   foreach item [lsort -dictionary [array names arch_results]] {
+      set ind [string first "," $item]
+      set arch [string range $item 0 [incr ind -1]]
+      if {$cur_arch == $arch} {
+         # we already have the result for this architecture
+      } else {
+         if {![info exists arch_results($arch,[get_result_ok])]} {
+            incr arch_errors 1
+         }
+         set cur_arch $arch
+      }
+   }
+
+   if {$arch_errors == 0} {
+      return [get_result_ok]
+   } else {
+      return [get_result_failed]
+   }
+}
+
+proc get_basic_tests_html_message {report_var arch_results_var} {
+   upvar $report_var report
+   upvar $arch_results_var arch_results
+
+   set msg ""
+   set arch_errors 0
+   set cur_arch ""
+   foreach item [lsort -dictionary [array names arch_results]] {
+      set ind [string first "," $item]
+      set arch [string range $item 0 [incr ind -1]]
+      if {$cur_arch == $arch} {
+         # we already have the result for this architecture
+      } else {
+         # arch1
+         # arch1,[get_result_failed]   host1, host2,..
+         # arch1,[get_result_ok]       host3, host4,...
+         # arch1,[get_result_skipped]  host5
+         # ...
+         set arch_at_least_one_ok false
+         set msg_arch ""
+         foreach host $arch_results($arch,host_list) {
+            if {[info exists arch_results($arch,[get_result_failed])]} {
+               if {[lsearch -exact $arch_results($arch,[get_result_failed]) $host] >= 0} {
+                  set color [get_color_failed]
+               }
+            }
+            if {[info exists arch_results($arch,[get_result_skipped])]} {
+               if {[lsearch -exact $arch_results($arch,[get_result_skipped]) $host] >= 0} {
+                  set color [get_color_skipped]
+               }
+            }
+            if {[info exists arch_results($arch,[get_result_ok])]} {
+               if {[lsearch -exact $arch_results($arch,[get_result_ok]) $host] >= 0} {
+                  set color [get_color_ok]
+                  set arch_at_least_one_ok true
+               }
+            }
+            append msg_arch "<font color=$color>$host</font>&nbsp;"
+         }
+         if {$arch_at_least_one_ok} {
+            set color [get_color_ok]
+         } else {
+            set color [get_color_failed]
+         }
+         append msg "<font color=$color>[format_fixed_width $arch: 21]</font>"
+         append msg "$msg_arch\n"
+         set cur_arch $arch
+      }
+   }
+
+   set msg [replace_string $msg "{" ""]
+   set msg [replace_string $msg "}" ""]
+   return $msg
+}
+
+proc get_cluster_configuration {} {
+   global ts_config
+
+   set sge_info_list ""
+   if {[fs_config_has_root_write_perm_on_fs $ts_config(product_root)]} {
+      lappend sge_info_list "Filesystem: root with write permissions"
+   } else {
+      lappend sge_info_list "Filesystem: root with no write permissions"
+   }
+   lappend sge_info_list "SGE root directory: $ts_config(product_root)"
+   lappend sge_info_list "SGE cell: $ts_config(cell)"
+   lappend sge_info_list "Cluster name: $ts_config(cluster_name)"
+   if {$ts_config(gridengine_version) >= 62} {
+      if {$ts_config(jmx_port) > 0} {
+         set jmx_enabled true
+      } else {
+         set jmx_enabled false
+      }
+      lappend sge_info_list "JMX enabled: $jmx_enabled"
+   }
+   lappend sge_info_list "Qmaster port: $ts_config(commd_port)"
+   lappend sge_info_list  "Execd port: [expr $ts_config(commd_port) + 1]"
+   lappend sge_info_list "Spooling method: $ts_config(spooling_method)"
+   if {[string compare $ts_config(bdb_server) "none"] !=0} {
+      lappend sge_info_list "BDB RPC server: $ts_config(bdb_server)"
+   }
+}
