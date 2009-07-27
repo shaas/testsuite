@@ -448,7 +448,64 @@ proc compile_depend { compile_hosts a_report do_clean } {
    return 0
 }
 
+#****** compile/wait_for_NFS_after_compile_clean() *****************************
+#  NAME
+#     wait_for_NFS_after_compile_clean() -- check compile arch dir after clean
+#
+#  SYNOPSIS
+#     wait_for_NFS_after_compile_clean { host_list a_report } 
+#
+#  FUNCTION
+#     This function checks if the compile arch directory is empty after a 
+#     aimk clean. It also checks that the arch is empty on all used specified 
+#     hosts.
+#
+#  INPUTS
+#     host_list - list of compile hosts
+#     a_report  - a report array
+#
+#  RESULT
+#     1 on success, 0 on error
+#*******************************************************************************
+proc wait_for_NFS_after_compile_clean { host_list a_report } {
+   global CHECK_USER
+   upvar $a_report report
+   get_current_cluster_config_array ts_config
 
+   ts_log_fine "verify compile_clean call ..."
+
+   set result 1
+   foreach host $host_list {
+      set task_nr [report_create_task report "verify compile clean" $host]
+      set build_dir_name [resolve_build_arch $host]
+      set wait_path  "$ts_config(source_dir)/$build_dir_name"
+      set my_timeout [timestamp]
+      incr my_timeout 10
+      set was_error 1
+      while { [timestamp] < $my_timeout } {
+         analyze_directory_structure $host $CHECK_USER $wait_path "" files ""
+         report_task_add_message report $task_nr "waiting for empty directory: $wait_path"
+         if {[llength $files] == 0} {
+            set was_error 0
+            report_task_add_message report $task_nr "directory $wait_path contains no files! Good!"
+            break
+         }
+         after 1000
+         ts_log_washing_machine
+      }
+      if {$was_error == 1} {
+         set error_text "Timout while waiting for build dir \"$wait_path\" containing no files.\n"
+         foreach filen $files {
+            append error_text "   found file: $filen\n"
+         }
+         ts_log_severe $error_text
+         set result 0
+         report_task_add_message report $task_nr $error_text
+      }
+      report_finish_task report $task_nr $was_error
+   }
+   return $result
+}
 
 #****** compile/compile_source() ***********************************************
 #  NAME
@@ -477,11 +534,6 @@ proc compile_source { { do_only_hooks 0} } {
    # settings for mail
    set check_name "compile_source"
    set CHECK_CUR_PROC_NAME $check_name
-   if { $do_only_hooks == 0 } {
-      set NFS_sleep_time 20
-   } else {
-      set NFS_sleep_time 0
-   }
    array set report {}
    report_create "Compiling source" report
    report_write_html report
@@ -641,15 +693,35 @@ proc compile_source { { do_only_hooks 0} } {
          # TODO: remove pre building on java host if ant build procedure
          #       supports parallel build correctly
          set tmp_java_compile_host [host_conf_get_java_compile_host]
+         set exclude_host ""
          if { [lsearch $compile_hosts $tmp_java_compile_host] >= 0 } {
             if {[compile_with_aimk $tmp_java_compile_host report "compile_clean_java_build_host" "clean"] != 0} {
                   incr error_count 1
+            } else {
+               if {![wait_for_NFS_after_compile_clean $tmp_java_compile_host report]} {
+                  incr error_count 1
+               } else {
+                  set exclude_host $tmp_java_compile_host
+               }
             }
          }
-         if {[compile_with_aimk $compile_hosts report "compile_clean" "clean"] != 0} {
+       
+         set tmp_clean_list {}
+         foreach chost $compile_hosts {
+            if {$chost != $exclude_host} {
+               lappend tmp_clean_list $chost
+            }
+         }
+
+         if {[compile_with_aimk $tmp_clean_list report "compile_clean" "clean"] != 0} {
             incr error_count 1
-         } else {
+         }
+
+         if {$error_count == 0} {
             set aimk_clean_done 1
+            if {![wait_for_NFS_after_compile_clean $compile_hosts report]} {
+               incr error_count 1
+            }
          }
       } else {
          ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
@@ -667,8 +739,6 @@ proc compile_source { { do_only_hooks 0} } {
          report_add_message report "All compile_clean hooks successfully executed\n"
       }
    
-      # give NFS some rest after (probably massive) deletes
-      after [expr $NFS_sleep_time * 1000]
 
       # after an update, delete macro messages file to have it updated
       set macro_messages_file [get_macro_messages_file_name]
@@ -689,15 +759,35 @@ proc compile_source { { do_only_hooks 0} } {
          # TODO: remove pre building on java host if ant build procedure
          #       supports parallel build correctly
          set tmp_java_compile_host [host_conf_get_java_compile_host]
+         set exclude_host ""
          if { [lsearch $compile_hosts $tmp_java_compile_host] >= 0 } {
             if {[compile_with_aimk $tmp_java_compile_host report "compile_clean_java_build_host" "clean"] != 0} {
                incr error_count 1
+            } else {
+               if {![wait_for_NFS_after_compile_clean $tmp_java_compile_host report]} {
+                  incr error_count 1
+               } else {
+                  set exclude_host $tmp_java_compile_host
+               }
             }
          }
-         if {[compile_with_aimk $compile_hosts report "compile_clean" "clean"] != 0} {
+
+         set tmp_clean_list {}
+         foreach chost $compile_hosts {
+            if {$chost != $exclude_host} {
+               lappend tmp_clean_list $chost
+            }
+         }
+
+         if {[compile_with_aimk $tmp_clean_list report "compile_clean" "clean"] != 0} {
             incr error_count 1
-         } else {
+         }
+
+         if {$error_count == 0} {
             set aimk_clean_done 1
+            if {![wait_for_NFS_after_compile_clean $compile_hosts report]} {
+               incr error_count 1
+            }
          }
       } else {
          ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
@@ -714,8 +804,6 @@ proc compile_source { { do_only_hooks 0} } {
          report_add_message report "All compile_clean hooks successfully executed\n"
       }
 
-      # give NFS some rest after (probably massive) deletes
-      after [expr $NFS_sleep_time * 1000]
    }
 
    if {$error_count > 0} {
@@ -733,9 +821,6 @@ proc compile_source { { do_only_hooks 0} } {
          ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
       if {$error_count == 0} {
-         # depend was successfull - wait a bit so let nfs settle down
-         after [expr $NFS_sleep_time * 1000]
-
          # start build process
          if {$do_only_hooks == 0} {
             # TODO: remove pre building on java host if ant build procedure

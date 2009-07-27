@@ -6,6 +6,23 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-07-27-0: Enhancem.:  Integrate upgrade test (Part II)
+                             o install_binaries():
+                                - clear arch cache and wait on all cluster hosts
+                                  for NFS avail. of $SGE_ROOT/bin/$arch dir
+                             o get_release_packages():
+                                - optimized file list which has to be copied
+                                - delete tar packages after unpacking
+                             o resolve_arch():
+                                - wait for NFS availablity of arch script if 
+                                  script only exists on local host
+                             o compile_source():
+                                - removed NFS sleep time
+                                - performing aimk clean not parallel because of
+                                  possible NFS problems
+                 Belongs to: CR-2009-07-23-0
+                 Review:     MD
+
 AP-2009-07-2-0:  Enhancem.:  Added basic tests
                  Review:     LP
 

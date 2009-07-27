@@ -4828,7 +4828,7 @@ proc get_release_packages { host user dest_path info_file nr} {
 
             # copy packages
             ts_log_fine "copy from $source_host:$source_release_path to $host $dest_path as user $user"
-            set output [start_remote_prog $host $user [get_binary_path $host "cp"] "$source_release_path/*.tar.gz $dest_path" prg_exit_state 300 0 "" "" 1 0]
+            set output [start_remote_prog $host $user [get_binary_path $host "cp"] "$source_release_path/*ge*.tar.gz $dest_path" prg_exit_state 300 0 "" "" 1 0]
             if {$output != ""} {
                ts_log_fine "output of cp: $output"
             }
@@ -4860,6 +4860,8 @@ proc get_release_packages { host user dest_path info_file nr} {
                      ts_log_severe "${host}($user): Cannot tar -xf $filename in $dest_path!"
                      return 0
                   }
+                  # delete tar file
+                  start_remote_prog $host $user "rm" "$filename" prg_exit_state 300 0 $dest_path "" 1 0
                } else {
                   ts_log_fine "ignore $filename ..."
                }

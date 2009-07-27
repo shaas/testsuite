@@ -7065,8 +7065,11 @@ proc install_binaries {arch_list a_report} {
    ts_log_newline
 
    # Wait until product root/bin directory is available on all used cluster hosts
+   resolve_arch_clear_cache
    foreach tmp_host [get_all_hosts] {
-      wait_for_remote_dir $tmp_host $CHECK_USER "$ts_config(product_root)/bin"
+      set arch [resolve_arch $tmp_host]
+      set wait_path "$ts_config(product_root)/bin/$arch"
+      wait_for_remote_dir $tmp_host $CHECK_USER $wait_path
    }
 
    foreach elem $ts_config(execd_hosts) {
