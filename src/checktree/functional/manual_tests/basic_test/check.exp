@@ -78,43 +78,27 @@ lappend check_functions "basic_test_set"
 
 proc basic_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config ts_host_config
-   global basic_hosts basic_host_select basic_hosts_desc
+   global basic_host_set basic_host_select
 
    switch -- $CHECK_ACT_LEVEL {
       0 {
+         set basic_host_set "master"
          set basic_host_select true
-         set basic_hosts $ts_config(master_host)
-         set basic_hosts_desc "master host"
          return 0
       }
       100 {
+         set basic_host_set "cluster"
          set basic_host_select false
-         set basic_hosts [host_conf_get_cluster_hosts]
-         set basic_hosts_desc "all cluster hosts"
          return 0
       }
       200 {
+         set basic_host_set "compile"
          set basic_host_select false
-         set basic_hosts ""
-         foreach host $ts_host_config(hostlist) {
-            if {[host_conf_is_compile_host $host]} {
-               lappend basic_hosts $host
-            }
-         }
-         set basic_hosts_desc "all compile hosts"
          return 0
       }
       300 {
+         set basic_host_set "supported"
          set basic_host_select false
-         set basic_hosts ""
-         set basic_hosts_all_archs [host_conf_get_arch_hosts [host_conf_get_archs $ts_host_config(hostlist)]]
-         foreach host $basic_hosts_all_archs {
-            if {[host_conf_is_supported_host $host]} {
-               lappend basic_hosts $host
-            }
-         }
-         set basic_hosts_desc "all supported hosts"
          return 0
       }
    }
@@ -125,30 +109,11 @@ proc basic_init_level {} {
 # -------- local test procedures: initialization------------------------------
 proc basic_setup {} {
    global ts_config ts_config_backup 
-   global basic_hosts basic_host_select basic_hosts_desc
+   global basic_hosts basic_host_select
    global basic_test_identificator
    global system_was_alive
 
-   if {[check_is_interactive]} {
-      set basic_host_select true
-   }
-
-   if {$basic_host_select} {
-      set name host_list
-      set my_config($name) $basic_hosts
-      set my_config($name,desc) "The basic tests will run on $basic_hosts_desc.\nAdjust the host list if necessary:"
-      while {true} {
-         set basic_hosts [config_generic 0 $name my_config "" host 0 0]
-         if {$basic_hosts == -1} {
-            set basic_hosts ""
-         }
-         puts -nonewline "You have choosed these hosts: $basic_hosts. Is the list correct? (y/n)"
-         set result [wait_for_enter 1]
-         if {$result == "y"} {
-            break
-         }
-      }
-   }
+   set basic_hosts [basic_select_hosts]
 
    if {$basic_hosts == ""} {
       ts_log_config "No host selected."
@@ -192,6 +157,58 @@ proc basic_cleanup {} {
          unset $var
       }
    }
+}
+
+proc basic_select_hosts {} {
+   global ts_config ts_host_config
+   global basic_host_set basic_host_select
+
+   set basic_hosts ""
+   switch -- $basic_host_set {
+      master {
+         set basic_hosts $ts_config(master_host)
+      }
+      cluster {
+         set basic_hosts [host_conf_get_cluster_hosts]
+      }
+      compile {
+         foreach host $ts_host_config(hostlist) {
+            if {[host_conf_is_compile_host $host]} {
+               lappend basic_hosts $host
+            }
+         }
+      }
+      supported {
+         set basic_hosts_arch [host_conf_get_arch_hosts [host_conf_get_archs $ts_host_config(hostlist)]]
+         foreach host $basic_hosts_arch {
+            if {[host_conf_is_supported_host $host]} {
+               lappend basic_hosts $host
+            }
+         }
+      }
+   }
+   if {[check_is_interactive]} {
+      set basic_host_select true
+   }
+
+   if {$basic_host_select} {
+      set name host_list
+      set my_config($name) $basic_hosts
+      set my_config($name,desc) "The basic tests will run on $basic_host_set host(s).\nAdjust the host list if necessary:"
+      while {true} {
+         set basic_hosts [config_generic 0 $name my_config "" host 0 0]
+         if {$basic_hosts == -1} {
+            set basic_hosts ""
+         }
+         puts -nonewline "You have choosed these hosts: $basic_hosts. Is the list correct? (y/n)"
+         set result [wait_for_enter 1]
+         if {$result == "y"} {
+            break
+         }
+      }
+   }
+
+   return $basic_hosts
 }
 
 proc basic_test_set {} {
