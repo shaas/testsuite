@@ -67,6 +67,7 @@ lappend check_functions "jsv_issues_wrong_w_flag"
 lappend check_functions "jsv_issues_q_soft_selection"
 lappend check_functions "jsv_issues_q_hard_selection"
 lappend check_functions "jsv_issues_cmdargs"
+lappend check_functions "jsv_issues_iz3088"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -461,4 +462,34 @@ proc jsv_issues_cmdargs {} {
    }
 
 
+}
+
+proc jsv_issues_iz3088 {} {
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global ts_config
+   global jsv_base_path
+
+   set JOB_COULDNOTRUN  [translate $ts_config(master_host) 0 0 0 [sge_macro MSG_QSUB_COULDNOTRUNJOB_S] "Binary job is rejected." ]
+
+   # First case: Submit job with a client jsv, with jsv_send_env enabled in jsv_on_start and VAR="hello" 
+   set qsub_args "-v VAR=\"hello\" -b y -jsv ${jsv_base_path}/jsv_iz3088.sh /bin/date"
+   set qsub_host $ts_config(master_host)
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+
+   if {[string first $JOB_COULDNOTRUN $qsub_out] != 0} {
+      ts_log_severe "executing this command: qsub $qsub_args $qsub_host results in this message $qsub_out\n Expected message: $JOB_COULDNOTRUN"
+   } else {
+      ts_log_fine "Expected message matches to received qsub message: $qsub_out, case passed"
+   }
+
+   # Second case: Submit job with a client jsv, with jsv_send_env enabled in jsv_on_start and VAR="%s"
+   set qsub_args "-v VAR=\"%s\" -b y -jsv ${jsv_base_path}/jsv_iz3088.sh /bin/date"
+   set qsub_out [start_sge_bin qsub $qsub_args $qsub_host $CHECK_USER]
+
+   if {[string first $JOB_COULDNOTRUN $qsub_out] != 0} {
+      ts_log_severe "executing this command: qsub $qsub_args $qsub_host results in this message $qsub_out\n Expected message: $JOB_COULDNOTRUN"
+   } else {
+      ts_log_fine "Expected message matches to received qsub message: $qsub_out, case passed"
+   }
 }
