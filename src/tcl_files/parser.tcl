@@ -1194,6 +1194,16 @@ proc rule_max { a b } {
    }
 }
 
+proc rule_max_vmem { a b } {
+   set a_real [transform_unit $a]
+   set b_real [transform_unit $b]
+   
+   if {$a_real > $b_real} {
+      return $a
+   } else {
+      return $b
+   }
+}
 
 #                                                             max. column:     |
 #****** parser/parse_qstat() ***************************************
@@ -1424,6 +1434,8 @@ proc parse_qacct {input output {jobid 0} {sum 1}} {
    # append a newline, otherwise the last line will not be parsed
    append in "\n"
 
+   # get the maximum vmem for all tasks
+   set rule_max_vmem rule_max_vmem
    # sum up usage (default) or create task list 
    set rule_sum rule_sum
    # get the maximum for all tasks
@@ -1461,7 +1473,7 @@ proc parse_qacct {input output {jobid 0} {sum 1}} {
    set rules(mem)             $rule_sum
    set rules(io)              $rule_sum
    set rules(iow)             $rule_sum
-   set rules(maxvmem)         $rule_sum
+   set rules(maxvmem)         $rule_max_vmem
    set rules(taskid)          rule_list
   
    # for non array jobs, taskid is "undefined", replace it by a number

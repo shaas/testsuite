@@ -378,6 +378,7 @@ proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
 
    set online_cpu $online_info(cpu)
    set online_mem $online_info(mem)
+   set online_maxvmem $online_info(maxvmem)
 
    wait_for_end_of_all_jobs
 
@@ -389,8 +390,9 @@ proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
    get_qacct $jobid qacct_info $ts_config(master_host) "" 1 $qacct_wait_for
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
+   set acct_maxvmem [transform_unit $qacct_info(maxvmem)]
    set acct_count [llength $qacct_info(exit_status)]
-   ts_log_fine "acct_cpu = $acct_cpu, acct_mem = $acct_mem, acct_count = $acct_count"
+   ts_log_fine "acct_cpu = $acct_cpu, acct_mem = $acct_mem, acct_count = $acct_count, acct_maxvmem = $qacct_info(maxvmem)"
 
    # calculate expected usage
    # JG: TODO: not yet perfect for parallel jobs: we have to check the 
@@ -424,6 +426,11 @@ proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
    if {[expr abs($acct_mem - $expected_mem)] > [expr $expected_mem / 20]} {
       lappend result "accounting memory usage ($acct_mem) differs more than 5% from expected usage ($expected_mem) on host $qacct_info(hostname)"
    }
+   # online maxvmem
+   if {[expr abs($acct_maxvmem - $online_maxvmem)] > [expr $acct_maxvmem / 10]} {
+      lappend result "accounting maxvmem usage ($acct_maxvmem) differs from online maxvmen usage ($online_maxvmem) on host $qacct_info(hostname)"
+   }
+
    # number of accounting records
    if {$usage_accounting_summary} {
       if {$acct_count != 1} {
@@ -447,6 +454,7 @@ proc max {a b} {
 }
 
 proc usage_monitor_check {id test_name slots acct_slots wallclock} {
+   global CHECK_ACT_LEVEL
    set started 0
    set finished 0
    set jobid 0
@@ -458,6 +466,7 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
    }
    set online_info(cpu) 0
    set online_info(mem) 0
+   set online_info(maxvmem) 0
    set now [clock seconds]
    set end [expr $now + 300]
    while {$job_finished == 0 && $now < $end} {
@@ -479,11 +488,19 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
                   set online_cpu [parse_cpu_time [lindex $value_list 1]]
                   set value_list [split [lindex $usage_list 1] "="]
                   set online_mem [lindex [lindex $value_list 1] 0]
+                  set value_list [split [lindex $usage_list 4] "="]
+                  set online_maxvmem [lindex [lindex $value_list 1] 0]
+                  if {[string compare $online_maxvmem "N/A"] == 0} {
+                   set online_maxvmem 0
+                  }
+                  if {[transform_unit $online_info(maxvmem)] < [transform_unit $online_maxvmem]} {
+                     set online_info(maxvmem) $online_maxvmem
+                  }
                   set online_info(cpu) [max $online_info(cpu) $online_cpu]
                   set online_info(mem) [max $online_info(mem) $online_mem]
                }
             }
-            ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem)"
+            ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem), maxvmem: $online_info(maxvmem)"
          }
       } else {
          ts_log_fine "job state: $job_state"
@@ -503,9 +520,14 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
       # now wait for some time - accounting file might not be flushed yet
       wait_for_end_of_all_jobs
 
+      set online_info(maxvmem) [transform_unit $online_info(maxvmem)]
       if {!$job_finished} {
          ts_log_severe "job terminated abnormally"
       } else {
+         if {[string compare $test_name "usage_tight"] == 0 && $CHECK_ACT_LEVEL != 2} {
+            set online_info(maxvmem) [expr $online_info(maxvmem) / $slots]
+         }
+
          set error_list [usage_check $jobid online_info $slots $acct_slots $wallclock]
 
          foreach error $error_list {
