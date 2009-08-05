@@ -309,6 +309,9 @@ proc add_host_resources { host_resources { service "spare_pool" } { on_host "" }
       
       incr cur_line
       set data($cur_line) "resourceHostname=$host_resource"
+      incr cur_line
+      set data($cur_line) "unbound_name=$host_resource"
+  
       
       set osArch [resolve_arch $host_resource]
       get_hedeby_ge_complex_mapping $osArch
@@ -344,14 +347,18 @@ proc add_host_resources { host_resources { service "spare_pool" } { on_host "" }
    ts_log_fine "adding host resources \"$host_resources\" to service $service of hedeby system ..."
 
    # now use sdmadm command ...
-   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name -s $service" ar_exit_state "" $raise_error
+   set opt(exit_var) ar_exit_state
+   set opt(raise_error) $raise_error
+   sdmadm_command_opt "ar -f $file_name -s $service" opt
 
-   foreach res $host_resources {
-      set exp_res_info($res,state) "ASSIGNED"
-      set exp_res_info($res,service) "$service"
+   if {$ar_exit_state == 0} {
+      foreach res $host_resources {
+         set exp_res_info($res,state) "ASSIGNED"
+         set exp_res_info($res,service) "$service"
+      }
+      wait_for_resource_info exp_res_info 60 $raise_error
+      unset exp_res_info
    }
-   wait_for_resource_info exp_res_info 60 $raise_error
-   unset exp_res_info
 
    return $ar_exit_state
 }
@@ -3272,13 +3279,24 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    # we expect the following table commands for ShowResourceStateCliCommand ...
    set exp_columns {}
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.id"]
-   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.service"]
+
+   set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.name"]
+   if {$res_name_col == ""} {
+      # We have a sdm <= 1.0u3 (without bound resource)
+      # Take the resource name from the id column
+      set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.id"]
+   } else {
+      # Since version > 1.0u3 we have the additional column resource name
+      lappend exp_columns $res_name_col
+   }
+
+   set res_service_col [create_bundle_string "ShowResourceStateCliCommand.col.service"]
+   lappend exp_columns $res_service_col
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.state"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.type"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.anno"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.flags"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.usage"]
-   set used_col_names "id service state type annotation flags usage"
 
    set res_ignore_list {}
    lappend res_ignore_list [create_bundle_string "ShowResourceStateCliCommand.error"]
@@ -3289,23 +3307,16 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
          return 1
       }
       ts_log_finer "found expected col \"$col\" on position $pos"
-      if {[lsearch -exact $used_col_names $col] < 0} {
-         ts_log_severe "used column name \"$col\" not expected - please check table column names!" $raise_error
-         return 1
-      }
    }
    
-   set res_id_col [lindex $exp_columns 0]
-   set res_service_col [lindex $exp_columns 1]
-
    # now we fill up the arrays ... 
    set resource_list {}
    set double_assigned_resource_list {}
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
-      set resource_id $table($res_id_col,$line)
+      set resource_name $table($res_name_col,$line)
       set do_ignore 0
       foreach ignore_resource $res_ignore_list {
-         if { [string match $ignore_resource $resource_id] } {
+         if { [string match $ignore_resource $resource_name] } {
             set do_ignore 1
             break
          }
@@ -3314,10 +3325,10 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
          # if resources are e.g. in state UNASSIGNING at resource
          # provider the resources have the @SERVICE appended
          # => Testsuite is ignoring appendix of hostname
-         set help [split $resource_id "@"]
+         set help [split $resource_name "@"]
          set ts_resource_name [resolve_host [lindex $help 0]]
-         if {$ts_resource_name != $resource_id} {
-            ts_log_finer "using resource name \"$ts_resource_name\" for resource id \"$resource_id\""
+         if {$ts_resource_name != $resource_name} {
+            ts_log_finer "using resource name \"$ts_resource_name\" for resource id \"$resource_name\""
          }
          if { [lsearch -exact $resource_list $ts_resource_name] < 0 } { 
             lappend resource_list "$ts_resource_name"
@@ -3356,7 +3367,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
             ts_log_warning "resource \"$ts_resource_name\" seems not to have any resource properties"
          }
       } else {
-         ts_log_finer "SKIPPING RESOURCE \"$resource_id\"!"
+         ts_log_finer "SKIPPING RESOURCE \"$resource_name\"!"
       }
    }
 
@@ -10234,7 +10245,9 @@ proc copy_hedeby_proc_opt_arg_exclude { old_opts new_opts { exclude_what "" } } 
 #
 #  FUNCTION
 #     Add a GE service for a cluster to the Hedeby system. The configuration for
-#     the GE service is constructed out of the settings of the cluster config 
+#     the GE service is constructed out of the settings of the cluster config.
+#
+#     The GE service is started automatically.
 #
 #  INPUTS
 #     cluster_config_number - number of the cluster config 
@@ -10272,6 +10285,13 @@ proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
    set sopts(jmx_port)     $ts_config(jmx_port)
    set sopts(cluster_name) $ts_config(cluster_name) 
    set sopts(user)         [get_hedeby_admin_user]
+
+   # We can start only the service if the jvm is already running
+   # This is the case for the simple install use case and
+   # if the hedeby_master_host is a gridengine master host
+   if {[is_simple_install_system] || $ts_config(master_host) == $hedeby_config(hedeby_master_host) } {
+      set sopts(start)        "true"
+   }
 
    if {$ts_config(jmx_ssl) == "true"} {
       set sopts(use_ssl) "true"
@@ -10327,6 +10347,7 @@ proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
 #                                     (mandatory for ssl mode)
 #       service_opts(keystore_pw)   - password for the keystore file (mandatory for ssl mode)
 #       service_opts(password)      - password of the user (mandatory for non ssl mode)
+#       service_opts(start)         - if set to true start the service automatically
 # 
 #     { opt "" } - general purpose options for sdmadm command (see get_hedeby_proc_default_opt_args)
 #
@@ -10348,6 +10369,7 @@ proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
 #   set sopts(use_ssl)      "true"
 #   set sopts(keystore_file)"/var/sgeCA/port8015/default/userkeys/sge_admin/keystore"
 #   set sopts(keystore_pw)  ""
+#   set sopts(start"        "true"
 #
 #   set opt(host)  "foo.bar" ;# execute the 'sdmadm ags' command on host foo.bar
 #   add_hedeby_ge_service sopts opt
@@ -10400,11 +10422,17 @@ proc add_hedeby_ge_service { service_opts { opt "" } } {
       ts_log_severe $error $opts(raise_error)
    }
 
+   if {[info exists sopts(start)] && $sopts(start) == "true"} {
+       set start_opt "-start"
+   } else {
+       set start_opt ""
+   }
+
    # ---------------------------------------------------------------------------
    # Start the sdmadm ags command
    # ---------------------------------------------------------------------------
    ts_log_fine "adding GE service \"$sopts(service_name)\" for cluster on host \"[get_service_host $sopts(host)]\" ..."
-   set ispid [hedeby_mod_setup_opt "ags -h [get_service_host $sopts(host)] -j [get_service_jvm] -s $sopts(service_name)" error_text opts]
+   set ispid [hedeby_mod_setup_opt "ags -h [get_service_host $sopts(host)] -j [get_service_jvm] -s $sopts(service_name) $start_opt" error_text opts]
 
    set sequence {}
    lappend sequence "[format "%c" 27]" ;# ESC
@@ -10776,6 +10804,8 @@ proc get_reporter_jvm { } {
    }
 }
 
+#****** util/get_jvm_owner() ***************************************************
+#  NAME
 #****** util/get_jvm_owner() ***************************************************
 #  NAME
 #     get_jvm_owner() -- return string which is representing reporter jvm name of current system

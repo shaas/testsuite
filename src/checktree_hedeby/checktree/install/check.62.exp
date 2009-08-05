@@ -126,45 +126,29 @@ proc hedeby_setup_slos {} {
 
 proc hedeby_startup_ge_services {} {
    global hedeby_config
-   global install_current_cluster_config
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set install_user [get_hedeby_startup_user]
 
-   if { [is_simple_install_system] == 0 } {
-      set ge_hosts [get_hedeby_default_services service_names]
-      ts_log_fine "got following GE hosts: $ge_hosts"
-   } else {
-      set ge_hosts $hedeby_config(hedeby_master_host)
-      ts_log_fine "got following GE hosts: $ge_hosts"
-   }	
+   if { [is_simple_install_system]} {
+      ts_log_fine "Not need to start rp_vms for the simple install use case"
+      return
+   }
+
+   set ge_hosts [get_hedeby_default_services service_names]
+   ts_log_fine "got following GE hosts: $ge_hosts"
    set hosts_with_jvm {}
    foreach ge_host $ge_hosts {
       # master host has already running rp_vm
-      if {$ge_host != $hedeby_config(hedeby_master_host)} {
-         if {[lsearch -exact $hosts_with_jvm $ge_host] < 0} {
+      if {$ge_host != $hedeby_config(hedeby_master_host) && [lsearch -exact $hosts_with_jvm $ge_host] < 0} {
             lappend hosts_with_jvm $ge_host
-         }
-      } else {
-         ts_log_fine "shutting down hedeby master host \"$ge_host\" ..."
-         shutdown_hedeby_hosts "master" $ge_host $install_user 
-         ts_log_fine "starting up hedeby master host \"$ge_host\" ..."
-         startup_hedeby_hosts  "master" $ge_host $install_user
-
-         # TODO: This does not work if component was added to running jvm !!!
-         #ts_log_fine "starting component \"$service_names(service,$ge_host)\" on hedeby master host"
-         #set sdmadm_command "-p $pref_type -s $sys_name suc -h $ge_host -c $service_names(service,$ge_host)"
-         #sdmadm_command $ge_host [get_hedeby_admin_user] $sdmadm_command
       }
    }
    ts_log_fine "starting jvm: [get_service_jvm] on hosts: $hosts_with_jvm"
 
    foreach host $hosts_with_jvm {
       set task_info($host,expected_output) ""
-      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name suj -j [get_service_jvm]"
+      set task_info($host,sdmadm_command) "suj -j [get_service_jvm]"
    }
-   start_parallel_sdmadm_command hosts_with_jvm $install_user task_info
+   set opt(user) [get_hedeby_startup_user]
+   start_parallel_sdmadm_command_opt hosts_with_jvm task_info opt
 }
 
 
@@ -176,7 +160,6 @@ proc hedeby_add_ge_services {} {
    set ge_hosts [get_hedeby_default_services service_names]
    set managed_host_list [get_all_movable_resources]
 
-   # TODO: use -start option to startup ge services if possible
    set cluster 0
    set execute_user [get_hedeby_admin_user]
    while { [set_current_cluster_config_nr $cluster] == 0 } {
@@ -214,7 +197,7 @@ proc hedeby_check_distinst {} {
 #         add_proc_error "hedeby_check_distinst" -2 "File \"$source_path\" not found. Please compile hedeby with testsuite first!"
 #      }
    } else {
-      ts_log_warning "Product root \"$hedeby_config(hedeby_product_root)\" contains sdm-test.jar file in ./lib directory - please remove it for testing"
+      ts_log_info "Product root \"$hedeby_config(hedeby_product_root)\" contains sdm-test.jar file in ./lib directory - please remove it for testing"
    }
 }
 
