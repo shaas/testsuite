@@ -255,8 +255,7 @@ proc unassigning_resource_reset_check {} {
          set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
 
          # build expected output message from bundle properties file ...
-         set xyz(0) "$rst*"
-         set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
+         set expected_output [create_bundle_string "rm.rs.triggered"]
          ts_log_fine "expected output: $expected_output"
          # get sdmadm output message string ...
          set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]

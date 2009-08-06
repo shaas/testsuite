@@ -272,11 +272,9 @@ proc hedeby_check_master_host_file_permissions {} {
    hedeby_file_permissions_add_dir "spool/resource_provider/spare_pool"
 
 
-
-   foreach res [get_all_spare_pool_resources] {
-      hedeby_file_permissions_add_file "spool/resource_provider/spare_pool/$res*.srf"
-   }
+   hedeby_file_permissions_add_file "spool/resource_provider/spare_pool/res#*.srf"
    hedeby_file_permissions_add_file "spool/cs/global.xml"
+   hedeby_file_permissions_add_file "spool/cs/next_resource_id.xml"
    hedeby_file_permissions_add_file "spool/cs/security.xml"
    hedeby_file_permissions_add_file "spool/cs/component/executor.xml"
    hedeby_file_permissions_add_file "spool/cs/component/ca.xml"
@@ -307,9 +305,7 @@ proc hedeby_check_master_host_file_permissions {} {
       hedeby_file_permissions_add_file "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
    }
 
-   foreach resource_host [get_all_spare_pool_resources] {
-      hedeby_file_permissions_add_file "spool/spare_pool/$resource_host*"
-   }
+   hedeby_file_permissions_add_file "spool/spare_pool/res#*.srf"
 
    
    set ignore_path {}
@@ -324,10 +320,7 @@ proc hedeby_check_master_host_file_permissions {} {
       hedeby_file_permissions_add_file "spool/cs/active_component/$service@$service_names(master_host,$service)*.xml"
       hedeby_file_permissions_add_file "spool/cs/active_component/rp_vm@$service_names(master_host,$service)*.xml"
       hedeby_file_permissions_add_file "spool/cs/active_jvm/rp_vm@$service_names(master_host,$service)*.xml"
-
-      foreach res $service_names(execd_hosts,$service) {
-         hedeby_file_permissions_add_file "spool/resource_provider/$service/$res*.srf"
-      }
+      hedeby_file_permissions_add_file "spool/resource_provider/$service/res#*.srf"
    }
 
    hedeby_file_permissions_add_ge_service_files $hedeby_config(hedeby_master_host) ignore_path expected_files
@@ -457,10 +450,7 @@ proc hedeby_file_permissions_add_ge_service_files { host ignore_path_var { ef_va
          lappend ignore_path "./log/$service"
          lappend ignore_path "./log/$service/*"
 
-         foreach execd $service_names(execd_hosts,$service) {
-            ts_log_fine "expecting files for service \"$service\" execd \"$execd\""
-            hedeby_file_permissions_add_file "spool/$service/$execd*" "" $admin_user ef
-         }
+         hedeby_file_permissions_add_file "spool/$service/res#*.srf" "" $admin_user ef
       }
 
       # Add the files for the rp_vm

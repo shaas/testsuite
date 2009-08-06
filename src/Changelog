@@ -6,6 +6,16 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+RH-2009-08-06-0: Bugfix:     Hedeby: Failing tests for bound resources fixed
+                                 o ambiguous resource tests marked as TODO 
+                                   they are no longer in the VERIFIED category
+                                 o tests which are using wait_for_resource_info
+                                   will still not work, because reporter needs
+                                   to be adjusted
+                 Belongs to: RH-2009-08-05-0
+                 Review:     TB
+
 CR-2009-08-06-0: Enhancem.:  Added new check for issue #3096 into existing
                              shadowd_migrate test
                  Review:     DG

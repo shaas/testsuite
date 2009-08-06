@@ -258,7 +258,7 @@ proc basic_resource_reset_parallel_check {} {
       if { $rst_list != {} } {
         # starting parallel resource movement on every resource host ...
         foreach res $rst_list {
-            set task_info($res,expected_output) [create_bundle_string "ResetResourceCommand.resource.reset"]
+            set task_info($res,expected_output) [create_bundle_string "rm.rs.triggered"]
             set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name rsr -r $res"
         }
         set par_error [start_parallel_sdmadm_command rst_list [get_hedeby_admin_user] task_info]

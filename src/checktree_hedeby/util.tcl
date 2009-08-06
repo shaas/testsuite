@@ -701,6 +701,11 @@ proc parse_bundle_properties_files { source_dir } {
             set propId  [string trim [string range $property 0 $befpos]]
             set propTxt [string trim [string range $property $aftpos end]]
 
+            # The java class MessageFormat requires the quoting of ' 
+            # Our create_bundle_string method does not consider this quoting
+            # We simply replace here all double '' with '            
+            set propTxt [string map { '' ' } $propTxt]
+
             if {[info exists bundle_cache($propId)]} {
                append error_text "property \"$propId\" defined twice!\n"
             }
@@ -2793,30 +2798,6 @@ proc move_resources_to_default_services {} {
       return 1
    }
 
-   foreach res $resource_ambiguous {
-      set aerror "resource \"$res\" is in ambiguous state!\n"
-      append aerror "\"$res\" is assigned to the following services: \"$resource_info($res,service)\"\n"
-      append aerror "expected service for \"$res\" is \"$service_names(default_service,$res)\"\n"
-      set remove_resource_service_list $resource_info($res,service)
-      set pos [lsearch -exact $remove_resource_service_list $service_names(default_service,$res)]
-      if {$pos >= 0} {
-          set remove_resource_service_list [lreplace $remove_resource_service_list $pos $pos]
-      }
-      append aerror "testsuite will remove resource \"$res\" from the following services: \"$remove_resource_service_list\"\n"
-      foreach service $remove_resource_service_list {
-         set sdmadm_command "-p $pref_type -s $sys_name rr -r $res -s $service"
-         set output [sdmadm_command $exec_host $admin_user $sdmadm_command]
-         append aerror "${exec_host}($admin_user)> sdmadm $sdmadm_command\n$output\n"
-      }
-      ts_log_info $aerror      
-   }
-
-   wait_for_resource_state "ASSIGNED ERROR"
-
-   set ret [get_resource_info "" "" resource_info resource_properties resource_list resource_ambiguous]
-   if { $ret != 0 } {
-      return 1
-   }
    set error_text ""
    set mvr_list {}
    foreach res $expected_resource_list {
@@ -5387,7 +5368,11 @@ proc reset_produced_inprocess_resource { } {
 
    # wait for UNASSIGNING state to disappear ...
    set exp_res_info($resource,state) "ASSIGNED"
-   wait_for_resource_info exp_res_info 90 0 error_text
+
+   # It can take up to 60 seconds util GE service detects that the job is deleted
+   # The execd uninstallation needs max. 30s
+   # The execd installation needs max. 30s
+   wait_for_resource_info exp_res_info 150 0 error_text
 
    # Move resource back to orig. service
    ts_log_finer "Moving resource \"$resource\" back to service \"$service\" ..."
@@ -5402,6 +5387,7 @@ proc reset_produced_inprocess_resource { } {
    set exp_res_info($resource,service) "$service"
    wait_for_resource_info exp_res_info 60 0 error_text
 
+   set last_produce_inprocess_resource_state "undefined"
    if { $error_text != "" } {
       append error_text "\nreset hedeby now ..."
       ts_log_info $error_text
@@ -5409,7 +5395,6 @@ proc reset_produced_inprocess_resource { } {
    }
 
    ts_log_fine "reset resource \"$resource\" from inprocess state was successfull!"
-   set last_produce_inprocess_resource_state "undefined"
    return 0
 }
 

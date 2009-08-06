@@ -173,7 +173,7 @@ proc hedeby_issue_656_check {} {
    sdmadm_command_opt "rsr -r $this(res)" opt
    unset opt
 
-   set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
+   set expected_output [create_bundle_string "rm.rs.triggered"]
    set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
 
    # compare the output with the expected output ...

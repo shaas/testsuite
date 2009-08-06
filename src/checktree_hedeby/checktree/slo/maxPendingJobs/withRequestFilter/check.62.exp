@@ -258,7 +258,7 @@ proc with_request_filter_check {} {
            append error_text "Executing command show resource failed for service $ge_adapter"
       }
       for {set i 0} {$i < $result_table(table_lines)} {incr i} {
-            set ts_resolvedhost [resolve_host $result_table(id,$i)]
+            set ts_resolvedhost [resolve_host $result_table(name,$i)]
             if {$ts_resolvedhost == $service_names(master_host,$ge_adapter)} {
                 continue
             }
