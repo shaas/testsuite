@@ -70,6 +70,7 @@ set check_needs           "init_core_system"
 
 # setup and cleanup functions
 set check_setup_function shadowd_migrate_setup
+set check_setup_level_function shadowd_migrate_setup_level
 set check_cleanup_function shadowd_migrate_cleanup
 
 
@@ -83,21 +84,10 @@ global shadowd_migrate_saved_slot_count
 
 proc shadowd_migrate_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-   set nr_shadowds [llength $ts_config(shadowd_hosts)]
 
-   if { $CHECK_ACT_LEVEL == 0} {
+   if { $CHECK_ACT_LEVEL >= 0 && $CHECK_ACT_LEVEL <= 9 } {
       return 0
    }
-
-   if { $nr_shadowds < 2 && $CHECK_ACT_LEVEL > 1 } {
-      return -1
-   }
-
-   if { $CHECK_ACT_LEVEL <= 9 } {
-      return 0
-   }
-
    return -1  ;# no other level 
 }
 
@@ -105,7 +95,17 @@ proc shadowd_migrate_init_level {} {
 
 
 # -------- local test procedures: initialization------------------------------
+proc shadowd_migrate_setup_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
 
+   set nr_shadowds [llength $ts_config(shadowd_hosts)]
+
+   if { $nr_shadowds < 2 && $CHECK_ACT_LEVEL > 1 } {
+      ts_log_severe "Need 2 shadowd hosts for runlevel > 1"
+      return 99
+   }
+}
 
 proc shadowd_migrate_setup  {} {
    global ts_config
@@ -233,6 +233,7 @@ proc shadowd_migrate_test {} {
          ts_log_fine "   heartbeat set to $heartbeat !"
 
 
+         # Restart qmaster (with SGE_TEST_HEARTBEAT_TIMEOUT environment variable value set to 600)
          set my_env(SGE_TEST_HEARTBEAT_TIMEOUT) 600
          startup_qmaster 0 my_env
          ts_log_fine "restart shadowd with SGE_TEST_HEARTBEAT_TIMEOUT env set to 600"
@@ -241,6 +242,43 @@ proc shadowd_migrate_test {} {
 
          ts_log_fine "qmaster and shadowds restarted!"
  
+         # This is for issue #3096 (start qsub -sync job ...)
+         # Job will be deleted after shadowd qmaster take over.
+         set qsub_sync_host [host_conf_get_suited_hosts 1 {} {} {} 1]
+         ts_log_fine "starting qsub -sync on host \"$qsub_sync_host\" ..."
+         set arch [resolve_arch $qsub_sync_host]
+         set qsub_sync_binary "$ts_config(product_root)/bin/$arch/qsub"
+         set qsub_sync_binary_params "-sync yes $ts_config(product_root)/examples/jobs/sleeper.sh 1200"
+         set qsub_sync_id [open_remote_spawn_process $qsub_sync_host $CHECK_USER $qsub_sync_binary $qsub_sync_binary_params]
+         set qsub_sync_spawn_id [lindex $qsub_sync_id 1]
+         set JOB_SUBMITTED [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
+         set JAPI_QMASTER_DOWN [translate_macro MSG_JAPI_QMASTER_DOWN] 
+         set JAPI_RECONNECTED [translate_macro MSG_JAPI_RECONNECTED]
+         set timeout 60
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "got timeout"
+            }
+            -i $qsub_sync_spawn_id "*\n" {
+               set is_ok 0 
+               foreach line [split $expect_out(0,string) "\n"] {
+                  ts_log_fine "qsub: $line"
+                  if {[string match "*$JOB_SUBMITTED*" $line]} {
+                     ts_log_fine "job submitted - FINE!"
+                     set is_ok 1
+                  }
+               }
+               if {$is_ok == 0} {
+                  exp_continue
+               }
+            }
+         }
+
+         # Now wait until new qmaster takes over ...
          set my_timeout [timestamp]
          incr my_timeout 660
          set heartbeat 0
@@ -277,6 +315,7 @@ proc shadowd_migrate_test {} {
             ts_log_fine "qmaster on host $new_act_qmaster took over!"
          }
 
+         # wait until old master terminated (this produces logging in messages file)
          init_logfile_wait $ts_config(master_host) $qmaster_messages_file 
          set message_file_output ""
          set my_timeout [timestamp]
@@ -319,6 +358,60 @@ proc shadowd_migrate_test {} {
          if {$message_file_output == ""} {
             ts_log_severe "old qmaster doesn't stop with exit state 100"
          }
+
+         # This is for issue #3096 ( qsub -sync job ...)
+         # Check that event client did a reconnect ...
+         ts_log_fine "checking qsub -sync to be reconnected to qmaster (this might take up to 300 seconds)..."
+         set timeout 180
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "timeout - qsub -sync does not reconnect"
+            }
+            -i $qsub_sync_spawn_id "*$JAPI_RECONNECTED*" {
+                ts_log_fine "qsub: $expect_out(0,string)"
+                ts_log_fine "qsub -sync tells that it is reconnected - FINE!"
+            }
+         }
+
+         # This is for issue #3096 ( qsub -sync job ...)
+         # delete all jobs (including the qsub -sync job)
+         delete_all_jobs 0
+
+         # This is for issue #3096 ( qsub -sync job ...)
+         ts_log_fine "checking qsub -sync to terminate ..."
+         wait_for_end_of_all_jobs 140
+         set timeout 90
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "timeout - qsub -sync does not stop"
+            }
+            -i $qsub_sync_spawn_id "*_exit_status_:*" {
+               ts_log_fine "qsub -sync terminated"
+            }
+            -i $qsub_sync_spawn_id "*\n" {
+               # TODO: Wait for startup of qsub -sync
+               set is_ok 0
+               foreach line [split $expect_out(0,string) "\n"] {
+                  ts_log_fine "qsub: $line"
+                  if {[string match "*_exit_status_:*" $line]} {
+                     ts_log_fine "qsub -sync terminated"
+                     set is_ok 1
+                  }
+               }
+               if {$is_ok == 0} {
+                  exp_continue
+               }
+            }
+         }
+         close_spawn_process $qsub_sync_id
 
          wait_for_load_from_all_queues 120
 
@@ -413,12 +506,74 @@ proc shadowd_migrate_test {} {
             return
          }
 
+         # This is for issue #3096 (start qsub -sync job ...)
+         set qsub_sync_host [host_conf_get_suited_hosts 1 {} {} {} 1]
+         ts_log_fine "starting qsub -sync on host \"$qsub_sync_host\" ..."
+         set arch [resolve_arch $qsub_sync_host]
+         set qsub_sync_binary "$ts_config(product_root)/bin/$arch/qsub"
+         set qsub_sync_binary_params "-sync yes $ts_config(product_root)/examples/jobs/sleeper.sh 120"
+         set qsub_sync_id [open_remote_spawn_process $qsub_sync_host $CHECK_USER $qsub_sync_binary $qsub_sync_binary_params]
+         set qsub_sync_spawn_id [lindex $qsub_sync_id 1]
+         set JOB_SUBMITTED [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
+         set JAPI_QMASTER_DOWN [translate_macro MSG_JAPI_QMASTER_DOWN] 
+         set JAPI_RECONNECTED [translate_macro MSG_JAPI_RECONNECTED]
+         set timeout 60
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "got timeout"
+            }
+            -i $qsub_sync_spawn_id "*\n" {
+               set is_ok 0 
+               foreach line [split $expect_out(0,string) "\n"] {
+                  ts_log_fine "qsub: $line"
+                  if {[string match "*$JOB_SUBMITTED*" $line]} {
+                     ts_log_fine "job submitted - FINE!"
+                     set is_ok 1
+                  }
+               }
+               if {$is_ok == 0} {
+                  exp_continue
+               }
+            }
+         }
+
          ts_log_fine "testing sgemaster -migrate on host $migrate_host ..."
          set output [start_remote_prog $migrate_host "root" $sgemaster_file "-migrate" {exit_var prg_exit_state}]
          ts_log_fine $output
          if { $prg_exit_state != 0 } {
             ts_log_severe "$migrate_host: $sgemaster_file -migrate returned with exit_state = $prg_exit_state:\n$output"
          }
+
+         # This is for issue #3096 ( qsub -sync job ...)
+         ts_log_fine "checking qsub -sync to report qmaster down ..."
+         set timeout 60
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "got timeout"
+            }
+            -i $qsub_sync_spawn_id "*\n" {
+               set is_ok 0 
+               foreach line [split $expect_out(0,string) "\n"] {
+                  ts_log_fine "qsub: $line"
+                  if {[string match "*$JAPI_QMASTER_DOWN*" $line]} {
+                     ts_log_fine "qsub -sync tells that master is down - FINE!"
+                     set is_ok 1
+                  }
+               }
+               if {$is_ok == 0} {
+                  exp_continue
+               }
+            }
+         }
+
 
          wait_for_load_from_all_queues 120
 
@@ -428,6 +583,43 @@ proc shadowd_migrate_test {} {
          }
 
          
+         # This is for issue #3096 ( qsub -sync job ...)
+         ts_log_fine "checking qsub -sync to be reconnected to qmaster ..."
+         set timeout 200
+         set is_reconnected 0
+         expect {
+            -i $qsub_sync_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qsub_sync_spawn_id timeout {
+                ts_log_severe "timeout - qsub -sync does not stop"
+            }
+            -i $qsub_sync_spawn_id "*\n" {
+               set is_ok 0 
+               foreach line [split $expect_out(0,string) "\n"] {
+                  ts_log_fine "qsub: $line"
+                  if {[string match "*$JAPI_RECONNECTED*" $line]} {
+                     ts_log_fine "qsub -sync tells that it is reconnected - FINE!"
+                     set is_reconnected 1
+                  }
+                  if {[string match "*_exit_status_:*" $line]} {
+                     ts_log_fine "qsub -sync terminated"
+                     set is_ok 1
+                  }
+               }
+               if {$is_ok == 0} {
+                  exp_continue
+               }
+            }
+         }
+
+         close_spawn_process $qsub_sync_id
+
+         if {$is_reconnected == 0} {
+            ts_log_severe "qsub -sync client did not reconnect to new qmaster!"
+         }
+
          ts_log_fine "testing sgemaster -migrate on host $act_qmaster ..."
          set output [start_remote_prog $act_qmaster "root" $sgemaster_file "-migrate" {exit_var prg_exit_state}]
          ts_log_fine $output
