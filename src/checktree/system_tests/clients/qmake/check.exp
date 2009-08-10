@@ -74,7 +74,6 @@ lappend check_functions "qmake_recursive"
 lappend check_functions "qmake_rreq"         ;# only for dynamic allocation mode
 
 proc qmake_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
@@ -83,10 +82,6 @@ proc qmake_init_level {} {
          return 0
       }
       2 {
-         # dynamic allocation mode is not supported in SGE 5.3
-         if {$ts_config(gridengine_version) == 53} {
-            return -1
-         }
          return 0
       }
    }
@@ -113,6 +108,12 @@ proc qmake_setup_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global qmake_options pe_options qmake_host
+
+   if {$CHECK_ACT_LEVEL == 2 && $ts_config(gridengine_version) == 53} {
+      # dynamic allocation mode is not supported in SGE 5.3
+      ts_log_config "need gridengine version 53 for this test in runlevel 2"
+      return 99
+   }
 
    # choose a test host
    set qmake_host [host_conf_get_suited_hosts]

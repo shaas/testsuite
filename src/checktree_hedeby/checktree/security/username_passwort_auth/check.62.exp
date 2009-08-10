@@ -144,10 +144,9 @@ proc username_password_auth_setup {} {
    set this(master_host) $hedeby_config(hedeby_master_host)
    set this(admin_user) [get_hedeby_admin_user]
 
-   set this(supported) "false"
    if { [get_hedeby_pref_type] == "user" } {
       ts_log_config "Test 'username_password_auth' is not supported if Hedeby is installed in user mode!" 
-      return
+      return 99
    }
 
    set user_list {}
@@ -158,15 +157,16 @@ proc username_password_auth_setup {} {
    
    if { [lsearch $user_list "root"] < 0} {
       ts_log_config "Test 'username_password_auth' is not supported, user root is not an admin user"
-      return
+      unset this
+      return 99
    }
 
-   if { [have_ssh_access] == 1 || [have_root_passwd] == -1} {
-      ts_log_config "Test 'username_password_auth' is not supported, have no root password"
-      return
+   if {[get_passwd "root"] == ""} {
+      ts_log_config "Test 'username_password_auth' is not supported, have no root password!"
+      unset this
+      return 99
    }
 
-   set this(supported) "true"
    # ----------------------------------------------------------------------------
    ts_log_heading "Renaming keystore of user root"
    # ----------------------------------------------------------------------------
@@ -197,25 +197,22 @@ proc username_password_auth_setup {} {
 proc username_password_auth_cleanup {} {
    upvar #0 username_password_auth_ctx this
 
-   if {$this(supported) == "true" } {
-      start_remote_prog $this(host) "root" "test" "-f $this(keystore).org"
-      if {$prg_exit_state == 0} {
-         # ----------------------------------------------------------------------------
-         ts_log_heading "Restoring keystore of user root"
-         # ----------------------------------------------------------------------------
-         set output [start_remote_prog $this(host) "root" "mv" "$this(keystore).org $this(keystore)"]
-         if {$prg_exit_state != 0} {
-            set    msg "Could not rename keystore or user root ('$this(keystore)')\n"
-            append msg "mv command failed (exit status $prg_exit_state)\n"
-            append msg "Output:\n$output"
-            ts_log_severe $msg
-         }
-      } else {
-         ts_log_fine "Backup of keystore of user root does not exist"
+   start_remote_prog $this(host) "root" "test" "-f $this(keystore).org"
+   if {$prg_exit_state == 0} {
+      # ----------------------------------------------------------------------------
+      ts_log_heading "Restoring keystore of user root"
+      # ----------------------------------------------------------------------------
+      set output [start_remote_prog $this(host) "root" "mv" "$this(keystore).org $this(keystore)"]
+      if {$prg_exit_state != 0} {
+         set    msg "Could not rename keystore or user root ('$this(keystore)')\n"
+         append msg "mv command failed (exit status $prg_exit_state)\n"
+         append msg "Output:\n$output"
+         ts_log_severe $msg
       }
    } else {
-      ts_log_fine "Test is not supported => no cleanup necessary"
+      ts_log_fine "Backup of keystore of user root does not exist"
    }
+   unset this
 }
 
 
@@ -235,10 +232,6 @@ proc username_password_auth_cleanup {} {
 proc username_password_auth_check {} {
    upvar #0 username_password_auth_ctx this
 
-   if { $this(supported) != "true" } {
-      return
-   }
-   
    # ----------------------------------------------------------------------------
    ts_log_heading "Execution 'sdmadm sr' as root with username/password authentication"
    # ----------------------------------------------------------------------------

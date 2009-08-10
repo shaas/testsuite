@@ -70,7 +70,6 @@ lappend check_functions "deadline_test_permission"
 
 
 proc deadline_calculation_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
    
    switch -exact -- $CHECK_ACT_LEVEL {

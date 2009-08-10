@@ -63,19 +63,12 @@ set check_functions ""
 lappend check_functions "issue_3013_check"
 
 proc issue_3013_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
-         # For this test we need at least 2 hosts
-         if { [llength $ts_config(execd_nodes)] < 2 } {
-             ts_log_config "Need at least 2 hosts for this test. We only have $ts_config(execd_hosts)"
-         }
          return 0
       } 
    } 
-
    return -1  ;# no other level 
 }
 
@@ -99,6 +92,11 @@ proc issue_3013_setup {} {
    global rqs_name_3013 
 
    ts_log_fine "issue_3013_setup" 
+
+   if { [llength $ts_config(execd_nodes)] < 2 } {
+      ts_log_config "need 2 execd nodes"
+      return 99
+   }
 
    # offer enough slots within these pe's 
    set pe(slots)             "100"

@@ -69,30 +69,38 @@ global submit_hosts_use_local_conf
 
 proc submit_hosts_init_level {} {
    global CHECK_ACT_LEVEL
-   global submit_hosts_use_local_conf
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         set submit_hosts_use_local_conf 0
          return 0
       }
       1 {
-         if {![ge_has_feature "new-interactive-job-support" 1]} {
-            set submit_hosts_use_local_conf 1
-            return 0
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc submit_hosts_setup {} {
-   global ts_config
+   global ts_config CHECK_ACT_LEVEL
    global CHECK_JOB_OUTPUT_DIR
    global submit_hosts_use_local_conf
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         set submit_hosts_use_local_conf 0
+      }
+      1 {
+         if {![ge_has_feature "new-interactive-job-support" 1]} {
+            set submit_hosts_use_local_conf 1
+         } else {
+            ts_log_config "Runlevel 1 not supported for new-interactive job support"
+            return 99
+         }
+      }
+   }
+
 
    # foreach submit host
    # - remove submit host property

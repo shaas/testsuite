@@ -67,7 +67,6 @@ lappend check_functions "scheduler_messages_check"
 lappend check_functions "scheduler_messages_qmaster_crash"
 
 proc scheduler_messages_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {

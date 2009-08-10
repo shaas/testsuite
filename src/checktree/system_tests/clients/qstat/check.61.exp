@@ -399,7 +399,7 @@ proc test_qstat_j_xml {} {
                if {$plain_elem_string > 0.0} { 
                   set diff [expr ( $xml_value * 1.0 / $plain_elem_string * 1.0 ) ]
                } else {
-                  ts_log_severe "cannot diff values: $xml_value == $plain_elem_string ?"
+                  ts_log_severe "cannot diff values: $xml_value == $plain_elem_string ?\n\nplain output:\n$plainoutput\nxml output:\n$xmloutput\n"
                }
             }
          }

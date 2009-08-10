@@ -54,8 +54,8 @@ set check_name            "connection_test"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   2
 set check_description(0)  "testsuite connection test to all hosts"
-set check_description(1)  "dummy test"
-set check_description(2)  "dummy test"
+set check_description(1)  "dummy test runlevel 1"
+set check_description(2)  "dummy test runlevel 2"
 
 
 # define test's dependencies
@@ -107,9 +107,7 @@ proc connection_test_init_level {} {
 
 
 proc connection_test_setup  {} {
-   global ts_config CHECK_ACT_LEVEL
-
-   ts_log_fine "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   global ts_config 
    ts_log_fine "this is a dummy setup function"
 }
 

@@ -95,7 +95,6 @@ proc arco_dbwriter_job_log_reuse_init_level {} {
 
 proc arco_dbwriter_job_log_reuse_setup  {} {
    global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
-   global CHECK_ACT_LEVEL
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_reuseorg_config
    

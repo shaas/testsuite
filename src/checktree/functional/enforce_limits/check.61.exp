@@ -78,17 +78,11 @@ set tight_slots 5
 
 proc enforce_limits_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
-         if {$ts_config(gridengine_version) >= 62 || [is_61AR]} {
-            return 0
-         }
+      0 {
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -111,7 +105,6 @@ proc enforce_limits_init_level {} {
 #    - ENABLE_ENFORCE_MASTER_LIMIT=1
 proc enforce_limits_setup {} {
    global ts_config
-   global CHECK_ACT_LEVEL
    global tight_slots
    global tight_masterq 
    global tight_master_node
@@ -124,6 +117,15 @@ proc enforce_limits_setup {} {
    global loose_slave_node
    global el_base_path
    global org_global_conf
+
+   
+   if {$ts_config(gridengine_version) >= 62 || [is_61AR]} {
+      ts_log_fine "running test"
+   } else {
+      ts_log_config "test needs GE >= 62 or 61AR"
+      return 99
+   }
+
 
    set el_base_path $ts_config(testsuite_root_dir)/checktree/functional/enforce_limits
 

@@ -94,15 +94,10 @@ lappend pe_alloc_rule "\$fill_up"
 
 
 proc issue_193_init_level {} {
-   global ts_config check_name
+   global check_name
    global CHECK_ACT_LEVEL hold_state pending_state queue
 
    if {$CHECK_ACT_LEVEL == 0} {
-      if {[llength $ts_config(execd_nodes)] < 2} {
-         ts_log_config "need at least 2 execd hosts for this test"
-         return -1
-      }
-
       return 0
    }
 
@@ -113,6 +108,12 @@ proc issue193_setup {} {
    global ts_config pe_names pe_alloc_rule ts_user_config
    global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global stored_configuration rerun_queue2
+
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      ts_log_config "need at least 2 execd hosts for this test"
+      return 99
+   }
+
 
    set hosts [host_conf_get_suited_hosts 2]
    set rerun_host    [lindex $hosts 0]

@@ -61,6 +61,7 @@ set check_needs           ""
 
 # setup and cleanup functions
 set check_cleanup_level_function "generic_module_tests_cleanup"
+set check_setup_level_function "generic_module_tests_setup"
 
 # define test's procedure order
 set check_functions ""
@@ -81,6 +82,19 @@ lappend generic_module_tests "test_eval_expression"
 lappend generic_module_tests "test_eval_performance"
 
 proc generic_module_tests_init_level {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+      "100" {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+proc generic_module_tests_setup {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global generic_module_tests_test_hosts
@@ -88,15 +102,13 @@ proc generic_module_tests_init_level {} {
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          set generic_module_tests_test_hosts $ts_config(master_host)
-         return 0
       }
       "100" {
          set generic_module_tests_test_hosts $ts_config(unique_arch_nodes)
-         return 0
       }
    }
 
-   return -1  ;# no other level
+   ts_log_fine "test hosts: $generic_module_tests_test_hosts"
 }
 
 #****** check.60/generic_module_tests_cleanup() ********************************

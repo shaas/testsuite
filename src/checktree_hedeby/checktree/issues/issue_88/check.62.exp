@@ -55,9 +55,7 @@ lappend check_functions "hedeby_issue_88_check"
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
-global hedeby_issue_88_current_cluster_config
 
-global hedeby_issue_88_shutdown_components
 
 proc hedeby_issue_88_init_level {} {
   global CHECK_ACT_LEVEL
@@ -69,118 +67,104 @@ proc hedeby_issue_88_init_level {} {
 }
 
 proc hedeby_issue_88_setup {} {
-	
-   global issue_88_ctx
-   set issue_88_ctx(skip) 0
+   upvar #0 hedeby_issue_88_ctx this
+
    if { [is_simple_install_system] == 1 } {
       ts_log_config "Simple installation not supported in this test"
-      set issue_88_ctx(skip) 1
-      return;
+      return 99
    }
-   global CHECK_OUTPUT
-   global hedeby_issue_88_shutdown_components
-   set hedeby_issue_88_shutdown_components {}
+   set this(components) {}
 }
 
 proc hedeby_issue_88_cleanup {} {
-   global issue_88_ctx
-   if { $issue_88_ctx(skip) == 1 } {
-      return;
-   }
-   global CHECK_OUTPUT
-   global hedeby_issue_88_shutdown_components
    global hedeby_config
-   set host $hedeby_config(hedeby_master_host)
-   set user [get_hedeby_startup_user]
-   set admin_user [get_hedeby_admin_user]
+   upvar #0 hedeby_issue_88_ctx this
 
-   # first start cs set index [lsearch $hedeby_issue_88_shutdown_components "cs_vm"]
-   if { [lsearch $hedeby_issue_88_shutdown_components "cs_vm"] >= 0 } {
-      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j cs_vm"
-      set index [lsearch $hedeby_issue_88_shutdown_components "cs_vm"]
-      set hedeby_issue_88_shutdown_components [lreplace $hedeby_issue_88_shutdown_components $index $index]
+   set opts(host) $hedeby_config(hedeby_master_host)
+   set opts(user) [get_hedeby_startup_user]
+
+   # first start cs set index [lsearch $this(components) "cs_vm"]
+   if { [lsearch $this(components) "cs_vm"] >= 0 } {
+      sdmadm_command_opt "suj -j cs_vm" opts
+      set index [lsearch $this(components) "cs_vm"]
+      set this(components) [lreplace $this(components) $index $index]
    }
 
-   foreach vm $hedeby_issue_88_shutdown_components {
-      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j $vm"
+   foreach vm $this(components) {
+      sdmadm_command_opt "suj -j $vm" opts
    }
 }
 
 proc hedeby_issue_88_check {} {
-   global issue_88_ctx
-   if { $issue_88_ctx(skip) == 1 } {
-      return;
-   }
-   global CHECK_OUTPUT
    global hedeby_config
-   global hedeby_issue_88_shutdown_components
+   upvar #0 hedeby_issue_88_ctx this
 
-   set host $hedeby_config(hedeby_master_host)
-   set user [get_hedeby_startup_user]
-   set admin_user [get_hedeby_admin_user]
+   
+   set opts(host) $hedeby_config(hedeby_master_host)
+   set opts(user) [get_hedeby_startup_user]
    
    # Shutdown the CS vm
-   puts $CHECK_OUTPUT "shutdown cs VM on hedeby master host ..."
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -j cs_vm -h $host"
+   ts_log_fine "shutdown cs VM on hedeby master host ..."
+   sdmadm_command_opt "sdj -j cs_vm -h $opts(host)" opts
    if { $prg_exit_state != 0 } {
-      add_proc_error "hedeby_issue_88_check" -2 "Cannot shutdown cs_vm"
+      ts_log_severe "Cannot shutdown cs_vm"
       return
    }
-   lappend hedeby_issue_88_shutdown_components "cs_vm"
+   lappend this(components) "cs_vm"
    set error_count 0
    # modify the contact string in the pid file of the executor_vm
    # The vm can not contacted longer over JMX.
-   if { [read_hedeby_jvm_pid_info pid_info $host $user "executor_vm"] != 0 } {
-      add_proc_error "hedeby_issue_88_check" -1 "Cannot read of info of executor_vm"
+   if { [read_hedeby_jvm_pid_info pid_info $opts(host) $opts(user) "executor_vm"] != 0 } {
+      ts_log_severe "Cannot read of info of executor_vm"
       incr error_count
    }
    
    if { $error_count == 0 } {
-      set pid_file [get_pid_file_for_jvm $host "executor_vm"]
-      puts $CHECK_OUTPUT "pidfile: $pid_file"
+      set pid_file [get_pid_file_for_jvm $opts(host) "executor_vm"]
+      ts_log_fine "pidfile: $pid_file"
       set save_pid_info(0) 2
       set save_pid_info(1) $pid_info(pid)
       set save_pid_info(2) 0
-      write_remote_file $host $user $pid_file save_pid_info
+      write_remote_file $opts(host) $opts(user) $pid_file save_pid_info
       # Shutdown executor jvm, CS is not available and the pid file contains
       # an invalid JMX connect URL.
       # The shutdown command will kill the JVM
-      puts $CHECK_OUTPUT "shutdown executor VM on hedeby master host ..."
-      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -j executor_vm -h $host"]
+      ts_log_fine "shutdown executor VM on hedeby master host ..."
+      set output [sdmadm_command_opt "sdj -j executor_vm -h $opts(host)" opts]
       if { $prg_exit_state != 0 } {
-         add_proc_error "hedeby_issue_88_check" -1 "Cannot shutdown executor_vm"
+         ts_log_severe "Cannot shutdown executor_vm"
          incr error_count
       } else {
          # Check if the output of "sdmadm shutdown" contains the kill message
          set msg [create_bundle_string "StopJVMCommand.JVMStopper.processKilled"]
          
          if { [string match "*${msg}*" $output] == 0} {
-            add_proc_error "hedeby_issue_88_check" -1 "sdmadm shutdown did not print kill message"
+            ts_log_severe "sdmadm shutdown did not print kill message"
          }
          
          # wait until the pid file has been removed
-         if {[wait_for_remote_file $host $user $pid_file 120 1 1] != 0 } {
-            add_proc_error "hedeby_issue_88_check" -1 "Timeout while waiting for shutdown of jvm executor_vm@${host}"
+         if {[wait_for_remote_file $opts(host) $opts(user) $pid_file 120 1 1] != 0 } {
+            ts_log_severe "Timeout while waiting for shutdown of jvm executor_vm@${host}"
          }
-         lappend hedeby_issue_88_shutdown_components "executor_vm"
+         lappend this(components) "executor_vm"
       }
    }
    
    # startup cs
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j cs_vm"
+   sdmadm_command_opt "suj -j cs_vm" opts
    if { $prg_exit_state != 0 } {
-      add_proc_error "hedeby_issue_88_check" -1 "Cannot startup cs_vm"
+      ts_log_severe "Cannot startup cs_vm"
    }
-   set index [lsearch $hedeby_issue_88_shutdown_components "cs_vm"]
-   set hedeby_issue_88_shutdown_components [lreplace $hedeby_issue_88_shutdown_components $index $index]
+   set index [lsearch $this(components) "cs_vm"]
+   set this(components) [lreplace $this(components) $index $index]
 
    # startup executor
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j executor_vm"
+   sdmadm_command_opt "suj -j executor_vm" opts
    if { $prg_exit_state != 0 } {
-      add_proc_error "hedeby_issue_88_check" -1 "Cannot startup executor_vm"
+      ts_log_severe "Cannot startup executor_vm"
    }
-   set index [lsearch $hedeby_issue_88_shutdown_components "executor_vm"]
-   set hedeby_issue_88_shutdown_components [lreplace $hedeby_issue_88_shutdown_components $index $index]
+   set index [lsearch $this(components) "executor_vm"]
+   set this(components) [lreplace $this(components) $index $index]
 
 }
 

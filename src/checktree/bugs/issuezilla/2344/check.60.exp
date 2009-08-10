@@ -51,6 +51,10 @@ set check_description(0)  "check issue 2344 is fixed"
 # define test's dependencies
 set check_needs           "init_core_system" 
 
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2344_init_level"
+
+
 # setup and cleanup functions
 set check_setup_function issue_2344_setup
 set check_cleanup_function issue_2344_cleanup
@@ -60,6 +64,15 @@ set check_functions ""
 lappend check_functions "issue_2344_check"
 
 # -------- local test procedures: initialization ------------------------------
+proc issue_2344_init_level  {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
 
 proc issue_2344_setup {} {
    global ts_config

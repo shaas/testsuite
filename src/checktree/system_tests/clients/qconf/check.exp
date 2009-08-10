@@ -120,26 +120,10 @@ global queue_names
 global submitjob_jobid
 
 proc qconf_init_level {} {
-   global ts_config
-   global CHECK_ACT_LEVEL check_name CHECK_JGDI_ENABLED
-
-   if {[llength $ts_config(execd_nodes)] < 2} {
-      ts_log_config "need at least 2 execd hosts for this check"
-      return -1
-   }
-   #Check we are running at least 6.2 for JGDI
-   if {$CHECK_JGDI_ENABLED} {
-      if {$ts_config(gridengine_version) < 62} {
-         ts_log_config "jgdi shell supported from sge 6.2 version"
-         return -1
-      }
-   }
-
-   #Always allow run level 0
+   global CHECK_ACT_LEVEL
    if { $CHECK_ACT_LEVEL == 0 } {
       return 0
    }
-
    return -1  ;# no other level else
 }
 
@@ -148,6 +132,19 @@ proc qconf_setup {} {
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_project qconf_sched_config qconf_userlist 
    global backup_allhosts
    global queue_names CHECK_JGDI_ENABLED
+
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      ts_log_config "need at least 2 execd hosts for this check"
+      return 99
+   }
+
+   #Check we are running at least 6.2 for JGDI
+   if {$CHECK_JGDI_ENABLED} {
+      if {$ts_config(gridengine_version) < 62} {
+         ts_log_config "jgdi shell not supported for GE < 62"
+         return 99
+      }
+   }
 
    set queue_names ""
    set MAX 1000

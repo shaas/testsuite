@@ -130,7 +130,6 @@ proc hedeby_move_simhost_init_level {} {
 #
 #     Stores the following elements in the test context:
 #
-#     this(supported) -- 1 if a host could be retrieved from NIS
 #     this(simhost)   -- name of the host
 #     this(service)   -- name of a random GE service
 #
@@ -142,7 +141,6 @@ proc hedeby_move_simhost_setup_level {} {
    upvar #0 hedeby_move_simhost_ctx this
 
    set this(cleanup_actions) {}
-   set this(supported) 0
    set this(master_host) $hedeby_config(hedeby_master_host)
 
    # Pick a random host from NIS for simulated hosts
@@ -169,17 +167,14 @@ proc hedeby_move_simhost_setup_level {} {
                                 $raise_error]
 
    if { $prg_exit_state != 0 } {
-      set this(supported) 0
-
       set    msg "Test hedeby_move_simhost is not supported!!!\n"
       append msg "It needs a hostname from NIS, however 'ypcat hosts'\n"
       append msg "command did not work:\n"
       append msg "$output"
-
       ts_log_config $msg
-      return
+      unset -nocomplain this
+      return 99
    }
-   set this(supported) 1
    set this(simhost) [string trim $output]
 
    get_hedeby_default_services service_names
@@ -209,9 +204,6 @@ proc hedeby_move_simhost_cleanup_level {} {
    upvar #0 hedeby_move_simhost_qmaster_config qmaster_config
    upvar #0 hedeby_move_simhost_ctx this
 
-   if { $this(supported) == 0 } {
-      return
-   }
    if { [lsearch $this(cleanup_actions) "remove_resource"] >= 0 } {
       sdmadm_command_opt "remove_resource -r $this(simhost) -force"
       if { $prg_exit_state != 0 || [wait_for_resource_removal $this(simhost)] != 0 } {
@@ -287,9 +279,6 @@ proc hedeby_move_simhost_cleanup_level {} {
 proc hedeby_move_simhost_check {} {
    upvar #0 hedeby_move_simhost_ctx this
    
-   if { $this(supported) == 0 } {
-      return
-   }
 
    # ---------------------------------------------------------------------------
    ts_log_heading "Adding simulated host '$this(simhost)' to spare_pool"

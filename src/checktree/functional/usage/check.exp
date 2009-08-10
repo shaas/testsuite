@@ -88,7 +88,7 @@ set check_init_level_procedure "usage_init_level"
 # define test's name and run level descriptions
 set check_name            "usage"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   101
+set check_highest_level   102
 set check_description(0)  "check reserved usage of jobs submitted with qsub (random host)"
 set check_description(1)  "check reserved usage of jobs submitted with qrsh (random host)"
 set check_description(2)  "check reserved usage of jobs submitted with qrsh (random host), accounting summary"
@@ -112,9 +112,7 @@ lappend check_functions "usage_loose1"
 lappend check_functions "usage_loose2"
 
 proc usage_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-
    switch -- $CHECK_ACT_LEVEL {
       0 -
       1 -
@@ -124,12 +122,9 @@ proc usage_init_level {} {
       }
       2 -
       102 {
-         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
-            return 0
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -140,6 +135,21 @@ proc usage_setup_level {} {
    global CHECK_ACT_LEVEL
    global submit_command usage_master_hosts usage_accounting_summary
 
+   switch -- $CHECK_ACT_LEVEL {
+      2 -
+      102 {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
+            ts_log_fine "running test"
+         } else {
+            ts_log_config "test not working for this configuration"
+            return 99
+         }
+      }
+   }
+
+   return -1  ;# no other level
+
+   
    set usage_accounting_summary 0
    switch -exact $CHECK_ACT_LEVEL {
       0 {

@@ -213,6 +213,9 @@ set do_close_rlogin 0
 global do_wait_on_error
 set do_wait_on_error 0
 
+global define_daily_build_nr
+set define_daily_build_nr "true"
+
 # if we know the config is ok, we don't want to check it,
 # e.g. we don't want to connect to all hosts during setup
 #      or check the CVS version at every testsuite startup
@@ -2921,8 +2924,8 @@ proc build_checktree {} {
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_highest_level check_init_level_procedure check_name check_needs
-   global check_category
-   global CHECK_ACT_LEVEL
+   global check_category CHECK_USER
+   global CHECK_ACT_LEVEL sourced_commands
 
    # remember last check name - we'll reset to it on function exit
    set old_check_name $check_name
@@ -2934,7 +2937,8 @@ proc read_checktree_nodes { path } {
    # prepare for sourceing check.exp files
    set check_highest_level 0
    set check_init_level_procedure "--"
-   set check_category ""
+   set check_setup_function "--"
+   set check_category "--"
 
    # try to find and source check files in this directory for the configured N1GE version
    set sourced_files [ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]
@@ -2951,6 +2955,62 @@ proc read_checktree_nodes { path } {
                puts "check directory: $path"
                puts "description($lt): \"$check_description($lt)\""
                puts "PANIC: check \"$check_name\" contains unexpected new line characters in check description!"
+               puts "--------------------------------------------------------------"
+               testsuite_shutdown 1
+            }
+         }
+      }
+
+      if {$check_init_level_procedure == "--" || $check_init_level_procedure == ""} {
+         puts "--------------------------------------------------------------"
+         puts "check directory: $path"
+         puts "PANIC: check \"$check_name\" - init level procedure \"$check_init_level_procedure\" not allowed! You must specify a init level procedure!"
+         puts "--------------------------------------------------------------"
+         testsuite_shutdown 1
+      }
+
+      if {[llength [info procs $check_init_level_procedure]] == 0} {
+         puts "--------------------------------------------------------------"
+         puts "check directory: $path"
+         puts "PANIC: check \"$check_name\" -  init level procedure \"$check_init_level_procedure\" not implemented!"
+         puts "--------------------------------------------------------------"
+         testsuite_shutdown 1
+      }
+
+      set init_level_body [info body $check_init_level_procedure]
+      if {[string match "*ts_*config*" $init_level_body]} {
+         puts "--------------------------------------------------------------"
+         puts "check directory: $path"
+         puts "PANIC: check \"$check_name\" - init level procedure \"$check_init_level_procedure\" seems to access a config file!"
+         puts "NOTE: Please do sanity checks in test setup or test setup level procedure by returning 99!"
+         puts "--------------------------------------------------------------"
+         testsuite_shutdown 1
+      }
+
+      foreach command $sourced_commands {
+         if {[string match "*$command*" $init_level_body]} {
+            puts "--------------------------------------------------------------"
+            puts "check directory: $path"
+            puts "PANIC: check \"$check_name\" - init level procedure \"$check_init_level_procedure\" is using procedure \"$command\"!"
+            puts "NOTE: Please do sanity checks in test setup or test setup level procedure by returning 99!"
+            puts "--------------------------------------------------------------"
+            testsuite_shutdown 1
+         }
+      }
+      
+      if {$check_setup_function != "--" && $check_setup_function != ""} {
+         if {[llength [info procs $check_setup_function]] == 0} {
+            puts "--------------------------------------------------------------"
+            puts "check directory: $path"
+            puts "PANIC: check \"$check_name\" - setup procedure \"$check_setup_function\" not correctly defined!"
+            puts "--------------------------------------------------------------"
+            testsuite_shutdown 1
+         } else {
+            set setup_body [info body $check_setup_function]
+            if {[string match "*CHECK_ACT_LEVEL*" $setup_body]} {
+               puts "--------------------------------------------------------------"
+               puts "check directory: $path"
+               puts "PANIC: check \"$check_name\" - setup procedure \"$check_setup_function\" uses CHECK_ACT_LEVEL! This is not supported! "
                puts "--------------------------------------------------------------"
                testsuite_shutdown 1
             }
@@ -3383,6 +3443,7 @@ proc get_check_levels { path } {
          for {set i 0} {$i <= $ts_checktree($nr,check_highest_level)} {incr i 1} {
             set CHECK_ACT_LEVEL $i
             set DISABLE_ADD_PROC_ERROR 1
+#            ts_log_fine "calling $ts_checktree($nr,check_init_level_procedure) for level $i ..."
             if {[$ts_checktree($nr,check_init_level_procedure)] != 0} {
                set DISABLE_ADD_PROC_ERROR 0
                continue
@@ -4405,7 +4466,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
          set do_run_hook 1
          if {$runlevel_error_text == ""} {
             ts_log_fine "check start runlevel hooks ..."
-            if {[exec_start_runlevel_hooks 1 0] != 0} {
+            if {[exec_start_runlevel_hooks 1 0 $path] != 0} {
                append runlevel_error_text "Runlevel hooks returned an error!\n"
             }
          }
@@ -4430,6 +4491,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
    }
 
    # only continue, if we have check_functions at all
+   set setup_ret 1
    if {$runlevel_error_text != ""} {
       ts_log_severe "check \"$check_name\" cannot start in runlevel $level ([get_run_level_name $level]):\n$runlevel_error_text"
    } else {
@@ -4441,7 +4503,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
       }
       # if we had a setup error, don't execute the test,
       # but continue with the cleanup function
-      if {$setup_ret} {
+      if {$setup_ret != 0 && $setup_ret != 99} {
          foreach elem $check_functions {
             # running all check_functions can be interrupted by pressing CTRL-C
             if {$CHECK_INTERRUPT >= 3} {
@@ -4469,9 +4531,16 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
             }
          };# foreach check_function
       }
+      if {$setup_ret == 99} {
+         ts_log_fine "***************************************************************************"
+         ts_log_fine " Setup level function \"$check_setup_level_function\" returned 99 for runlevel $level. Skip this test!"
+         ts_log_fine "***************************************************************************"
+         # skip the test
+      }
 
+      
       # if we have a level specific cleanup function: execute it
-      if { [info exists check_cleanup_level_function] }  {
+      if {[info exists check_cleanup_level_function] && $setup_ret != 99}  {
          execute_test_preparation_procedure $check_cleanup_level_function "cleanup_level"
       }
 
@@ -4479,7 +4548,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
          set was_error 0
          set was_unsupported 0
          private_check_error_run_test_level was_error was_unsupported
-         if {[exec_start_runlevel_hooks 0 $was_error] != 0} {
+         if {[exec_start_runlevel_hooks 0 $was_error $path] != 0} {
             ts_log_severe "check \"$check_name\" did not cleanup the system correctly! Start test run hook returned an error!"
          }
       }
@@ -4487,6 +4556,11 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
    # examine public procedure error states
    set was_error 0
+
+   if {$setup_ret == 99 && $was_unsupported == 0 && $was_error == 0 } {
+      # this means there was no ts_log_config. We will not let the test (level) be successful
+      ts_log_severe "Test setup level function returned 99 without ts_log_config error! Setting test to failed!"
+   }
    private_check_error_run_test_level was_error was_unsupported
    incr was_unsupported $warnings
 
@@ -4728,6 +4802,7 @@ proc delete_temp_script_files { } {
 #     0 - failure
 #     1 - ok
 #     2 - empty function name
+#    99 - skip test
 #
 #*******************************************************************************
 proc execute_test_preparation_procedure {func_name type {warning_counter ""}} {
@@ -4776,20 +4851,29 @@ proc execute_test_preparation_procedure {func_name type {warning_counter ""}} {
       set CHECK_CUR_PROC_NAME $func_name
 
       set CHECK_CUR_PREPARATION_PROCEDURE "Test >$type< preparation procedure \"$func_name\""
-      set catch_return [ catch { $func_name } catch_message ]
+      set func_back ""
+      
+      set catch_return [ catch {
+         set func_back [$func_name]
+      } catch_message ]
 
       # catch returnes an error - may be a TCL error
       if {$catch_return != 0} {
          ts_log_warning "$type function \"$func_name\" failed:\n$catch_message"
          set ret 0
       }
+
+      if {$func_back == 99} {
+         set ret 99
+      } 
+
       #We restore original category
       set CHECK_CUR_PREPARATION_PROCEDURE ""
       set check_category $old_category
    }
 
    # check if error occured during execution of the setup/cleanup function
-   if {$ret == 1} {
+   if {$ret == 1 || $ret == 99} {
       # check_errno contains error codes as well as OK status (0)
       # search for entries != 0, if found, treat as error
       if {[info exists check_errno($func_name)]} {
@@ -5044,7 +5128,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    # start a setup function for this check - should it exist
    set CHECK_ACT_LEVEL 0
    set setup_ret [execute_test_preparation_procedure $check_setup_function "setup" nr_warnings]
-   if {!$setup_ret} {
+   if {$setup_ret == 0} {
       set immediate_return -1
       ts_log_fine "******************************************************************"
       ts_log_fine "* Setup function returned error. Setting test state to failed!   *"
@@ -5063,8 +5147,16 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          }
       }
    }
+
+   if {$setup_ret == 99} {
+      ts_log_fine "***************************************************************************"
+      ts_log_fine " Setup function \"$check_setup_function\" returned 99. Skip this test!"
+      ts_log_fine "***************************************************************************"
+      # skip the test
+   }
+
    set was_check_abort 0
-   if {$immediate_return == 0} {
+   if {$immediate_return == 0 && $setup_ret != 99} {
       for {set level 0} {$level <= $check_highest_level} {incr level 1} {
          # check for interrupt
          if {$CHECK_INTERRUPT >= 2} {
@@ -5138,23 +5230,25 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    }
 
    # if we have a specific cleanup function: execute it
-   set cleanup_ret [execute_test_preparation_procedure $check_cleanup_function "cleanup" nr_warnings]
-   if {$cleanup_ret == 0} {
-      ts_log_fine "******************************************************************"
-      ts_log_fine "* Cleanup function returned error. Setting test state to failed! *"
-      ts_log_fine "******************************************************************"
-      set immediate_return -1
-      incr nr_errors 1
-      for {set i 0} {$i <= $check_highest_level} {incr i 1} {
-         if {[string compare $check_init_level_procedure "--"] != 0} {
-            set CHECK_ACT_LEVEL $i
-            set DISABLE_ADD_PROC_ERROR 1
-            if {[$check_init_level_procedure] == 0} {
+   if {$setup_ret != 99} {
+      set cleanup_ret [execute_test_preparation_procedure $check_cleanup_function "cleanup" nr_warnings]
+      if {$cleanup_ret == 0} {
+         ts_log_fine "******************************************************************"
+         ts_log_fine "* Cleanup function returned error. Setting test state to failed! *"
+         ts_log_fine "******************************************************************"
+         set immediate_return -1
+         incr nr_errors 1
+         for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+            if {[string compare $check_init_level_procedure "--"] != 0} {
+               set CHECK_ACT_LEVEL $i
+               set DISABLE_ADD_PROC_ERROR 1
+               if {[$check_init_level_procedure] == 0} {
+                  delete_result $path 0 $i
+               }
+               set DISABLE_ADD_PROC_ERROR 0
+            } else {
                delete_result $path 0 $i
             }
-            set DISABLE_ADD_PROC_ERROR 0
-         } else {
-            delete_result $path 0 $i
          }
       }
    }
@@ -5190,16 +5284,35 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    if {$immediate_return != 0} {
       set CHECK_TEST_RUNNING 0
+      ts_log_fine "immediate_return: $immediate_return"
       return $immediate_return
    }
 
-   if {$nr_already_done == $no_level_calls} {
+   if {$nr_already_done == $no_level_calls && $no_level_calls > 0} {
       set CHECK_TEST_RUNNING 0
+      ts_log_fine "nr_already_done == no_level_calls  ($nr_already_done == $no_level_calls)"
       return 1  ;# was done time before
    }
 
    if {$send_mail_report != 1} {
       set do_send_mail 0
+   }
+   if {$setup_ret == 99 && $nr_errors == 0 && $nr_warnings == 0 } {
+      # this means there was no ts_log_config. We will not let the test (level) be successfull
+      ts_log_severe "Test setup function returned 99 without ts_log_config error! Setting test to failed!"
+      incr nr_errors 1
+      for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+         if {[string compare $check_init_level_procedure "--"] != 0} {
+            set CHECK_ACT_LEVEL $i
+            set DISABLE_ADD_PROC_ERROR 1
+            if {[$check_init_level_procedure] == 0} {
+               delete_result $path 0 $i
+            }
+            set DISABLE_ADD_PROC_ERROR 0
+         } else {
+            delete_result $path 0 $i
+         }
+      }
    }
 
    # when the tests succeeded, we usually send a mail
@@ -5229,6 +5342,24 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    } else {
       set CHECK_TEST_RUNNING 0
       if {$nr_errors == 0} {
+         if {$setup_ret == 99} {
+            # this means there was only ts_log_config. We will set the test to unsupported
+            ts_log_fine "Test setup function returned 99 with ts_log_config error(s)! Setting test to unsupported!"
+            incr nr_errors 1
+            for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+               if {[string compare $check_init_level_procedure "--"] != 0} {
+                  set CHECK_ACT_LEVEL $i
+                  set DISABLE_ADD_PROC_ERROR 1
+                  if {[$check_init_level_procedure] == 0} {
+                     save_result $path 0 $i
+                  }
+                  set DISABLE_ADD_PROC_ERROR 0
+               } else {
+                  save_result $path 0 $i
+               }
+            }
+
+         }
          return -3 ;# we had warnings
       }
       return -1
@@ -8645,6 +8776,9 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "install_mode <mode>   With this option it is possible to set the default install mode for the"
       puts "                      install_core_system test. Supported modes are \"manual\" or \"automatic\"."
       puts "                      Default is \"manual\"."
+      puts ""
+      puts "no_daily_build_nr     Don't define daily build number at compile time."
+      puts ""
       testsuite_shutdown 1
    }
 
@@ -8652,6 +8786,12 @@ for {set i 0} {$i < $argc} {incr i} {
       show_setup_information
       testsuite_shutdown 1
    }
+
+   if {([string compare [lindex $argv $i] "--no_daily_build_nr"] == 0) || ([string compare [lindex $argv $i] "no_daily_build_nr"] == 0) } {
+      set define_daily_build_nr "false"
+      continue
+   }
+
 
    if {([string compare [lindex $argv $i] "--check_macros"] == 0) || ([string compare [lindex $argv $i] "check_macros"] == 0) } {
       incr i
@@ -9125,7 +9265,34 @@ if {$CHECK_COVERAGE != {} && $CHECK_COVERAGE_DIR == ""} {
 
 # load defaults file
 #__setup   ;# old setup
+
+
+# get all currently known commands
+global start_commands
+set start_commands [info commands]
+
 source_tcl_files
+
+# get all known commands after sourcing the tcl files
+set after_source_commands [info commands]
+
+# generate sourced commands array and add some allowed commands
+global sourced_commands
+set sourced_commands {}
+set allowed_functions {}
+lappend allowed_functions "test"
+lappend allowed_functions "min"
+lappend allowed_functions "max"
+foreach elem $after_source_commands {
+   if {[lsearch -exact $allowed_functions $elem] != -1 } {
+      continue
+   }
+   if {[lsearch -exact $start_commands $elem] == -1} {
+      lappend sourced_commands $elem
+   }
+}
+
+
 
 if { $do_only_diff_macros == 1 } {
    testsuite_shutdown [diff_macro_files $global_macro_file1 $global_macro_file2 $global_macro_ignore_flag]

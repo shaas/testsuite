@@ -96,7 +96,6 @@ proc issue_2411_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2411_setup {} {
-   global CHECK_ACT_LEVEL
    global max_count
    
    # Add $max_count queues

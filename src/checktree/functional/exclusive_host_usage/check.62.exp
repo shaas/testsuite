@@ -74,17 +74,11 @@ lappend check_functions "exclusive_job_consumables"
 
 proc exclusive_host_usage_init_level {} {
    global CHECK_ACT_LEVEL
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         if {[ge_has_feature "exclusive-host-usage" 1]} {
-            return 0
-         } else {
-            return -1
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -93,6 +87,11 @@ proc exclusive_host_usage_init_level {} {
 proc exclusive_host_usage_setup {} {
    global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
    global exclusive_hosts
+
+   if {![ge_has_feature "exclusive-host-usage"]} {
+      ts_log_config "need \"exclusive-host-usage\" feature for this test"
+      return 99
+   }
 
    # need 1 test hosts
    set exclusive_hosts [host_conf_get_suited_hosts 2]

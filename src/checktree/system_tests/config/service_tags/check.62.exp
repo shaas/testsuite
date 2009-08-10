@@ -72,17 +72,11 @@ global st_file
 
 proc sge_st_init_level {} {
    global CHECK_ACT_LEVEL
-
-   if {[is_61AR]} {
-      return -1
-   }
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
          return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -91,6 +85,12 @@ proc sge_st_init_level {} {
 proc sge_st_setup {} {
    global ts_config CHECK_USER
    global sge_st_cmd st_file
+
+   if {[is_61AR]} {
+      ts_log_config "Test is not working for 61AR"
+      return 99
+   }
+
 
    set st_file "$ts_config(product_root)/$ts_config(cell)/common/st.enabled"
    set sge_st_cmd "$ts_config(product_root)/util/sgeST/sge_st"

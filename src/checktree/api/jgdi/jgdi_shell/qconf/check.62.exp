@@ -58,8 +58,8 @@ set check_highest_level    0
 set check_description(0)  "Compares output of the client and jgdi_shell implementation"
 
 # setup and cleanup functions
-set check_setup_function "jgdi_shell_setup"
-set check_cleanup_function "jgdi_shell_cleanup"
+set check_setup_function "jgdi_shell_qconf_setup"
+set check_cleanup_function "jgdi_shell_qconf_cleanup"
 
 # test order
 append_check_only_in_jgdi "add_implemented_untested_options_for_statistics"
@@ -84,6 +84,22 @@ proc jgdi_shell_init_level {} {
    }
    return -1  ;# no other level else
 }
+proc jgdi_shell_qconf_setup { {host ""} } {
+   global CHECK_USER ts_config jgdi_config
+   array unset jgdi_config
+
+   if { [string compare $host ""] == 0 } {
+      set host [host_conf_get_suited_hosts]
+   }
+   
+   return [setup_jgdi_config_for_host $host]
+}
+
+proc jgdi_shell_qconf_cleanup { } {
+   global jgdi_config
+   array unset jgdi_config
+}
+
 
 
 # This includes implemeted, but not yet tested options to the statistics

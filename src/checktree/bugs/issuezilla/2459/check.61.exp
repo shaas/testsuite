@@ -66,21 +66,15 @@ lappend check_functions "issue_2459_parse_autoinstall"
 lappend check_functions "issue_2459_parse_autobackup"
 
 proc issue_2459_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
-
+   global CHECK_ACT_LEVEL
    switch -- $CHECK_ACT_LEVEL {
       0 {
          return 0
       }
       1 {
-         if { $ts_config(gridengine_version) > 61 } {
-            return 0
-         } else {
-            return -1
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -91,12 +85,16 @@ proc issue_2459_setup {} {
    global found_backup_entries found_install_entries
 
    switch -exact $CHECK_ACT_LEVEL {
-   0 {
-      set check_jmx_port 0
-   }
-   1 {
-      set check_jmx_port 1
-   }
+      0 {
+         set check_jmx_port 0
+      }
+      1 {
+         if { $ts_config(gridengine_version) <= 61 } {
+            ts_log_config "test does not work with GE <= 61"
+            return 99
+         }
+         set check_jmx_port 1
+      }
    }
    init_found_install_entries
    init_found_backup_entries

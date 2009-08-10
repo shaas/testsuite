@@ -79,8 +79,7 @@ lappend check_functions "drmaa_check_additional_interfaces"
 # this function is called each time before
 # a new run level is started
 proc drmaa_init_level {} {
-  global CHECK_ACT_LEVEL ts_config
-
+  global CHECK_ACT_LEVEL
   # returning -1 causes disabling a certain runlevel
   # here per run level settings can be prepared
   switch -- $CHECK_ACT_LEVEL {
@@ -88,24 +87,16 @@ proc drmaa_init_level {} {
          return 0 
       }
       "100" {
-        if {$ts_config(gridengine_version) < 62} {
-           return 0
-        } else {
-           return -1
-        }
+         return 0
       }
       "101" {
          return 0
       }
       "200" {
-        if {$ts_config(gridengine_version) < 62} {
-           return 0
-        } else {
-           return -1
-        }
+         return 0
       }
       "201" {
-        return 0
+         return 0
       }
   } 
   return -1  ;# no other level else
@@ -184,6 +175,26 @@ proc drmaa_setup_level {} {
    global level_host_list
    # save the current drmaa lib mode 
    global current_drmaa_mode 
+
+   switch -- $CHECK_ACT_LEVEL {
+      "100" {
+        if {$ts_config(gridengine_version) < 62} {
+           ts_log_fine "running test ..."
+        } else {
+           ts_log_config "need GE < 62 for this test"
+           return 99
+        }
+      }
+      "200" {
+        if {$ts_config(gridengine_version) < 62} {
+           ts_log_fine "running test ..."
+        } else {
+           ts_log_config "need GE < 62 for this test"
+           return 99
+        }
+      }
+  } 
+
 
    ts_log_fine "setup level $CHECK_ACT_LEVEL: $check_description($CHECK_ACT_LEVEL)"
 

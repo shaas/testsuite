@@ -112,7 +112,6 @@ set jsv_enabled ""
 
 proc jsv_ge_mod_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
 
    switch -- $CHECK_ACT_LEVEL {
       0 {

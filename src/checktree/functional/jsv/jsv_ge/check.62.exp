@@ -111,16 +111,11 @@ proc jsv_script_get_script_file {shell_basename extension} {
 
 proc jsv_ge_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -128,12 +123,16 @@ proc jsv_ge_init_level {} {
 
 # start different JSV shells and initialize variables the test expect
 proc jsv_ge_setup {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_org_global_conf
    global jsv_base_path
    global jsv_enabled
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not working for GE < 62"
+      return 99
+   }
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
@@ -175,7 +174,6 @@ proc jsv_ge_setup {} {
 
 # stop all running JSV scripts 
 proc jsv_ge_cleanup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_enabled

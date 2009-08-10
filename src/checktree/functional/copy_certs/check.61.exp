@@ -53,7 +53,6 @@ lappend check_functions "copy_certs_setup"
 set check_highest_level       0
 
 proc copy_certs_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {

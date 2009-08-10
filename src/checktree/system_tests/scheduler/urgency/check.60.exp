@@ -65,7 +65,6 @@ set check_functions ""
 lappend check_functions "urgency_calculation"
 
 proc urgency_calculation_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
    
    switch -exact -- $CHECK_ACT_LEVEL {

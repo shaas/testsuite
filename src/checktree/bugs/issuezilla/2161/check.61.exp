@@ -53,6 +53,9 @@ set check_description(0) "check qmaster core dump with RQS and undefined project
 # define test's dependencies
 set check_needs           "init_core_system" 
 
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2161_init_level"
+
 # define test's procedure order
 set check_functions {}
 lappend check_functions "issue_2161_userset"

@@ -79,56 +79,26 @@ global binary_path
 global drmaa_version
 
 proc resource_reservation_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-   global drmaa_version
-
-   set drmaa_version "please specify test binary"
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
-         set drmaa_version "test_drmaa.0.95"
-         if {$ts_config(gridengine_version) < 62} {
-            return 0;      # Tests resource_reservation
-         } else {
-            return -1;
-         }
+         return 0;   # Tests resource_reservation
       }
       "1" {
-         set drmaa_version "test_drmaa.0.95"
-         if {$ts_config(gridengine_version) == 61} {
-            return 0;   # Tests resource_reservation with resource quota sets
-         } else {
-            return -1;
-         }
+         return 0;   # Tests resource_reservation with resource quota sets
       }
       "2" {
-         set drmaa_version "test_drmaa.1.0"
-         return 0;      # Tests resource_reservation
+         return 0;   # Tests resource_reservation
       }
       "3" {
-         set drmaa_version "test_drmaa.1.0"
-         if {$ts_config(gridengine_version) >= 61} {
-            return 0;   # Tests resource_reservation with resource quota sets
-         } else {
-            return -1;
-         }
+         return 0;   # Tests resource_reservation with resource quota sets
       }
       "4" {
-         if {[llength $ts_config(execd_nodes)] < 2} {
-            return -1;
-         } else {
-            set drmaa_version "test_drmaa.1.0"
-            return 0;      # Tests resource_reservation
-         }
+         return 0;   # Tests resource_reservation
       }
       "5" {
-         set drmaa_version "test_drmaa.1.0"
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0;   # Tests resource_reservation with resource quota sets
-         } else {
-            return -1;
-         }
+         return 0;   # Tests resource_reservation with resource quota sets
       }
    }
    return -1
@@ -226,7 +196,66 @@ proc resource_reservation_level_setup {} {
    global rr_queue_name rr_cal_queue_name rr_h_vmem_complex 
    global rr_host
    global ts_config
-   global CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL drmaa_version
+
+   set drmaa_version "please specify test binary"
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         # Tests resource_reservation
+         set drmaa_version "test_drmaa.0.95"
+         if {$ts_config(gridengine_version) < 62} {
+            ts_log_fine "DRMAA version: $drmaa_version"
+         } else {
+            ts_log_config "Need GE < 62 for this test in runlevel $CHECK_ACT_LEVEL"
+            return 99
+         }
+      }
+      "1" {
+         # Tests resource_reservation with resource quota sets
+         set drmaa_version "test_drmaa.0.95"
+         if {$ts_config(gridengine_version) == 61} {
+            ts_log_fine "DRMAA version: $drmaa_version"
+         } else {
+            ts_log_config "Need GE 61 for this test in runlevel $CHECK_ACT_LEVEL"
+            return 99
+         }
+      }
+      "2" {
+         # Tests resource_reservation
+         set drmaa_version "test_drmaa.1.0"
+         ts_log_fine "DRMAA version: $drmaa_version"
+      }
+      "3" {
+         # Tests resource_reservation with resource quota sets
+         set drmaa_version "test_drmaa.1.0"
+         if {$ts_config(gridengine_version) >= 61} {
+            ts_log_fine "DRMAA version: $drmaa_version"
+         } else {
+            ts_log_config "Need GE >= 61 for this test in runlevel $CHECK_ACT_LEVEL"
+            return 99
+         }
+      }
+      "4" {
+         # Tests resource_reservation
+         set drmaa_version "test_drmaa.1.0"
+         ts_log_fine "DRMAA version: $drmaa_version"
+         if {[llength $ts_config(execd_nodes)] < 2} {
+            ts_log_config "Need 2 execd nodes for this test in runlevel $CHECK_ACT_LEVEL"
+            return 99
+         }
+      }
+      "5" {
+         set drmaa_version "test_drmaa.1.0"
+         # Tests resource_reservation with resource quota sets
+         if {$ts_config(gridengine_version) >= 62} {
+            ts_log_fine "DRMAA version: $drmaa_version"
+         } else {
+            ts_log_config "Need GE >= 62 for this test in runlevel $CHECK_ACT_LEVEL"
+            return 99
+         }
+      }
+   }
 
    if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 4} {
       # setup needed pe

@@ -50,8 +50,7 @@ set check_init_level_procedure "jsv_script_init_level"
 set check_name            "jsv_script"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0 
-set check_description(0)  ""
-set check_description(1)  ""
+set check_description(0)  "test jsv script protocol"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -84,17 +83,11 @@ set jsv_enter2_list {}
 
 proc jsv_script_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+      0 {
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -120,7 +113,6 @@ proc jsv_script_get_script_file {shell_basename extension} {
 # start different JSV shells and initialize variables the test expect
 proc jsv_script_setup {} {
    global ts_config
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global jsv_script_list
    global jsv_name_list
@@ -130,6 +122,12 @@ proc jsv_script_setup {} {
    global jsv_enter2_list
    global jsv_enabled
 
+   # Check test setup
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not working for GE < 62"
+      return 99
+   }
+   
    # check if jsv is available
    if {$jsv_enabled == ""} {
       set jsv_enabled [ge_has_feature "job-submission-verify"]
@@ -203,7 +201,6 @@ proc jsv_script_setup {} {
 # stop all running JSV scripts 
 proc jsv_script_cleanup {} {
    global ts_config
-   global CHECK_ACT_LEVEL
    global jsv_script_list
    global jsv_name_list
    global jsv_id_list

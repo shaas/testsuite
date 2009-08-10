@@ -72,18 +72,13 @@ lappend check_functions "reschedule_deleted_job"
 
 # -------- local test procedures -----------------------------------------------
 proc qmod_reschedule_init_level {} {
-   global ts_config CHECK_ACT_LEVEL
-
-   if {[llength $ts_config(execd_nodes)] < 2} {
-      return -1
-   }
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       0 {
          return 0
       }
    }
-
    return -1  ;# no other level else
 }
 
@@ -124,6 +119,13 @@ proc reschedule_setup {} {
    global rerun_host no_rerun_host
    global rerun_queue rerun_queue2 no_rerun_queue
    global stored_configuration
+
+
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      ts_log_config "Need at least 2 execd for this test"
+      return 99
+   }
+
 
    # we'll do qrsh without command, and qsh
    # these are known not to work on some architectures

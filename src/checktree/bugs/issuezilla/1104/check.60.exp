@@ -58,7 +58,7 @@ set check_highest_level       0
 # After restart the local configuration will be added again.
 
 proc issue_1104_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0"  { 

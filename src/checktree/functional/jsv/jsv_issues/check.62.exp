@@ -50,7 +50,7 @@ set check_init_level_procedure "jsv_issues_init_level"
 set check_name            "jsv_issues"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0 
-set check_description(0)  ""
+set check_description(0)  "test special jsv issues"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -86,16 +86,11 @@ proc file_touch {name} {
 
 proc jsv_issues_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -103,12 +98,17 @@ proc jsv_issues_init_level {} {
 
 # start different JSV shells and initialize variables the test expect
 proc jsv_issues_setup {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_org_global_conf
    global jsv_base_path
    global jsv_enabled
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not working for GE < 62"
+      return 99
+   }
+
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
@@ -143,7 +143,6 @@ proc jsv_issues_setup {} {
 
 # stop all running JSV scripts 
 proc jsv_issues_cleanup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_enabled
@@ -173,7 +172,6 @@ proc jsv_issues_cleanup {} {
 # this test is related to the test jsv_issues_job_start_user_drmaa below
 # it takes care that the same issue does not occure in qsub
 proc jsv_issues_job_start_user_qsub {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path
@@ -216,7 +214,7 @@ proc jsv_issues_job_start_user_qsub {} {
 
 proc submit_drmaa_job {host binary_path job_id_var} {
    global CHECK_USER 
-   global ts_config CHECK_ACT_LEVEL
+   global ts_config
 
    upvar $job_id_var job_id
    set prg_exit_stat 0
@@ -236,12 +234,12 @@ proc submit_drmaa_job {host binary_path job_id_var} {
 # set as job owner in the JSV script
 proc jsv_issues_job_start_user_drmaa {} {
    global jsv_base_path
-   global ts_config CHECK_ACT_LEVEL
+   global ts_config
    global CHECK_USER drmaa_binary_name level_host_list
 
    set host $ts_config(master_host) 
-   set global_file $ts_config(product_root)/default/common/sge_request
-   set saved_global_file $ts_config(product_root)/default/common/sge_request.jsv_issues_job_start_user_drmaa
+   set global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request
+   set saved_global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request.jsv_issues_job_start_user_drmaa
    set did_copy 0
 
    # safe possibly existing file 
@@ -289,7 +287,6 @@ proc jsv_issues_job_start_user_drmaa {} {
 # CR 6806219: JSV -w param has wrong value inside script
 # CR 6810493: Changing "w" job parameter to "n" in client JSV is not handled correctly
 proc jsv_issues_wrong_w_flag {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path
@@ -319,7 +316,6 @@ proc jsv_issues_wrong_w_flag {} {
 }
 
 proc jsv_issues_q_soft_selection {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path
@@ -349,7 +345,6 @@ proc jsv_issues_q_soft_selection {} {
 }
 
 proc jsv_issues_q_hard_selection {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path
@@ -380,7 +375,6 @@ proc jsv_issues_q_hard_selection {} {
 
 # CR 6825376: CMDARGS should not be a read-only parameter
 proc jsv_issues_cmdargs {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path
@@ -465,7 +459,6 @@ proc jsv_issues_cmdargs {} {
 }
 
 proc jsv_issues_iz3088 {} {
-   global CHECK_ACT_LEVEL
    global CHECK_USER
    global ts_config
    global jsv_base_path

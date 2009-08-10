@@ -205,14 +205,7 @@ global throughput_max_consumable_per_job
 set throughput_max_consumable_per_job 3
 
 proc throughput_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL CHECK_PRODUCT_TYPE
-
-   # we can only run with more than one host
-   if {[llength $ts_config(execd_nodes)] < 2} {
-      ts_log_severe "at least 2 exec hosts are needed to perform the test"
-      return -1
-   }
 
    # setup levels
    set major_level [expr $CHECK_ACT_LEVEL / 100]
@@ -392,7 +385,7 @@ proc throughput_cleanup_consumables {} {
 
 proc throughput_setup {} {
    global ts_config
-   global CHECK_ACT_LEVEL CHECK_PRODUCT_TYPE
+   global CHECK_PRODUCT_TYPE
    global nr_slots default_nr_slots           ;# nr of slots on each queue
    global nr_queues                           ;# nr of queues on each host
    global FLUSH_SUBMIT_SEC                    ;# -1 or 0,1,2,3 ...
@@ -402,6 +395,11 @@ proc throughput_setup {} {
    global host_list submit_hosts qstat_hosts
    global queue_list
 
+# we can only run with more than one host
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      ts_log_config "at least 2 exec hosts are needed to perform the test"
+      return 99
+   }
 
    # global settings
    set nr_slots                              5   ;# nr of slots on each queue

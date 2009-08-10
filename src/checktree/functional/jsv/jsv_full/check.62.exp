@@ -50,8 +50,7 @@ set check_init_level_procedure "jsv_full_init_level"
 set check_name            "jsv_full"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0 
-set check_description(0)  ""
-set check_description(1)  ""
+set check_description(0)  "jsv full check"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -77,28 +76,27 @@ set jsv_enabled ""
 
 proc jsv_full_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+      0 {
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
 proc jsv_full_setup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_base_path
    global jsv_enabled
    global jsv_job_id
    global jsv_hjob_id
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not working for GE < 62"
+      return 99
+   }
+
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
@@ -129,7 +127,6 @@ proc jsv_full_setup {} {
 }
 
 proc jsv_full_cleanup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_enabled
@@ -202,8 +199,8 @@ proc jsv_full_all_all_correct {} {
       close $fd
 
       # Create a global sge_reqeust file and add also there the switch for the file
-      set global_file $ts_config(product_root)/default/common/sge_request
-      set saved_global_file $ts_config(product_root)/default/common/sge_request.jsv_full_senario1
+      set global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request
+      set saved_global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request.jsv_full_senario1
       set global_copy 0
       if {[file exists $global_file]} {
          file copy -force $global_file $saved_global_file
@@ -321,8 +318,8 @@ proc jsv_full_all_one_reject {} {
       close $fd
 
       # Create a global sge_reqeust file and add also there the switch for the file
-      set global_file $ts_config(product_root)/default/common/sge_request
-      set saved_global_file $ts_config(product_root)/default/common/sge_request.jsv_full_senario1
+      set global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request
+      set saved_global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request.jsv_full_senario1
       set global_copy 0
       if {[file exists $global_file]} {
          file copy -force $global_file $saved_global_file

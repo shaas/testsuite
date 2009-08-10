@@ -127,6 +127,17 @@ proc executor_reload_init_level {} {
 proc executor_reload_setup {} {
    global hedeby_config
    global executor_reload_host
+   global check_name
+
+   # skip test if sdm-test.jar is not there
+   set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
+
+   if {[is_remote_file $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $path] == 0} {
+      ts_log_config "Skipping test $check_name: Product root \"$hedeby_config(hedeby_product_root)\"\
+            doesn't contain sdm-test.jar file in ./lib directory"
+      return 99
+   }
+
 
    ts_log_fine "doing setup"
    set executor_reload_host [lindex [get_all_spare_pool_resources] 0]
@@ -179,16 +190,6 @@ proc executor_reload_check {} {
    global CHECK_USER hedeby_config
    global executor_reload_host
 
-   # skip test if sdm-test.jar is not there
-   global check_name
-   set java_build_host [host_conf_get_java_compile_host]
-   set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
-   if {[is_remote_file $java_build_host [get_hedeby_admin_user] $path] == 0} {
-      ts_log_config "Skipping test $check_name: Product root \"$hedeby_config(hedeby_product_root)\"\
-            doesn't contain sdm-test.jar file in ./lib directory"
-      return 0
-   }
-   
    set host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
    set pref_type [get_hedeby_pref_type]

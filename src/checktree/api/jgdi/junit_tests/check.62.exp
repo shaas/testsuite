@@ -56,8 +56,8 @@ set check_highest_level    0
 set check_description(0)  "Run the JGDI junit tests"
 #set check_description(100)  "Rebuild and run the JGDI junit tests"
 
-set check_setup_function "jgdi_shell_setup"
-set check_cleanup_function "jgdi_shell_cleanup"
+set check_setup_function "jgdi_shell_junit_setup"
+set check_cleanup_function "jgdi_shell_junit_cleanup"
 
 # test order, JGDI now supports only java 1.5+
 append_check_only_in_jgdi "jgdi_junit_15"
@@ -75,6 +75,23 @@ proc jgdi_junit_init_level {} {
    }
    return -1  ;# no other level else
 }
+
+proc jgdi_shell_junit_setup { {host ""} } {
+   global CHECK_USER ts_config jgdi_config
+   array unset jgdi_config
+
+   if { [string compare $host ""] == 0 } {
+      set host [host_conf_get_suited_hosts]
+   }
+   
+   return [setup_jgdi_config_for_host $host]
+}
+
+proc jgdi_shell_junit_cleanup { } {
+   global jgdi_config
+   array unset jgdi_config
+}
+
 
 #****** jgdi_run_task() **************************************************
 #  NAME

@@ -93,13 +93,7 @@ set TIGHT_INTEGRATION_MASSIVE_SLOTS 200
 set TIGHT_INTEGRATION_MASSIVE_DURATION 120
 
 proc tight_integration_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-
-   # tight integration with csp is not working in SGE(EE) 5.3
-   if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
-      return -1
-   }
 
    switch -- $CHECK_ACT_LEVEL {
       0 {
@@ -109,21 +103,24 @@ proc tight_integration_init_level {} {
          return 0
       }
       2 {
-         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
-            return 0
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
 proc tight_integration_setup {} {
    global ts_config
-   global CHECK_ACT_LEVEL
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
    global tight_masterq tight_master_node
    global tight_global_config
+
+   # tight integration with csp is not working in SGE(EE) 5.3
+   if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
+      ts_log_config "Test is not working for GE 53 in CSP mode"
+      return 99
+   }
+
 
    # we have to set a short load report time
    # to workaround CR 6728379
@@ -165,6 +162,19 @@ proc tight_integration_setup_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global submit_command tight_integration_accounting_summary
+
+
+   switch -- $CHECK_ACT_LEVEL {
+      2 {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
+            ts_log_fine "running test"
+         } else {
+            ts_log_config "test does not work with this version"
+            return 99
+         }
+      }
+   }
+
 
    set tight_integration_accounting_summary 0
 

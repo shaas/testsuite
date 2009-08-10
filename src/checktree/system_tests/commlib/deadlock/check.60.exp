@@ -54,7 +54,7 @@ lappend check_functions       "commlib_deadlock_run"
 set check_highest_level       0
 
 proc commlib_deadlock_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {

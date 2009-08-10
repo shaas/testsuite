@@ -68,7 +68,7 @@ lappend check_functions "test_qlogin_ar_switch"
 global default_args
 
 proc client_ar_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {

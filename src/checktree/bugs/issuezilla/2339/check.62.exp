@@ -63,19 +63,12 @@ set check_functions ""
 lappend check_functions "issue_2339_check"
 
 proc issue_2339_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-
    switch -- $CHECK_ACT_LEVEL {
       0 {
-         # For this test we need at least 2 hosts
-         if { [llength $ts_config(execd_nodes)] < 2 } {
-             ts_log_config "Need at least 2 hosts for this test. We only have $ts_config(execd_hosts)"
-         }
          return 0
       }
    }
-
    return -1  ;# no other level
 }
 
@@ -93,6 +86,13 @@ proc add_rqs_single { name rule } {
 proc issue_2339_setup {} {
    global ts_config
    global issue_2339_hosts
+
+   # For this test we need at least 2 hosts
+   if { [llength $ts_config(execd_nodes)] < 2 } {
+      ts_log_config "Need at least 2 hosts for this test. We only have $ts_config(execd_hosts)"
+      return 99
+   }
+
 
    ts_log_fine "issue_2339_setup" 
        

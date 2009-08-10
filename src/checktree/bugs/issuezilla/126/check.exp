@@ -54,6 +54,10 @@ set check_name            "issue_126"
 set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_highest_level   [expr 400 + [llength $ts_config(unique_arch_nodes)] -1]
 
+
+#
+# TODO: REMOVE THIS global check_126_num_hosts !!!!
+#
 set check_126_num_hosts [llength $ts_config(unique_arch_nodes)]
 for {set i 0} {$i < $check_126_num_hosts} {incr i} {
    set check_description($i) "check iz 126 on exec host $i, 10 test loop"
@@ -76,7 +80,6 @@ set check_functions ""
 lappend check_functions "issue_126_check"
 
 proc issue_126_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
    global check_126_loops check_126_num_hosts
 

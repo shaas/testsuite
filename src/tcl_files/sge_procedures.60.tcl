@@ -116,6 +116,7 @@ proc set_complex {change_array {raise_error 1} {fast_add 1}} {
 
       set tmpfile [dump_array_to_tmpfile old_values]
       set result [start_sge_bin "qconf" "-Mc $tmpfile"]
+      ts_log_fine "output of qconf -Mc $tmpfile:\n$result"
 
       # parse output or raise error
       add_message_to_container messages 4 [translate_macro MSG_CENTRY_NOTCHANGED]

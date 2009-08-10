@@ -117,7 +117,7 @@ proc basic_setup {} {
 
    if {$basic_hosts == ""} {
       ts_log_config "No host selected."
-      return 0
+      return 99
    }
 
    set basic_test_identificator "BASIC_TEST"

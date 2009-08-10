@@ -78,7 +78,6 @@ proc issue_2304_init_level {} {
 }
 
 proc issue_2304_setup {} {
-   global CHECK_ACT_LEVEL
    global execd_host
    global ts_config
    global admin_user_list

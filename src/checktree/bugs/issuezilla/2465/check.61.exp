@@ -65,7 +65,7 @@ set check_functions {}
 lappend check_functions "issue_2465"
 
 proc issue_2465_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {

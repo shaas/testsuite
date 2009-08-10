@@ -680,12 +680,12 @@ proc modify_setup2 {} {
                if { $do_save == 0 } {
                   $setup_hook(1,save_func) $addConfig($input,fullName) add_configuration
                }
-            break
-         } else {
-               puts "configuration for additional config file:\n$addConfig($input,fullName)"
-               show_config add_configuration
+               break
+            } else {
+                  puts "configuration for additional config file:\n$addConfig($input,fullName)"
+                  show_config add_configuration
+            }
          }
-      }
       }
       wait_for_enter
    }

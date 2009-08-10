@@ -48,7 +48,6 @@ lappend check_functions "issue2754_test"
 set check_highest_level 0
 
 proc issue2754_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {

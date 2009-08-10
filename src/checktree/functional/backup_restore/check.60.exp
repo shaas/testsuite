@@ -58,7 +58,6 @@ lappend check_functions "backup_restore_check_cluster"
 set check_highest_level 0
 
 proc backup_restore_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {

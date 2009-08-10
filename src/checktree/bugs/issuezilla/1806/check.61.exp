@@ -72,7 +72,6 @@ set check_highest_level       0
 
 proc issue_1806_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config 
 
    # setup levels
    switch -- $CHECK_ACT_LEVEL {

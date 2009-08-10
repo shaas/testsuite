@@ -42,6 +42,8 @@ set check_highest_level  0
 set check_description(0) "checking status of queue with attribute"
 set check_description(1) "initial_state after qmaster failover"
 set check_needs          "init_core_system"
+
+set check_init_level_procedure "qmaster_failover_init_level"
 #
 # Setup function
 #
@@ -55,6 +57,18 @@ set check_cleanup_function "qmaster_failover_cleanup"
 #
 set check_functions      "";
 lappend check_functions  "check_queue_state"
+
+
+proc qmaster_failover_init_level {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
+
 #
 # Fun starts here.
 #

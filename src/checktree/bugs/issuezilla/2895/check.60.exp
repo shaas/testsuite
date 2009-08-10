@@ -56,7 +56,7 @@ lappend check_functions       "issue_2895_run"
 set check_highest_level       1
 
 proc issue_2895_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {

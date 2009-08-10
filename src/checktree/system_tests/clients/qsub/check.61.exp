@@ -303,7 +303,9 @@ proc check_sync_failover {} {
    ts_log_fine "qsub -sync y sleeper.sh 30"
    set output 0
    set found_eof 0
+   # TODO: This macro is not existing for other branches
    set text [translate_macro MSG_JAPI_KILLED_EVENT_CLIENT]
+   # TODO: END
    set sp_id [lindex $id 1]
    set events [get_event_client_list $host $CHECK_USER 0]
    del_event_client_list "all" [lindex $events 1]

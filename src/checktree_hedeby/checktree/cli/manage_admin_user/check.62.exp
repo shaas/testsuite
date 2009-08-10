@@ -133,9 +133,27 @@ proc manage_admin_user_setup {} {
    global hedeby_config
    upvar #0 manage_admin_user_ctx this
 
+
+   # ----------------------------------------------------------------------------
+   ts_log_heading "Check that user root is on the admin user list" 
+   # ----------------------------------------------------------------------------
+   set user_list {}
+   if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
+      ts_log_severe "Could not get the admin user list"
+      return
+   }
+
+   if { [lsearch $user_list "root"] < 0} {
+      set    msg "Can not run the manage_admin_user test because user root is not "
+      append msg "on the admin user list => Skip this test"
+      ts_log_config $msg
+      return 99
+   }
+
    set this(master_host) $hedeby_config(hedeby_master_host)
    set this(admin_user) [get_hedeby_admin_user]
    set this(cleanup_actions) {}
+
 }
 
 #****** check.62/manage_admin_user_cleanup() ***********************************
@@ -161,6 +179,7 @@ proc manage_admin_user_cleanup {} {
          reset_hedeby 1
       }
    }
+   unset -nocomplain this
 }
 
 
@@ -193,13 +212,6 @@ proc manage_admin_user_check {} {
    set user_list {}
    if {[get_admin_user_list $this(master_host) $this(admin_user) user_list] != 0} {
       ts_log_severe "Could not get the admin user list"
-      return
-   }
-
-   if { [lsearch $user_list "root"] < 0} {
-      set    msg "Can not run the manage_admin_user test because user root is not "
-      append msg "on the admin user list => Skip this test"
-      ts_log_severe $msg
       return
    }
 

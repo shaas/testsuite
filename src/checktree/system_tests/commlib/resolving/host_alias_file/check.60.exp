@@ -55,7 +55,7 @@ lappend check_functions       "host_aliases_file_run"
 set check_highest_level       0
 
 proc host_aliases_file_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {

@@ -1432,6 +1432,10 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
          }
       }
    }
+  
+   if {$ret == -999} {
+      ts_log_fine "output: $result"
+   }
 
    return $ret
 }

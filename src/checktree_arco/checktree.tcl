@@ -174,7 +174,8 @@ proc arco_compile { compile_hosts a_report } {
 #*******************************************************************************
 proc arco_compile_clean { compile_hosts a_report } {
    upvar $a_report report
-   return [arco_build $compile_hosts "clean" report]
+   set java_build_host [host_conf_get_java_compile_host]
+   return [arco_build $java_build_host "clean" report]
 }
 
 
@@ -205,14 +206,17 @@ proc arco_compile_clean { compile_hosts a_report } {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc arco_build { compile_host target a_report { ant_options "" } { arco_build_timeout 60 } } {
+proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_timeout 120 } } {
    global CHECK_OUTPUT CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global ts_config ts_host_config arco_config
    
    upvar $a_report report
    
-   set build_host $compile_host
+   ts_log_fine "will not build on $compile_hosts!"
+   set build_host [host_conf_get_java_compile_host]
+   ts_log_fine "build is done on java compile host \"$build_host\""
+
    
    set task_nr [report_create_task report "arco_build_$target" $build_host]
    

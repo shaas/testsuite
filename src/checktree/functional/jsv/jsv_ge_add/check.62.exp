@@ -50,8 +50,7 @@ set check_init_level_procedure "jsv_ge_add_init_level"
 set check_name            "jsv_ge_add"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0 
-set check_description(0)  ""
-set check_description(1)  ""
+set check_description(0)  "jsv ge add parameter test"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -105,28 +104,27 @@ set jsv_enabled ""
 
 proc jsv_ge_add_init_level {} {
    global CHECK_ACT_LEVEL
-   global ts_config
-
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
-         if {$ts_config(gridengine_version) >= 62} {
-            return 0
-         }
+      0 {
+         return 0
       }
    }
-
    return -1  ;# no other level
 }
 
 proc jsv_ge_add_setup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_base_path
    global jsv_enabled
    global jsv_job_id
    global jsv_hjob_id
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "test not working for GE < 62"
+      return 99
+   }
+
 
    # check if jsv is available
    if {$jsv_enabled == ""} {
@@ -210,7 +208,6 @@ proc jsv_ge_add_setup {} {
 }
 
 proc jsv_ge_add_cleanup {} {
-   global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
    global jsv_enabled

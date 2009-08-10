@@ -55,7 +55,7 @@ lappend check_functions       "fork_posix_behaviour_run"
 set check_highest_level       0
 
 proc fork_posix_behaviour_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {

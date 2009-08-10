@@ -120,6 +120,7 @@ proc exec_compile_clean_hooks { compile_hosts a_report } {
    global ts_checktree
    upvar $a_report report
    
+   ts_log_fine "execute exec_compile_clean_hooks ..."
    set error_count 0
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,compile_clean_hooks_${ii})]} {incr ii 1} {
@@ -130,6 +131,7 @@ proc exec_compile_clean_hooks { compile_hosts a_report } {
             report_add_message report "Can not execute compile_clean hook ${ii} of checktree $ts_checktree($i,dir_name), compile proc not found"
             return -1
          } else {
+            ts_log_fine "execute: $compile_clean_proc $compile_hosts ..."
             set res [$compile_clean_proc $compile_hosts report]
             if { $res != 0 } {
                report_add_message report "compile_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $compile_clean_proc returned $res\n"
@@ -305,29 +307,51 @@ proc exec_shutdown_hooks {} {
 #  INPUTS
 #     is_starting - if 1 test is in setup phase, otherwise it is cleanup phase
 #     was_error   - if != 0 there was an error during running this test
+#     path        - actual check path
 #
 #  RESULT
 #     0 on success
 #
 #*******************************************************************************
-proc exec_start_runlevel_hooks { is_starting was_error } {
+proc exec_start_runlevel_hooks { is_starting was_error path } {
    global ts_checktree
    set error_count 0
+
+   # detect the checktree where the test comes from
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
+      if {[string compare $ts_checktree($i,dir_name) $path] == 0} {
+         ts_log_fine "test comes from checktree node nr. $i ($ts_checktree($i,dir_name))"
+         set init_node_nr $i
+         break
+      }
+   }
+   set start_node_nr 0
+   foreach nr [lsort -integer $ts_checktree(0,sub_nrs)] {
+      ts_log_fine "sub_checks: $nr \"$ts_checktree($nr,dir_name)\""
+      if {$nr < $init_node_nr} {
+         set start_node_nr $nr
+      }
+   }
+
+   set did_hook 0
+   for {set i $start_node_nr} { $i < $ts_checktree(act_nr) && $did_hook == 0} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,start_runlevel_hooks_${ii})]} {incr ii 1} {
-         
+         if {$init_node_nr < $i} {
+            continue
+         } 
          set start_test_hook $ts_checktree($i,start_runlevel_hooks_${ii})
-         # TODO: Only run this hook(s) when the test comes from the checktree which defined the hook
          if { [info procs $start_test_hook] != $start_test_hook } {
             ts_log_fine "Can not execute start_runlevel_hooks ${ii} of checktree $ts_checktree($i,dir_name), proc \"$start_test_hook\" not found"
             return -1
          } else {
+            ts_log_fine "starting test hook \"$start_test_hook\" ..."
             set res [$start_test_hook $is_starting $was_error]
             if { $res != 0 } {
                ts_log_fine "start_runlevel_hooks hook ${ii} of checktree  $ts_checktree($i,dir_name) failed, proc \"$start_test_hook\" returned $res\n"
                incr error_count
             }
          }
+         set did_hook 1
       }
    }
    return $error_count

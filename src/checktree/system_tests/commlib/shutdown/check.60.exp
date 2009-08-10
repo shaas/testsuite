@@ -58,7 +58,7 @@ lappend check_functions       "commlib_shutdown_run"
 set check_highest_level       3
 
 proc commlib_shutdown_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {

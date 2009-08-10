@@ -113,7 +113,7 @@ proc compile_host_list {} {
    global ts_host_config
    global ts_config
   
-   set submit_hosts ""
+   set submit_hosts {}
    if { $ts_config(submit_only_hosts) != "none" } {
       set submit_hosts $ts_config(submit_only_hosts)
    }
@@ -163,13 +163,13 @@ proc compile_host_list {} {
       set arch [host_conf_get_arch $host]
       if {$arch == ""} {
          ts_log_severe "Cannot determine the architecture of host $host"
-         return ""
+         return {}
       }
       if {![info exists compile_host($arch)]} {
          set c_host [compile_search_compile_host $arch]
          if {$c_host == "none"} {
             ts_log_severe "Cannot determine a compile host for architecture $arch" 
-            return ""
+            return {}
          } else {
             set compile_host($arch) $c_host
             lappend compile_host(list) $c_host
@@ -186,7 +186,7 @@ proc compile_host_list {} {
 
       if {$compile_host($jc_arch) != $jc_host} {
          ts_log_severe "the java compile host ($jc_host) has architecture $jc_arch\nbut compile host for architecture $jc_arch is $compile_host($jc_arch).\nJava and C compile must be done on the same host"
-         return ""
+         return {}
       }
    }
 
@@ -287,8 +287,7 @@ proc compile_search_compile_host {arch} {
    }
 
    foreach host $ts_host_config(hostlist) {
-      if {[host_conf_get_arch $host] == $arch && \
-          [host_conf_is_compile_host $host]} {
+      if {[host_conf_get_arch $host] == $arch && [host_conf_is_compile_host $host]} {
          return $host
       }
    }
@@ -472,13 +471,15 @@ proc wait_for_NFS_after_compile_clean { host_list a_report } {
    upvar $a_report report
    get_current_cluster_config_array ts_config
 
-   ts_log_fine "verify compile_clean call ..."
+   ts_log_fine "verify compile_clean call ($host_list)..."
 
    set result 1
    foreach host $host_list {
       set task_nr [report_create_task report "verify compile clean" $host]
       set build_dir_name [resolve_build_arch $host]
       set wait_path  "$ts_config(source_dir)/$build_dir_name"
+ 
+      ts_log_fine "wait path: $ts_config(source_dir)/$build_dir_name"
       set my_timeout [timestamp]
       incr my_timeout 10
       set was_error 1
@@ -616,8 +617,21 @@ proc compile_source { { do_only_hooks 0} } {
       return -1
    }
 
+   # do we have a unknown host ?
+   if {[string match "*unknown*" $compile_hosts]} {
+      report_add_message report "compile host list contains unknown host: $compile_hosts"
+      report_finish report -1
+   }
+
+   # If we still have no compile hosts - report error
+   if {[llength $compile_hosts] == 0} {
+      report_add_message report "host list to compile has zero length"
+      report_finish report -1
+      return -1
+   }
+
    # figure out the compile archs
-   set compile_arch_list ""
+   set compile_arch_list {}
    foreach chost $compile_hosts {
       ts_log_fine "\n-> checking architecture for host $chost ..."
       set output [resolve_build_arch $chost]
@@ -1024,7 +1038,7 @@ proc add_32_bit_architecture_for_HP_64 { arch_list } {
 #     ???/???
 #*******************************************************************************
 proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
-   global CHECK_USER
+   global CHECK_USER define_daily_build_nr
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR ts_config
 
    upvar $a_report report
@@ -1054,7 +1068,11 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
 
       set prog "$ts_config(testsuite_root_dir)/scripts/remotecompile.sh"
       set par1 "$ts_config(source_dir)"
-      set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
+      if {$define_daily_build_nr} {
+         set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
+      } else {
+         set par2 "$my_compile_options"
+      }
 
       # For SGE 6.0, we want to build the drmaa.jar.
       # We do so by using the -java aimk option on the java build host

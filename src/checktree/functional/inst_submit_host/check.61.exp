@@ -52,7 +52,6 @@ set check_functions   ""
 lappend check_functions "inst_submit_host_setup"
 
 proc inst_submit_host_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {

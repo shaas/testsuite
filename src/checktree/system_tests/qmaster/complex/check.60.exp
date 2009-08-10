@@ -110,6 +110,7 @@ set check_needs           "init_core_system"
 
 # setup and cleanup functions
 set check_setup_function complex_setup
+set check_setup_level_function complex_setup_level
 set check_cleanup_function complex_cleanup
 
 # define test's procedure order
@@ -125,30 +126,36 @@ global complex_host
 global complex_old_config
 
 proc complex_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
-
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
          return 0
       }
       "1" {
-         if {$ts_config(gridengine_version) >= 61} {
-            return 0
-         } else {
-            return -1
-         }
+         return 0
       }
    }
-
    return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
+proc complex_setup_level {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "1" {
+         if {$ts_config(gridengine_version) < 61} {
+            ts_log_config "Need GE >= 61 for runlevel 1"
+            return 99
+         } 
+      }
+   }
+}
 
 proc complex_setup {} {
-   global ts_config CHECK_USER CHECK_ACT_LEVEL
+   global ts_config CHECK_USER
    global complex_host
    global complex_global_host_backup complex_host_backup
    global complex_global_config_backup
