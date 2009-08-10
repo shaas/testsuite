@@ -1351,6 +1351,7 @@ proc open_remote_spawn_process { hostname
                                  {without_sge_single_line 0}
                                  {shell_script_name_var shell_script_name}
                                  {disable_stty_echo 0}
+                                 {no_final_enter 0}
                                } {
 
    global CHECK_USER
@@ -1434,7 +1435,7 @@ proc open_remote_spawn_process { hostname
       # add script name to cache
       set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
       set open_remote_spawn_script_cache($script_name) $spawn_command_arguments
-      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line $disable_stty_echo
+      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line $disable_stty_echo $no_final_enter
    }
    set used_script_name $script_name
 

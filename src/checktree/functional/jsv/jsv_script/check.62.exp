@@ -192,7 +192,7 @@ proc jsv_script_setup {} {
    # spawn processes and store id's so that the can be terminated later 
    set i 0
    foreach jsv_script $jsv_script_list {
-      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $jsv_script {} 0 "" "" 1 15 0 1 0 0 0 shell_script_name 1]
+      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $jsv_script {} 0 "" "" 1 15 0 1 0 0 0 shell_script_name 1 1]
       lappend jsv_id_list $id
       incr i
    }

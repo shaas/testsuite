@@ -1909,6 +1909,7 @@ proc create_shell_script { scriptfile
                            {without_start_output 0}
                            {without_sge_single_line 0}
                            {disable_stty_echo 0}
+                           {no_final_enter 0}
                          } {
    global CHECK_PRODUCT_TYPE
    global CHECK_DEBUG_LEVEL 
@@ -2073,7 +2074,9 @@ proc create_shell_script { scriptfile
       }
       append script_content "trap 0\n"
       if {$without_start_output == 0} {
-         append script_content "echo \"\"\n"
+         if {$no_final_enter == 0} {
+            append script_content "echo \"\"\n"
+         }
          append script_content "echo \"_exit_status_:(\$exit_val) script: $script_tail_name\"\n"
          append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
