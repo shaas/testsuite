@@ -115,13 +115,14 @@ proc jsv_issues_setup {} {
       set jsv_enabled [ge_has_feature "job-submission-verify"]
       if {$jsv_enabled == false} {
          ts_log_config "Cannot run this test, jsv is not available for this GE version!"
+         return 99
       }
    }
-   # if jsv is not available return
-   if {$jsv_enabled == false} {
-      # nothing to setup, jsv not available
-      return 
-   }     
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 
    # get base path of scripts
    set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_issues

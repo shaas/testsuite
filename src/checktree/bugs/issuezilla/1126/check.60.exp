@@ -50,6 +50,7 @@ set check_root_access_needs   "yes"
 # is started
 # The restart is established as cleanup function to have it 
 # called in any case, even if test fails with tcl error.
+set check_setup_function "issue_1126_setup"
 set check_cleanup_function "issue_1126_restart_master"
 
 set check_functions           ""
@@ -67,6 +68,14 @@ proc issue_1126_init_level {} {
    }
 
    return -1
+}
+
+proc issue_1126_setup {} {
+   global ts_config
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 }
 
 proc issue_1126_shutdown_master {} {

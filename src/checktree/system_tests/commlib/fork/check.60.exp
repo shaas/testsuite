@@ -68,6 +68,13 @@ proc fork_posix_behaviour_init_level {} {
 
 proc fork_posix_behaviour_setup {} {
    global ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
+
    if {$ts_config(gridengine_version) >= 62} {
       shutdown_core_system
    }

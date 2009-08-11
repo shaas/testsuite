@@ -219,6 +219,13 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
 
    
    set task_nr [report_create_task report "arco_build_$target" $build_host]
+
+   if {$ts_config(source_dir) == "none"} {
+      report_task_add_message report $task_nr "source directory is set to \"none\" - cannot build"
+      report_finish_task report $task_nr -1
+      return -1
+   }
+
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."

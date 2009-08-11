@@ -896,6 +896,12 @@ proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
 proc get_FD_SETSIZE_for_host { host } {
    global CHECK_USER
    get_current_cluster_config_array ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - need test binaries for this procedure"
+      return "" 
+   }
+
    
    set up_arch [resolve_build_arch $host]
    set binary_path $ts_config(source_dir)/$up_arch/test_general

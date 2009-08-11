@@ -93,6 +93,12 @@ proc exclusive_host_usage_setup {} {
       return 99
    }
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
+
    # need 1 test hosts
    set exclusive_hosts [host_conf_get_suited_hosts 2]
 

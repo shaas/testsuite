@@ -84,6 +84,11 @@ proc jgdi_junit_setup { JAVA_TEST_VERSION } {
    global ts_config ts_host_config
    global jgdi_config
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot setup junit jgdi"
+      return 99
+   }
+
    #TODO: improve so the junit tests can be run in parallel on different architectures
    set jgdi_config(target_host) [host_conf_get_java_compile_host]
    set jgdi_config(ant) $ts_host_config($jgdi_config(target_host),ant)

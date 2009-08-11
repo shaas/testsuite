@@ -1302,6 +1302,9 @@ proc read_array_from_file {filename obj_name array_name {enable_washing_machine 
      }
      incr wcount
   }
+  if {$enable_washing_machine} {
+     ts_log_progress FINE "." 1
+  }
   return 0
 }
 
@@ -4423,7 +4426,8 @@ proc get_testsuite_delete_filename { {get_local_file 0} } {
 #     This function is used to get out the hostname from the specified URI.
 #
 #  INPUTS
-#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#     uri             - URI string (e.g.: "file://HOSTNAME/PATH")
+#     {raise_error 1} - if set != 1: do not report errors 
 #
 #  RESULT
 #     tcl string with hostname or an empty string ("") on error
@@ -4444,7 +4448,7 @@ proc get_testsuite_delete_filename { {get_local_file 0} } {
 #     file_procedures/get_uri_path()
 #     file_procedures/get_uri_scheme()
 #*******************************************************************************
-proc get_uri_hostname { uri } { 
+proc get_uri_hostname { uri {raise_error 1}} { 
    set scheme [lindex [split $uri ":"] 0]
 
    switch -exact $scheme {
@@ -4456,7 +4460,9 @@ proc get_uri_hostname { uri } {
          return $hostname
       }
       default {
-         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         if {$raise_error == 1} {
+            ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         }
          return ""
       }
    }
@@ -4473,7 +4479,8 @@ proc get_uri_hostname { uri } {
 #     This function is used to parse the URI scheme of the specified URI string
 #
 #  INPUTS
-#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#     uri             - URI string (e.g.: "file://HOSTNAME/PATH")
+#     {raise_error 1} - if set != 1: do not report errors
 #
 #  RESULT
 #     The name of the uri scheme or empty string ("") on error
@@ -4491,7 +4498,7 @@ proc get_uri_hostname { uri } {
 #     file_procedures/get_uri_path()
 #     file_procedures/get_uri_scheme()
 #*******************************************************************************
-proc get_uri_scheme { uri } { 
+proc get_uri_scheme { uri {raise_error 1}} {
    set scheme [lindex [split $uri ":"] 0]
 
    switch -exact $scheme {
@@ -4499,7 +4506,9 @@ proc get_uri_scheme { uri } {
          return $scheme
       }
       default {
-         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         if {$raise_error == 1} {
+            ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         }
          return ""
       }
    }
@@ -4516,7 +4525,8 @@ proc get_uri_scheme { uri } {
 #     This function is used to get the path string from the specified URI.
 #
 #  INPUTS
-#     uri - URI string (e.g.: "file://HOSTNAME/PATH")
+#     uri             - URI string (e.g.: "file://HOSTNAME/PATH")
+#     {raise_error 1} - if set != 1: do not report errors
 #
 #  RESULT
 #     tcl string with path or empty string ("") on error
@@ -4534,7 +4544,7 @@ proc get_uri_scheme { uri } {
 #     file_procedures/get_uri_path()
 #     file_procedures/get_uri_scheme()
 #*******************************************************************************
-proc get_uri_path { uri } { 
+proc get_uri_path { uri  {raise_error 1} } { 
    set scheme [lindex [split $uri ":"] 0]
    switch -exact $scheme {
       "file" {
@@ -4542,7 +4552,9 @@ proc get_uri_path { uri } {
          set split_list [split $uri "/"]
          set length [llength $split_list]
          if {$length <= 3} {
-            ts_log_severe "URI Scheme \"$scheme\" needs at least 3 \"/\" characters: $uri"
+            if {$raise_error == 1} {
+               ts_log_severe "URI Scheme \"$scheme\" needs at least 3 \"/\" characters: $uri"
+            }
             return ""
          }
          for {set i 3} {$i < $length} {incr i 1} {
@@ -4561,7 +4573,9 @@ proc get_uri_path { uri } {
          return $path
       }
       default {
-         ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         if {$raise_error == 1} {
+            ts_log_severe "URI Scheme \"$scheme\" not implemented: $uri"
+         }
          return ""
       }
    }
@@ -4608,8 +4622,15 @@ proc get_uri_path { uri } {
 #        info_file(INDEX_NR,COLUMN_NAME) - data access
 #
 #        INDEX_NR: running number for valid distribution
-#        COLUMN_NAME: "major_release", "minor_release", "update_release",
-#                     "version", "description" and "enabled"
+#        COLUMN_NAME: "major_release",
+#                     "minor_release",
+#                     "update_release",
+#                     "version",
+#                     "description",
+#                     "tag",
+#                     "uri",
+#                     "enabled"
+#                     "macro_file_uri"
 #  
 #        version: e.g.: "61u2"
 #
@@ -4633,25 +4654,34 @@ proc parse_testsuite_info_file { user uri info_file } {
    set path [get_uri_path $uri]
 
    set testsuite_info_file_name "$path/testsuite.info"
-
+  
+   # Check that we have a testsuite.info file
    if {![is_remote_file $host $user $testsuite_info_file_name]} {
       ts_log_severe "$host: Cannot open file \"$testsuite_info_file_name\""
       return 0
    }
 
-   ts_log_fine "${host}($user): reading \"$testsuite_info_file_name\" ..."
+   # We need a subdirectory with source code macros
+   set ge_source_macro_dir "$path/source_code_macros"
+   if {![is_remote_path $host $user $ge_source_macro_dir]} {
+      ts_log_severe "$host: Directory \"$ge_source_macro_dir" is missing!"
+      return 0
+   }
+
+   ts_log_finer "${host}($user): reading \"$testsuite_info_file_name\" ..."
    get_file_content $host $user $testsuite_info_file_name farray
 
-   set expected_columns 4
+   set expected_columns 5
    set expected_release_columns 3
    set array_names {}
-   lappend array_names "subdir"
+   lappend array_names "uri"
    lappend array_names "major_release"
    lappend array_names "minor_release"
    lappend array_names "update_release"
    lappend array_names "version"
    lappend array_names "description"
    lappend array_names "enabled"
+   lappend array_names "tag"
 
    set pack_info_index 1
 
@@ -4680,7 +4710,7 @@ proc parse_testsuite_info_file { user uri info_file } {
          set a_name [lindex $array_names $a]
 
          # parse release column
-         set release [split [string trim [lindex $columns 1]] ":"]
+         set release [split [string trim [lindex $columns 0]] ":"]
          set release_columns [llength $release]
          if { $release_columns != $expected_release_columns } {
             ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Column count of release column not correct!"
@@ -4689,10 +4719,15 @@ proc parse_testsuite_info_file { user uri info_file } {
          }
 
          switch -exact $a_name {
-            "subdir" {
-               set pack_info($pack_info_index,$a_name) [string trim [lindex $columns 0]]
-               if {![is_remote_path $host $user "$path/$pack_info($pack_info_index,$a_name)"]} {
-                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Subdir \"$pack_info($pack_info_index,$a_name)\" not found!" 
+            "uri" {
+               set pack_info($pack_info_index,$a_name) [string trim [lindex $columns 4]]
+
+               set uri_host [get_uri_hostname $pack_info($pack_info_index,$a_name)]
+               set uri_path [get_uri_path $pack_info($pack_info_index,$a_name)]
+               ts_log_finer "uri host: $uri_host"
+               ts_log_finer "uri path: $uri_path"
+               if {![is_remote_path $uri_host $user $uri_path]} {
+                  ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: URI \"$pack_info($pack_info_index,$a_name)\" not correct!" 
                   incr was_error 1
                   break
                }
@@ -4763,12 +4798,47 @@ proc parse_testsuite_info_file { user uri info_file } {
                   set pack_info($pack_info_index,$a_name) "false"
                }
             }
+            "tag" {
+               set pack_info($pack_info_index,$a_name) [string trim [lindex $columns 1]]
+            }
             default {
                set pack_info($pack_info_index,$a_name) "n.a."
             }
          }
-#         ts_log_fine "$a_name=\"$pack_info($pack_info_index,$a_name)\""
       }
+      # generate macro file name
+      set pack_info($pack_info_index,macro_file_uri) "n.a."
+      if {[info exists pack_info($pack_info_index,enabled)] && $pack_info($pack_info_index,enabled)} {
+         if {[string length $pack_info($pack_info_index,$a_name)] == 0} {
+            ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: No CVS tag specified (enabled for testing)!" 
+            incr was_error 1
+            break
+         }
+         set macro_dir "$ge_source_macro_dir/$pack_info($pack_info_index,tag)"
+         if {![is_remote_path $host $user $macro_dir]} {
+            ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Directory \"$macro_dir\" not found!"
+            incr was_error 1
+            break
+         }
+         set macro_file "$macro_dir/"
+         append macro_file $pack_info($pack_info_index,major_release)
+         append macro_file $pack_info($pack_info_index,minor_release)
+         append macro_file $pack_info($pack_info_index,update_release)
+         append macro_file ".dump"
+         set macro_file_uri_host [get_uri_hostname $pack_info($pack_info_index,uri)]
+         set macro_file_uri "file://${macro_file_uri_host}${macro_file}"
+
+         set pack_info($pack_info_index,macro_file_uri) $macro_file_uri
+         if {![is_remote_file $macro_file_uri_host $user $macro_file]} {
+            ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: File \"$macro_file\" not found on host \"$macro_file_uri_host\"!"
+            incr was_error 1
+            break
+         }
+      } else {
+         ts_log_finer "skip tag check in line $i of file \"$testsuite_info_file_name\"! (not enabled for testing)"
+         set pack_info($pack_info_index,tag) "n.a."
+      }
+#         ts_log_fine "$a_name=\"$pack_info($pack_info_index,$a_name)\""
       if {$was_error == 0} {
          incr pack_info_index 1
       }
@@ -4777,6 +4847,9 @@ proc parse_testsuite_info_file { user uri info_file } {
    set pack_info(uri) $uri
    set pack_info(user)  $user
 #   ts_log_fine "nr. of valid entries found: $pack_info(count)"
+   if {$was_error} {
+      return 0
+   }
    return 1
 }
 
@@ -4804,7 +4877,7 @@ proc parse_testsuite_info_file { user uri info_file } {
 #
 #  NOTES
 #     TODO: Currently only works for file URI.
-#     TODO: Only works when testsuite.info file and destination file is avail.
+#     TODO: Only works when file uri and destination file is avail.
 #           on the same host
 #     TODO: Only works for *.tar.gz files
 #
@@ -4823,9 +4896,8 @@ proc get_release_packages { host user dest_path info_file nr} {
    set scheme [get_uri_scheme $pack_info(uri)]
    switch -exact $scheme {
       "file" {
-         set source_host [get_uri_hostname $pack_info(uri)]
-         set source_path [get_uri_path $pack_info(uri)]
-         set source_release_path "$source_path/$pack_info($nr,subdir)"
+         set source_host [get_uri_hostname $pack_info($nr,uri)]
+         set source_release_path [get_uri_path $pack_info($nr,uri)]
 
          if {[resolve_host $source_host] == [resolve_host $host]} {
 

@@ -979,6 +979,10 @@ proc drmaaj_setup {} {
    global drmaaj_config current_drmaa_mode ts_config 
    global hosts_in_runlevel CHECK_ACT_LEVEL
    
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 
    # returning -1 causes disabling a certain runlevel
    # here per run level settings can be prepared

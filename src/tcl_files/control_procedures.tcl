@@ -203,6 +203,11 @@ proc check_correct_testsuite_setup_user { error_text } {
       return 1
    }
 
+   if {$ts_config(source_dir) == "none"} {
+      append errors "Source directory is set to \"none\" - cannot test!\n"
+      return 1
+   }
+
    set check_ports [get_all_reserved_ports] 
    foreach port [checktree_get_required_ports] {
       lappend check_ports $port
@@ -2009,7 +2014,11 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
    if { $source_dir_path != "" } {
       set my_source_dir $source_dir_path
    } else {
-      set my_source_dir $ts_config(source_dir)
+      if {$ts_config(source_dir) != "none"} {
+         set my_source_dir $ts_config(source_dir)
+      } else {
+         set my_source_dir ""
+      }
    }
 
    set my_product_root $ts_config(product_root)
@@ -2128,27 +2137,29 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
       return "unknown"
    }
   
-   if { [ info exists ts_config(source_dir) ] == 0 } {
-      if { $source_dir_value == "" } {
-         ts_log_severe "source directory not set, aborting"
-         return "unknown"
-      }
-   }
-
    set util_arch_dir ""
    set store_in_cache 1
    if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
       # use distinst arch script (product_root)
       set util_arch_dir $ts_config(product_root)
    } else {
-      # use source arch script (use_source_arch != 0 || product root/util/arch not found)
-      if {$use_source_arch == 0} {
-         set store_in_cache 0
-      }
       if {$source_dir_value == ""} {
+         if {[info exists ts_config(source_dir)] == 0} {
+            ts_log_severe "source directory not set, aborting"
+            return "unknown"
+         }
+         if {$ts_config(source_dir) == "none"} {
+            ts_log_severe "source directory is set to \"none\" - cannot get arch"
+            return "unknown"
+         }
          set util_arch_dir $ts_config(source_dir)/dist
       } else {
          set util_arch_dir $source_dir_value/dist
+      }
+
+      # use source arch script (use_source_arch != 0 || product root/util/arch not found)
+      if {$use_source_arch == 0} {
+         set store_in_cache 0
       }
    }
 
@@ -2279,6 +2290,12 @@ proc resolve_build_arch { host } {
   global CHECK_USER
 
   get_current_cluster_config_array ts_config
+
+  if {$ts_config(source_dir) == "none"} {
+     ts_log_severe "source directory is set to \"none\" - cannot run resolve build arch"
+     return ""
+  }
+
   set nr [get_current_cluster_config_nr]
 
   if { [info exists build_arch_cache($nr,$host) ] } {
@@ -2340,6 +2357,10 @@ proc resolve_lib_path_name { host {use_source_arch 0}} {
    if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
       set arch_script "$ts_config(product_root)/util/arch"
    } else {
+      if {$ts_config(source_dir) == "none"} {
+         ts_log_severe "source directory is set to \"none\" - cannot run source arch script"
+         return "unknown"
+      }
       set arch_script "$ts_config(source_dir)/dist/util/arch"
    }
 
@@ -2391,6 +2412,11 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
    }
 
    get_current_cluster_config_array ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - cannot resolve build arch"
+      return ""
+   }
 
    set build_arch [resolve_build_arch $host]
 

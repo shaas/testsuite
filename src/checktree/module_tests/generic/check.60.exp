@@ -99,6 +99,12 @@ proc generic_module_tests_setup {} {
    global CHECK_ACT_LEVEL
    global generic_module_tests_test_hosts
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
+
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          set generic_module_tests_test_hosts $ts_config(master_host)

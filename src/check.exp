@@ -1702,16 +1702,18 @@ proc check_executable_files {  } {
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qtcsh/qtask_local.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/pminiworm.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/flood_sleeper.sh"
-   lappend filelist "$ts_config(source_dir)/aimk"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/array_submitter.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/env-tester.csh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/jobnet_submitter.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/pminiworm.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/simple.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/sleeper.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_A_array_submitter.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_B_array_submitter.sh"
-   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/worker.sh"
+   if {$ts_config(source_dir) != "none"} {
+      lappend filelist "$ts_config(source_dir)/aimk"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/array_submitter.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/env-tester.csh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/jobnet_submitter.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/pminiworm.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/simple.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/sleeper.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_A_array_submitter.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_B_array_submitter.sh"
+      lappend filelist "$ts_config(source_dir)/dist/examples/jobs/worker.sh"
+   }
 
    set change_files ""
 
@@ -2437,6 +2439,15 @@ proc update_ts_config_version {} {
       wait_for_enter
       return 0
    }
+
+   if {[string compare $ts_config(version) "1.18"] == 0} {
+      puts "\ntestsuite configuration update from 1.18 to 1.19 ..."
+      config_build_ts_config_1_19
+      show_config ts_config
+      wait_for_enter
+      return 0
+   }
+
 
    puts "\nunexpected version $ts_config(version), need version $actual_ts_config_version"
    return -1
@@ -7058,6 +7069,11 @@ proc build_distribution { arch_list } {
    global CHECK_USER
    global ts_config
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - cannot build distribution"
+      return
+   }
+
    set local_host [gethostname]
    if { $ts_config(package_type) == "create_tar" &&
         $ts_config(package_directory) != "none" } {
@@ -7124,6 +7140,13 @@ proc install_binaries {arch_list a_report} {
    set was_error 0
 
    set task_nr [report_create_task report "install_binaries" $install_host]
+
+   if {$ts_config(source_dir) == "none"} {
+      report_task_add_message report $task_nr "source directory is set to \"none\" - cannot build distribution"
+      report_finish_task report $task_nr -1
+      return -1
+   }
+
 
    # copy pos. host_aliases file to trash_
    if {[is_remote_file $install_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"]} {
@@ -7286,6 +7309,12 @@ proc update_source { a_report do_only_hooks } {
          set conflict_files {}
 
          set task_nr [report_create_task report "cvs_update" $ts_config(source_cvs_hostname)]
+
+         if {$ts_config(source_dir) == "none"} {
+            report_task_add_message report $task_nr "source directory is set to \"none\" - cannot build distribution"
+            report_finish_task report $task_nr -1
+            return -1
+         }
 
          ts_log_fine "updating sources (-q -z 9 update -dP) ..."
 

@@ -401,6 +401,11 @@ proc throughput_setup {} {
       return 99
    }
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
    # global settings
    set nr_slots                              5   ;# nr of slots on each queue
    set default_nr_slots                      5   ;# nr of slots on each queue

@@ -115,6 +115,12 @@ proc resource_reservation_setup {} {
 
    ts_log_fine "resource_reservation_setup" 
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
+
    set rr_queue_name               "rr_queue.q"
    set rr_cal_queue_name           "rr_cal_queue.q"
 

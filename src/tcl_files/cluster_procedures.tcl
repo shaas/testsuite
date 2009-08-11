@@ -144,11 +144,19 @@ proc get_additional_cluster_type { filename additional_config } {
    }
 
    # check whether it is cell cluster or independed cluster
-   if { $ts_config(product_root) == $add_config(product_root) &&
-        $ts_config(source_dir)   == $add_config(source_dir) } {
-      return "cell"
+   if {$ts_config(source_dir) != "none"} {
+      if {$ts_config(product_root) == $add_config(product_root) &&
+          $ts_config(source_dir)   == $add_config(source_dir) } {
+         return "cell"
+      } else {
+         return "independent"
+      }
    } else {
-      return "independent"
+      if {$ts_config(product_root) == $add_config(product_root)} {
+         return "cell"
+      } else {
+         return "independent"
+      }
    }
 }
 

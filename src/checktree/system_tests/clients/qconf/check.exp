@@ -137,6 +137,10 @@ proc qconf_setup {} {
       ts_log_config "need at least 2 execd hosts for this check"
       return 99
    }
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 
    #Check we are running at least 6.2 for JGDI
    if {$CHECK_JGDI_ENABLED} {

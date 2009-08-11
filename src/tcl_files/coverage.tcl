@@ -693,6 +693,11 @@ proc tcov_compute_coverage {} {
    global CHECK_PROTOCOL_DIR
    get_current_cluster_config_array ts_config
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - cannot go to source dir"
+      return 
+   }
+
    cd $ts_config(source_dir)
 
    set target_dirs "./clients ./common ./daemons ./libs ./utilbin"

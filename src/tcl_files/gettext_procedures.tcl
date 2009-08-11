@@ -293,6 +293,10 @@ proc check_c_source_code_files_for_macros {} {
      update_macro_messages_list
    }
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - cannot parse c code"
+      return
+   }
 
    set c_files ""
    set second_run_files ""
@@ -397,11 +401,16 @@ proc check_c_source_code_files_for_macros {} {
 # --      }
 # --   }
 # --   ts_log_fine "macros removed"
-# --   wait_for_enter
 }
 
 proc get_source_msg_files {} {
    global ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - cannot parse c code"
+      return {}
+   }
+
    set msg_files {}
    set dirs [get_all_subdirectories $ts_config(source_dir)]
    foreach dir $dirs {
@@ -436,7 +445,7 @@ proc get_source_msg_files {} {
 #*******************************************************************************
 proc update_macro_messages_list {} {
    global macro_messages_list
-   global CHECK_PROTOCOL_DIR
+   global CHECK_PROTOCOL_DIR CHECK_USER
    global fast_setup ts_config
 
    if {[info exists macro_messages_list]} {
@@ -444,12 +453,13 @@ proc update_macro_messages_list {} {
    }
 
    set filename [get_macro_messages_file_name]
+   ts_log_finer "checking file \"$filename\""
    if {[file isfile $filename]} {
       set update_required 0
-
+      
       # If source code messages files (msg_*.h) have changed since we last parsed
       # them, we'll have to do an update.
-      if {!$fast_setup} {
+      if {!$fast_setup && $ts_config(source_dir) != "none"} {
          set macro_file_tstamp [file mtime $filename]
 
          set msg_files [get_source_msg_files]
@@ -470,32 +480,80 @@ proc update_macro_messages_list {} {
       } else {
          ts_log_fine "reading macro messages spool file:\n\"$filename\" ..."
          ts_log_fine "delete this file if you want to parse the macros again!"
-         ts_log_fine "======================================================="
          read_array_from_file $filename "macro_messages_list" macro_messages_list 1
 
-         # Verify that the messages file comes from the correct source directory.
-         if {[string compare $macro_messages_list(source_code_directory) $ts_config(source_dir)] != 0} {
-            ts_log_fine "source code directory from macro spool file:"
-            ts_log_fine $macro_messages_list(source_code_directory)
-            ts_log_fine "actual source code directory:"
-            ts_log_fine $ts_config(source_dir)
-            ts_log_fine "the macro spool dir doesn't match to actual source code directory."
-            ts_log_fine "start parsing new source code directory ..."
-            if {[info exists macro_messages_list]} {
-               unset macro_messages_list
-            }
-         } else {
-            # File exists,
-            # corresponds to the correct source directory,
-            # and is up to date.
-            # Fine, nothing to do.
+         if {$ts_config(source_dir) == "none"} {
+            ts_log_fine "Skip macro messages file update test. We do not have a source dir!"
+            ts_log_fine "Testsuite is using macro file \"$filename\"!"
             return
+         } else {
+            # Verify that the messages file comes from the correct source directory.
+            if {[string compare $macro_messages_list(source_code_directory) $ts_config(source_dir)] != 0} {
+               ts_log_fine "source code directory from macro spool file:"
+               ts_log_fine $macro_messages_list(source_code_directory)
+               ts_log_fine "actual source code directory:"
+               ts_log_fine $ts_config(source_dir)
+               ts_log_fine "the macro spool dir doesn't match to actual source code directory."
+               ts_log_fine "start parsing new source code directory ..."
+               if {[info exists macro_messages_list]} {
+                  unset macro_messages_list
+               }
+            } else {
+               # File exists,
+               # corresponds to the correct source directory,
+               # and is up to date.
+               # Fine, nothing to do.
+               return
+            }
          }
       }
    }
 
-  set error_text ""
-  set msg_files [get_source_msg_files]
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_fine "Testsuite config is has no source directory configured!"
+      ts_log_fine "Try to get macros for cvs version \"$ts_config(source_cvs_release)\" ..."
+      if {![parse_testsuite_info_file $CHECK_USER $ts_config(ge_packages_uri) rel_info]} {
+         ts_log_severe "Cannot get released packages information!"
+         testsuite_shutdown 1
+      }
+      get_version_info cur_version
+      ts_log_fine "Installed version is \"$cur_version(detected_version)\""
+      set messages_file ""
+      for {set i 1} {$i <= $rel_info(count)} {incr i 1} {
+         if { $rel_info($i,enabled) == true } {
+            if {$rel_info($i,version) == $cur_version(detected_version)} {
+               ts_log_fine "Found matching version: \"$rel_info($i,description)\""
+               if {$rel_info($i,tag) == $ts_config(source_cvs_release)} {
+                  ts_log_fine "Found matching cvs tag: \"$rel_info($i,tag)\""
+                  set messages_file $rel_info($i,macro_file_uri)
+                  break
+               }
+            }
+         }
+      }
+      if {$messages_file == ""} {
+         ts_log_severe "No macro messages file available!"
+         testsuite_shutdown 1
+      }
+      set copy_host [get_uri_hostname $messages_file]
+      set copy_path [get_uri_path $messages_file]
+
+      ts_log_fine "${copy_host}($CHECK_USER): Copy messages file \"$copy_path\" to \"$filename\" ..."
+      delete_remote_file $copy_host $CHECK_USER $filename
+
+      set output [start_remote_prog $copy_host $CHECK_USER "cp" "$copy_path $filename"]
+      ts_log_fine $output
+      if {$prg_exit_state != 0} {
+         ts_log_severe "${copy_host}($CHECK_USER): Cannot copy messages file \"$copy_path\" to \"$filename\"!" 
+         testsuite_shutdown 1
+      }
+      wait_for_remote_file [gethostname] $CHECK_USER $filename
+      read_array_from_file $filename "macro_messages_list" macro_messages_list 1
+      return
+   }
+
+   set error_text ""
+   set msg_files [get_source_msg_files]
 
    ts_log_fine "parsing the following messages files:"
    foreach file $msg_files {
@@ -541,8 +599,7 @@ proc update_macro_messages_list {} {
               set line $new_line
               set new [replace_string $line "\"" "" 1]
               if { $old == $new } {
-                 ts_log_fine "error in update_macro_messages_list"
-                 wait_for_enter
+                 ts_log_severe "error in update_macro_messages_list"
               }
               if { [string length $cut] > 0 } {
                  set unexpected_specifier $cut
@@ -744,6 +801,11 @@ proc translate_all_macros {} {
   }
   set not_localized ""
   set max_mess $macro_messages_list(0)
+
+  if {$ts_config(source_dir) == "none"} {
+     ts_log_severe "source directory is set to \"none\" - cannot parse for macros"
+     return
+  }
 
   set parse_host [fs_config_get_server_for_path $ts_config(source_dir) 0]
   if {$parse_host == ""} {

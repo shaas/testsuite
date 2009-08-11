@@ -820,7 +820,7 @@ proc config_generic { only_check name config_array help_text check_type
                       {allow_null 1} {count 1} {choice_list ""} {add_params ""} } {
    global CHECK_USER ts_host_config ts_user_config ts_db_config fast_setup
 
-   set allowed_check_types "host port database directory directory+ string filename filename+ choice user"
+   set allowed_check_types "host port database directory directory+ string uri filename filename+ choice user"
    if { [lsearch $allowed_check_types $check_type] < 0 } {
       puts "unexpected generic config type: $check_type"
       return -1
@@ -1009,7 +1009,7 @@ proc config_generic { only_check name config_array help_text check_type
             "port" {
                if { [config_verify_port $value] == -1 } {
                   return -1
-         }
+               }
             }
             "directory+" -
             "directory" {
@@ -1031,12 +1031,12 @@ proc config_generic { only_check name config_array help_text check_type
                   return -1
                }
             }
-         "host" {
+            "host" {
                if { [info exists config(host_config_file)] } {
                   set host_config_file $config(host_config_file)
                } else {
                   set host_config_file ""
-         }
+               }
                if { [config_verify_host $value $verify_params $host_config_file] == -1 } {
                   return -1
                }
@@ -1052,6 +1052,11 @@ proc config_generic { only_check name config_array help_text check_type
                   set pattern $params(patterns)
                }
                if { [config_verify_string $value $pattern] == -1 } {
+                  return -1
+               }
+            }
+            "uri" {
+               if { [config_verify_uri $value] == -1 } {
                   return -1
                }
             }
@@ -1631,6 +1636,44 @@ proc config_verify_string { value { patterns "" } } {
    }
    return 0
 }
+
+#****** config/config_verify_uri() *********************************************
+#  NAME
+#     config_verify_uri() -- verify uri syntax
+#
+#  SYNOPSIS
+#     config_verify_uri { value } 
+#
+#  FUNCTION
+#     Check the syntax of the specified uri parameter
+#
+#  INPUTS
+#     value - uri string
+#
+#  RESULT
+#     0 ok, -1 on error
+#
+#  NOTES
+#     TODO: Currently only "file" scheme is supported
+#
+#*******************************************************************************
+proc config_verify_uri { value } {
+   global CHECK_USER
+
+   set host   [get_uri_hostname $value 0]
+   set path   [get_uri_path $value 0]
+   set scheme [get_uri_scheme $value 0]
+   if {$scheme != "file"} {
+      puts "Currently only the \"file\" scheme is supported. (Syntax: file://\[hostname\]/path)"
+      return -1
+   }
+   if {![is_remote_path $host $CHECK_USER $path]} {
+      puts "Cannot find path \"$path\" on host \"$host\". (Syntax: file://\[hostname\]/path)"
+      return -1
+   }
+   return 0
+}
+
 
 #****** config/config_check_all_usages() ***************************************
 #  NAME
@@ -2384,26 +2427,29 @@ proc config_source_dir { only_check name config_array } {
    if { $config($name,default) == "" } {
       set pos [string first "/testsuite" $config(testsuite_root_dir)]
       set config($name,default) "[string range $config(testsuite_root_dir) 0 $pos]source"
-      }
+   }
    set old_value $config($name)
 
-   set value [config_generic $only_check $name config $help_text "directory" 0]
+   set value [config_generic $only_check $name config $help_text "directory" 1]
 
    if { $value == -1 } { return -1 }
 
-   if {!$fast_setup} {
-      if { [ file isfile $value/aimk ] != 1 } {
-         puts "File \"$value/aimk\" not found"
-         return -1
+   if {$value == "none"} {
+      ts_log_fine "no source dir specified - running in limited test mode"
+   } else {
+      if {!$fast_setup} {
+         if { [ file isfile $value/aimk ] != 1 } {
+            puts "File \"$value/aimk\" not found"
+            return -1
+         }
+         set local_arch [ resolve_arch "none" 1 $value]
+         if { $local_arch == "unknown" } {
+            puts "Could not resolve local system architecture" 
+            return -1
+         }
       }
    }
  
-   set local_arch [ resolve_arch "none" 1 $value]
-   if { $local_arch == "unknown" } {
-      puts "Could not resolve local system architecture" 
-      return -1
-   }
-
    if { $old_value != $value } {
       set config(source_dir) $value
       # in case the source_cvs_release parameter was already set before (this is not a new configuration),
@@ -2490,7 +2536,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_source_cvs_release {only_check name config_array} {
-   global CHECK_USER 
+   global CHECK_USER fast_setup 
 
    upvar $config_array config
 
@@ -2499,25 +2545,35 @@ proc config_source_cvs_release {only_check name config_array} {
 
    array set tags {}
    
-   if {[file isdirectory $config(source_dir)]} {
-      set cvs_tag [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
-      set cvs_tag [string trim $cvs_tag]
-      set tag "maintrunk"
+   if {$config(source_dir) != "none"} {
+      if {[file isdirectory $config(source_dir)]} {
+         set cvs_tag [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+         set cvs_tag [string trim $cvs_tag]
+         set tag "maintrunk"
          if {$prg_exit_state == 0} {
             if {[string first "T" $cvs_tag] == 0 || [string first "N" $cvs_tag] == 0} {
                set tag [string range $cvs_tag 1 end]
             }
          }
-      set config($name,default) $tag
-      set tags($tag) ""
+         set config($name,default) $tag
+         set tags($tag) ""
       }
+   } else {
+      set cvs_tag $config($name)
+      set config($name,default) $cvs_tag
+      set tags($cvs_tag) $cvs_tag
+   }
 
    set help_text { "Enter cvs release tag (\"maintrunk\" specifies no tag)"
                    "or press >RETURN< to use the default value." }
 
    set value [config_generic $only_check $name config $help_text "choice" 0 1 tags]
 
-   if {![file isdirectory $config(source_dir)]} { puts "source directory $config(source_dir) doesn't exist!!!" }
+   if {$config(source_dir) != "none"} {
+      if {![file isdirectory $config(source_dir)]} {
+         puts "source directory $config(source_dir) doesn't exist!!!" 
+      }
+   }
 
    return $value
 }
@@ -2644,6 +2700,67 @@ proc config_fs_config_file { only_check name config_array } {
          break 
       }
       clear_screen
+   }
+   return $value
+}
+
+#****** config/config_ge_packages_uri() ****************************************
+#  NAME
+#     config_ge_packages_uri() -- configuration function for ge_packages_uri
+#
+#  SYNOPSIS
+#     config_ge_packages_uri { only_check name config_array } 
+#
+#  FUNCTION
+#     Configure the ts_config(ge_packages_uri) parameter.
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  RESULT
+#     -1 on error, value on success
+#
+#*******************************************************************************
+proc config_ge_packages_uri { only_check name config_array } {
+   global fast_setup CHECK_USER
+   upvar $config_array config
+   
+   set help_text { "Enter the URI pathname of the directory location containing"
+                   "a \"testsuite.info\" file,"
+                   "or press >RETURN< to use the default value."
+                   ""
+                   "A testsuite.info file contains information about"
+                   "available binary packages for Grid Engine installations."
+                   "Each line in the file is seperated by a \"|\" and the columns"
+                   "have following meaning:"
+                   "Release |CVS tag name |Description|enabled for testing| URI"
+                   "Example:"
+                   "6:1:6   |V61u6_TAG    |SGE 6.1u6  |true               |file://foo/adir"
+                 }
+   
+   set value [config_generic $only_check $name config $help_text "uri" 0]
+   if {$value == -1} {
+      return -1
+   }
+   if {!$fast_setup} {
+      set host [get_uri_hostname $value]
+      set path [get_uri_path $value]
+      set type [get_uri_scheme $value]
+      if {$type != "file"} {
+         puts "Only the \"file\" scheme is supported. Syntax: file://hostname/path"
+         return -1
+      }
+      if {![is_remote_file $host $CHECK_USER "$path/testsuite.info"]} {
+         puts "${host}(${CHECK_USER}): \"$path\" does not contain a \"testsuite.info\" file!"
+         return -1
+      }
+      if {![parse_testsuite_info_file $CHECK_USER $value info_file]} {
+         puts "Error parsing \"testsuite.info\" file!"
+         testsuite_shutdown 1
+      }
    }
    return $value
 }
@@ -5185,13 +5302,47 @@ proc config_build_ts_config_1_18 {} {
 
    # now we have a configuration version 1.18
    set ts_config(version) "1.18"
-}     
+}
+
+proc config_build_ts_config_1_19 {} {
+   global ts_config CHECK_CURRENT_WORKING_DIR
+
+   # we add a new parameter: ge_packages_uri 
+   # after fs_config_file
+   set insert_pos $ts_config(fs_config_file,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "ge_packages_uri"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "URI to the location to a directory containing testsuite.info file"
+   
+   if {[catch {
+          set host_config_dir [file dirname $ts_config(host_config_file)]
+        }]} {
+      set host_config_dir $CHECK_CURRENT_WORKING_DIR
+   }
+   set ts_config($parameter,default)    "file://$host_config_dir"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   ""
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.19
+   set ts_config(version) "1.19"
+}
 ################################################################################
 #  MAIN                                                                        #
 ################################################################################
 
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.18"
+set actual_ts_config_version "1.19"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5215,4 +5366,5 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_16
    config_build_ts_config_1_17
    config_build_ts_config_1_18
+   config_build_ts_config_1_19
 }

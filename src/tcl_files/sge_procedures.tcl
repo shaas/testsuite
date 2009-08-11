@@ -188,6 +188,10 @@ proc test {m p} {
 proc ge_get_gridengine_version {} {
    global ts_config CHECK_USER
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - need source dir for this procedure"
+      return ""
+   }
    set version_script "$ts_config(testsuite_root_dir)/scripts/sge_version.sh"
 
    set output [start_remote_prog [gethostname] $CHECK_USER $version_script $ts_config(source_dir)]
@@ -1108,6 +1112,12 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
    get_current_cluster_config_array ts_config
 
    upvar $exit_var exit_state
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_severe "source directory is set to \"none\" - need source directory for this procedure"
+      set exit_state 123456789
+      return "source directory is set to \"none\" - need source directory for this procedure"
+   }
   
    # pass on environment
    set env_var ""

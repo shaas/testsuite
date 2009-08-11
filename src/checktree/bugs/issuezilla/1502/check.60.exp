@@ -44,6 +44,7 @@ set check_description(0)      "qmaster clients may not reconnect after qmaster o
 set check_needs               ""      ;# dependencies of this check (name of other check)
 set check_root_access_needs   ""
 
+set check_setup_function "issue_1502_setup"
 
 set check_functions           ""
 lappend check_functions       "issue_1502_run"
@@ -58,6 +59,14 @@ proc issue_1502_init_level {} {
       }
    }
    return -1
+}
+
+proc issue_1502_setup {} {
+   global ts_config
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 }
 
 

@@ -363,6 +363,12 @@ proc compile_depend { compile_hosts a_report do_clean } {
    }
 
    set task_nr [report_create_task report "zerodepend" $depend_host_name]
+
+   if {$ts_config(source_dir) == "none"} {
+      report_task_add_message report $task_nr "source directory is set to \"none\" - cannot depend"
+      report_finish_task report $task_nr -1
+      return -1
+   }
    
    # clean dependency files (zerodepend)
    
@@ -471,6 +477,11 @@ proc wait_for_NFS_after_compile_clean { host_list a_report } {
    upvar $a_report report
    get_current_cluster_config_array ts_config
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot check build dirs"
+      return 0
+   }
+
    ts_log_fine "verify compile_clean call ($host_list)..."
 
    set result 1
@@ -538,6 +549,13 @@ proc compile_source { { do_only_hooks 0} } {
    array set report {}
    report_create "Compiling source" report
    report_write_html report
+
+   if {$ts_config(source_dir) == "none"} {
+      report_add_message report "source directory is set to \"none\" - cannot compile"
+      report_finish report -1
+      return -1
+   }
+
 
    set error_count 0
    set cvs_change_log ""
@@ -1042,6 +1060,13 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR ts_config
 
    upvar $a_report report
+
+   if {$ts_config(source_dir) == "none"} {
+      report_add_message report "source directory is set to \"none\" - cannot compile"
+      return 1
+   }
+
+
    set my_compile_options [get_compile_options_string]
    if { [string length $aimk_options] > 0 } {
       append my_compile_options " $aimk_options"
@@ -1352,6 +1377,12 @@ proc get_build_number {} {
 #*******************************************************************************
 proc delete_build_number_object {host build} {
    global ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot delete a build object"
+      return 
+   }
+
    set arch [resolve_build_arch $host]
    set filename "$ts_config(source_dir)/$arch/sge_feature.o"
 
@@ -1382,6 +1413,11 @@ proc delete_build_number_object {host build} {
 #*******************************************************************************
 proc compile_create_java_properties { compile_hosts } {
    global CHECK_USER ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot create properties"
+      return 
+   }
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
@@ -1419,6 +1455,11 @@ proc compile_create_java_properties { compile_hosts } {
 #*******************************************************************************
 proc compile_delete_java_properties {} {
    global ts_config
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot create properties"
+      return 
+   }
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"

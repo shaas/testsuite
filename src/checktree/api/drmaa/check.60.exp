@@ -109,6 +109,11 @@ global drmaa_binary_name
 proc drmaa_setup {} {
    global drmaa_config current_drmaa_mode ts_config host_list
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
    # must forbit reschedule on job exiting with 99 
    # must forbit job error upon job exiting with 100
    # otherwise drmaa_test ST_EXIT_STATUS never finishes

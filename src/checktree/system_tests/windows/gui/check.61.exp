@@ -58,6 +58,11 @@ proc display_win_gui {} {
    global CHECK_USER
    global host
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return
+   }
+
    set requests "dwg=true display_win_gui=true dwg=false\
                  display_win_gui=false a=win32-x86\
                  dwg=true display_win_gui=true dwg=false\

@@ -6,6 +6,17 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+CR-2009-08-11-0: Enhancem.:  Integrate upgrade test (Part III)
+                             o allow testsuite to be stared with source_dir 
+                               configuration parameter set to "none"
+                             o new configuration parameter (version 1.19): 
+                               ge_packages_uri
+                             o new supported config_generic() type: uri
+                               (Uniform Resource Identifier)
+                 Belongs to: CR-2009-07-27-0
+                 Review:     AA
+
 CR-2009-08-10-2: Bugfix:     o Fixed jsv_script test
                  Review:     DG
 

@@ -1108,8 +1108,14 @@ proc sge_drmaa {report_var} {
 
    if { $ts_config(gridengine_version) < 61 } {
       ts_log_finest "basic_drmaa test not supported."
-      return true
+      return [get_result_failed]
    }
+
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return [get_result_failed]
+   }
+
 
    set id [register_test drmaa report curr_task_nr]
 

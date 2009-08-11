@@ -45,6 +45,8 @@ set check_needs               "init_core_system"      ;# dependencies of this ch
 set check_root_access_needs   "no"
 
 # setup and cleanup functions
+set check_setup_function "issue_1141_setup"
+ 
 
 # define test's procedure order
 set check_functions           ""
@@ -61,6 +63,14 @@ proc issue_1141_init_level {} {
    }
 
    return -1
+}
+
+proc issue_1141_setup {} {
+   global ts_config
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 }
 
 proc issue_1141_run {} {

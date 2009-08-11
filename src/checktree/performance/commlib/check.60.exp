@@ -82,6 +82,12 @@ proc cl_throughput_setup_level {} {
    global cl_throughput_prot_output_dir
    global nr_event_clients nr_rgdi_clients nr_sgdi_clients
 
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
+
+
    set cl_throughput_ge_version [get_version_info] 
    set cl_throughput_prot_output_dir "$CHECK_PROTOCOL_DIR/commlib/level_$CHECK_ACT_LEVEL"
 

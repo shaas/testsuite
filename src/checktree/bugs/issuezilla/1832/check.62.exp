@@ -67,6 +67,11 @@ proc issue_1832_init_level {} {
 }
 
 proc issue_1832_setup {} {
+   global ts_config
+   if {$ts_config(source_dir) == "none"} {
+      ts_log_config "source directory is set to \"none\" - cannot run test"
+      return 99
+   }
 }
 
 proc issue_1832_cleanup {} {
