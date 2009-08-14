@@ -6,6 +6,8 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-08-14-1: Enhancem.:  New upgrade test (not fully implemented)
+                 Review:     LP
 
 CR-2009-08-14-0: Enhancem.:  Integrate upgrade test (Part IV)
                              o added "ge_packages_uri" to 

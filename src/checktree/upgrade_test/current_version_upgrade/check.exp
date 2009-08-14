@@ -1,0 +1,393 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+#set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "current_version_upgrade_init_level"
+
+# define tcl files which should be sourced at startup of testsuite
+set check_source_files "remote_cluster_procedures"
+
+# define test's name and run level descriptions
+set check_name            "current_version_upgrade"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "upgrade test 61x to 62x"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function current_version_upgrade_setup
+set check_cleanup_function current_version_upgrade_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "current_version_upgrade_test"
+
+
+proc current_version_upgrade_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc current_version_upgrade_setup {} {
+   global current_version_test_var
+   global CHECK_USER
+
+   get_current_cluster_config_array ts_config
+
+   ts_log_config "Test not fully implemented"
+   return 99
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_config "Test does not support GE < 62"
+      return 99
+   }
+
+   if {$ts_config(spooling_method) != "classic"} {
+      ts_log_severe "Test currently works only for classic spooling"
+      return
+   }
+
+   set user $CHECK_USER
+   # get release information array
+   if {![parse_testsuite_info_file $user $ts_config(ge_packages_uri) rel_info]} {
+      ts_log_severe "error in testsuite.info file!"
+      return
+   }
+
+   set found_packages 0
+   for {set i 1} {$i <= $rel_info(count)} {incr i 1} {
+      if { $rel_info($i,enabled) == true } {
+         set found_packages 1
+         break
+      }
+   }
+   
+   if {$found_packages == 0} {
+      ts_log_config "No binary packages availabe - cannot run test!"
+      return 99
+   }
+
+
+   set current_version_test_var(backup_done)   false
+   set current_version_test_var(shutdown_done) false
+   set current_version_test_var(backup_file)   ""
+   set current_version_test_var(backup_host)   ""
+}
+
+proc current_version_upgrade_cleanup {} {
+   global CHECK_USER
+   global current_version_test_var
+   get_current_cluster_config_array ts_config
+
+   if {$current_version_test_var(backup_done) == true} {
+      shutdown_core_system
+      set backup_host $current_version_test_var(backup_host)
+      remote_delete_directory $backup_host "$ts_config(product_root)"
+      # This is necessary to have a proper testsuite runnig (because of NFS problems)
+      foreach host [host_conf_get_cluster_hosts] {
+         wait_for_remote_dir $host $CHECK_USER "$ts_config(product_root)" 60 1 1
+      }
+
+      remote_file_mkdir $backup_host "$ts_config(product_root)"
+      
+      # restore original system
+      set tar_command "[get_binary_path $backup_host "tar"] -xPf $current_version_test_var(backup_file)"
+      set output [start_remote_prog $backup_host root "cd" "$ts_config(product_root) ; $tar_command" prg_exit_state 300]
+      if {$output != ""} {
+         ts_log_fine "output of tar: $output"
+      }
+      if {$prg_exit_state != 0} {
+         ts_log_severe "${backup_host}(root): Cannot restore backup!"
+         return
+      }
+
+      # clear up arch cache
+      resolve_arch_clear_cache
+      foreach host [host_conf_get_cluster_hosts] {
+         wait_for_remote_file $host root $ts_config(product_root)/util/arch
+         set arch [resolve_arch $host]
+         set wait_path "$ts_config(product_root)/bin/$arch"
+         if {[wait_for_remote_dir $host root $wait_path] != 0} {
+            ts_log_severe "there was a problem getting the packages for host $host"
+            break
+         }
+      }
+   }
+   if {$current_version_test_var(shutdown_done) == true} {
+      startup_core_system
+   }
+}
+
+
+proc current_version_upgrade_test {} {
+   global CHECK_USER
+   global current_version_test_var
+
+   get_current_cluster_config_array ts_config
+   set user $CHECK_USER
+
+   # get release information array from ge_packages_uri file
+   if {![parse_testsuite_info_file $user $ts_config(ge_packages_uri) rel_info]} {
+      return
+   }
+
+   # get installed version information
+   get_version_info cur_version
+
+   # make backup of current SGE system
+###########################################################################################################################################
+#   TODO: Backup has to work for all spooling methods. This means we have to backup a local bdb database, remote rpc database, ...
+#         (Enable test for all spooling methods when backup (means setup/cleanup is working correctly)
+###########################################################################################################################################
+###########################################################################################################################################
+#   TODO: Backup has to work also for a CSP system. This means we might have to recreate the certificates or also backup them on all hosts.
+###########################################################################################################################################
+
+   # First we shutdown the current system
+   shutdown_core_system
+
+   # We have shutdown the system - cleanup has to start it again
+   set current_version_test_var(shutdown_done) true
+
+   # Prepare backup directory and select backup host (NFS server host)
+   set backup_dir [get_tmp_directory_name "" "default" "backup"] 
+   set backup_host [fs_config_get_server_for_path $backup_dir 0]
+   ts_log_fine "creating backup of sge root in \"$backup_dir\""
+   ts_log_fine "doing backup on host \"$backup_host\""
+   set output [start_remote_prog $backup_host $user [get_binary_path $backup_host "mkdir"] $backup_dir]
+   if {$output != ""} {
+      ts_log_fine "output of mkdir: $output"
+   }
+   if {$prg_exit_state != 0} {
+      ts_log_severe "${backup_host}($user): Cannot create directory $backup_dir"
+      return
+   }
+
+   # Create subdir in backup directory for the saved configuration of the upgraded GE installation
+   set saved_config_dir $backup_dir/old_cluster_backup
+   ts_log_fine "storing config of old cluster in \"$saved_config_dir\""
+   set output [start_remote_prog $backup_host $user [get_binary_path $backup_host "mkdir"] $saved_config_dir]
+   if {$output != ""} {
+      ts_log_fine "output of mkdir: $output"
+   }
+   if {$prg_exit_state != 0} {
+      ts_log_severe "${backup_host}($user): Cannot create directory $saved_config_dir"
+      return
+   }
+
+   # Save the save_cc.sh file of the current version into backup dir (we use fixed name save_sge_config.sh) ...
+   set save_file_path "$ts_config(product_root)/util/upgrade_modules/save_sge_config.sh"
+   get_file_content $backup_host root $save_file_path backup_config_file
+   set save_config_file_path "$backup_dir/save_sge_config.sh"
+   write_remote_file $ts_config(master_host) root $save_config_file_path backup_config_file "755"
+   set attribs [file attributes $save_config_file_path -permissions]
+   if {[string compare $attribs "00755" ] != 0  } {
+      ts_log_severe "cannot set 00755 file permissions to file \"$save_config_file_path\""
+      return
+   }
+   ts_log_fine "using save config script \"$save_config_file_path\""
+
+   # Now create a backup of the current system - we have to restore it in the test cleanup function
+   set tar_command "[get_binary_path $backup_host "tar"] -cPf ${backup_dir}/sge_root.tar ./*"
+   set output [start_remote_prog $backup_host root "cd" "$ts_config(product_root) ; $tar_command" prg_exit_state 300]
+   if {$output != ""} {
+      ts_log_fine "output of tar: $output"
+   }
+   if {$prg_exit_state != 0} {
+      ts_log_severe "${backup_host}(root): Cannot backup directory $ts_config(product_root)"
+      return
+   }
+
+   # Save backup information for the test cleanup procedure
+   set current_version_test_var(backup_host) "$backup_host"
+   set current_version_test_var(backup_file) "${backup_dir}/sge_root.tar"
+   set current_version_test_var(backup_done) true
+
+
+   # start looping over all entries in the testsuite.info file ...
+   for {set i 1} {$i <= $rel_info(count)} {incr i 1} {
+
+      # only choose releases which are enabled ...
+      if { $rel_info($i,enabled) == true } {
+         ts_log_frame
+         ts_log_fine "testing $rel_info($i,version) ($rel_info($i,description)) upgrade to $cur_version(detected_version) ..."
+         ts_log_frame
+
+         # first cleanup current SGE_ROOT directory
+         set result [remote_delete_directory $backup_host "$ts_config(product_root)"]
+         if {$result != 0} {
+            ts_log_severe "${backup_host}: Cannot delete SGE_ROOT directory. Stop!"
+            continue  ;# continue with next enabled version
+         }
+
+         # This is necessary to have a proper testsuite runnig (because of NFS problems)
+         foreach host [host_conf_get_cluster_hosts] {
+            if {[wait_for_remote_dir $host $user "$ts_config(product_root)" 60 1 1] != 0} {
+               ts_log_severe "there was a problem removing SGE_ROOT directory for host $host"
+               continue  ;# continue with next enabled version
+            }
+         }
+
+         # recreate the SGE_ROOT dir
+         remote_file_mkdir $backup_host "$ts_config(product_root)"
+
+         # copy the release packages
+         if {[get_release_packages $backup_host $user $ts_config(product_root) rel_info $i] != 1} {
+            ts_log_severe "get_release_packages() for $rel_info($i,version) ($rel_info($i,description)) returned an error"
+            continue  ;# continue with next enabled version
+         }
+
+         # wait for availability of sge_root dir
+         resolve_arch_clear_cache
+         foreach host [host_conf_get_cluster_hosts] {
+            set arch [resolve_arch $host]
+            set wait_path "$ts_config(product_root)/bin/$arch"
+            if {[wait_for_remote_dir $host $user $wait_path] != 0} {
+               ts_log_severe "Host \"$host\": There was a problem getting packages for $rel_info($i,version) ($rel_info($i,description))"
+               continue  ;# continue with next enabled version
+            }
+         }
+
+
+         # Now install the (old) system via remote testsuite ...
+         #######################################################
+
+###########################################################################################################################################
+#   TODO: Rotate settings (do not forget that original config might already use classic or berkeley db spooling, rpc spooling and so on ...
+#         This means first we have to find out what the default spooling method is, the rotate the other 4 methods (if possible)
+#         Spooling methods are: classic / classic local / bdb local / bdb NFSV4 / bdb rpc
+###########################################################################################################################################
+
+         # First, create a cloned configuration and modify some parameters
+         get_current_cluster_config_array clone_config_array
+         set clone_config_array(gridengine_version) "$rel_info($i,major_release)$rel_info($i,minor_release)"
+         set clone_config_array(results_dir) "$clone_config_array(results_dir)/results_clone_$rel_info($i,version)"
+         set clone_config_array(source_cvs_release) $rel_info($i,tag)
+         set clone_config_array(source_dir) "none"
+         set clone_config_array(additional_config) "none"
+         set clone_config_array(additional_checktree_dirs) "none"
+         set cloned_config_file [get_tmp_file_name $ts_config(master_host) $rel_info($i,version) "clone"]
+         clone_config clone_config_array $cloned_config_file
+
+
+         # Startup remote testsuite (temporary TS) to install the cluster (use operate_add_cluster())
+         set ret_val [operate_add_cluster $cloned_config_file "install"]
+         if {$ret_val != 0} {
+            continue ;# continue with next enabled version
+         }
+
+         # Startup remote testsuite prepare some additional setup before upgrading the cluster
+         set ret_val [operate_add_cluster $cloned_config_file "execute_func" 120 "cur_version_upgrade_test_create_additional_settings" rpc_retval]
+         if {$ret_val != 0} {
+            continue ;# continue with next enabled version
+         } else {
+            # parse the RemoteProcedureCall return value
+            ts_log_fine "upgrade setup done\nresult:\n$rpc_retval"
+            foreach line [split $rpc_retval "\n"] {
+               set text [string trim $line]
+               set param [lindex [split $text "="] 0]
+               set add_settings_result($param) [lindex [split $text "="] 1]
+            }
+         }
+         ts_log_fine "job \"$add_settings_result(job_id)\" was running on master host local spool execd!"
+
+         # Now doing backup of configuration 
+         # $save_config_file_path - contains the path to the save config script 
+         # $saved_config_dir - config save dir
+         ts_log_fine "backing up $rel_info($i,version) cluster ..."
+         ts_log_fine "starting \"$save_config_file_path $saved_config_dir\" ..."
+         set output [start_remote_prog $ts_config(master_host) $user $save_config_file_path $saved_config_dir prg_exit_state 120]
+         if {$prg_exit_state != 0} {
+            ts_log_severe "Save configuration script returned with exit state \"$prg_exit_state\".\noutput:\n$output"
+         }
+         ts_log_fine "output of backup script:\nSNIP\n$output\nSNAP\n"
+
+         # Shutdown the cluster
+         set ret_val [operate_add_cluster $cloned_config_file "kill"] 
+         if {$ret_val != 0} {
+            continue ;# continue with next enabled version
+         } else {
+            ts_log_fine "cluster should be down now"
+         }
+
+         ts_log_info "test not completely implemented!"
+         ts_log_config "test not completely implemented!"
+
+         # TODO: unpack the current backuped binaries as root in $SGE_ROOT
+
+         # TODO: run $SGE_ROOT/inst_sge -upd
+
+         # TODO: restart cluster (startup_core_system)
+         # startup_core_system
+         # wait_for_load_from_all_queues
+
+         # TODO: Check that execd on master host has a local spool dir
+
+         # TODO: check version of updated cluster (qconf -help | head -1)
+
+         # TODO: try qhost, submit a job, qacct (do it with testsuite functions)
+
+         # TODO: verify that qacct -j $add_settings_result(job_id) is displayed correctly
+
+         # TODO: check the settings done by cur_version_upgrade_test_create_additional_settings() procedure
+
+         # TODO: temporarly while dev: kill cluster (remove this if cluster was brought up correctly)
+      }
+   }
+}
