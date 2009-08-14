@@ -975,6 +975,7 @@ proc get_supported_config_parameter_list {} {
    lappend clone_argument_list "report_mail_to"
    lappend clone_argument_list "report_mail_cc"
    lappend clone_argument_list "enable_error_mails"
+   lappend clone_argument_list "ge_packages_uri"
    return $clone_argument_list
 }
 
@@ -2559,14 +2560,20 @@ proc setup2 { } {
    if {[info exists overwrite_array]}  {
       if {[read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" atmp_config ] == 0} {
          foreach param [array names overwrite_array] {
-            puts "overwrite config parameter >$param< set to \"$atmp_config($param)\" with \"$overwrite_array($param)\""
+            if { $be_quiet == 0 } {
+               puts "overwrite config parameter >$param< set to \"$atmp_config($param)\" with \"$overwrite_array($param)\""
+            }
             set atmp_config($param) $overwrite_array($param)
          }
          set tmp_filename [file tail $CHECK_DEFAULTS_FILE]
          set tmp_dirname [file dirname $CHECK_DEFAULTS_FILE]
          set CHECK_DEFAULTS_FILE "$tmp_dirname/$tmp_filename.clone"
-         puts "Creating cloned config file \"$CHECK_DEFAULTS_FILE\" ..."
-         clone_config atmp_config $CHECK_DEFAULTS_FILE
+         set do_show_clone 0
+         if { $be_quiet == 0 } {
+            set do_show_clone 1
+            puts "Creating cloned config file \"$CHECK_DEFAULTS_FILE\" ..."
+         }
+         clone_config atmp_config $CHECK_DEFAULTS_FILE $do_show_clone
       } else {
          puts "Cannot read configuration file \"$CHECK_DEFAULTS_FILE\""
          testsuite_shutdown 1
@@ -2935,7 +2942,7 @@ proc build_checktree {} {
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_highest_level check_init_level_procedure check_name check_needs
-   global check_category CHECK_USER
+   global check_category CHECK_USER check_source_files
    global CHECK_ACT_LEVEL sourced_commands
 
    # remember last check name - we'll reset to it on function exit
@@ -2950,9 +2957,18 @@ proc read_checktree_nodes { path } {
    set check_init_level_procedure "--"
    set check_setup_function "--"
    set check_category "--"
+   set check_source_files "--"
 
    # try to find and source check files in this directory for the configured N1GE version
    set sourced_files [ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]
+   
+   # additionally source all tcl files
+   if {$check_source_files != "--"} {
+      foreach asf $check_source_files {
+         ts_log_finer "check \"$check_name\" - sourcing \"$asf\" tcl files!"
+         ts_source $path/$asf
+      }
+   }
 
    # if there is a check in this directory, remember some information
    if {$sourced_files > 0} {
@@ -4945,7 +4961,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
    global ts_config
    global CHECK_TEST_RUNNING
-   global CHECK_INTERRUPT
+   global CHECK_INTERRUPT check_source_files
    global exclude_array CHECK_JGDI_ENABLED
 
    testsuite_background_tasks
@@ -4974,8 +4990,19 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    set check_init_level_procedure "--"
    set check_root_access_needs   "no" 
    set check_need_running_system "yes"
+   set check_source_files "--"
 
    ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT
+ 
+   # additionally source all tcl files
+   if {$check_source_files != "--"} {
+      foreach asf $check_source_files {
+         ts_log_finer "check \"$check_name\" - sourcing \"$asf\" tcl files!"
+         ts_source $path/$asf
+      }
+   }
+
+
    #Disable JGDI for SGE < 6.2
    if { $ts_config(gridengine_version) < 62 } {
       set CHECK_JGDI_ENABLED 0
@@ -7882,6 +7909,10 @@ proc menu {} {
          set_command_line_options
     }
     "28" {
+         if { [have_root_passwd] == -1 } {
+             puts "need root access ..."
+             set_root_passwd
+         }
          startup_core_system 0 1
          wait_for_enter
     }
@@ -8370,7 +8401,7 @@ proc operate_additional_clusters {operation} {
 #     operate_add_cluster { filename operation {atimeout 120} }
 #
 #  FUNCTION
-#     This procedure is used to startup remote testsuite with additional_config
+#     This procedure is used to startup remote testsuite with a config
 #     and perform startup, kill, compile, install ... commands
 #
 #  INPUTS
@@ -8385,201 +8416,275 @@ proc operate_additional_clusters {operation} {
 #     {execute_func_return rpc_retval} - remote procedure return values
 #                                        when execute_func is used
 #
+#  RESULT
+#     Exit state of the remote expect testsuite call
+#
 #  SEE ALSO
 #     check/operate_additional_clusters()
 #*******************************************************************************
 proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} } {
    global CHECK_USER CHECK_HTML_DIRECTORY
-   global check_use_installed_system
+   global check_use_installed_system fast_setup be_quiet
    global check_do_clean_compile do_not_update ts_config ts_log_config
-   global CHECK_TESTSUITE_TRASH
+   global CHECK_TESTSUITE_TRASH check_do_not_use_spool_config_entries ts_log_levels
    upvar $execute_func_return rpcret
 
+   if {[info exists rpcret]} {
+      unset rpcret
+   }
+
+   set supported_opterations {}
+   lappend supported_opterations "install"
+   lappend supported_opterations "compile"
+   lappend supported_opterations "kill"
+   lappend supported_opterations "execute_func"
+
+   if {[lsearch -exact $supported_opterations $operation] == -1} {
+      ts_log_severe "operation \"$operation\" is not supported!"
+      return 123456
+   }
 
    set rpcret ""
    set return_value 0
-   if {$ts_config(additional_config) != "none"} {
-      # clear previously read config
-      if {[info exists add_config]} {
-         unset add_config
-      }
-      # read additional config file
-      if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-         ts_log_severe "cannot read additonal configuration file $filename"
-         continue
-      }
 
-      # start testsuite with install option on the cluster's master host
-      ts_log_fine "\n${operation}ing cluster of additional configuration $filename"
-      ts_log_fine "on host $add_config(master_host) as user $CHECK_USER"
+   # clear previously read config
+   if {[info exists add_config]} {
+      unset add_config
+   }
+   # read config file
+   if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+      ts_log_severe "cannot read additonal configuration file $filename"
+      continue
+   }
 
-      set args "check.exp file $filename fast_setup quiet"
-      if {$operation == "install" && $check_use_installed_system} {
-         append args " re_init"
-      }
+   # start testsuite with given operation options on the cluster's master host
+   ts_log_fine "Perform a \"${operation}\" testsuite call ..."
+   ts_log_fine "Cluster config file is: \"$filename\"!"
+   ts_log_fine "Starting TS on master host \"$add_config(master_host)\" as user \"$CHECK_USER\" ..."
 
-      if {$operation == "compile" && $check_do_clean_compile } {
-         append args " compile_clean"
-      }
+   # set config file parameter
+   set args "check.exp file $filename"
 
-      if {$operation == "compile" && $do_not_update } {
-         append args " no_update"
-      }
+   # inherit "quiet" command line param
+   # always add quiet command line
+   if {$be_quiet == 1} {
+      append args " quiet"
+   }
 
-      if {[info exists ts_log_config(logging)]} {
-         append args " logging_level $ts_log_config(logging)"
-      }
+   # inherit "fast_setup" command line param
+   if {$fast_setup == 1} {
+      append args " fast_setup"
+   }
 
-      if {$CHECK_TESTSUITE_TRASH != 0} {
-         append args " testsuite_trash"
-      }
+   # inherit "logging_level" command line param
+   if {[info exists ts_log_config(logging)]} {
+      append args " logging_level $ts_log_config(logging)"
+   }
 
-      if {$CHECK_HTML_DIRECTORY != ""} {
-         remote_file_mkdir $add_config(master_host) $CHECK_HTML_DIRECTORY/$add_config(master_host)
-         wait_for_remote_dir $add_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
-         wait_for_remote_dir $ts_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
-         append args " html_dir $CHECK_HTML_DIRECTORY/$add_config(master_host)"
-      }
+   # inherit "testsuite_trash" command line param
+   if {$CHECK_TESTSUITE_TRASH != 0} {
+      append args " testsuite_trash"
+   }
 
-      # The "execute_func" has to be the last argument!!!
-      append args " $operation"
-      if {$operation == "execute_func" } {
-         append args " $execute_func"
-      }
+   # inherit "no_local_spool" command line param
+   if {$check_do_not_use_spool_config_entries == 1} {
+      append args " no_local_spool"
+   }
 
-      ts_log_fine "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
+   # inherit "no_local_qmaster_spool" command line param
+   if {$check_do_not_use_spool_config_entries == 2} {
+      append args " no_local_qmaster_spool"
+   }
 
-      set expect [get_binary_path $add_config(master_host) "expect"]
-      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER $expect $args 0 $add_config(testsuite_root_dir)]
 
-      set script_tail_name [file tail $shell_script_name]
-      set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
-      ts_log_fine "script file tail name is \"$script_tail_name\""
-
-      if {$id == ""} {
-         ts_log_severe "$operation in additional config $filename failed:\ngot no spawn id"
-         continue
-      }
-
-      set spawn_id [lindex $id 1]
-#      log_user 1
-      set timeout $atimeout
-      set found_end 0
-      set error_found 0
-      set proc_found 0
-      set error_text ""
-
-      expect {
-         -i $spawn_id timeout {
-            ts_log_severe "$operation in additional config $filename failed:\ntimeout"
+   # inherit "html_dir" command line param
+   if {$CHECK_HTML_DIRECTORY != ""} {
+      remote_file_mkdir $add_config(master_host) $CHECK_HTML_DIRECTORY/$add_config(master_host)
+      wait_for_remote_dir $add_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
+      wait_for_remote_dir $ts_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
+      append args " html_dir $CHECK_HTML_DIRECTORY/$add_config(master_host)"
+   }
+   switch -exact -- $operation {
+      "install" {
+         append args " install"
+         if {$check_use_installed_system} {   ;# inherit "re_init" command line param
+            append args " re_init"
          }
-         -i $spawn_id full_buffer {
-            ts_log_severe "$operation in additional config $filename failed:\nbuffer overflow"
+      }
+      "compile" {
+         append args " compile"
+         if {$check_do_clean_compile } {      ;# inherit "compile_clean" command line param
+            append args " compile_clean"
          }
-         -i $spawn_id eof {
-            ts_log_severe "$operation in additional config $filename failed:\nunexpected eof"
+         if {$do_not_update } {               ;# inherit "no_update" command line param
+            append args " no_update"
          }
+      }
+      "kill" {
+         append args " kill" 
+      }
+      "execute_func" {  
+         append args " execute_func"   ;# The "execute_func" has to be the last argument!!!
+         append args " $execute_func" 
+      }
+   }
+ 
+   set output "" 
+   # now the command line is available
+   set expect_bin [get_binary_path $add_config(master_host) "expect"]
+   append output "Starting remote testsuite as user \"$CHECK_USER\" on host \"$add_config(master_host)\" ...\n"
+   append output "Exact command line: \"$expect_bin $args\"\n"
+   ts_log_fine $output
+   set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER $expect_bin $args 0 $add_config(testsuite_root_dir)]
 
-         -i $spawn_id -- "*\n" {
-            set stop 0
-            foreach line [split $expect_out(0,string) "\r\n"] {
-               set line [string trim $line]
-               if {$line != ""  && $line != "-" && $line != "|" && $line != "/" && $line != "\\"} {
-                  ts_log_fine "\[[file tail $filename]\]$line"
-                  switch -glob -- $line {
-                     "host access with password needed for user*" {
-                        set user [lindex $line 7]
-                        set passwd [get_passwd $user]
-                        if {$passwd == ""} {
-                           set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
-                           set passwd [get_passwd $user]
-                           # the set_passwd switches off log_user
-                           log_user 1
-                        }
+   set script_tail_name [file tail $shell_script_name]
+   set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
+   ts_log_fine "script file tail name is \"$script_tail_name\""
 
-                        if {$passwd == ""} {
-                           ts_log_severe "$operation in additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
-                           set stop 1
-                        } else {
-                           ts_send $spawn_id "$passwd\n" 1 1
-                        }
-                     }
-                     "_exit_status_:*sh" {
-                        if { [string match "*$script_tail_name*" $line] } {
-                            set remote_exit_state [get_string_value_between "(" ")" $line]
-                            if { $remote_exit_state != 0 } {
-                               append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
-                               set return_value $remote_exit_state
-                            }
-                            ts_log_fine "got _exit_status - stopping"
-                            set found_end 1
-                        } else {
-                           ts_log_fine "found an exit status, but not for operate_add_cluster() call!"
-                        }
-                     }
-                     "*_END_OF_FILE_*" {
-                        if { $found_end == 1 } {
-                           ts_log_fine "exit status found - last line parsed - finished"
-                           set stop 1
-                        } else {
-                           ts_log_fine "this is not end of my script file"
-                        }
-                     }
-                     "ERROR REPORT - START" {
-                        ts_log_fine "found error report start"
-                        set error_found 1
-                     }
-                     "ERROR REPORT - DONE" {
-                        ts_log_fine "found error report end"
-                        set error_found 0
-                     }
-                     "PROCEDURE REPORT - START" {
-                        ts_log_fine "found procedure report start"
-                        set proc_found 1
-                     }
-                     "PROCEDURE REPORT - DONE" {
-                        ts_log_fine "found procedure report end"
-                        set proc_found 0
-                     }
+   if {$id == ""} {
+      ts_log_severe "$operation using config $filename failed:\ngot no spawn id"
+      continue
+   }
 
-                  }
-                  if { $error_found == 2 } {
-                     append error_text "$line\n"
-                  }
-                  if { $error_found == 1 } {
-                     incr error_found 1
-                  }
-                  if { $proc_found == 2 } {
-                     append rpcret $line
-                  }
-                  if { $proc_found == 1 } {
-                     incr proc_found 1
+   set spawn_id [lindex $id 1]
+   set timeout $atimeout
+   set found_end 0
+   set error_found 0
+   set proc_found 0
+   set error_text ""
+
+   set tmp_log_user [log_user]
+   log_user 0
+
+   set in_error_mode 0
+   expect {
+      -i $spawn_id timeout {
+         ts_log_severe "$operation using config $filename failed:\ntimeout"
+      }
+      -i $spawn_id full_buffer {
+         ts_log_severe "$operation using config $filename failed:\nbuffer overflow"
+      }
+      -i $spawn_id eof {
+         ts_log_severe "$operation using config $filename failed:\nunexpected eof"
+      }
+
+      -i $spawn_id -- "*\n" {
+         set stop 0
+         foreach line [split $expect_out(0,string) "\r\n"] {
+            set line [string trim $line]
+            if {$line != ""  && $line != "-" && $line != "|" && $line != "/" && $line != "\\"} {
+               append output "$line\n" 
+               if {![string match "*>>>>>>>>*" $line]} {
+                  if {[string match "*>>>*" $line]} {
+                     ts_log_fine "\[[file tail $filename]\]$line"
                   }
                } else {
-                  if {[llength [info procs ts_log_washing_machine]] == 1} {
-                     ts_log_washing_machine
+                  if {$in_error_mode} {
+                     # we have to log this line, then turn error mode off
+                     ts_log_fine "\[[file tail $filename]\]$line"
+                     set in_error_mode 0
+                  } else {
+                     set in_error_mode 1
                   }
                }
-            }
+               if {$in_error_mode} {
+                  ts_log_fine "\[[file tail $filename]\]$line"
+               }
 
-            if {!$stop} {
-               exp_continue
+               switch -glob -- $line {
+                  "host access with password needed for user*" {
+                     set user [lindex $line 7]
+                     set passwd [get_passwd $user]
+                     if {$passwd == ""} {
+                        # the set_passwd switches off log_user
+                        set help_log_user [log_user]
+                        set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
+                        set passwd [get_passwd $user]
+                        log_user $help_log_user
+                     }
+
+                     if {$passwd == ""} {
+                        ts_log_severe "$operation using config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                        set stop 1
+                     } else {
+                        ts_send $spawn_id "$passwd\n" 1 1
+                     }
+                  }
+                  "_exit_status_:*sh" {
+                     if { [string match "*$script_tail_name*" $line] } {
+                         set remote_exit_state [get_string_value_between "(" ")" $line]
+                         if { $remote_exit_state != 0 } {
+                            append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
+                            set return_value $remote_exit_state
+                         }
+                         ts_log_fine "got _exit_status - stopping"
+                         set found_end 1
+                     } else {
+                        ts_log_finer "found an exit status, but not for operate_add_cluster() call!"
+                     }
+                  }
+                  "*_END_OF_FILE_*" {
+                     if { $found_end == 1 } {
+                        ts_log_fine "exit status found - last line parsed - finished"
+                        set stop 1
+                     } else {
+                        ts_log_finer "this is not end of my script file"
+                     }
+                  }
+                  "ERROR REPORT - START" {
+                     ts_log_fine "found error report start"
+                     set error_found 1
+                  }
+                  "ERROR REPORT - DONE" {
+                     ts_log_fine "found error report end"
+                     set error_found 0
+                  }
+                  "PROCEDURE REPORT - START" {
+                     ts_log_fine "found procedure report start"
+                     set proc_found 1
+                  }
+                  "PROCEDURE REPORT - DONE" {
+                     ts_log_fine "found procedure report end"
+                     set proc_found 0
+                  }
+
+               }
+               if { $error_found == 2 } {
+                  append error_text "$line\n"
+               }
+               if { $error_found == 1 } {
+                  incr error_found 1
+               }
+               if { $proc_found == 2 } {
+                  append rpcret $line
+               }
+               if { $proc_found == 1 } {
+                  incr proc_found 1
+               }
+            } else {
+               if {[llength [info procs ts_log_washing_machine]] == 1} {
+                  ts_log_washing_machine
+               }
             }
          }
+
+         if {!$stop} {
+            exp_continue
+         }
       }
-      close_spawn_process $id
-      if { $error_text != "" } {
-         ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] failed:"
-         ts_log_fine $error_text
-         set proc_error_text ""
-         append proc_error_text "remote operation \"$args\" in testsuite [file tail $filename] failed:\n"
-         append proc_error_text $error_text
-         ts_log_severe "$proc_error_text"
-      } else {
-         ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] finished successfully"
-      }
+   }
+   log_user $tmp_log_user
+   close_spawn_process $id
+   if { $error_text != "" } {
+      ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] failed:"
+      ts_log_fine $error_text
+      set proc_error_text ""
+      append proc_error_text "remote operation \"$args\" in testsuite [file tail $filename] failed:\n"
+      append proc_error_text "$error_text\n"
+      append proc_error_text "\n\nOutput:\n$output\n"
+      ts_log_severe "$proc_error_text"
    } else {
-      ts_log_fine "no additional clusters defined"
+      ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] finished successfully"
    }
    return $return_value
 }
@@ -9212,7 +9317,7 @@ for {set i 0} {$i < $argc} {incr i} {
       continue
    }
    if { ( [string compare [lindex $argv $i] "--execute_func"] == 0 ) || ([string compare [lindex $argv $i] "execute_func"] == 0 ) } {
-      set exec_args ""
+      set exec_args {}
       for { incr i 1 } { $i < $argc } { incr i } {
          lappend exec_args [lindex $argv $i]
       }
@@ -9374,12 +9479,15 @@ if { $no_action == 1 } {
 }
 
 if { $do_prog_start == 1 } {
+   set check_name [lindex $exec_args" 0]
    ts_log_fine "starting $exec_args ..."
-   set exit_value [eval $exec_args]
+   set proc_return [eval $exec_args]
    ts_log_fine "PROCEDURE REPORT - START"
-   puts $exit_value
+   puts $proc_return
    ts_log_fine "PROCEDURE REPORT - DONE"
-   testsuite_shutdown 0
+
+   set exit_value [print_errors]
+   testsuite_shutdown $exit_value
 }
 
 if { $check_reinit_on_tcl_error == 1 } {
@@ -9420,8 +9528,8 @@ if { $do_one_test } {
    ts_log_fine "run all tests ..."
 
    run_tests $CHECK_ACT_PATH 0
-
-   testsuite_shutdown 0
+   set exit_value [print_errors]
+   testsuite_shutdown $exit_value
 }
 
 if { $do_all } {
@@ -9442,8 +9550,8 @@ if { $do_all } {
    ts_log_fine "run all tests ..."
 
    run_tests $CHECK_ACT_PATH 0
-
-   testsuite_shutdown 0
+   set exit_value [print_errors]
+   testsuite_shutdown $exit_value
 }
 
 if { $do_install } {

@@ -209,7 +209,7 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
 #     clone_config() -- clone testsuite config (ts_config) and save into file
 #
 #  SYNOPSIS
-#     clone_config { source_config file_path } 
+#     clone_config { source_config file_path {log_config 1}} 
 #
 #  FUNCTION
 #     This procedure is used to obtain all necessary information from the 
@@ -217,13 +217,14 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
 #     configuration file.
 #
 #  INPUTS
-#     source_config - testsuite configuration array (e.g.: ts_config)
-#     file_path     - path to a file in which the configuration should be saved
+#     source_config  - testsuite configuration array (e.g.: ts_config)
+#     file_path      - path to a file in which the configuration should be saved
+#     {log_config 1} - log cloned config with ts_log_fine()
 #
 #  RESULT
 #     none
 #*******************************************************************************
-proc clone_config { source_config file_path } {
+proc clone_config { source_config file_path {log_config 1} } {
    upvar $source_config sconf
 
 #   ts_log_fine [format_array sconf]
@@ -253,7 +254,9 @@ proc clone_config { source_config file_path } {
       ts_log_finer "config parameter >$param< set to \"$sconf($param)\""
       set cconfig($param) $sconf($param)
    }
-   ts_log_fine [format_array cconfig]
+   if {$log_config} {
+      ts_log_fine [format_array cconfig]
+   }
 
    set conf_name "testsuite configuration"
    set filename $file_path

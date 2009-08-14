@@ -63,7 +63,7 @@ proc qconf_add_rqs {} {
    set rqs_name_cli "qconf_rqs_cli"
    set rqs_name_invalid "qconf_rqs_invalid"
 
-   set rules ""
+   set rules {}
    lappend rules "to slots=10"
 
    # Add resource quota sets fast

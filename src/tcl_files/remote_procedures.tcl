@@ -1527,7 +1527,7 @@ proc open_remote_spawn_process { hostname
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
          }
-         set log_user $tmp_log_user
+         log_user $tmp_log_user
 
          if {$pid == 0 } {
            ts_log_warning "${error_info}\ncould not spawn! (pid = $pid)"  $raise_error

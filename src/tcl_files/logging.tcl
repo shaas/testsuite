@@ -606,7 +606,11 @@ proc ts_log {level message {raise_error 1} {function ""} {do_output 1} {do_loggi
 #     {isFinal 0}   - don't use -nonewline parameter
 #*******************************************************************************
 proc ts_log_progress {{level FINE} {message "."} {isFinal 0}} {
-   global ts_log_config
+   global ts_log_config be_quiet
+
+   if {$be_quiet} {
+      return
+   }
 
    set level [ts_log_get_level_number $level]
 

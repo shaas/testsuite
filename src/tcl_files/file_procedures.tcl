@@ -2177,15 +2177,17 @@ proc get_file_content {host user file {file_a "file_array"}} {
 #  SEE ALSO
 #     file_procedures/save_file
 #*******************************************************************************
-proc write_remote_file {host user file array_name} {
+proc write_remote_file {host user file array_name {permissions ""}} {
    upvar $array_name data
 
    set tmp_file [get_tmp_file_name $host $user]
    save_file $tmp_file data
    wait_for_remote_file $host $user $tmp_file 
-   set program "cp"
-   set program_arg "$tmp_file $file"
-   start_remote_prog $host $user $program $program_arg
+   start_remote_prog $host $user "cp" "$tmp_file $file"
+   if {$permissions != ""} {
+      ts_log_fine "setting permissions of file \"$file\" to $permissions"
+      start_remote_prog $host $user "chmod" "$permissions $file"
+   }
    wait_for_remote_file $host $user $file
    return $prg_exit_state
 } 
@@ -4729,7 +4731,7 @@ proc parse_testsuite_info_file { user uri info_file } {
                if {![is_remote_path $uri_host $user $uri_path]} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: URI \"$pack_info($pack_info_index,$a_name)\" not correct!" 
                   incr was_error 1
-                  break
+                  break  ;# stop for loop
                }
             }
             "major_release" {
@@ -4738,12 +4740,12 @@ proc parse_testsuite_info_file { user uri info_file } {
                if {![string is integer $help]} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Major release version should be integer number!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
                if {[string length $help] == 0} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Major release version missing!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
             }
             "minor_release" {
@@ -4752,12 +4754,12 @@ proc parse_testsuite_info_file { user uri info_file } {
                if {![string is integer $help]} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Minor release version should be integer number!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
                if {[string length $help] == 0} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Minor release version missing!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
             }
             "update_release" {
@@ -4771,7 +4773,7 @@ proc parse_testsuite_info_file { user uri info_file } {
                if {[string length $help] == 0} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Update release version missing!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
             }
             "version" {
@@ -4790,7 +4792,7 @@ proc parse_testsuite_info_file { user uri info_file } {
                if {![string is boolean $help]} {
                   ts_log_severe "Syntax error in line $i of file $testsuite_info_file_name: Enabled for testing column value should be boolean!" 
                   incr was_error 1
-                  break
+                  break ;# stop for loop
                }
                if {$help} {
                   set pack_info($pack_info_index,$a_name) "true"

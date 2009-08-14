@@ -7,6 +7,28 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-08-14-0: Enhancem.:  Integrate upgrade test (Part IV)
+                             o added "ge_packages_uri" to 
+                               get_supported_config_parameter_list() procedure
+                             o impl. quiet option for overwrite parameter
+                             o new global test variable: check_source_files
+                               Test can now specify which tcl files should be
+                               sourced at startup (while parsing checktree)
+                             o operate_add_cluster():
+                               - now supports also cloned config files
+                               - reworked output and error handling
+                               - better support for execute_func option
+                                 (parse also testsuite error globals and set
+                                  testsuite exit code to 1 on errors)
+                             o write_remote_file():
+                               new optional parameter to set file permissions
+                             o open_remote_spawn_process():
+                               fixed wrong log_user usage
+                             o ts_log_progress():
+                               Do not show progress if quiet parameter is used
+                 Belongs to: CR-2009-08-11-0
+                 Review:     DG
+
 CR-2009-08-11-0: Enhancem.:  Integrate upgrade test (Part III)
                              o allow testsuite to be stared with source_dir 
                                configuration parameter set to "none"

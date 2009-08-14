@@ -82,6 +82,8 @@ proc dump_rqs_array_to_tmpfile { change_array } {
    upvar $change_array chgar
    set tmpfile ""
 
+   # TODO: It would be nice to have a syntax validation of the change_array
+   #       before writing the file !!!
    if [info exists chgar] {
       set old_name ""
       set first "true"
@@ -120,7 +122,7 @@ proc dump_rqs_array_to_tmpfile { change_array } {
    } else {
       ts_log_fine "WARNING: got not charray!"
    }
-
+   ts_log_fine "tmpfile: $tmpfile"
    return $tmpfile
 }
 
