@@ -69,8 +69,8 @@ global jsv_org_global_conf
 global jsv_enabled
 global jsv_job_id
 global jsv_hjob_id
-global jsv_enabled 
-global jsv_base_path 
+global jsv_enabled
+global jsv_base_path
 
 set jsv_enabled ""
 
@@ -245,6 +245,9 @@ proc jsv_full_all_all_correct {} {
          file delete $global_file
          file copy $saved_global_file $global_file
          file delete $saved_global_file
+      } else {
+         #remove the global file if we didn't have one
+         file delete $global_file
       }
    }
   
@@ -364,6 +367,9 @@ proc jsv_full_all_one_reject {} {
          file delete $global_file
          file copy $saved_global_file $global_file
          file delete $saved_global_file
+      } else {
+         #remove the global file if we didn't have one
+         file delete $global_file
       }
    }
   

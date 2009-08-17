@@ -162,7 +162,7 @@ proc host_test_test {} {
                         set expect_version $version
                      }
                      if {$expect_version != $version} {
-                        ts_log_config "host \"$host\" \"$ts_host_config($host,$param) -version\" does not return version \"$expect_version\", but \"$version\"!"
+                        ts_log_info "host \"$host\" \"$ts_host_config($host,$param) -version\" does not return version \"$expect_version\", but \"$version\"!"
                      }
                   }
                }

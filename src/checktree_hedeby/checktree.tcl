@@ -185,7 +185,7 @@ proc hedeby_test_run_level_check { is_starting was_error } {
          append msg "It seems that the hedeby_test_run_level_check has not\n"
          append msg "been called before executing test '$check_name', because\n"
          append msg "the start_time is not set in the global variable 'hedeby_test_run_start_time_ctx'"
-         ts_log_severe msg
+         ts_log_severe $msg
          return 1
       }
       # set test end time (consider possible time difference between hosts)

@@ -53,7 +53,7 @@ global CHECK_SHELL_PROMPT CHECK_LOGIN_LINE
 set CHECK_SHELL_PROMPT ".*\[#@~>$%\]+"
 
 # NOTE: CHECK_LOGIN_LINE is glob matching !!!
-set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"   
+set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"
 
 set descriptors [exec "/bin/sh" "-c" "ulimit -n"]
 puts "    *********************************************"
@@ -652,7 +652,7 @@ proc start_remote_prog { hostname
                          {without_start_output 0}
                          {without_sge_single_line 0}
                        } {
-   global CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL 
+   global CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL CHECK_USE_HUDSON
    upvar $exit_var back_exit_state
 
    if {$envlist != ""} {
@@ -777,7 +777,7 @@ proc start_remote_prog { hostname
    if {$CHECK_DEBUG_LEVEL != 0} {
       ts_log_finer "start_remote_prog: expecting ... done"
    }
-
+   
    # parse output: find end of output and rest
    if {$real_end_found == 1} {
       set found_end [string first "_exit_status_:" $output]
@@ -797,6 +797,14 @@ proc start_remote_prog { hostname
          }
       }
    }
+
+   #TODO LP: Decide if we want the outputs
+   #if {$CHECK_USE_HUDSON == 1} {
+      #Exlude infotext, ps - these outputs are generally useless
+   #   if {[string first "/infotext" $exec_command] == -1 && [string first "/ps" $exec_command] == -1} {
+   #      ts_log_finer "OUTPUT for $exec_command $exec_arguments \n$output"
+   #   }
+   #}
 
    # parse output: search exit status
    if {$real_end_found == 1} {
@@ -858,6 +866,13 @@ proc start_remote_prog { hostname
 #*******************************************************************************
 proc sendmail { to subject thebody { send_html 0 } { cc "" } { bcc "" } { from "" } { replyto "" } { organisation "" } { force_mail 0 } } {
    global CHECK_USER CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
+   global CHECK_USE_HUDSON
+   
+   #Do not send emails when in hudson_reports mode
+   if {$CHECK_USE_HUDSON == 1} {
+      return
+   }
+   
    get_current_cluster_config_array ts_config
 
    if { $CHECK_ENABLE_MAIL != 1 && $force_mail == 0 } {
@@ -1031,7 +1046,7 @@ proc show_proc_error {result new_error} {
 
       if { $CHECK_SEND_ERROR_MAILS == 1 } {
          append mail_body "\n"
-         append mail_body "Date            : [exec date]\n"
+         append mail_body "Date            : [clock format [clock seconds]]\n"
          append mail_body "check_name      : $check_name\n"
          append mail_body "category        : $category\n"
          append mail_body "runlevel        : [get_run_level_name $CHECK_ACT_LEVEL] (level: $CHECK_ACT_LEVEL)\n"
@@ -1360,7 +1375,7 @@ proc open_remote_spawn_process { hostname
    global open_remote_spawn_script_cache
    upvar $shell_script_name_var used_script_name
    get_current_cluster_config_array ts_config
-
+   
    set testsuite_root_dir $ts_config(testsuite_root_dir)
    if {$CHECK_DEBUG_LEVEL != 0} {
       ts_log_finest "open_remote_spawn_process on host \"$hostname\""
@@ -3165,7 +3180,7 @@ proc is_spawn_process_in_use {spawn_id} {
 #*******************************
 proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    global CHECK_DEBUG_LEVEL
-   global CHECK_SHELL_PROMPT
+   global CHECK_SHELL_PROMPT CHECK_USE_HUDSON
    get_current_cluster_config_array ts_config
  
    set pid      [lindex $id 0]
@@ -3214,6 +3229,10 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname)
          set timeout 2
          set num_tries 10
+         if {$CHECK_USE_HUDSON == 1} {
+            #We have many  timeout issues, so we lower the waiting time
+            set num_tries 3
+         }
          expect {
             -i $spawn_id eof {
                ts_log_warning "unexpected eof"
@@ -3233,7 +3252,11 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
                   increase_timeout
                   exp_continue
                } else {
-                  ts_log_warning "timeout waiting for shell prompt"
+                  #ts_log_warning "timeout waiting for shell prompt"
+                  ts_log_info "timeout waiting for shell prompt, will really close this spawn id"
+                  #Something is wrong with this spawn id, we close and release it. 
+                  #This insures faster execution since we don't get failed test, 
+                  #just because of calling close (task has finished) 
                }
             }
             -i $spawn_id -- "TS_ID: ->*${con_data(real_user)}*\n" {
@@ -3246,7 +3269,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       if {$catch_return == 1} {
          ts_log_warning $catch_error_message
       }
-      
+
       # are we done?
       if {$do_return != ""} {
          testsuite_background_tasks
@@ -3378,7 +3401,8 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          # on regular exit: check exit code, shall be 0
          if {$wait_error == 0} {
             if {$wait_code != 0} {
-               ts_log_warning "wait exit status: $wait_code"
+               #ts_log_warning just fails the test, use info
+               ts_log_info "wait exit status: $wait_code"
             }
          } else {
             ts_log_finest "*** operating system error: $wait_code"

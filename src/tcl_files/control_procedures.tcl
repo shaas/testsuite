@@ -1512,7 +1512,7 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
 
 
    set host_arch [resolve_arch $host]
-
+   
    #puts "arch on host $host is $host_arch"
    
    switch -glob -- $host_arch {

@@ -919,7 +919,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #*******************************************************************************
 proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} {env_list ""} } {
    global CHECK_USER
-   global CHECK_JGDI_ENABLED
+   global CHECK_JGDI_ENABLED CHECK_DISPLAY_OUTPUT
    global jgdi_config
    global check_category
 
@@ -983,6 +983,12 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       set arch [resolve_arch $host]
       set ret 0
       set binary "$ts_config(product_root)/$sub_path/$arch/$bin"
+      
+      if {[string compare $bin "qsh"] == 0 && [string compare $CHECK_DISPLAY_OUTPUT ""] != 0} {
+         #We should always use CHECK_DISPLAY_OUTPUT when available
+         ts_log_fine "setting DISPLAY=$CHECK_DISPLAY_OUTPUT"         
+         set envlist(DISPLAY) $CHECK_DISPLAY_OUTPUT
+      }
 
       ts_log_finest "executing $binary $args\nas user $user on host $host"
       # Add " around $args if there are more the 1 args....
@@ -1112,13 +1118,13 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
    get_current_cluster_config_array ts_config
 
    upvar $exit_var exit_state
-
+  
    if {$ts_config(source_dir) == "none"} {
       ts_log_severe "source directory is set to \"none\" - need source directory for this procedure"
       set exit_state 123456789
       return "source directory is set to \"none\" - need source directory for this procedure"
    }
-  
+
    # pass on environment
    set env_var ""
    if {$envlist != ""} {
@@ -1442,7 +1448,7 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
          }
       }
    }
-  
+
    if {$ret == -999} {
       ts_log_fine "output: $result"
    }
@@ -2080,8 +2086,8 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 #*******************************************************************************
 proc submit_time_job { jobargs } {
 
-   set hour   [exec date "+%H"]
-   set minute [exec date "+%M"]
+   set hour   [clock format [clock seconds] -format "%H"]
+   set minute [clock format [clock seconds] -format "%M"]
 
    if { [string first "0" $hour] == 0 } {
       set hour [string index $hour 1 ]
@@ -2111,7 +2117,7 @@ proc submit_time_job { jobargs } {
      set rminute "0$minute"
    }
 
-   set start "[exec date +\%Y\%m\%d]$rhour$rminute"
+   set start "[clock format [clock seconds] -format \%Y\%m\%d]$rhour$rminute"
    set result [submit_job "-a $start $jobargs"] 
    return $result
 }
@@ -2569,7 +2575,14 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
       }
 
       # Make configuration change
-      set_config my_config $host 0 1 $do_reset
+      set result [set_config my_config $host 0 1 $do_reset]
+      if {$result != 0 && $result != -3 && $result != -5}  {
+         #Exit when this failed, otherwise we might get stuck
+         foreach spawn_id $joined_spawn_list {
+           close_spawn_process $sp_tail_id_map($spawn_id)
+         }
+         return
+      }
 
       # choose a config to wait for
       # if it is an empty string (e.g. as we deleted an entry), use wildcards
@@ -8039,23 +8052,23 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    ts_log_finest "qconf $qconf_option returned $prg_exit_state"
    if { $prg_exit_state == 0} {
       ts_log_finest $result
+      # give the schedd and execd's some time to shutdown
+      wait_for_unknown_load 60 all.q 0
    } else {
       ts_log_fine "shutdown_core_system - qconf $qconf_option failed:\n$result"
    }
-
-   # give the schedd and execd's some time to shutdown
-   wait_for_unknown_load 60 all.q 0
 
    ts_log_fine "do qconf -km ..."
    set result [start_sge_bin "qconf" "-km"]
    ts_log_finest "qconf -km returned $prg_exit_state"
    if {$prg_exit_state == 0} {
       ts_log_finest $result
+      if {[wait_till_qmaster_is_down $ts_config(master_host)] != 0} {
+         shutdown_system_daemon $ts_config(master_host) "qmaster"
+      }
    } else {
       ts_log_fine "shutdown_core_system - qconf -km failed:\n$result"
-   }
-
-   if {[wait_till_qmaster_is_down $ts_config(master_host)] != 0} {
+      #No need to wait until timeout if qconf -km failed
       shutdown_system_daemon $ts_config(master_host) "qmaster"
    }
 

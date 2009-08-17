@@ -86,7 +86,7 @@ proc install_execd {{report_var report}} {
    # if yes, we'll have to copy the certificates, regardless of csp mode or not
    set have_windows_host [host_conf_have_windows]
 
-   set script_version [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" ] ;#"
+   set script_version [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\\\" -f2" ] ;#"
 
    if {$prg_exit_state == 0} {
       set INST_VERSION $script_version

@@ -70,7 +70,7 @@
 proc report_create { name a_report_array { send_email 1 } { write_html 1 } } {
    upvar $a_report_array report_array
    set report_array(name) $name
-   set report_array(start) [exec date]
+   set report_array(start) [clock format [clock seconds]]
    set report_array(task_count) 0
    set report_array(messages) {}
    
@@ -157,9 +157,14 @@ proc report_set_html_parameters {report_array handler filename} {
 #     ???/???
 #*******************************************************************************
 proc report_add_message { a_report message } {
+   global CHECK_USE_HUDSON
    upvar $a_report report_array
    lappend report_array(messages)  $message
-   ts_log_fine $message
+   
+   #Do not report this when doing XMLs for Hudson we get the report at send_report
+   if {$CHECK_USE_HUDSON == 0} {
+      ts_log_fine $message
+   }
 }
 
 #****** report_procedures/report_clear_messages() **************************************************
@@ -249,7 +254,7 @@ proc report_create_task { report name host {link ""} {create_file 0}} {
    set report_array(task_$task_nr,name)   $name
    set report_array(task_$task_nr,host)   $host
    set report_array(task_$task_nr,status) started
-   set report_array(task_$task_nr,date)   [exec date]
+   set report_array(task_$task_nr,date)   [clock format [clock seconds]]
    set report_array(task_$task_nr,test_count) 0
 
    if {$create_file == 0} {
@@ -416,7 +421,7 @@ proc report_finish { report result } {
    upvar $report report_array
    
    set report_array(result) [get_result $result]
-   set report_array(end)    [exec date]
+   set report_array(end)    [clock format [clock seconds]]
  
    foreach handler $report_array(handler) {
       $handler report_array
@@ -438,7 +443,13 @@ proc report_finish { report result } {
 #
 #*******************************************************************************
 proc report_send_mail { report } {
+   global CHECK_USE_HUDSON CHECK_HUDSON_OUTPUT
    upvar $report report_array
+   
+   if {$CHECK_USE_HUDSON == 1} {
+      report_hudson_xml $report
+      return
+   }
    
    set mail_subject "testsuite - $report_array(name) -- "
    set mail_body    "testsuite - $report_array(name)\n"
@@ -477,6 +488,51 @@ proc report_send_mail { report } {
    append mail_body "------------------------------------------\n"
    
    mail_report $mail_subject $mail_body
+}
+
+#****** report_procedures/report_hudson_xml() ***********************************
+#  NAME
+#     report_hudson_xml() -- writes a report email
+#
+#  SYNOPSIS
+#     report_hudson_xml { report }
+#
+#  FUNCTION
+#     writes an report email 
+#
+#  INPUTS
+#     report - the report object 
+#
+#*******************************************************************************
+proc report_hudson_xml { report } {
+   global CHECK_USE_HUDSON CHECK_HUDSON_OUTPUT
+   upvar $report report_array
+   
+   if { $CHECK_USE_HUDSON == 1} {
+      append CHECK_HUDSON_OUTPUT "===== REPORT_START =====\n"
+   }
+   
+   if { [info exists report_array(task_0,name)] } {
+      for { set task_nr 0 } { [info exists report_array(task_$task_nr,name)] } { incr task_nr 1 } {
+         
+         set line [format "  %26s %12s %8s %s" $report_array(task_$task_nr,name) \
+                                               $report_array(task_$task_nr,host) \
+                                               $report_array(task_$task_nr,status) \
+                                               "file://$report_array(task_$task_nr,filename)" ]
+         append CHECK_HUDSON_OUTPUT "$report_array(task_$task_nr,status)\n"
+         append CHECK_HUDSON_OUTPUT "$report_array(task_$task_nr,status): $report_array(name) - $report_array(task_$task_nr,name) @ $report_array(task_$task_nr,host)\n"
+         append CHECK_HUDSON_OUTPUT "$report_array(task_$task_nr,status)\n"
+         set f [open $report_array(task_$task_nr,filename) "r"]
+         append CHECK_HUDSON_OUTPUT "[read $f]\n"
+         close $f
+      }
+   }
+   
+   append CHECK_HUDSON_OUTPUT "Messages:\n"  
+   foreach message $report_array(messages) {
+      append CHECK_HUDSON_OUTPUT "$message\n"
+   }
+   append CHECK_HUDSON_OUTPUT "=====  REPORT_END  =====\n"
 }
 
 #****** report_procedures/report_write_html() **********************************

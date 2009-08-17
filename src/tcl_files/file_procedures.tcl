@@ -2179,7 +2179,7 @@ proc get_file_content {host user file {file_a "file_array"}} {
 #*******************************************************************************
 proc write_remote_file {host user file array_name {permissions ""}} {
    upvar $array_name data
-
+   
    set tmp_file [get_tmp_file_name $host $user]
    save_file $tmp_file data
    wait_for_remote_file $host $user $tmp_file 
@@ -3599,6 +3599,13 @@ proc close_logfile_wait { } {
 #     string, e.g. "/ 40 /"
 #*******************************************************************************
 proc washing_machine {time {small 0}} {
+   global CHECK_USE_HUDSON
+   
+   #No washing machine when running for Hudson
+   if {$CHECK_USE_HUDSON == 1} {
+      return
+   }
+   
    set ani [expr $time % 4]
    switch $ani {
       0 { set output "-" }

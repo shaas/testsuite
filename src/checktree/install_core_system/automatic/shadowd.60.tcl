@@ -130,7 +130,7 @@ proc install_shadowd {} {
             set install_user $CHECK_USER
          }
          
-         set autoinst_config_file "$ts_config(product_root)/autoinst_config_shadowd_${shadow_host}.conf"
+         set autoinst_config_file "$ts_config(product_root)/autoinst_config_$ts_config(cell)_shadowd_${shadow_host}.conf"
          write_autoinst_config $autoinst_config_file $shadow_host 0 1 0 0 1
 
          set inst_sge_param "-sm -auto $autoinst_config_file -noremote"

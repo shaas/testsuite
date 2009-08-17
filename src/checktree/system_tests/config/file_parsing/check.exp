@@ -99,7 +99,12 @@ proc file_parsing_setup {} {
   global file_parsing_job_script
   global file_parsing_option_file
   global file_parsing_job_host
-
+  global CHECK_USE_HUDSON
+  
+  if {$CHECK_USE_HUDSON == 1} {
+     ts_log_config "Test is not supported in this parallel run due to the usage of \$HOME/.sgerequest file"
+     return 99
+  }
  
   set file_parsing_cluster_request_file "$ts_config(product_root)/$ts_config(cell)/common/sge_request"
   set file_parsing_home_request_file    "$env(HOME)/.sge_request"

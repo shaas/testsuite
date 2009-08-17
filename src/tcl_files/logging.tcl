@@ -607,8 +607,9 @@ proc ts_log {level message {raise_error 1} {function ""} {do_output 1} {do_loggi
 #*******************************************************************************
 proc ts_log_progress {{level FINE} {message "."} {isFinal 0}} {
    global ts_log_config be_quiet
+   global CHECK_USE_HUDSON
 
-   if {$be_quiet} {
+   if {$be_quiet || $CHECK_USE_HUDSON == 1} {
       return
    }
 
@@ -974,6 +975,7 @@ proc ts_log_get_level_abbreviation {level raise_error} {
 #*******************************************************************************
 proc ts_private_do_log {level message {raise_error 1} {function ""} {do_output 1} {do_logging 1} {do_mail 1}} {
    global do_wait_on_error
+   global CHECK_USE_HUDSON
    # get level as integer - we might have got the level name
    set level [ts_log_get_level_number $level]
 
@@ -996,6 +998,11 @@ proc ts_private_do_log {level message {raise_error 1} {function ""} {do_output 1
          ts_log_fine "\"wait_on_error\" command line option is enabled!"
          wait_for_enter
       }
+   }
+   
+   if {$CHECK_USE_HUDSON == 1} {
+      ts_private_log_hudson_output $level $message $raise_error $function
+      return
    }
 
    # do logging to file
@@ -1306,6 +1313,32 @@ proc ts_private_log_send_mail {level message raise_error function} {
    set ts_private_do_log_recursive 0
 }
 
+
+#####
+#Hudson output preparation
+#####
+proc ts_private_log_hudson_output {level message raise_error function {display_header 1}} {
+   global CHECK_HUDSON_OUTPUT
+   global CHECK_HUDSON_STACKTRACE
+   global ts_log_config
+   
+   if {$level > $ts_log_config(logging)} {
+      return
+   }
+   
+   if {$display_header != 1} {
+      append CHECK_HUDSON_OUTPUT $message
+   } else {
+      set FORMAT "%19s|%7s|%25s|%s\n"
+      set date_time [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
+      set level_f [ts_log_get_level_name $level]
+      append CHECK_HUDSON_OUTPUT [format $FORMAT $date_time $level_f $function $message]
+  }
+
+   #get_current_cluster_config_array ts_config
+   set CHECK_HUDSON_STACKTRACE [ts_log_get_stacktrace]
+}
+
 #****** logging/ts_log_washing_machine() ***************************************
 #  NAME
 #     ts_log_washing_machine() -- print "washing machine"
@@ -1324,8 +1357,9 @@ proc ts_log_washing_machine {} {
    global ts_log_washing_machine_next_timestamp
    global ts_log_washing_machine_counter
    global ts_log_washing_machine_enabled
+   global CHECK_USE_HUDSON
 
-   if {!$ts_log_washing_machine_enabled} {
+   if {!$ts_log_washing_machine_enabled || $CHECK_USE_HUDSON == 1} {
       return
    }
    set now [clock clicks -milliseconds]

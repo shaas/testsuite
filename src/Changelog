@@ -6,6 +6,20 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-08-17-0: Enhancem.:  New option --hudson_reports <LEVEL> to generate
+                             XML reports for each check_name in junit format
+                 Enhancem.:  Basic support for muptiple --check arguments(only
+                             with -fast_setup) e.g.: -check bugs 0 -check
+                             system_tests 0
+                 Bugfix:     CHECK_OUTPUT_DISPLAY not always used                 
+                 Enhancem.:  Speed up shutdown_core_system and
+                             set_config_and_propagate when errors occur
+                 Enhancem.:  Got rid of timeouts that fail tests during
+                             close_spawn_process. Timeouts are logged as
+                             ts_log_info
+                 Enhancem.:  General fixes for parallel TS execution
+                 Review:     AP
+
 CR-2009-08-14-1: Enhancem.:  New upgrade test (not fully implemented)
                  Review:     LP
 

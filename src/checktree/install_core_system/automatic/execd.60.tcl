@@ -90,7 +90,8 @@ proc install_execd {} {
  
    read_install_list
 
-   set INST_VERSION [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" ]
+   #string trimrigth $params in start_remote_prog removed the \" -> ", so we need \\\"
+   set INST_VERSION [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\\\" -f2" ]
 
    ts_log_fine "inst_sge version: $INST_VERSION"
 
@@ -174,7 +175,7 @@ proc install_execd {} {
    }
 
    foreach exec_host $ts_config(execd_nodes) {
-      set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
+      set autoconfig_file $ts_config(product_root)/autoinst_config_$ts_config(cell)_$exec_host.conf
       set autoconfig_files($exec_host) $autoconfig_file
    }
 

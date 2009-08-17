@@ -674,7 +674,7 @@ proc setup_execd_conf {} {
                ts_log_fine "host $host has xterm setting to \"$tmp_config($elem)\""
                if {![is_remote_file $host $CHECK_USER $tmp_config($elem)]} {
                   set config_xterm_path [get_binary_path $host "xterm"]
-                  ts_log_config "host \"$host\" xterm path \"$tmp_config($elem)\" not found!\nsetting xterm to \"$config_xterm_path\""
+                  ts_log_info "host \"$host\" xterm path \"$tmp_config($elem)\" not found!\nsetting xterm to \"$config_xterm_path\""
                   set tmp_config($elem) $config_xterm_path
                }
                # TODO (CR): Activate this code when "xterm" is configured in TS host configuration
@@ -1204,9 +1204,12 @@ proc setup_and_check_users {} {
    global ts_user_config CHECK_USER ts_config
    # setup users to test
    set users "$CHECK_USER $ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user)"
-   # select host != qmaster
-   set host [host_conf_get_suited_hosts 1 {} {} {} 1]
-   
+   # select host != qmaster if more than 1 host
+   if {[llength [host_conf_get_all_nodes $ts_config(all_nodes)]] == 1} {
+      set host $ts_config(master_host)
+   } else {
+      set host [host_conf_get_suited_hosts 1 {} {} {} 1]
+   }
    set error_text ""
    foreach user $users {
       ts_log_fine "check qstat -f as user $user on host $host ..."

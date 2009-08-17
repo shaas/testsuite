@@ -45,7 +45,7 @@ proc get_all_smf_hosts {} {
    set smf_hosts ""
    set hosts [get_all_hosts]
    foreach host $hosts {
-      start_remote_prog $host $CHECK_USER [get_binary_path $host "sh"] "-c [get_sge_smf_cmd] supported" prg_exit_state
+      start_remote_prog $host $CHECK_USER [get_binary_path $host "sh"] "-c '[get_sge_smf_cmd] supported'" prg_exit_state
       if { $prg_exit_state == 0 } {
          lappend smf_hosts $host
       }

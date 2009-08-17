@@ -3516,7 +3516,7 @@ proc create_reports { results_array job_array_name schedd_array_name monitoring_
    set test_config(FLUSH_FINISH_SEC)        $FLUSH_FINISH_SEC         ;# -1 or 0,1,2,3 ...
    set test_config(SCHEDULE_INTERVAL)       $run_throughput_test_SCHEDULE_INTERVAL        ;# 00:00:30 ...
    set test_config(gridengine_version)      [get_version_info]
-   set test_config(test_date)               [exec date]
+   set test_config(test_date)               [clock format [clock seconds]]
    
    spool_array_add_data $prot_output_file "test configuration" test_config
 

@@ -104,8 +104,8 @@ proc issue_2459_setup {} {
 proc issue_2459_cleanup {} {
    global ts_config
 
-   set inst_config_file "$ts_config(product_root)/autoinst_config.conf"
-   set backup_config_file "$ts_config(product_root)/autobackup_config.conf"
+   set inst_config_file "$ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
+   set backup_config_file "$ts_config(product_root)/autobackup_config_$ts_config(cell).conf"
    file delete $inst_config_file
    file delete $backup_config_file
 }
@@ -121,9 +121,9 @@ proc issue_2459_parse_autoinstall {} {
    set exit_val 0
 
    if {$ts_config(gridengine_version) >= 62 && $check_jmx_port > 0} {
-      set inst_sge_options "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config.conf"
+      set inst_sge_options "-m -x -jmx -csp -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
    } else {
-      set inst_sge_options "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
+      set inst_sge_options "-m -x -csp -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
    }
 
    ts_log_fine "inst_sge $inst_sge_options"
@@ -265,8 +265,8 @@ proc issue_2459_parse_autobackup {} {
    set my_timeout 500
    set exit_val 0
 
-   ts_log_fine "inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf"
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   ts_log_fine "inst_sge -bup -auto $ts_config(product_root)/autobackup_config_$ts_config(cell).conf"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config_$ts_config(cell).conf" exit_val $my_timeout 0 $ts_config(product_root)]
 
    set lines [split $output "\n"]
    foreach line $lines {
@@ -404,8 +404,8 @@ proc create_auto_config {} {
    global CHECK_PROTOCOL_DIR
    global ts_config
 
-   set inst_config_file "$ts_config(product_root)/autoinst_config.conf"
-   set backup_config_file "$ts_config(product_root)/autobackup_config.conf"
+   set inst_config_file "$ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
+   set backup_config_file "$ts_config(product_root)/autobackup_config_$ts_config(cell).conf"
 
    if {[file isfile $inst_config_file] == 1} {
       file delete -force $inst_config_file

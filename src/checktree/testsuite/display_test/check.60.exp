@@ -90,9 +90,7 @@ proc display_test_test {} {
    set display_opt ""
    foreach user $users {
       ts_log_fine "user: $user"
-      if {$user != $CHECK_USER} {
-         set display_opt "-display $CHECK_DISPLAY_OUTPUT"
-      }
+      set display_opt "-display $CHECK_DISPLAY_OUTPUT"
 
       foreach host $hosts {
          ts_log_progress FINE "\r   open xterm on host $host: \r"
@@ -109,8 +107,7 @@ proc display_test_test {} {
             set disp_result($user,$host) 1
             ts_log_fine "ok"
             # just for fun !!!
-            start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 3" prg_exit_state 60 1
-
+            #start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 3" prg_exit_state 25 1
          } 
       }
    }

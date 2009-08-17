@@ -253,7 +253,7 @@ proc cl_throughput_parse_result {nr_hosts dresult darray} {
 # data(gridengine_version)  Grid engine Version   
 
    set data(lines) $ai
-   set data(date) [exec date]
+   set data(date) [clock format [clock seconds]]
    set data(gridengine_version) $cl_throughput_ge_version
 
    set i $ai

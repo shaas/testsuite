@@ -118,12 +118,12 @@ proc install_qmaster {} {
    set my_timeout 500
    set exit_val 0
 
-   ts_log_fine "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
+   ts_log_fine "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
    if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
-      set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
+      set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    } else {
       ts_log_finer "--> install as user $CHECK_USER <--" 
-      set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
+      set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    }
 
    ts_log_fine "installation output:\n$output"
@@ -375,7 +375,7 @@ proc create_autoinst_config {} {
    }
 
    ts_log_finer "creating automatic install config file ..."
-   set config_file "$ts_config(product_root)/autoinst_config.conf"
+   set config_file "$ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
    write_autoinst_config $config_file $ts_config(master_host) 1 1 0 $set_file_perm
    ts_log_finer "automatic install config file successfully created ..."
 }
