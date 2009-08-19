@@ -66,11 +66,10 @@ set check_description(0)  "This test installs sge using the automatic installati
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-
+set check_setup_function issue_1330_setup
 
 # define test's procedure order
-set check_functions "issue_1330_check_install_mode"
-lappend check_functions "kill_running_system"
+set check_functions "kill_running_system"
 lappend check_functions "create_autoinst_config"
 lappend check_functions "install_bdb_rpc"
 lappend check_functions "install_qmaster"
@@ -117,7 +116,7 @@ proc Autoinstall_test_init_level {} {
 
 
 # -------- local test procedures: initialization------------------------------
-proc issue_1330_check_install_mode {} {
+proc issue_1330_setup {} {
    global CHECK_TESTSUITE_INSTALL_MODE
 
    if {$CHECK_TESTSUITE_INSTALL_MODE != "manual"} {
@@ -127,6 +126,7 @@ proc issue_1330_check_install_mode {} {
       append error_text "ATTENTION: The test is marked to fail. This test will only start\n"
       append error_text "when the install_mode is set to \"manual\" to be sure that the system\n"
       append error_text "was at least once installed in manual mode.\n"
-      ts_log_warning $error_text
+      ts_log_config $error_text
+      return 99
    }
 }

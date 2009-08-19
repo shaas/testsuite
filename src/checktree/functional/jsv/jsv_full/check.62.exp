@@ -91,9 +91,13 @@ proc jsv_full_setup {} {
    global jsv_enabled
    global jsv_job_id
    global jsv_hjob_id
+   global CHECK_USE_HUDSON
 
    if {$ts_config(gridengine_version) < 62} {
       ts_log_config "test not working for GE < 62"
+      return 99
+   } elseif {$CHECK_USE_HUDSON == 1} {
+      ts_log_config "Can't run in parallel due to the usage of \$HOME/.sgerequest file. Skipped."
       return 99
    }
 

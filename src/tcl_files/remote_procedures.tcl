@@ -1469,7 +1469,9 @@ proc open_remote_spawn_process { hostname
          }
          foreach alternative $con_data(alternate_sessions) {
             if {[is_spawn_process_in_use $alternative] == 0} {
-               fill_session_info_array $alternative con_data
+               if {[fill_session_info_array $alternative con_data] != 0} {
+                  continue
+               }
                if {$CHECK_DEBUG_LEVEL != 0} {
                   ts_log_finer "found alternate session!" 
                }
@@ -2793,7 +2795,11 @@ proc fill_session_info_array { spawn_id array_name } {
       unset back
    }
    set back(spawn_id)           $spawn_id
-   set back(pid)                $rlogin_spawn_session_buffer($spawn_id,pid)
+   if {[info exists rlogin_spawn_session_buffer($spawn_id,pid)]} {
+      set back(pid)                $rlogin_spawn_session_buffer($spawn_id,pid)
+   } else {
+      return -1
+   }
    set back(hostname)           $rlogin_spawn_session_buffer($spawn_id,hostname)
    set back(user)               $rlogin_spawn_session_buffer($spawn_id,user)
    set back(real_user)          $rlogin_spawn_session_buffer($spawn_id,real_user)
@@ -2822,6 +2828,7 @@ proc fill_session_info_array { spawn_id array_name } {
 #   ts_log_finest "alternate_sessions: $back(alternate_sessions)"
 #   ts_log_finest "is_alternate_of:    $back(is_alternate_of)"
 #   ts_log_finest "id_check_needed:    $back(id_check_needed)"
+   return 0
 }
 
 #****** remote_procedures/get_spawn_id_hostname() ******************************

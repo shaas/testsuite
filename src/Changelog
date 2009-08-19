@@ -6,6 +6,18 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-08-19-0: Enhancem.:  Speeded up throughput test on failure
+                 Bugfix:     Fixed broken 'fast_setup check install_core_system'
+                             combination
+                 Belongs to: LP-2009-08-17-0
+                 Enhancem.:  Issue 1330 test now uses setup function with 99
+                             return code
+                 Enhancem.:  Part of JSV tests now returns 99 when hudson is
+                             used (can't run in parallel)
+                 Enhancem.:  Improved issue 540 test so that it can be run in
+                             parallel
+                 Review:     JF
+
 LP-2009-08-17-0: Enhancem.:  New option --hudson_reports <LEVEL> to generate
                              XML reports for each check_name in junit format
                  Enhancem.:  Basic support for muptiple --check arguments(only

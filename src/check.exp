@@ -2826,7 +2826,9 @@ proc build_checktree {} {
       set error ""
       append error [read_checktree_nodes $ts_config(checktree_root_dir)/install_core_system]
       foreach elem [split $custom_checktree] {
-         append error [read_checktree_nodes $ts_config(checktree_root_dir)/$elem]
+         if {[string compare $elem "install_core_system"] != 0} {
+            append error [read_checktree_nodes $ts_config(checktree_root_dir)/$elem]
+         }
       }
    } else {
       set error [read_checktree_nodes $ts_config(checktree_root_dir)]

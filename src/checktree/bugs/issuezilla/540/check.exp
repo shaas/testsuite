@@ -87,7 +87,7 @@ proc issue_540_check {} {
    set job_name "Sleeper"
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set job_sleep_time "2"
-   set job_output_file "out:put.txt"
+   set job_output_file "out:put_$ts_config(cell).txt"
    set user_home $env(HOME)
    ts_log_fine "user_home:$user_home"
 
@@ -99,14 +99,14 @@ proc issue_540_check {} {
    set qsub_arguments "-l h=$host -o :$job_output_file,:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    if {$job_id > 0} {
-      ts_log_severe "qsub accepted the invalid option -o :out:put.txt,:out:put1.txt"
+      ts_log_severe "qsub accepted the invalid option -o :out:put_$ts_config(cell).txt,:out:put1_$ts_config(cell).txt"
    }
 
    #second test should fail - We submit a logfile for a not existing host
    set qsub_arguments "-l h=$host -o qwdfvb:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    if {$job_id > 0} {
-      ts_log_severe "qsub accepted an invalid host in the -o qwdfvb:out:put.txt option"   
+      ts_log_severe "qsub accepted an invalid host in the -o qwdfvb:out:put_$ts_config(cell).txt option"   
    }
 
    #third test should pass - We submit a logfile with a ":" inside. This shoud be accepted

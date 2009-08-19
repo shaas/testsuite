@@ -1205,7 +1205,7 @@ proc run_throughput_test {} {
          set error 1
       }
       -i "$event_and_msg_id_list $spawn_list" "_exit_status_" {
-         ts_log_severe "unexpected _exit_status_"
+         ts_log_severe "unexpected _exit_status_\nBUFFER was:\n$expect_out(0,string)\n"
          set error 1
       }
       -i "$event_and_msg_id_list $spawn_list" "*\n" {
@@ -1469,6 +1469,12 @@ proc run_throughput_test {} {
    # cleanup jobs
    delete_all_jobs
    wait_for_jobend $last_job_id leeper 60 0 1
+   
+   #If error we can stop, otherwise we wait until timeout is reached for each 
+   #qacct call below
+   if {$error} {
+      return
+   }
 
    # output submission distribution
    ts_log_fine ""
