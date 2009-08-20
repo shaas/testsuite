@@ -364,8 +364,11 @@ set CHECK_HUDSON_OUTPUT ""
 global CHECK_HUDSON_STACKTRACE ;# Used to hold most recent stacktrace when failure occurred
 set CHECK_HUDSON_STACKTRACE ""
 
-global custom_checktree ;# For a custom checktree building
+global custom_checktree ;# For a custom checktree building, list of checks for which to build checktree
 set custom_checktree ""
+
+global check_id         ;# So that Hudson can know what id current check has and so that we know in what order the checks were executed
+set check_id -1
 
 # to redefine in checks:
 global check_name                  ;# name of actual check module
@@ -2804,7 +2807,7 @@ proc build_checktree {} {
    global ts_checktree
    global ACT_CHECKTREE CHECK_CUR_CONFIG_FILE
    global ts_config
-   global fast_setup custom_checktree
+   global fast_setup custom_checktree CHECK_USE_HUDSON
 
    if { [info exists ts_checktree] } {
       unset ts_checktree
@@ -2822,7 +2825,7 @@ proc build_checktree {} {
    ts_log_fine "reading checktree nodes ..."
    
    #Optimalization: With the fast_setup and check <check> set, we just read what we really need
-   if {$fast_setup == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
       set error ""
       append error [read_checktree_nodes $ts_config(checktree_root_dir)/install_core_system]
       foreach elem [split $custom_checktree] {
@@ -3975,7 +3978,7 @@ proc run_tests {path runcompleted} {
    global CHECK_TESTS_RUNNING
    global CHECK_INTERRUPT
    global CHECK_ENABLED_CATEGORIES
-   global fast_setup custom_checktree
+   global fast_setup custom_checktree CHECK_USE_HUDSON check_id
 
    set CHECK_TESTS_RUNNING 1
 
@@ -3984,7 +3987,7 @@ proc run_tests {path runcompleted} {
    set local_host [gethostname]
    set CHECK_MAILS_SENT 0  ;# clear mail counter
 
-   if {$fast_setup == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
       set CHECK_ACT_PATH $ts_config(checktree_root_dir)
       set check_directories {}
       set pos_ics [lsearch -exact $custom_checktree "install_core_system"]
@@ -4020,7 +4023,7 @@ proc run_tests {path runcompleted} {
       }
    }
    set checks_to_do [lsort -dictionary $checks_to_do]
-   if {$fast_setup == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
       ts_log_info "CHECKS1: $checks_to_do \n[llength $checks_to_do]"
       #Put the init_core_system as first
       #TODO: not matching
@@ -4070,8 +4073,10 @@ proc run_tests {path runcompleted} {
       set todo [llength $checks_to_do]
       ts_log_info ">>> PASS $pass_no, $todo tests still to do" 0 "" 1 1 0
 
+      set check_id 0
       # run all checks
       foreach check $checks_to_do {
+         incr check_id
          # running all tests can be interrupted by pressing CTRL-C
          if {$CHECK_INTERRUPT > 0} {
             set stop 1
@@ -4154,6 +4159,7 @@ proc run_tests {path runcompleted} {
                   set check_use_installed_system 1
                   set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"
                   ts_log_fine "starting install_core_system with check_use_installed_system=$check_use_installed_system ..."
+                  incr check_id ;# reinit will be displayed number separate check_id - we will see real oder of execution
                   set init_ret [run_test $CHECK_ACT_PATH 1]
                   if {$init_ret != 0 && $init_ret != -3} {
                      ts_log_info "installing with re_use system failed, starting fresh installation ..."
@@ -4530,8 +4536,10 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
    set do_run_hook 0
    
    #prepare a path name for hudson XML reports
-   set pkg [join [split $path "/"] "."]
-   set pkg [string range $pkg [string first "checktree." $pkg] end]
+   if {$CHECK_USE_HUDSON == 1} {
+      set pkg [join [split $path "/"] "."]
+      set pkg [string range $pkg [string first "checktree." $pkg] end]
+   }
 
    if {[string compare $check_name "init_core_system"] != 0 &&
        [string compare $check_needs "" ]               != 0 && 
@@ -4598,7 +4606,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
       if {$CHECK_USE_HUDSON == 1} {
          #We need the skipped reports (can't use falure type or reason otherwise the test is still interpreted as failed)
          foreach elem $check_functions {
-            generate_xml_junit_report $pkg.$check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem 0 "SKIPPED\ncheck \"$check_name\" cannot start in runlevel $level ([get_run_level_name $level]):\n$runlevel_error_text" "" "" 1
+            generate_xml_junit_report $pkg $check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem 0 "SKIPPED\ncheck \"$check_name\" cannot start in runlevel $level ([get_run_level_name $level]):\n$runlevel_error_text" "" "" 1
          }
          #TODO LP: Do we want to have a reason in the global report x correct failed test count
       }
@@ -4664,9 +4672,9 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
                #Report the result
                #TCL Config mean we create a special (with output) skipped test report
                if {[string compare $hudson_failure_type "TCL.CONFIG"] == 0} {
-                  generate_xml_junit_report $pkg.$check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem [expr $check_duration / 1000.0] "$hudson_failure_reason\n$CHECK_HUDSON_OUTPUT" "" "" 1
+                  generate_xml_junit_report $pkg $check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem [expr $check_duration / 1000.0] "$hudson_failure_reason\n$CHECK_HUDSON_OUTPUT" "" "" 1
                } else {
-                  generate_xml_junit_report $pkg.$check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem [expr $check_duration / 1000.0] $CHECK_HUDSON_OUTPUT $hudson_failure_reason $hudson_failure_type
+                  generate_xml_junit_report $pkg $check_name [format %3.3u [expr [lsearch -exact $check_functions $elem] + 1]]_$elem [expr $check_duration / 1000.0] $CHECK_HUDSON_OUTPUT $hudson_failure_reason $hudson_failure_type
                }
                #Set the global output back
                set CHECK_HUDSON_OUTPUT $hudson_global_output
@@ -4682,7 +4690,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
                   for { set i [lsearch -exact $check_functions $elem]} { $i < [expr [llength $check_functions] - 1] } { incr i 1 } {
                      set val [lindex $check_functions [expr $i + 1]]
                      ts_log_info "Generating skipped test: i=$i val=$val"
-                     generate_skipped_xml_junit_report $pkg.$check_name [format %3.3u [expr $i + 2]]_$val
+                     generate_skipped_xml_junit_report $pkg $check_name [format %3.3u [expr $i + 2]]_$val
                   }
                }
                break;
@@ -4745,7 +4753,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
    if {$CHECK_USE_HUDSON == 1 } {
       #Never report global as failure, so that we have a correct count for failed tests
-      generate_xml_junit_report $pkg.$check_name "000_GLOBAL" $duration $CHECK_HUDSON_OUTPUT "" ""
+      generate_xml_junit_report $pkg $check_name "000_GLOBAL" $duration $CHECK_HUDSON_OUTPUT "" ""
    }
    
    if {$do_save} {
@@ -5226,10 +5234,10 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
             set pkg [string range $pkg [string first "checktree." $pkg] end]
             set i 1
             foreach elem $check_functions {
-               generate_xml_junit_report $pkg.$check_name [format %3.3u $i]_$elem 0 "TCL WARNING\nDependencies ($check_needs) not fullfilled!\nTest skipped." "" "" 1
+               generate_xml_junit_report $pkg $check_name [format %3.3u $i]_$elem 0 "TCL WARNING\nDependencies ($check_needs) not fullfilled!\nTest skipped." "" "" 1
             }
             #Also the global skipped report
-            generate_xml_junit_report $pkg.$check_name "000_GLOBAL" 0 "TCL WARNING\nDependencies ($check_needs) not fullfilled!\nTest skipped." "Dependencies ($check_needs) not fullfilled!" "TCL.WARNING" 1
+            generate_xml_junit_report $pkg $check_name "000_GLOBAL" 0 "TCL WARNING\nDependencies ($check_needs) not fullfilled!\nTest skipped." "Dependencies ($check_needs) not fullfilled!" "TCL.WARNING" 1
          }
       }
       set CHECK_TEST_RUNNING 0

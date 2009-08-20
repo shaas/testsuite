@@ -2992,6 +2992,7 @@ proc config_submit_only_hosts { only_check name config_array } {
 #*******************************************************************************
 proc config_commd_port { only_check name config_array } {
    global CHECK_COMMD_PORT
+   global CHECK_USE_HUDSON
 
    upvar $config_array config
    
@@ -3004,7 +3005,11 @@ proc config_commd_port { only_check name config_array } {
       "COMMD_PORT + 1 is used for SGE_EXECD_PORT)"
    }   
 
-   array set params { port_type even }
+   if {$CHECK_USE_HUDSON == 1} {
+      array set params { port_type all }
+   } else {
+      array set params { port_type even }
+   }
    if { [info exists config(jmx_port)] } { 
       set params(exclude_list) $config(jmx_port)
    }

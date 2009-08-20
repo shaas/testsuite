@@ -155,6 +155,7 @@ proc install_qmaster {{report_var report}} {
    set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
    set SERVICE_TAGS_SUPPORT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SERVICE_TAGS_SUPPORT] ]
    set ENTER_SPOOL_DIR   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
+   set ENTER_QMASTER_SPOOL_DIR      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_QMASTER_SPOOL_DIR] "*"]
    set USING_GID_RANGE_HIT_RETURN   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_USING_GID_RANGE_HIT_RETURN] "*"]
    set CREATING_ALL_QUEUE_HOSTGROUP [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ALL_QUEUE_HOSTGROUP] ]
    set EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER]]
@@ -646,6 +647,19 @@ proc install_qmaster {{report_var report}} {
 
          -i $sp_id $PKGADD_QUESTION_SINCE_U3 {
             install_send_answer $sp_id $ANSWER_NO "6"
+            continue
+         }
+
+         -i $sp_id $ENTER_QMASTER_SPOOL_DIR {
+            set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
+            if {$spooldir != ""} {
+               # use local spool dir
+               install_send_answer $sp_id $spooldir
+               set local_master_spool_set 1
+            } else {
+               # use default spool dir
+               install_send_answer $sp_id ""
+            }
             continue
          }
 

@@ -80,13 +80,14 @@ proc failure2ascii { unicode_text } {
 }
 
 
-proc generate_xml_junit_report_private { file_name package_name test_name duration output failure failure_type {skipped 0} } {
+proc generate_xml_junit_report_private { file_name package_name class_name test_name duration output failure failure_type {skipped 0} } {
    global CHECK_ACT_LEVEL ts_config
+   global check_id
    
    #Generate the report
    set report "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
    append report "<testsuite>\n"
-   append report "<testcase classname=\"RUNLEVEL($CHECK_ACT_LEVEL)_${package_name}\" name=\"$test_name\" time=\"$duration\">\n"
+   append report "<testcase classname=\"ID_[format %3.3u $check_id]_RUNLEVEL($CHECK_ACT_LEVEL)_${package_name}.${class_name}\" name=\"$test_name\" time=\"$duration\">\n"
    if {[string length $failure] > 0} {
       append report "<failure type=\"$failure_type\">[failure2ascii $failure]</failure>\n"
    }
@@ -116,34 +117,35 @@ proc generate_xml_junit_report_private { file_name package_name test_name durati
 }
 
 
-proc generate_xml_junit_report { package_name test_name duration output failure failure_type {skipped 0} } {
+proc generate_xml_junit_report { package_name class_name test_name duration output failure failure_type {skipped 0} } {
    global CHECK_ACT_LEVEL ts_config
    global ts_log_config
+   global check_id
    global env
    
    #Check what logging level you are running, more than 3 (INFO) we generate reports per level as well
    set log_level $ts_log_config(logging)
    
    #Setup the target XML report file name
-   set res_file_prefix $ts_config(results_dir)/TEST-$package_name.${test_name}_Level-$CHECK_ACT_LEVEL
+   set res_file_prefix $ts_config(results_dir)/TEST-[format %3.3u $check_id]-Level-$CHECK_ACT_LEVEL-$package_name.${class_name}.${test_name}
 
    #Set the retry index
    set retry_index 0
    if {[info exists env(TS_RUN_REPEAT_INDEX)]} {
       set retry_index $env(TS_RUN_REPEAT_INDEX)
-      ts_log_info "FINISHED $package_name.${test_name} TS_RUN_REPEAT_INDEX=$retry_index"
-   }
-
-   #Setup which lines of what level to remove
-   set to_remove {}                       ;#{FINE| FINER| FINEST|}
-   for {set i 4} {$i <= $log_level} {incr i} {
-      lappend to_remove "[ts_log_get_level_name $i]|"
+      ts_log_info "FINISHED [format %3.3u $check_id]_$package_name.${class_name}.${test_name} TS_RUN_REPEAT_INDEX=$retry_index"
    }
    
    set original_test_name $test_name
    
    #Generating per level skipped reports is useless , but it will keep the total number of tests constant
-   #if {$skipped == 0} {
+   #!!!Intentionally disabled!!!
+   if {1 == 0} {
+      #Setup which lines of what level to remove
+      set to_remove {}                       ;#{FINE| FINER| FINEST|}
+      for {set i 4} {$i <= $log_level} {incr i} {
+         lappend to_remove "[ts_log_get_level_name $i]|"
+      }
       #Generate reports per INFO to CURRENT_LOG_LEVEL-1 levels for convinience
       for {set lev 3} {$lev < $log_level} {incr lev} {
          set test_name ${original_test_name}
@@ -168,10 +170,10 @@ proc generate_xml_junit_report { package_name test_name duration output failure 
             }
          }
          #The "helper" reports will always succeed, so that the number of fialed tests is the exact number of failures
-         generate_xml_junit_report_private ${res_file_prefix}_${lev_str}_${retry_index}.xml $package_name $test_name 0 $level_output $failure $failure_type $skipped
+         generate_xml_junit_report_private ${res_file_prefix}_${lev_str}_${retry_index}.xml $package_name $class_name $test_name 0 $level_output $failure $failure_type $skipped
          set to_remove [lrange $to_remove 1 end]
       }
-   #}
+   }
    #Finally the original report (CURRENT_LOG_LEVEL)
    set res_file ${res_file_prefix}_[ts_log_get_level_name $log_level]
    set test_name ${original_test_name}
@@ -180,9 +182,9 @@ proc generate_xml_junit_report { package_name test_name duration output failure 
       #TODO LP: Comment out once we don't need all runs (keep just the last one)
       set res_file ${res_file}_${retry_index}
    }
-   generate_xml_junit_report_private ${res_file}.xml $package_name ${test_name}_[ts_log_get_level_name $log_level] $duration $output $failure $failure_type $skipped
+   generate_xml_junit_report_private ${res_file}.xml $package_name $class_name ${test_name}_[ts_log_get_level_name $log_level] $duration $output $failure $failure_type $skipped
 }
 
-proc generate_skipped_xml_junit_report { package_name test_name } {
-   generate_xml_junit_report $package_name $test_name 0 "" "" "" 1
+proc generate_skipped_xml_junit_report { package_name class_name test_name } {
+   generate_xml_junit_report $package_name $class_name $test_name 0 "" "" "" 1
 }
