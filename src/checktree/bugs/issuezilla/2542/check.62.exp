@@ -1,0 +1,146 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name
+global check_category
+global check_description
+global check_needs
+global check_functions
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "no"
+set check_need_running_system "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2542_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2542"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check limitation concurrent array job task execution"
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system"
+
+# setup and cleanup functions
+set check_setup_function issue_2542_setup
+set check_cleanup_function issue_2542_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2542_check_funcionality"
+lappend check_functions "issue_2542_check_bad_tc_number"
+lappend check_functions "issue_2542_check_tc_with_non_array_job"
+
+proc issue_2542_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2542_setup {} {
+}
+
+proc issue_2542_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+
+proc issue_2542_check_funcionality {} {
+   global CHECK_USER ts_config
+   set tc 2
+   set tasks_count 4
+
+   ts_log_fine "checking limitation concurrent array job task execution. Submitting array job with ${tasks_count} tasks restricted to ${tc} tasks."
+
+   set job_id [submit_job "-t 1-${tasks_count} -tc ${tc} ${ts_config(product_root)}/examples/jobs/sleeper.sh 25" 1 60]
+   wait_for_jobstart ${job_id} "Sleeper" 60 1 1
+
+   set result [start_sge_bin "qstat" "-f"]
+   ts_log_fine "qstat -f output:\n${result}"
+   set lines [split ${result} "\n"]
+   set running_tasks_count 0
+   set pattern "^\[ \]*${job_id}.+Sleeper\[ \]+${CHECK_USER}\[ \]+\[rt\]"
+
+   foreach line $lines {
+      if {[regexp ${pattern} ${line} match] == 1} {
+         incr running_tasks_count
+      }
+   }
+   if {${running_tasks_count} != ${tc}} {
+     ts_log_severe "tc option should limit number of running tasks to ${tc} but $running_tasks_count were running"
+   } else {
+     ts_log_fine "${running_tasks_count} tasks are running."
+   }
+
+   return
+}
+
+proc issue_2542_check_bad_tc_number {} {
+   global ts_config
+
+   set job_id [submit_job "-t 1-4 -tc -1 $ts_config(product_root)/examples/jobs/sleeper.sh 5" 0 60]
+   ts_log_fine "my_job (issue_2542_check_bad_tc_number): ${job_id}"
+   if {${job_id} > -1} {
+       ts_log_severe "submit job should have failed"
+   }
+
+   return
+}
+
+proc issue_2542_check_tc_with_non_array_job {} {
+   global ts_config
+
+   set job_id [submit_job "-tc 2 $ts_config(product_root)/examples/jobs/sleeper.sh 5" 0 60]
+   ts_log_fine "my_job (issue_2542_check_bad_tc_number): ${job_id}"
+   if {${job_id} > -1} {
+       ts_log_severe "submit job should have failed"
+   }
+
+   return
+}
