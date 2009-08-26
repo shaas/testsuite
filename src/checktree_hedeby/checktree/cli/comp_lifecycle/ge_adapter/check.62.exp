@@ -169,7 +169,7 @@ proc ge_adapter_restart_test_check {} {
 
          set hist(0,type)    "SERVICE_GOING_DOWN"
          set hist(0,service) $service_names(service,$host)
-         set hist(1,type)    "SERVICE_UKNOWN"
+         set hist(1,type)    "SERVICE_UNKNOWN"
          set hist(1,service) $service_names(service,$host) 
          set hist(2,type)    "SERVICE_STARTING"
          set hist(2,service) $service_names(service,$host) 

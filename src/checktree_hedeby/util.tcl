@@ -2785,7 +2785,7 @@ proc move_resources_to_default_services {} {
    sdmadm_command $exec_host $admin_user $sdmadm_command prg_exit_state "" 1 table
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
       set service $table(service,$line)
-      set resource $table(resource id,$line)
+      set resource $table(resource_id,$line)
       set sdmadm_command "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
       sdmadm_command $exec_host $admin_user $sdmadm_command
       if {$prg_exit_state != 0} {
@@ -3862,14 +3862,15 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
 #  RESULT
 #    0  -- Success, the history is store in the hi array in the following form:
 #           hi(lines)   - contains the number of lines
-#           hi(<line index>,time)     -  timestamp of the row as string
-#           hi(<line index>,millis)   -  timestamp of the rows in millis
-#                                        if the content of the time column can
-#                                        not be parsed the value is set to -1
-#           hi(<line index>,type)     -  type if the notification
-#           hi(<line index>,service)  -  name of the service
-#           hi(<line index>,resource) -  the resource
-#           hi(<line index>,desc)     -  description (annotation)
+#           hi(<line index>,time)        -  timestamp of the row as string
+#           hi(<line index>,millis)      -  timestamp of the rows in millis
+#                                           if the content of the time column can
+#                                           not be parsed the value is set to -1
+#           hi(<line index>,type)        -  type if the notification
+#           hi(<line index>,service)     -  name of the service
+#           hi(<line index>,resource)    -  the resource name
+#           hi(<line index>,resource_id) -  the id of the resource
+#           hi(<line index>,desc)        -  description (annotation)
 #    else -- error
 #  EXAMPLE
 #
@@ -3923,7 +3924,7 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
    foreach col $exp_columns {
       set pos [lsearch -exact $table(table_columns) $col]
       if {$pos < 0} {
-         ts_log_severe "cannot find expected column name \"$col\"" $raise_error
+         ts_log_severe "sdmadm shist: cannot find expected column name \"$col\"" $raise_error
          return 1
       }
       ts_log_finer "found expected col \"$col\" on position $pos"
@@ -3973,7 +3974,18 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       set hist_info($line,millis)   $millis
       set hist_info($line,type)     [lindex $table($type_col,$line) 0]
       set hist_info($line,service)  [lindex $table($service_col,$line) 0]
-      set hist_info($line,resource) [lindex $table($res_col,$line) 0]
+
+      # Since version 1.0u5 the resource name is printed in the format
+      # <res_name>(<res_id>). If the following regexp does not match
+      # we have an older SDM system
+      if {[regexp "(\[^\\(\]+)\\((res#\[^\\)]*)\\)" $table($res_col,$line) match_str res_name res_id]} {
+         set hist_info($line,resource) $res_name
+         set host_info($line,resource_id) $res_id
+      } else {
+         # old system => resource id = resource name
+         set hist_info($line,resource) $table($res_col,$line)
+         set host_info($line,resource_id) $table($res_col,$line) 
+      }
       set hist_info($line,desc)     [lindex $table($desc_col,$line) 0]
    }
    return 0
@@ -4193,11 +4205,11 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          ts_log_finer "Adding resource '$resource' to filter"
          
          # TODO the following code can be removed once the hostname
-         # resolving problem in the fitler is solved (issue ???)
+         # resolving problem in the filter is solved (issue ???)
          # quote all '.' in the hostname
          set reg_exp [string map { . \\. } $resource]
          append reg_exp ".*"
-         append filter_args "resource matches \"$reg_exp\""
+         append filter_args "resource_name matches \"$reg_exp\""
       }
       append filter_args ")"
    }
