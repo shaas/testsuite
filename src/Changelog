@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-08-27-0: Bugfix:     Usage test aborts with tcl-error
+                 Belongs to: CR-2009-08-10-0
+                 Review:     DG
+
 RH-2009-08-26-0: Enhancem.:  Hedeby: Adjustments for check in of the bound
                                      resource reporter changes
                  Review:     TB
