@@ -6108,6 +6108,9 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
 #     sge_procedures/wait_for_end_of_transfer()
 #     sge_procedures/wait_for_jobpending()
 #     sge_procedures/wait_for_jobend()
+#  NOTES
+#     TODO: add an option to wait for all array tasks of a job
+#           to be running
 #*******************************
 proc wait_for_jobstart {jobid jobname seconds {do_errorcheck 1} {do_tsm 0}} {
    get_current_cluster_config_array ts_config

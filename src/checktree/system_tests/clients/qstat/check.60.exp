@@ -3760,8 +3760,10 @@ proc test_issue123 {} {
    
    wait_for_jobstart $job_id "Sleeper" 60 1 1
    
-   set result1 [qstat_gdr_xml_parse xml] 
+   # let's wait a moment for all array tasks being running
+   after 2000
    
+   set result1 [qstat_gdr_xml_parse xml] 
    set result1 [plain_gdr_parse plain]
    
    set var_array {jobNumber prio name owner state queue slots tasks fullName}
