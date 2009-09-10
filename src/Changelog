@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-09-10-1: Bugfix:     Invalid array reference
+                 Belongs to: LP-2009-09-10-0
+                 Review:     TBD
+
 LP-2009-09-10-0: Bugfix:     Hedeby TS cannot run with SDM 1.0u3
                  Enhancem.:  Minor updated for the hudson_reports
                  Enhancem.:  Added 99 state for some tests
