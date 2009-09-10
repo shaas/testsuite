@@ -519,6 +519,8 @@ proc tight_integration_iz_1916 {} {
    tight_integration_init_messages_check
 
    ts_log_fine "tight_integration: test iz 1916 (reschedule kills qmaster)"
+   
+   set exit_now 0
 
    if {$CHECK_ACT_LEVEL != 0} {
       ts_log_config "rescheduling not supported for qrsh"
@@ -550,55 +552,66 @@ proc tight_integration_iz_1916 {} {
    while {$started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
       set job_state [tight_integration_monitor $id $tight_master_node started finished jobid info]
       ts_log_fine "job state: $job_state"
+      #Exit when error
+      switch -exact $job_state {
+         "timeout" -
+         "eof" -
+         "error" {
+            ts_log_severe "job returned with state \"$job_state\" - not expected job termination"
+            set exit_now 1
+            break
+         }
+      }
       after 1000
    }
-
-   # wait for usage reports
-   set online_info(cpu) 0
-   set online_info(mem) 0
-   set now [clock seconds]
-   set end [expr $now + 45]
-
-   while {$now < $end} {
-      set my_timeout 1
-      set timeout_error 0
-      if {![get_qstat_j_info $jobid]} {
-         ts_log_severe "job terminated abnormally"
-      } else {
-         # get online usage
-         foreach name [array names qstat_j_info] {
-            if {[string compare [lindex $name 0] "usage"] == 0} {
-               set usage_list [split $qstat_j_info($name) ","]
-               set value_list [split [lindex $usage_list 0] "="]
-               set online_cpu [parse_cpu_time [lindex $value_list 1]]
-               set value_list [split [lindex $usage_list 1] "="]
-               set online_mem [lindex [lindex $value_list 1] 0]
-               
-               set online_info(cpu) [max $online_info(cpu) $online_cpu]
-               set online_info(mem) [max $online_info(mem) $online_mem]
-            }
-         }
-         ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem)"
-      }
-      if {$online_info(mem) > 0} {
-         set now $end   
-      } else {
-         set now [clock seconds]
-         after 1000
-      }
-   }
-
-   # reschedule job
-   ts_log_fine "sending qmod -rj to job $jobid"   
-   set result [start_sge_bin "qmod" "-rj $jobid"]
    
-   #  ts_log_fine $output
-   ts_log_fine "qmod returns $result"
-   if {$prg_exit_state != 0} {
-      ts_log_severe "found the bug 1916"
-      startup_qmaster 0 "" ""
+   if {$exit_now == 0} {
+      # wait for usage reports
+      set online_info(cpu) 0
+      set online_info(mem) 0
+      set now [clock seconds]
+      set end [expr $now + 45]
+   
+      while {$now < $end} {
+         set my_timeout 1
+         set timeout_error 0
+         if {![get_qstat_j_info $jobid]} {
+            ts_log_severe "job terminated abnormally"
+         } else {
+            # get online usage
+            foreach name [array names qstat_j_info] {
+               if {[string compare [lindex $name 0] "usage"] == 0} {
+                  set usage_list [split $qstat_j_info($name) ","]
+                  set value_list [split [lindex $usage_list 0] "="]
+                  set online_cpu [parse_cpu_time [lindex $value_list 1]]
+                  set value_list [split [lindex $usage_list 1] "="]
+                  set online_mem [lindex [lindex $value_list 1] 0]
+                  
+                  set online_info(cpu) [max $online_info(cpu) $online_cpu]
+                  set online_info(mem) [max $online_info(mem) $online_mem]
+               }
+            }
+            ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem)"
+         }
+         if {$online_info(mem) > 0} {
+            set now $end   
+         } else {
+            set now [clock seconds]
+            after 1000
+         }
+      }
+   
+      # reschedule job
+      ts_log_fine "sending qmod -rj to job $jobid"   
+      set result [start_sge_bin "qmod" "-rj $jobid"]
+      
+      #  ts_log_fine $output
+      ts_log_fine "qmod returns $result"
+      if {$prg_exit_state != 0} {
+         ts_log_severe "found the bug 1916"
+         startup_qmaster 0 "" ""
+      }
    }
-
    delete_job $jobid 1
 
    close_spawn_process $id

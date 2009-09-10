@@ -479,7 +479,7 @@ proc issue_1914_test {} {
       set error 0
       set_config_and_propagate backup_config $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         ts_log_config "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for correct $daemon configuration"
       } else {
          ts_log_fine "Test 6 for \"$job\" passed"

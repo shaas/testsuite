@@ -259,10 +259,17 @@ proc basic_resource_reset_sequential_check {} {
                 if { $prg_exit_state != 0 } {
                    append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\"\n"
                 }
+                
+                #sdm <=1.0u3 used this bundle string
+                set bundle_str "ResetResourceCommand.resource.reset"
+                if { [exists_bundle_string rm.rs.triggered] } {
+                   #Since 1.0u5
+                   set bundle_str "rm.rs.triggered"
+                }
 
                 # parse output and compare it to the expected output ...
                 # build expected output message from bundle properties file ... 
-                set expected_output [create_bundle_string "rm.rs.triggered"]
+                set expected_output [create_bundle_string $bundle_str]
                 ts_log_fine "expected output: \"$expected_output\""
 
                 # get sdmadm output message string ...

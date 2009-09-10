@@ -145,7 +145,7 @@ proc issue_2304_setup {} {
    }
    if {$execd_host_found == 0} { 
       ts_log_config "Can not run test because prerequisites are not fullfilled:\nWe need a sol-sparc64 exec host spooling on nfs version 3"
-      return -1
+      return 99
    }
    #
    # Next, determine NFS version. We need to make sure that we running
@@ -176,7 +176,7 @@ proc issue_2304_setup {} {
    set nfs_version [string range $version_line $left $right]
    if { $nfs_version != "vers=3" } {
       ts_log_config "Can not run test because prerequisites are not fullfilled:\nWe need a sol-sparc64 exec host spooling on nfs version 3, but nfs version is $nfs_version"
-      return -1
+      return 99
    }
    
    ts_log_fine "Selected $execd_host as test host"
@@ -188,7 +188,6 @@ proc issue_2304_setup {} {
    set qname [get_queue_instance test.q $execd_host]
    ts_log_fine "Created test queue $qname"
    set init_ok 1
-   return 0
 }
 
 # -------- local test procedures -----------------------------------------------

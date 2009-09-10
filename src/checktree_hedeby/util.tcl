@@ -326,6 +326,9 @@ proc add_host_resources { host_resources { service "spare_pool" } { on_host "" }
       if {$found_mapping == 0 } {
          # ... we simply use uname info
          set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
+         if {$osName == "SunOS"} {
+            set osName "Solaris"
+         }
          incr cur_line 1
          set data($cur_line) "operatingSystemName=$osName"
          set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
@@ -704,7 +707,7 @@ proc parse_bundle_properties_files { source_dir } {
             # The java class MessageFormat requires the quoting of ' 
             # Our create_bundle_string method does not consider this quoting
             # We simply replace here all double '' with '            
-            set propTxt [string map { '' ' } $propTxt]
+            set propTxt [string map { '' ' } $propTxt] ;#'
 
             if {[info exists bundle_cache($propId)]} {
                append error_text "property \"$propId\" defined twice!\n"
@@ -805,6 +808,29 @@ proc get_bundle_string { id } {
       set ret_val "This is a return value for a unknown bundle string"
    }
    return $ret_val
+}
+
+#****** util/get_bundle_string() ***********************************************
+#  NAME
+#     exists_bundle_string() -- get belonging to specified bundle id
+#
+#  SYNOPSIS
+#     exists_bundle_string { id } 
+#
+#  FUNCTION
+#     The procedure tries to find the specified string in the bundle_cache
+#     array and returns 1 if found or zero
+#
+#  INPUTS
+#     id - bundle id, e.g.: "bootstrap.exception.constructor_of_not_allowed"
+#  RESULT
+#     1 if found or zero
+#
+#*******************************************************************************
+proc exists_bundle_string { id } {
+   global bundle_cache
+
+   return [info exists bundle_cache($id)]
 }
 
 
@@ -1722,6 +1748,7 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
 #*******************************************************************************
 proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 0 } } {
    global hedeby_config
+   global LP_master_host_pid
 
    set error_text ""
    if {$only_raise_cannot_kill_error} {
@@ -1799,7 +1826,16 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                append error_text "host \"$host\" is NOT the master host, but type is master!\n\n"
                incr hostInfoArray($host,ret_val) 1
             } else {
-               if { [llength $hostInfoArray($host,pid_list)] == 0 } {
+               #TODO: Temporal fix for infinite hedeby install issue LP had
+               # To be removed and fixed properly
+               if {[info exists LP_master_host_array(pid)]} {
+                  if {[llength $LP_master_host_array(pid)] > 0} {
+                     set hostInfoArray($host,pid_list) $LP_master_host_array(pid)
+                     set hostInfoArray($host,run_list) $LP_master_host_array(run_list)
+                     unset LP_master_host_array(pid)
+                  }
+               }
+               if { [llength $hostInfoArray($host,pid_list)] == 0} {
                   ts_log_fine "no components found on host $host"
                } else {
                   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host -all" prg_exit_state "" $raise_error]
@@ -2785,7 +2821,12 @@ proc move_resources_to_default_services {} {
    sdmadm_command $exec_host $admin_user $sdmadm_command prg_exit_state "" 1 table
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
       set service $table(service,$line)
-      set resource $table(resource_id,$line)
+      #1.0u3 or earlier
+      if {[info exists table(resource,$line)]} {
+         set resource $table(resource,$line)
+      } else {
+         set resource $table(resource_id,$line)
+      }
       set sdmadm_command "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
       sdmadm_command $exec_host $admin_user $sdmadm_command
       if {$prg_exit_state != 0} {
@@ -3054,7 +3095,8 @@ proc parse_table_output { output array_name delemitter } {
             set table_col_list {}
             for {set b 0} {$b<=$column_nr} {incr b 1} {
                ts_log_finest "c$b s$column_start($b) e$column_end($b)"
-               set value [string trim [string range $line $column_start($b) $column_end($b)]]
+               set value [lindex [split [string trim [string range $line $column_start($b) $column_end($b)]]] 0]
+               #arrays cannot contain strings with a space
                set column_names($b) $value
                lappend table_col_list $value
                ts_log_finest "found column \"$column_names($b)\""
@@ -3261,16 +3303,16 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    set exp_columns {}
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.id"]
 
-   set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.name"]
-   if {$res_name_col == ""} {
+   if {[exists_bundle_string ShowResourceStateCliCommand.col.name]} {
+      set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.name"]
+      # Since version > 1.0u3 we have the additional column resource name
+      lappend exp_columns $res_name_col
+   } else {
       # We have a sdm <= 1.0u3 (without bound resource)
       # Take the resource name from the id column
       set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.id"]
-   } else {
-      # Since version > 1.0u3 we have the additional column resource name
-      lappend exp_columns $res_name_col
    }
-
+   
    set res_service_col [create_bundle_string "ShowResourceStateCliCommand.col.service"]
    lappend exp_columns $res_service_col
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.state"]
@@ -3984,7 +4026,7 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       } else {
          # old system => resource id = resource name
          set hist_info($line,resource) $table($res_col,$line)
-         set host_info($line,resource_id) $table($res_col,$line) 
+         set host_info($line,resource_id) $table($res_col,$line)
       }
       set hist_info($line,desc)     [lindex $table($desc_col,$line) 0]
    }
@@ -4209,7 +4251,7 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          # quote all '.' in the hostname
          set reg_exp [string map { . \\. } $resource]
          append reg_exp ".*"
-         append filter_args "resource_name matches \"$reg_exp\""
+         append filter_args "(resource_name matches \"$reg_exp\" | resource matches \"$reg_exp\")"
       }
       append filter_args ")"
    }
@@ -4244,8 +4286,16 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          } else {
             append filter_args "|"
          }
+         
          ts_log_finer "Adding notification type '$type' to filter"
-         append filter_args "type = \"$type\""
+         # With SDM1.0u5 the name of the event type has been changed from
+         # SERVICE_UKNOWN to SERVICE_UNKNOWN
+         # We accept in the filter both versions
+         if { $type == "SERVICE_UKNOWN" | $type == "SERVICE_UNKNOWN" } {
+            append filter_args "(type = \"SERVICE_UNKNOWN\" | type = \"SERVICE_UKNOWN\")"
+         } else {
+            append filter_args "type = \"$type\""
+         }
       }
       append filter_args ")"
    }
@@ -4294,7 +4344,9 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
                } else {
                   set hist_value ""
                }
-               if {$exp_value != $hist_value} {
+               if {$exp_value != $hist_value
+                  && !(($exp_value == "SERVICE_UKNOWN" && $hist_value == "SERVICE_UNKNOWN")
+                  || ($exp_value == "SERVICE_UNKNOWN" && $hist_value == "SERVICE_UKNOWN")) } {
                   ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $exp_index ($val must be '$exp_value'"
                   set evt_matches 0
                   break

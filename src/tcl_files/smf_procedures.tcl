@@ -675,7 +675,7 @@ proc smf_advanced_restart_test {host service {timeout 30} {kill_restarts 1}} {
    }
    #svcadm restart
    start_smf_service $host $service
-   if {[smf_start_svcadm $host $service "restart" "" 1] == -1} {
+   if {[smf_start_svcadm $host $service "restart" "" 1 $timeout] == -1} {
       return -1
    }
    return 0

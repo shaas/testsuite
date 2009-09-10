@@ -311,12 +311,19 @@ proc hedeby_install_master_host {} {
 
 proc hedeby_startup_master_host {} {
    global hedeby_config
+   global LP_master_host_array
 
    set install_user [get_hedeby_startup_user]
    if { [startup_hedeby_hosts "master" $hedeby_config(hedeby_master_host) $install_user] != 0} {
       add_proc_error "hedeby_startup_master_host" -2 "error starting master host \"$hedeby_config(hedeby_master_host)\"!\nSkip hard here."
       return
    }
+   #TODO: Remove once infinite hedeby reinstall issue has been fixed
+   set pid_list {}
+   set run_list {}
+   get_jvm_pidlist $hedeby_config(hedeby_master_host) $install_user [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]/run pid_list run_list
+   set LP_master_host_array(pid) $pid_list
+   set LP_master_host_array(run_list) $run_list
 }
 
 

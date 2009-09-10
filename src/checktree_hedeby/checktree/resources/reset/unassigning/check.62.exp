@@ -254,8 +254,15 @@ proc unassigning_resource_reset_check {} {
          set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
          set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
 
+         #sdm <=1.0u3 used this bundle string
+         set bundle_str "ResetResourceCommand.resource.reset"
+         if { [exists_bundle_string rm.rs.triggered] } {
+            #Since 1.0u5
+            set bundle_str "rm.rs.triggered"
+         }
+         
          # build expected output message from bundle properties file ...
-         set expected_output [create_bundle_string "rm.rs.triggered"]
+         set expected_output [create_bundle_string $bundle_str]
          ts_log_fine "expected output: $expected_output"
          # get sdmadm output message string ...
          set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]

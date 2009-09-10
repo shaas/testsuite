@@ -1273,7 +1273,7 @@ proc config_hedeby_source_cvs_release { only_check name config_array } {
       set cvs_tag [string trim $cvs_tag]
       set tag "maintrunk"
       if {$prg_exit_state == 0} {
-         if {[string first "T" $cvs_tag] == 0} {
+         if {[regexp "^\[TN\].*" $cvs_tag]} {
             set tag [string range $cvs_tag 1 end]
          }
       }
@@ -1368,8 +1368,11 @@ proc hedeby_get_version { { cvstagname "" } } {
          "V02_TAG" {
             set version "0.2"
          }
+         "V10_U3_TAG" {
+            set version "1.0u3"
+         }
          "maintrunk" {
-            set version "0.9"
+            set version "maintrunk"
          }
       }
    } else {

@@ -256,9 +256,16 @@ proc basic_resource_reset_parallel_check {} {
       }    
     }
       if { $rst_list != {} } {
+        #sdm <=1.0u3 used this bundle string
+        set bundle_str "ResetResourceCommand.resource.reset"
+        if { [exists_bundle_string rm.rs.triggered] } {
+           #Since 1.0u5
+           set bundle_str "rm.rs.triggered"
+        }
+         
         # starting parallel resource movement on every resource host ...
         foreach res $rst_list {
-            set task_info($res,expected_output) [create_bundle_string "rm.rs.triggered"]
+            set task_info($res,expected_output) [create_bundle_string $bundle_str]
             set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name rsr -r $res"
         }
         set par_error [start_parallel_sdmadm_command rst_list [get_hedeby_admin_user] task_info]

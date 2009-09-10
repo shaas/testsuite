@@ -45,7 +45,7 @@ set check_init_level_procedure "issue_2952_init_level"
 
 # define test's name and run level descriptions
 set check_name            "issue_2952"
-set check_category        "COMPATIBILITY SYSTEM"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0
 set check_description(0)  "check memory consumption for array job 1 is the whole sum"
 

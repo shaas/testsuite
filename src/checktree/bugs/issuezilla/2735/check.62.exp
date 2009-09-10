@@ -224,7 +224,7 @@ proc issue_2735_test {} {
    if {$error_text != "" && $report_error != 0} {
       ts_log_severe $error_text
    } else {
-      ts_log_config $error_text  ;# TODO: This is only a unsuported test! Remove this once 2735 is completely fixed !!!
+      ts_log_config "Disabled until test is corrected\n${error_text}"  ;# TODO: This is only a unsuported test! Remove this once 2735 is completely fixed !!!
    }
 }
 

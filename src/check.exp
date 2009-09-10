@@ -365,7 +365,7 @@ global CHECK_HUDSON_STACKTRACE ;# Used to hold most recent stacktrace when failu
 set CHECK_HUDSON_STACKTRACE ""
 
 global custom_checktree ;# For a custom checktree building, list of checks for which to build checktree
-set custom_checktree ""
+set custom_checktree {}
 
 global check_id         ;# So that Hudson can know what id current check has and so that we know in what order the checks were executed
 set check_id -1
@@ -2825,10 +2825,10 @@ proc build_checktree {} {
    ts_log_fine "reading checktree nodes ..."
    
    #Optimalization: With the fast_setup and check <check> set, we just read what we really need
-   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [llength $custom_checktree] > 0} {
       set error ""
       append error [read_checktree_nodes $ts_config(checktree_root_dir)/install_core_system]
-      foreach elem [split $custom_checktree] {
+      foreach elem $custom_checktree {
          if {[string compare $elem "install_core_system"] != 0} {
             append error [read_checktree_nodes $ts_config(checktree_root_dir)/$elem]
          }
@@ -3987,14 +3987,14 @@ proc run_tests {path runcompleted} {
    set local_host [gethostname]
    set CHECK_MAILS_SENT 0  ;# clear mail counter
 
-   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [llength $custom_checktree] > 0} {
       set CHECK_ACT_PATH $ts_config(checktree_root_dir)
       set check_directories {}
       set pos_ics [lsearch -exact $custom_checktree "install_core_system"]
       if {$pos_ics == -1} {
-         set custom_checktree "install_core_system $custom_checktree"
+         set custom_checktree [concat {install_core_system} $custom_checktree]
       }
-      foreach elem [split $custom_checktree] {
+      foreach elem $custom_checktree {
          set check_directories [concat $check_directories [get_tests_from_checktree $ts_config(checktree_root_dir)/$elem]]
       }
       ts_log_info "RUN_TESTS: dirs = $check_directories \n[llength $check_directories]"
@@ -4023,7 +4023,7 @@ proc run_tests {path runcompleted} {
       }
    }
    set checks_to_do [lsort -dictionary $checks_to_do]
-   if {$CHECK_USE_HUDSON == 1 && [string length $custom_checktree] > 0} {
+   if {$CHECK_USE_HUDSON == 1 && [llength $custom_checktree] > 0} {
       ts_log_info "CHECKS1: $checks_to_do \n[llength $checks_to_do]"
       #Put the init_core_system as first
       #TODO: not matching
@@ -9419,7 +9419,7 @@ for {set i 0} {$i < $argc} {incr i} {
          testsuite_shutdown 1
       } else {
          #Save then to the new global array
-         append custom_checktree $do_one_test_name
+         lappend custom_checktree $do_one_test_name
       }
       incr i 2
       continue

@@ -3048,6 +3048,7 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
    set my_mytimeout [expr [timestamp] + $mytimeout] 
    set have_logged_a_dot 0
    while {$is_ok == 0} {
+      set output [start_remote_prog $hostname $user "ls" "$path" prg_exit_state 20 0 "" "" 0 0]
       set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
          # The file must be here
@@ -3145,6 +3146,7 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
    set my_mytimeout [expr [timestamp] + $mytimeout] 
 
    while {$is_ok == 0} {
+      set output [start_remote_prog $hostname $user "ls" "$path" prg_exit_state 20 0 "" "" 0 0]
       set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
          # The directory must be here

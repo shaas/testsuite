@@ -174,6 +174,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_QMASTER_WINDOWS_MANAGER" { set value "Please, enter the Windows Administrator name \[Default: Administrator\] >> " }
       "DISTINST_EXECD_WINDOWS_HELPER_SERVICE" { set value "Do you want to install the Windows Helper Service? (y/n) \[n\] >> " }
       "DISTINST_JAVA_HOME"  { set value "Please enter JAVA_HOME or press enter \[%s\] >> " }
+      "DISTINST_JAVA_HOME_OR_NONE"  { set value "Enter JAVA_HOME (use \"none\" when none available) \[%s\] >> " }
       "DISTINST_ADD_JVM_ARGS"  { set value "Please enter additional JVM arguments (optional, default is \[%s\]) >> " }
       "DISTINST_ENABLE_JMX" { set value "Do you want to enable the JMX MBean server (y/n) *" }
       "DISTINST_JMX_PORT"   { set value "Please enter an unused port number for the JMX MBean server *" }

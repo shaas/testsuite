@@ -255,10 +255,15 @@ proc with_request_filter_check {} {
       set arguments "-p $pref_type -s $sys_name sr -s $ge_adapter"
       sdmadm_command $master_host $admin_user $arguments prg_exit_state "" 1 result_table
       if {$prg_exit_state != 0} {
-           append error_text "Executing command show resource failed for service $ge_adapter"
+            append error_text "Executing command show resource failed for service $ge_adapter"
       }
       for {set i 0} {$i < $result_table(table_lines)} {incr i} {
-            set ts_resolvedhost [resolve_host $result_table(name,$i)]
+            #sdm<=1.0u3 used id, not name
+            if {[info exists result_table(name,$i)]} {
+               set ts_resolvedhost [resolve_host $result_table(name,$i)]
+            } else {
+               set ts_resolvedhost [resolve_host $result_table(id,$i)]
+            }
             if {$ts_resolvedhost == $service_names(master_host,$ge_adapter)} {
                 continue
             }

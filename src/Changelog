@@ -6,6 +6,17 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-09-10-0: Bugfix:     Hedeby TS cannot run with SDM 1.0u3
+                 Enhancem.:  Minor updated for the hudson_reports
+                 Enhancem.:  Added 99 state for some tests
+                 Bugfix:     Marked 2 old tests as VERIFIED
+                 Enhancem.:  tight_integration test speedup when failure occurs
+                 Enhancem.:  Added support for a new JMX message that will
+                             appear in 6.2u5
+                 Enhancem.:  Increased timeout for restart scenario of the SMF
+                             test
+                 Review:     RH
+
 JG-2009-09-04-0: Bugfix:     qstat test_issue123 failed from time to time
                  Review:     MD
 

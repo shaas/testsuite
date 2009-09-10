@@ -187,8 +187,8 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
 
       # deleting berkeley db spool dir. autoinstall will stop, if
       # bdb spooldir exists.
-      # db_dir might be empty if classic spooling is used, need to skip removing "" directory
-      if {$do_cleanup && $exechost == 0 && $shadowd == 0 && [string compare $db_dir ""] != 0} {
+      # db_dir might be empty if classic spooling is used, should skip removing such directory
+      if {$do_cleanup && $exechost == 0 && $shadowd == 0 && [string compare $$ts_config(spooling_method) "classic"] != 0} {
          if {[remote_file_isdirectory $ts_config(master_host) $db_dir]} {
             remote_delete_directory $ts_config(master_host) $db_dir
          }
