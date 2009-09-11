@@ -6,6 +6,11 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-09-11-0: Bugfix:     Rolled back change to parse_table_output function
+                 Belongs to: LP-2009-09-10-0
+                 Review:     RH
+
 LP-2009-09-10-1: Bugfix:     Invalid array reference
                  Belongs to: LP-2009-09-10-0
                  Review:     TBD

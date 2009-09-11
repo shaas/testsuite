@@ -417,7 +417,6 @@ proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
       sdmadm_command $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $command prg_exit_state "" 1 table
       for {set line 0} {$line < $table(table_lines)} {incr line 1} {
          foreach col $table(table_columns) {
-   #         puts "line $line => $col: \"$table($col,$line)\""
             if { $col == "complex" && $table($col,$line) == "arch"} {
                set res_property $table(resource property,$line)
                set complex_arch $table(complex value,$line)
@@ -3001,11 +3000,11 @@ proc hedeby_check_default_resources {} {
 #     parse_table_output() -- parse any sdmadm table output
 #
 #  SYNOPSIS
-#     parse_table_output { output array_name delemitter } 
+#     parse_table_output { output array_name delimiter } 
 #
 #  FUNCTION
 #     This procedure can be used to parse any sdmadm table output which was
-#     generated with column delemitter AND dupval option.
+#     generated with column delimiter AND dupval option.
 #     If table has AutoWordWrap enabled the first column of the table MUST
 #     always have a value.
 #     
@@ -3013,7 +3012,7 @@ proc hedeby_check_default_resources {} {
 #  INPUTS
 #     output     - output from sdmadm which contains table 
 #     array_name - name of array to save parsing results
-#     delemitter - table delemitter character (one character)
+#     delimiter  - table delimiter character (one character)
 #
 #  RESULT
 #     no return value
@@ -3052,7 +3051,7 @@ proc hedeby_check_default_resources {} {
 #     util/parse_table_output()
 #     util/get_resource_info()
 #*******************************************************************************
-proc parse_table_output { output array_name delemitter } {
+proc parse_table_output { output array_name delimiter } {
    upvar $array_name data
 
    ts_log_finer "parsing table output ..."
@@ -3070,8 +3069,8 @@ proc parse_table_output { output array_name delemitter } {
       }
       
       if { $header_line == "" } {
-         # still searching for header containing delemiter
-         if { [string first $delemitter $line] >= 0 } {
+         # still searching for header containing delimiter
+         if { [string first $delimiter $line] >= 0 } {
             set header_line $line
             # now find out column index
             set column_nr 0
@@ -3080,7 +3079,7 @@ proc parse_table_output { output array_name delemitter } {
             ts_log_finer "header line: \"$header_line\""
             set last_pos 0
             while {1} {
-               set pos [string first $delemitter $header_line $last_pos]
+               set pos [string first $delimiter $header_line $last_pos]
                if { $pos < 0 } {
                   break
                }
@@ -3095,8 +3094,7 @@ proc parse_table_output { output array_name delemitter } {
             set table_col_list {}
             for {set b 0} {$b<=$column_nr} {incr b 1} {
                ts_log_finest "c$b s$column_start($b) e$column_end($b)"
-               set value [lindex [split [string trim [string range $line $column_start($b) $column_end($b)]]] 0]
-               #arrays cannot contain strings with a space
+               set value [string trim [string range $line $column_start($b) $column_end($b)]]
                set column_names($b) $value
                lappend table_col_list $value
                ts_log_finest "found column \"$column_names($b)\""
@@ -3107,11 +3105,11 @@ proc parse_table_output { output array_name delemitter } {
       } else {
          # here we have found an header
          
-         # find out delemitter count of current line
+         # find out delimiter count of current line
          set is_table_line 0
          set nr_delemitters 0
          for {set b 0} {$b<[string length $line]} {incr b 1} {
-            if {[string index $line $b] == $delemitter} {
+            if {[string index $line $b] == $delimiter} {
                incr nr_delemitters 1
             }
          }
