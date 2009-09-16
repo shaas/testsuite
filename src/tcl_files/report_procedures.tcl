@@ -70,7 +70,7 @@
 proc report_create { name a_report_array { send_email 1 } { write_html 1 } } {
    upvar $a_report_array report_array
    set report_array(name) $name
-   set report_array(start) [clock format [clock seconds]]
+   set report_array(start) [clock seconds]
    set report_array(task_count) 0
    set report_array(messages) {}
    
@@ -209,12 +209,12 @@ proc report_clear_messages { report } {
 }
 
 
-#****** report_procedures/report_create_task() **************************************************
+#****** report_procedures/report_create_task() *********************************
 #  NAME
 #    report_create_task() -- create a task of a report
 #
 #  SYNOPSIS
-#    report_create_task { report name host} 
+#    report_create_task { report name host {link ""} {spooling ""}}
 #
 #  FUNCTION
 #    Creates a task for a report. All tasks of a report will be shown in
@@ -224,6 +224,8 @@ proc report_clear_messages { report } {
 #    report    --  the report object
 #    name      --  Name of the tasks
 #    host      --  Host where the task is running
+#    {link ""} --  add a link
+#    {spooling ""} -- spooling method
 #
 #  RESULT
 #
@@ -244,7 +246,7 @@ proc report_clear_messages { report } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc report_create_task { report name host {link ""} {create_file 0}} {
+proc report_create_task { report name host {link ""} {spooling ""}} {
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR CHECK_USER
 
    upvar $report report_array
@@ -254,22 +256,33 @@ proc report_create_task { report name host {link ""} {create_file 0}} {
    set report_array(task_$task_nr,name)   $name
    set report_array(task_$task_nr,host)   $host
    set report_array(task_$task_nr,status) started
-   set report_array(task_$task_nr,date)   [clock format [clock seconds]]
+   set report_array(task_$task_nr,date)   [clock seconds]
    set report_array(task_$task_nr,test_count) 0
-
-   if {$create_file == 0} {
-      set relative_filename "${host}_${name}.txt"
-      if { $CHECK_HTML_DIRECTORY != "" } {
-         set myfilename "$CHECK_HTML_DIRECTORY/$relative_filename"
-      } else {
-         set myfilename "$CHECK_PROTOCOL_DIR/$relative_filename"
-      }
-      delete_remote_file $host $CHECK_USER $myfilename
-
-      set report_array(task_$task_nr,filename) $myfilename
-      set report_array(task_$task_nr,relative_filename) $relative_filename
-      set report_array(task_$task_nr,file) [open $myfilename w]
+   if {"$spooling" != ""} {
+      set report_array(task_$task_nr,spooling) $spooling
    }
+   if {$spooling == ""} {
+      set relative_filename "${host}_${name}.txt"
+   } else {
+      set relative_filename "${host}_${spooling}_${name}.txt"
+   }
+   if {[info exists report_array(filename)]} {
+      set myfilename "[file dirname $report_array(filename)]/$relative_filename"
+   } elseif { $CHECK_HTML_DIRECTORY != "" } {
+      set myfilename "$CHECK_HTML_DIRECTORY/$relative_filename"
+   } else {
+      set myfilename "$CHECK_PROTOCOL_DIR/$relative_filename"
+   }
+   set fs_host [fs_config_get_server_for_path $myfilename 0]
+   if {$fs_host == ""} {
+      set fs_host [gethostname]
+   }
+   delete_remote_file $fs_host $CHECK_USER $myfilename
+
+   set report_array(task_$task_nr,filename) $myfilename
+   set report_array(task_$task_nr,relative_filename) $relative_filename
+   set report_array(task_$task_nr,file) [open $myfilename w]
+
    if { $link != "" } {
       set report_array(task_$task_nr,link) $link
    }
@@ -281,6 +294,102 @@ proc report_create_task { report name host {link ""} {create_file 0}} {
    return $task_nr
 }
 
+#****** report_procedures/report_add_task() ************************************
+#  NAME
+#    report_add_task() -- add an existing task to the report
+#
+#  SYNOPSIS
+#    report_create_task { report name host {link ""} {spooling ""}}
+#
+#  FUNCTION
+#    Adds and existing task to the report. All tasks of a report will be shown in
+#    a table.
+#
+#  INPUTS
+#    report    --  the report object
+#    name      --  Name of the tasks
+#    host      --  Host where the task is running
+#    {link ""} --  not implemented
+#
+#  RESULT
+#
+#  EXAMPLE
+#
+#  array set report {}
+#  report_create "Test Report" report
+#  ...
+#  set task_nr [report_add_task report "test_task" "foo.bar"]
+#  ...
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc report_add_task {report name host {link ""} {spooling ""}} {
+   upvar $report report_array
+
+   if {$spooling == ""} {
+      set relative_filename "${host}_${name}.txt"
+   } else {
+      set relative_filename "${host}_${spooling}_${name}.txt"
+   }
+   if {[info exists report_array(filename)]} {
+      set myfilename "[file dirname $report_array(filename)]/$relative_filename"
+   } elseif { $CHECK_HTML_DIRECTORY != "" } {
+      set myfilename "$CHECK_HTML_DIRECTORY/$relative_filename"
+   } else {
+      set myfilename "$CHECK_PROTOCOL_DIR/$relative_filename"
+   }
+
+   if {[file isfile $myfilename] == 0} {
+      return ""
+   }
+
+   set task_nr $report_array(task_count)
+   incr report_array(task_count) 1
+   set report_array(task_$task_nr,name)   $name
+   set report_array(task_$task_nr,host)   $host
+   if {"$spooling" != ""} {
+      set report_array(task_$task_nr,spooling) $spooling
+   }
+
+   set report_array(task_$task_nr,filename) $myfilename
+   set report_array(task_$task_nr,relative_filename) $relative_filename
+   set report_array(task_$task_nr,file) "--"
+   set report_array(task_$task_nr,test_count) \
+            [get_test_count report_array task_$task_nr test_errors test_skipped]
+   set fp [open $myfilename r]
+   #STATUS ok|STARTED: time|FINISHED: time
+   set report_array(task_$task_nr,status) unknown
+   set report_array(task_$task_nr,date)   0
+   set report_array(task_$task_nr,finish) 0
+   foreach line [split [read $fp] "\n"] {
+      if {[string match "STATUS:*|STARTED:*|FINISHED:*" $line] >= 0} {
+         foreach item [split $line "|"] {
+            set value [lindex $item 1]
+            switch -glob $item {
+               "STATUS:*" {
+                  set param status
+               }
+               "STARTED:*" {
+                  set param date
+               }
+               "FINISHED:*" {
+                  set param finish
+               }
+            }
+            set report_array(task_$task_nr,$param) $value
+         }
+      }
+      break
+   }
+   close $fp
+
+   return $task_nr
+}
 
 #****** report_procedures/report_task_add_message() ****************************
 #  NAME
@@ -377,6 +486,8 @@ proc report_finish_task { report task_nr result } {
       set report_array(task_$task_nr,file) "--"
    }
 
+   set report_array(task_$task_nr,finish) [clock seconds]
+
    foreach handler $report_array(task_progress_handler) { 
       $handler report_array
    }
@@ -421,7 +532,7 @@ proc report_finish { report result } {
    upvar $report report_array
    
    set report_array(result) [get_result $result]
-   set report_array(end)    [clock format [clock seconds]]
+   set report_array(end)    [clock seconds]
  
    foreach handler $report_array(handler) {
       $handler report_array
@@ -454,10 +565,10 @@ proc report_send_mail { report } {
    set mail_subject "testsuite - $report_array(name) -- "
    set mail_body    "testsuite - $report_array(name)\n"
    append mail_body "------------------------------------------\n\n"
-   append mail_body " started: $report_array(start)\n"
+   append mail_body " started: [clock format $report_array(start)]\n"
    if { [info exists report_array(result)] } {
       append mail_subject $report_array(result)
-      append mail_body "finished: $report_array(end)\n"
+      append mail_body "finished: [clock format $report_array(end)]\n"
       append mail_body "  result: $report_array(result)\n"
    } else {
       append mail_subject "yet not finished"
@@ -557,10 +668,10 @@ proc report_write_html { report } {
    }
    upvar $report report_array
    
-   set html_body   [ create_html_text "started:   $report_array(start)" 1 ]
+   set html_body   [ create_html_text "started:   [clock format $report_array(start)]" 1 ]
    
    if { [info exists report_array(result)] } {
-      append html_body [ create_html_text "finished: $report_array(end)" 1 ]
+      append html_body [ create_html_text "finished: [clock format $report_array(end)]" 1 ]
       append html_body [ create_html_text "result: $report_array(result)" 1 ]
    } else {
       append html_body [ create_html_text "yet not finished" 1 ]
@@ -598,7 +709,7 @@ proc report_write_html { report } {
          set html_table($row_count,2) $report_array(task_$task_nr,host)
          set html_table($row_count,3) [resolve_arch $report_array(task_$task_nr,host)]
          set html_table($row_count,4) $report_array(task_$task_nr,status)
-         set html_table($row_count,5) [ create_html_link $report_array(task_$task_nr,relative_filename) "./$report_array(task_$task_nr,relative_filename)"]      
+         set html_table($row_count,5) [ create_html_link $report_array(task_$task_nr,relative_filename) "./$report_array(task_$task_nr,relative_filename)"]
       }
       set html_table(ROWS) $row_count
 
@@ -796,6 +907,25 @@ proc test_report {report_array curr_task_nr task_test_id type value} {
             }
          }
          result {
+            if {[check_is_interactive]} {
+               if {"$value" == "[get_result_failed]"} {
+                  set name [get_test_name report $task_nr $task_test_id]
+                  set help_info { "Test failed. Repeat the test manually"
+                                  "and report the result:" }
+                  set config($name) "[get_result_failed]"
+                  set config($name,desc) "Test name: $name"
+                  array set res {}
+                  set res([get_result_ok]) ""
+                  set res([get_result_failed]) ""
+                  set res([get_result_skipped]) ""
+                  set param(screen_clear) 0
+                  set value [config_generic 0 $name config $help_info "choice" 0 1 res param]
+                  if {![info exists report($task_nr,$task_test_id,value)]} {
+                     set report($task_nr,$task_test_id,value) ""
+                  }
+                  append report($task_nr,$task_test_id,value) "\nUser check."
+               }
+            }
             set report($task_nr,$task_test_id,$type) $value
          }
       }
@@ -972,23 +1102,30 @@ proc format_fixed_width {text max_length} {
 proc get_task_result {report_array task_nr} {
    upvar $report_array report
 
-   set test_count $report($task_nr,test_count)
    set output ""
-   if {$test_count == 0} {
-      return $output
-   }
-   for {set i 0} {$i < $test_count} {incr i 1} {
-      if {$i < 10} {
-         set id 0$i
-      } else {
-         set id $i
+   set filename $report($task_nr,filename)
+   set fp [open $filename r]
+   set output [string trim [read $fp]]
+   close $fp
+   if {$output == ""} {
+      set test_count $report($task_nr,test_count)
+      if {$test_count == 0} {
+         return $output
       }
-      append output [format_fixed_width $report($task_nr,$id,name) 25]
-      append output $report($task_nr,$id,result)\n
-      if {[info exists report($task_nr,$id,value)]} {
-         append output $report($task_nr,$id,value)\n
+      for {set i 0} {$i < $test_count} {incr i 1} {
+         if {$i < 10} {
+            set id 0$i
+         } else {
+            set id $i
+         }
+         append output [format_fixed_width $report($task_nr,$id,name) 25]
+         append output $report($task_nr,$id,result)\n
+         if {[info exists report($task_nr,$id,value)]} {
+            append output $report($task_nr,$id,value)\n
+         }
       }
    }
+
    return $output
 }
 
@@ -1019,24 +1156,44 @@ proc get_test_count {report_array task_nr {err_var errs} {skipped_var skipps}} {
 
    set test_errors ""
    set test_skipped ""
-   set test_count $report($task_nr,test_count)
-   if {$test_count == 0} {
-      return 0
+
+   set output ""
+   set filename $report($task_nr,filename)
+   if {[file isfile $filename] && [file size $filename] != 0} {
+      set test_count 0
+      set fp [open $filename r]
+      set output [string trim [read $fp]]
+      close $fp
+      foreach line [split $output "\n"] {
+         if {[string match "*[get_result_failed]" $line] == 1} {
+            incr test_count 1
+            lappend test_errors [lindex $line 0]
+         } elseif {[string match "*[get_result_skipped]" $line] == 1} {
+            incr test_count 1
+            lappend test_skipped [lindex $line 0]
+         } elseif {[string match "*[get_result_ok]" $line] == 1} {
+            incr test_count 1
+         }
+      }
+   } else {
+      set test_count $report($task_nr,test_count)
+      if {$test_count != 0} {
+         for {set i 0} {$i < $test_count} {incr i 1} {
+            if {$i < 10} {
+               set id 0$i
+            } else {
+               set id $i
+            }
+            set result $report($task_nr,$id,result)
+            if {$result == [get_result_failed]} {
+               lappend test_errors [get_test_name report $task_nr $id]
+            } elseif {$result == [get_result_skipped]} {
+               lappend test_skipped [get_test_name report $task_nr $id]
+            }
+         }
+      }
    }
 
-   for {set i 0} {$i < $test_count} {incr i 1} {
-      if {$i < 10} {
-         set id 0$i
-      } else {
-         set id $i
-      }
-      set result $report($task_nr,$id,result)
-      if {$result == [get_result_failed]} {
-         lappend test_errors [get_test_name report $task_nr $id]
-      } elseif {$result == [get_result_skipped]} {
-         lappend test_skipped [get_test_name report $task_nr $id]
-      }
-   }
    return $test_count
 }
 
@@ -1250,15 +1407,12 @@ proc generate_html_report {report_array} {
 
    set content ""
    append content [generate_html_report_header report]
-   append content [generate_html_report_formated_text [get_cluster_configuration]]
    append content [generate_html_report_table report]
    append content [create_html_text "\n"]
    append content [generate_html_report_task report]
 
-
-   set file_name "$CHECK_HTML_DIRECTORY/$filename"
    set headliner $report(name)
-   generate_html_file $file_name $headliner $content 0 0 false
+   generate_html_file $filename $headliner $content 0 0 false
 
 }
 
@@ -1293,19 +1447,26 @@ proc generate_html_report_header {report_array} {
 
    set content ""
    set header_list ""
-   lappend header_list "Start time: $report(start)"
    if {[info exists report(end)]} {
-      lappend header_list "End time: $report(end)"
+      lappend header_list "Last Updated: [clock format $report(end)]"
+      lappend header_list "Status: finished"
    } else {
+      lappend header_list "Last Updated: [clock format $report(start)]"
       lappend header_list "Status: running"
       set cur_task_id [expr $report(task_count) - 1]
-      lappend header_list "Current host: $report(task_$cur_task_id,host)"
+      if {[info exists report(task_$cur_task_id,spooling)]} {
+         lappend header_list "Current host: $report(task_$cur_task_id,host), $report(task_$cur_task_id,spooling)"
+      } else {
+         lappend header_list "Current host: $report(task_$cur_task_id,host)"
+      }
    }
 
-   set msg $report(messages)
-   set msg [replace_string $msg "{" ""]
-   set msg [replace_string $msg "}" ""]
-   lappend header_list $msg
+   if {"$report(messages)" != ""} {
+      set msg $report(messages)
+      set msg [replace_string $msg "{" ""]
+      set msg [replace_string $msg "}" ""]
+      lappend header_list $msg
+   }
    append content [generate_html_report_formated_text $header_list]
 
    if {[info exists report(result)]} {
@@ -1314,8 +1475,6 @@ proc generate_html_report_header {report_array} {
       } else {
          set color [get_color_failed]
       }
-      append content [create_html_non_formated_text \
-                        "[format_fixed_width Result: 21] $report(result)" $center $color]
    }
    append content [create_html_line 2 30% left]
 
@@ -1402,7 +1561,7 @@ proc generate_html_report_table {report_array} {
    set host_table(1,2)        "Arch"
    set host_table(1,3)        "Failed|Skipped|Total"
    set host_table(1,4)        "Failed tests"
-   set host_table(1,5)        "Started"
+   set host_table(1,5)        "Duration/Started"
    set ind 1
    for {set i 0} {$i < $report(task_count)} {incr i 1} {
       incr ind 1
@@ -1411,7 +1570,7 @@ proc generate_html_report_table {report_array} {
       set status $report($task_nr,status)
       set host_display $host
       if {[info exists report($task_nr,spooling)]} {
-         append host_display " ($report($task_nr,spooling))"
+         append host_display "_$report($task_nr,spooling)"
       }
       set test_count [get_test_count report $task_nr test_errors test_skipped]
       if {$status == [get_result_ok]} {
@@ -1424,16 +1583,27 @@ proc generate_html_report_table {report_array} {
          set host_table($ind,BGCOLOR)  "#FFFFFF"
       }
       set host_table($ind,FNCOLOR)  "#000000"
-      set host_table($ind,1)   [create_html_link $host_display "#${host}_label"]
-      set host_table($ind,2)   [resolve_arch $host]
+      set host_table($ind,1)   [create_html_link $host_display "#${host_display}_label"]
+      set arch [resolve_arch $host]
+      set arch_config [host_conf_get_arch $host]
+      if {"$arch" == "$arch_config"} {
+         set host_table($ind,2) "$arch"
+      } else {
+         set host_table($ind,2) "$arch_config/$arch"
+      }
       set host_table($ind,3)   "[llength $test_errors]|[llength $test_skipped]|$test_count"
-      # TODO: create links
       set err_links ""
       foreach err $test_errors {
-         append err_links "[create_html_link $err #${host}_label_${err}] "
+         append err_links "[create_html_link $err #${host_display}_label_${err}] "
       }
       set host_table($ind,4)   $err_links
-      set host_table($ind,5)   [lindex $report($task_nr,date) 3]
+      if {[info exists report($task_nr,finish)]} {
+         set host_table($ind,5) "[format %.2f \
+           [expr ($report($task_nr,finish) - $report($task_nr,date))/60.0]] min"
+      } else {
+         set host_table($ind,5) [clock format \
+                              $report($task_nr,date) -format "%D %H:%M:%S"]
+      }
    }
 
    append content [create_html_table host_table 0 LEFT false]
@@ -1488,12 +1658,27 @@ proc generate_html_report_task {report_array} {
       if {$test_count == 0} {
          continue
       }
-      append content [create_html_target ${host}_label]
+      if {[info exists report($task_nr,spooling)]} {
+         set spooling $report($task_nr,spooling)
+         append content [create_html_target ${host}_${spooling}_label]
+      } else {
+         append content [create_html_target ${host}_label]
+      }
       append content [create_html_line 2 80% left]
 
       set host_info_list ""
-      lappend host_info_list "<b>$host: [resolve_arch $host]</b>"
-      lappend host_info_list "Started: $report($task_nr,date)"
+      if {[info exists report($task_nr,spooling)]} {
+         set spooling $report($task_nr,spooling)
+         lappend host_info_list "<b>$host, $spooling: [resolve_arch $host]</b>"
+      } else {
+         lappend host_info_list "<b>$host: [resolve_arch $host]</b>"
+      }
+      lappend host_info_list "Started: [clock format \
+                            $report($task_nr,date) -format "%D %H:%M:%S"]"
+      lappend host_info_list "Finished: [clock format \
+                          $report($task_nr,finish) -format "%D %H:%M:%S"]"
+      lappend host_info_list "Duration: [format %.2f \
+           [expr ($report($task_nr,finish) - $report($task_nr,date))/60.0]] min"
       lappend host_info_list "Test count: $test_count"
       lappend host_info_list "Failed tests: [llength $test_errors]"
       lappend host_info_list "Skipped tests: [llength $test_skipped]"
@@ -1506,18 +1691,26 @@ proc generate_html_report_task {report_array} {
       }
       lappend host_info_list "<b>Result: $status</b>"
       append content [generate_html_report_formated_text $host_info_list]
-
       append content [create_html_line 1 20% left]
       # test_name1               [get_result_ok]/[get_result_failed]/[get_result_skipped]
       # place for the test result
       # ...
       set result [get_task_result report $task_nr]
       foreach line [split $result "\n"] {
-         if {[string match "*[get_result_ok]" [string trim $line]]} {
+         set line [string trim $line]
+         if {[string match "STATUS:*|STARTED:*|FINISHED:*" $line]} {
+            continue
+         }
+         if {[string match "*[get_result_ok]" $line]} {
             set color [get_color_ok]
-         } elseif {[string match "*[get_result_failed]" [string trim $line]]} {
+         } elseif {[string match "*[get_result_failed]" $line]} {
             set err [replace_string [lindex $line 0] ":" ""]
-            append content [create_html_target ${host}_label_${err}]
+            if {[info exists report($task_nr,spooling)]} {
+               set spooling $report($task_nr,spooling)
+               append content [create_html_target ${host}_${spooling}_label_${err}]
+            } else {
+               append content [create_html_target ${host}_label_${err}]
+            }
             append content [create_html_link "Back to the top" "$filename"]
             set color [get_color_failed]
          } elseif {[string match "*[get_result_skipped]" [string trim $line]]} {

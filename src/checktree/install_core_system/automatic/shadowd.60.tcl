@@ -60,7 +60,7 @@
 #     ???/???
 #*******************************
 proc install_shadowd {} {
-   global CHECK_CORE_SHADOWD CORE_INSTALLED
+   global CORE_INSTALLED
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
@@ -70,7 +70,12 @@ proc install_shadowd {} {
 
    set CORE_INSTALLED ""
 
-   foreach shadow_host $CHECK_CORE_SHADOWD {
+   set shadowd_hosts [replace_string $ts_config(shadowd_hosts) "none" ""]
+   if {[string trim $shadowd_hosts] == ""} {
+      return
+   }
+
+   foreach shadow_host $shadowd_hosts  {
       is_remote_file $shadow_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/settings.sh"
    }
    read_install_list
@@ -81,13 +86,13 @@ proc install_shadowd {} {
 
       # support jmx ssl testsuite keystore and certificate creation
       if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
-         set my_csp_host_list $CHECK_CORE_SHADOWD
+         set my_csp_host_list $shadowd_hosts
       }
 
       # are we installing secure grid engine?
       if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
-         set my_csp_host_list $CHECK_CORE_SHADOWD
+         set my_csp_host_list $shadowd_hosts
       }
 
       # if $my_csp_host_list != "" we copy certificates
@@ -100,7 +105,7 @@ proc install_shadowd {} {
    }
 
    if {$check_use_installed_system} {
-      foreach shadow_host $CHECK_CORE_SHADOWD {
+      foreach shadow_host $shadowd_hosts {
          ts_log_fine "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
          set info [check_shadowd_settings $shadow_host]
          if {$info != ""} {
@@ -121,7 +126,7 @@ proc install_shadowd {} {
          ts_log_severe "inst_sge file not found"
          return
       }
-      foreach shadow_host $CHECK_CORE_SHADOWD {
+      foreach shadow_host $shadowd_hosts {
          ts_log_fine "installing shadowd on hosts: $shadow_host ($ts_config(product_type) system)..."
          set my_timeout 500
          if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
@@ -140,7 +145,7 @@ proc install_shadowd {} {
             ts_log_warning "install shadowd hosts failed\n$shadow_host as $install_user: inst_sge $inst_sge_param:\n$output"
          }
      }
-     foreach shadow_host $CHECK_CORE_SHADOWD {
+     foreach shadow_host $shadowd_hosts {
          ts_log_fine "testing shadowd settings for host $shadow_host ..."
          set info [check_shadowd_settings $shadow_host]
          if {$info != ""} {

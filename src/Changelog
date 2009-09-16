@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+AP-2009-09-16-0: Enhancem.:  o Adding auto installation test, basic test enhancement.
+                             o Removing CHECK_CORE_SHADOWD global variable
+                 Review:     LP
 
 TB-2009-09-11-0: Bugfix:     Rolled back change to parse_table_output function
                  Belongs to: LP-2009-09-10-0

@@ -4675,7 +4675,7 @@ proc parse_testsuite_info_file { user uri info_file } {
    # We need a subdirectory with source code macros
    set ge_source_macro_dir "$path/source_code_macros"
    if {![is_remote_path $host $user $ge_source_macro_dir]} {
-      ts_log_severe "$host: Directory \"$ge_source_macro_dir" is missing!"
+      ts_log_severe "$host: Directory \"$ge_source_macro_dir\" is missing!"
       return 0
    }
 

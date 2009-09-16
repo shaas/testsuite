@@ -5808,7 +5808,10 @@ proc get_qacct {job_id {my_variable "qacct_info"} {on_host ""} {as_user ""} {rai
    }
 
    # if qacct host is not master host we have also to add some NFS timeout
-   if {$on_host == ""} {
+   if {"$on_host" == ""} {
+      set on_host $ts_config(master_host)
+   }
+   if {"$on_host" != "$ts_config(master_host)"} {
       incr timeout_value 60
       ts_log_finer "get_qacct(): increasing timeout to $timeout_value because qacct host might not be master host \"$ts_config(master_host)\"!"
    }
@@ -8497,7 +8500,7 @@ proc copy_certificates { host { sync 1 } } {
          ts_log_finer "correcting certificate file permissions on windows host"
          set users "$CHECK_USER $ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user)"
          foreach user $users {
-            start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/default/userkeys/$user"
+            start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/userkeys/$user"
          }
       }
 

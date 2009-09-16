@@ -109,16 +109,18 @@ proc basic_init_level {} {
 # -------- local test procedures: initialization------------------------------
 proc basic_setup {} {
    global ts_config ts_config_backup 
-   global basic_hosts basic_host_select
+   global basic_hosts basic_host_set basic_host_select
    global basic_test_identificator
    global system_was_alive
+   global basic_master_host_for_win
 
-   set basic_hosts [basic_select_hosts]
-
-   if {$basic_hosts == ""} {
-      ts_log_config "No host selected."
-      return 99
+   if {[check_is_interactive]} {
+      set basic_host_select true
    }
+
+   set basic_hosts [manual_select_hosts $basic_host_set $basic_host_select]
+
+   set basic_master_host_for_win [host_conf_get_suited_hosts 1 {} {} {win32-x86}]
 
    set basic_test_identificator "BASIC_TEST"
 
@@ -136,8 +138,9 @@ proc basic_setup {} {
 }
 
 proc basic_cleanup {} {
-   global ts_config ts_config_backup system_was_alive
-   global basic_hosts
+   global ts_config ts_config_backup
+   global system_was_alive
+   global basic_hosts basic_master_host_for_win
 
    if {$basic_hosts == ""} {
       return 0
@@ -152,120 +155,118 @@ proc basic_cleanup {} {
    }
 
    # unset our test's global variables
-   foreach var "ts_config_backup basic_hosts" {
+   foreach var "ts_config_backup basic_hosts basic_master_host_for_win" {
       if {[info exists $var]} {
          unset $var
       }
    }
 }
 
-proc basic_select_hosts {} {
-   global ts_config ts_host_config
-   global basic_host_set basic_host_select
-
-   set basic_hosts ""
-   switch -- $basic_host_set {
-      master {
-         set basic_hosts $ts_config(master_host)
-      }
-      cluster {
-         set basic_hosts [host_conf_get_cluster_hosts]
-      }
-      compile {
-         foreach host $ts_host_config(hostlist) {
-            if {[host_conf_is_compile_host $host]} {
-               lappend basic_hosts $host
-            }
-         }
-      }
-      supported {
-         set basic_hosts_arch [host_conf_get_arch_hosts [host_conf_get_archs $ts_host_config(hostlist)]]
-         foreach host $basic_hosts_arch {
-            if {[host_conf_is_supported_host $host]} {
-               lappend basic_hosts $host
-            }
-         }
-      }
-   }
-   if {[check_is_interactive]} {
-      set basic_host_select true
-   }
-
-   if {$basic_host_select} {
-      set name host_list
-      set my_config($name) $basic_hosts
-      set my_config($name,desc) "The basic tests will run on $basic_host_set host(s).\nAdjust the host list if necessary:"
-      while {true} {
-         set basic_hosts [config_generic 0 $name my_config "" host 0 0]
-         if {$basic_hosts == -1} {
-            set basic_hosts ""
-         }
-         puts -nonewline "You have choosed these hosts: $basic_hosts. Is the list correct? (y/n)"
-         set result [wait_for_enter 1]
-         if {$result == "y"} {
-            break
-         }
-      }
-   }
-
-   return $basic_hosts
-}
-
 proc basic_test_set {} {
-   global basic_hosts basic_test_identificator CHECK_HTML_DIRECTORY
+   global basic_hosts basic_test_identificator
+   global ts_config ts_config_backup CHECK_HTML_DIRECTORY
 
-   if {$basic_hosts == ""} {
-      return 0
+   set dirname $CHECK_HTML_DIRECTORY/${basic_test_identificator}_[ge_get_gridengine_version]
+
+   if {![file isdirectory $dirname]} {
+      file mkdir $dirname
    }
 
-   # TODO: Parallel run of basic tests is not supported. To enable it, use
-   # different port numbers for each run, different report arrays for storing
-   # data, write the results to the file.
+   set all_hosts ""
+   foreach f [glob -nocomplain $dirname/*.txt] {
+      set name [file tail $f]
+      set ind [string first "_" $name]
+      if {$ind >= 0} {
+         lappend all_hosts [string range $name 0 [incr ind -1]]
+      }
+   }
+
+   set host_list [lsort -unique "$all_hosts $basic_hosts"]
+   if {$host_list == ""} {
+      ts_log_config "No host selected!"
+      return 99
+   }
+
    array set report {}
    report_create "Report of basic tests" report
-   report_set_html_parameters report generate_html_report basic_tests.html
 
-   foreach host $basic_hosts {
-      set task_nr [report_create_task report $basic_test_identificator $host "" 1]
-      set result [basic_test report]
-      report_finish_task report $task_nr $result
+   report_set_html_parameters report generate_html_report "$dirname/index.html"
 
-      get_basic_tests_result report arch_results
-      set msg [get_basic_tests_html_message report arch_results]
-
-      report_clear_messages report
-      report_add_message report $msg
-
-      print_task_report report $task_nr
-      # TODO: add the possibility to change the test results
+   if {$ts_config(spooling_method) == "classic"} {
+      set curr_case "classic"
+   } else {
+      if {$ts_config(bdb_server) == "none"} {
+         set curr_case "bdb"
+      } else {
+         set curr_case "bdb_rpc"
+      }
    }
 
-   print_all_tasks_report report
+   foreach case "classic bdb bdb_rpc" {
+      foreach host $host_list {
+         if {[lsearch -exact $basic_hosts $host] >= 0 && "$case" == "$curr_case"} {
+            set task_nr [report_create_task report $basic_test_identificator $host "" $case]
+            set result [basic_test report]
+            set output "STATUS: $result|STARTED: $report(task_$task_nr,date)|FINISHED: [clock seconds]\n"
+            foreach param [manual_cluster_parameters] {
+               append output "[format_fixed_width "$param:" 20]$ts_config($param)\n"
+            }
+            append output [get_task_result report task_$task_nr]
+            report_task_add_message report $task_nr $output
+            report_finish_task report $task_nr $result
+         } else {
+            set task_nr [report_add_task report $basic_test_identificator $host "" $case]
+         }
+      }
+   }
 
    set result [get_basic_tests_result report arch_results]
-   set msg [get_basic_tests_html_message report arch_results]
-
-   report_clear_messages report
-   report_add_message report $msg
    report_finish report $result
 
    # TODO: create procedure for sending e-mail notification with the link to the report
    if {[string compare $CHECK_HTML_DIRECTORY ""] != 0} {
+      set ts_config(cell) $ts_config_backup(cell)
       set body "testsuite - $report(name)\n"
       append body "------------------------------------------\n\n"
-      append body " started: $report(start)\n"
-      append body "finished: $report(end)\n"
+      append body " started: [clock format $report(start)]\n"
+      append body "finished: [clock format $report(end)]\n"
       append body "  result: $report(result)\n"
-      append body "  link: file://$CHECK_HTML_DIRECTORY/$report(filename)"
+      append body "  link: file://$report(filename)"
       mail_report "testsuite - $report(name)" $body
    }
 }
 
 proc basic_cluster_configure {host} {
-   global ts_config
+   global ts_config basic_master_host_for_win ts_config_backup
 
-   set ts_config(master_host) $host
-   set ts_config(all_nodes) $host
+   set arch [resolve_arch $host]
+   if {[string first "win" $arch] == 0} {
+      set ts_config(master_host) $basic_master_host_for_win
+      set ts_config(all_nodes) "$ts_config(master_host) $host"
+      if {"$ts_config_backup(product_feature)" == "none"} {
+         set ts_config(product_feature) "csp"
+      }
+   } else {
+      set ts_config(master_host) $host
+      set ts_config(all_nodes) $host
+      set ts_config(product_feature) $ts_config_backup(product_feature)
+   }
+   if {$ts_config_backup(jmx_port) != 0} {
+      switch -glob $arch {
+         sol* -
+         lx* {
+            set java_path [get_java_home_for_host $host 1.5+ 0]
+            if {$java_path == ""} {
+               set ts_config(jmx_port) 0
+            } else {
+               set ts_config(jmx_port) $ts_config_backup(jmx_port)
+            }
+         }
+         default {
+            set ts_config(jmx_port) 0
+         }
+      }
+   }
    set ts_config(shadowd_hosts) ""
    set ts_config(execd_hosts) $host
    set ts_config(execd_nodes) $host
@@ -293,15 +294,17 @@ proc basic_test {report_var} {
 
    # TODO: here we allow only a local spooling for basic tests
    # change it in dependence on cluster configuration
-   if {![file isdirectory /tmp/$CHECK_USER]} {
-      start_remote_prog $host $CHECK_USER mkdir /tmp/$CHECK_USER
-   }
-   set spooldir /tmp/$CHECK_USER/basic_$host
+   set unique_dirname "basic_$host"
+   set spooldir [basic_local_spool_dir $host $unique_dirname]
    set spooldir_bckp $ts_host_config($host,spooldir)
    set ts_host_config($host,spooldir) $spooldir
-   if {![file isdirectory $spooldir]} {
-      start_remote_prog $host $CHECK_USER mkdir $spooldir
+
+   if {"$ts_config(master_host)" != "$host"} {
+      set spooldir_master [basic_local_spool_dir $ts_config(master_host) $unique_dirname]
+      set spooldir_master_bckp $ts_host_config($host,spooldir)
+      set ts_host_config($host,spooldir) $spooldir_master
    }
+
    if {[string compare $ts_config(bdb_server) "none"] != 0} {
       set ts_config(bdb_dir) $spooldir/bdb
       install_bdb_rpc
@@ -309,7 +312,11 @@ proc basic_test {report_var} {
    install_qmaster
    install_execd
 
+   set arch [resolve_arch $host]
    if {[sge_check_system_running report]} {
+      if {[string first "win" $arch] == 0} {
+         setup_win_user_passwd $CHECK_USER
+      }
       sge_qconf_head report
       sge_man report
       sge_qhost report
@@ -320,7 +327,11 @@ proc basic_test {report_var} {
       sge_qacct report
       sge_qsub_sync report
       sge_mod_queue report
-      sge_qmon report
+      if {[string first "win" $arch] == 0} {
+         sge_check_win_gui report
+      } else {
+         sge_qmon report
+      }
       sge_qsh report
       sge_qrsh report
       sge_qrsh_hostname report
@@ -331,22 +342,53 @@ proc basic_test {report_var} {
       sge_jsv report
       sge_qmaster_log report
       sge_reject_other_binaries report
-      set result [get_result_ok]
+      set test_count [get_test_count report task_${curr_task_nr} err_var]
+      if {$err_var == ""} {
+         set result [get_result_ok]
+      } else {
+         set result [get_result_failed]
+      }
    } else {
       set result [get_result_failed]
    }
 
    shutdown_core_system
-   set ts_host_config($host,spooldir) $spooldir_bckp
+
    if {[file isdirectory "$ts_config(product_root)\/$ts_config(cell)"]} {
       delete_directory "$ts_config(product_root)\/$ts_config(cell)"
    }
+   set ts_host_config($host,spooldir) $spooldir_bckp
    remote_delete_directory $host $spooldir
-   if {[string compare $ts_config(bdb_server) "none"] != 0} {
+   if {[string compare "$host" "$ts_config(master_host)"] != 0} {
+      set ts_host_config($ts_config(master_host),spooldir) $spooldir_master_bckp
+      remote_delete_directory $ts_config(master_host) $spooldir_master
+   }
+   if {[string compare "$ts_config(bdb_server)" "none"] != 0} {
       remote_delete_directory $ts_config(bdb_server) $spooldir
    }
 
    return $result
+}
+
+# dirname - spool directory name unique for the basic test
+proc basic_local_spool_dir {host dirname} {
+   global CHECK_USER
+
+   set expect_bin [get_binary_path $host "expect"]
+   set spooldir "/tmp/$CHECK_USER"
+   set result [start_remote_prog $host $CHECK_USER $expect_bin \
+                                "-c \"puts \[file isdirectory $spooldir\]\""]
+   if {$prg_exit_state != 0} {
+      ts_log_severe $result
+      start_remote_prog $host $CHECK_USER mkdir /tmp/$CHECK_USER
+   } elseif {!$result} {
+      start_remote_prog $host $CHECK_USER mkdir /tmp/$CHECK_USER
+   }
+   set spooldir $spooldir/$dirname
+   if {![file isdirectory $spooldir]} {
+      start_remote_prog $host $CHECK_USER mkdir $spooldir
+   }
+   return $spooldir
 }
 
 # arch,host_list
@@ -414,6 +456,7 @@ proc get_basic_tests_html_message {report_var arch_results_var} {
          # ...
          set arch_at_least_one_ok false
          set msg_arch ""
+         set color [get_color_skipped]
          foreach host $arch_results($arch,host_list) {
             if {[info exists arch_results($arch,[get_result_failed])]} {
                if {[lsearch -exact $arch_results($arch,[get_result_failed]) $host] >= 0} {

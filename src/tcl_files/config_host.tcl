@@ -2192,6 +2192,9 @@ proc get_jvm_lib_path_for_host { host {java_version "1.5+"} } {
       "darwin-x86" {
          set jvm_lib_path $java_home/../Libraries/libjvm.dylib
       }
+      "lx*-ia64" {
+         set jvm_lib_path $java_home/jre/lib/ia64/server/libjvm.so
+      }
    }
    return $jvm_lib_path
 }

@@ -1,0 +1,378 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "auto_install_init_level"
+
+# define test's name and run level descriptions
+set check_name             "auto_install"
+set check_category         "COMPATIBILITY SYSTEM INTERACTIVE"
+set check_highest_level    300
+set check_description(0)   "auto_install test on selected hosts"
+set check_description(100) "auto_install test on all cluster hosts"
+set check_description(200) "auto_install test on all compile hosts"
+set check_description(300) "auto_install test on all supported hosts"
+
+# define test's dependencies
+set check_needs           ""
+
+# setup and cleanup functions
+set check_setup_function auto_install_setup
+set check_cleanup_function auto_install_cleanup
+
+global CHECK_ACTUAL_TEST_PATH
+
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/init_cluster
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/qmaster
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/execd
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/automatic/shadowd
+ts_source $CHECK_ACTUAL_TEST_PATH/../../../install_core_system/interactive/bdb_rpc
+ts_source $CHECK_ACTUAL_TEST_PATH/../manual_util
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "auto_install_test_set"
+
+proc auto_install_init_level {} {
+   global CHECK_ACT_LEVEL
+   global auto_install_host_set auto_install_host_select
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         set auto_install_host_select true
+         set auto_install_host_set "master"
+         return 0
+      }
+      100 {
+         set auto_install_host_select false
+         set auto_install_host_set "cluster"
+         return 0
+      }
+      200 {
+         set auto_install_host_set "compile"
+         set auto_install_host_select false
+         return 0
+      }
+      300 {
+         set auto_install_host_set "supported"
+         set auto_install_host_select false
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+proc auto_install_setup {} {
+   global ts_config ts_config_backup
+   global auto_install_hosts auto_install_host_set auto_install_host_select
+   global auto_install_test_identificator
+#   global system_was_alive
+   global auto_install_test_hosts auto_install_bdb
+
+   if {[check_is_interactive]} {
+      set auto_install_host_select true
+   }
+
+   set auto_install_hosts [manual_select_hosts $auto_install_host_set $auto_install_host_select]
+
+   set auto_install_test_hosts [host_conf_get_suited_hosts 2 {sol-amd64 sol-sparc64 \
+                                            lx24-amd64 lx24-x86} {} {win32-x86}]
+
+   set auto_install_test_identificator "AUTO_INSTALL"
+
+#   set system_was_alive false
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]]} {
+#      set system_was_alive true
+      shutdown_core_system
+   }
+
+   # backup ts_config parameters
+   foreach param [array names ts_config] {
+      set ts_config_backup($param) $ts_config($param)
+   }
+
+}
+
+proc auto_install_cleanup {} {
+   global ts_config ts_config_backup
+#   global system_was_alive
+   global auto_install_hosts auto_install_test_hosts
+
+   # restore ts_config parameters
+   foreach param [array names ts_config_backup] {
+      set ts_config($param) $ts_config_backup($param)
+   }
+
+#   if {$system_was_alive} {
+#      startup_core_system
+#   }
+
+   # unset our test's global variables
+   foreach var "ts_config_backup auto_install_hosts auto_install_test_hosts" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc auto_install_test_set {} {
+   global auto_install_hosts auto_install_test_identificator
+   global ts_config CHECK_HTML_DIRECTORY
+
+   set dirname $CHECK_HTML_DIRECTORY/${auto_install_test_identificator}_[ge_get_gridengine_version]
+   if {![file isdirectory $dirname]} {
+      file mkdir $dirname
+   }
+
+   set all_hosts ""
+   foreach f [glob -nocomplain $dirname/*.txt] {
+      set name [file tail $f]
+      set ind [string first "_" $name]
+      if {$ind >= 0} {
+         lappend all_hosts [string range $name 0 [incr ind -1]]
+      }
+   }
+
+   set host_list [lsort -unique "$all_hosts $auto_install_hosts"]
+   if {$host_list == ""} {
+      ts_log_config "No host selected!"
+      return 99
+   }
+
+   array set report {}
+   report_create "Report of auto installation tests" report
+   report_set_html_parameters report generate_html_report "$dirname/index.html"
+
+   foreach host $host_list {
+      foreach case "classic bdb bdb_rpc" {
+         if {[lsearch -exact $auto_install_hosts $host] >= 0} {
+            set task_nr [report_create_task report $auto_install_test_identificator $host "" $case]
+            set result [auto_install_test report]
+            set output "STATUS: $result|STARTED: $report(task_$task_nr,date)|FINISHED: [clock seconds]\n"
+            foreach param [manual_cluster_parameters] {
+               append output "[format_fixed_width "$param:" 20]$ts_config($param)\n"
+            }
+            append output [get_task_result report task_$task_nr]
+            report_task_add_message report $task_nr $output
+            report_finish_task report $task_nr $result
+         } else {
+            set task_nr [report_add_task report $auto_install_test_identificator $host "" $case]
+         }
+      }
+   }
+
+   set result [get_auto_install_tests_result report arch_results]
+   report_finish report $result
+}
+
+# case: classic
+#       bdb
+#       bdb_rpc
+proc auto_install_cluster_configure {host case} {
+   global ts_config auto_install_host ts_config_backup
+   global check_do_not_use_spool_config_entries
+   global auto_install_test_hosts
+
+   set arch [resolve_arch $host]
+   if {[string first "win" $arch] == 0} {
+      set ts_config(master_host) $auto_install_master_host_for_win
+      set ts_config(shadowd_hosts) $ts_config(master_host)
+      set ts_config(all_nodes) "$ts_config(master_host) $host"
+      if {"$ts_config_backup(product_feature)" == "none"} {
+         set ts_config(product_feature) "csp"
+      }
+   } else {
+      set ts_config(master_host) $host
+      if {$check_do_not_use_spool_config_entries == 0} {
+         set ts_config(shadowd_hosts) $host
+      } else {
+         foreach t_host $auto_install_test_hosts {
+            if {"$t_host" != "$host"} {
+               set ts_config(shadowd_hosts) "$host $t_host"
+               break
+            }
+         }
+      }
+      set ts_config(all_nodes) $ts_config(shadowd_hosts)
+      set ts_config(product_feature) $ts_config_backup(product_feature)
+   }
+   if {$ts_config_backup(jmx_port) != 0} {
+      switch -glob $arch {
+         sol* -
+         lx* {
+            set java_path [get_java_home_for_host $host 1.5+ 0]
+            if {$java_path == ""} {
+               set ts_config(jmx_port) 0
+            } else {
+               set ts_config(jmx_port) $ts_config_backup(jmx_port)
+            }
+         }
+         default {
+            set ts_config(jmx_port) 0
+         }
+      }
+   }
+   set ts_config(execd_hosts) $host
+   set ts_config(execd_nodes) $host
+   set ts_config(cell) auto_install_$host
+   set ts_config(submit_only_hosts) none
+   switch -- $case {
+      "classic" {
+         set ts_config(spooling_method) classic
+         set ts_config(bdb_server) none
+      }
+      "bdb" {
+         set ts_config(spooling_method) berkeleydb
+         set ts_config(bdb_server) none
+      }
+      "bdb_rpc" {
+         set ts_config(spooling_method) berkeleydb
+         set ts_config(bdb_server) [lindex $auto_install_test_hosts 1]
+      }
+   }
+}
+
+proc auto_install_test {report_var} {
+   global ts_config ts_host_config CHECK_USER
+   upvar $report_var report
+
+   set curr_task_nr [expr $report(task_count) - 1]
+   set host [get_test_host report $curr_task_nr]
+   set case $report(task_$curr_task_nr,spooling)
+
+   auto_install_cluster_configure $host $case
+
+   if {![sge_check_host_connection report]} {
+      return [get_result_skipped]
+   }
+
+   if {![sge_check_packages report]} {
+      return [get_result_skipped]
+   }
+
+#   if {![file isdirectory /tmp/$CHECK_USER]} {
+#      start_remote_prog $host $CHECK_USER mkdir /tmp/$CHECK_USER
+#   }
+#   set spooldir /tmp/$CHECK_USER/auto_install
+#   set spooldir_bckp $ts_host_config($host,spooldir)
+#   set ts_host_config($host,spooldir) $spooldir
+#   if {![file isdirectory $spooldir]} {
+#      start_remote_prog $host $CHECK_USER mkdir $spooldir
+#   }
+   create_autoinst_config
+   if {$case == "bdb_rpc"} {
+      install_bdb_rpc
+   }
+   install_qmaster
+   install_wait_for_settings_file
+   install_shadowd
+   install_execd
+
+   sge_check_auto_install_logs report
+  
+   if {[sge_check_system_running report]} {
+      sge_qhost report
+      sge_qstat report
+      sge_submit_job report
+      sge_qacct report
+      set test_count [get_test_count report task_${curr_task_nr} err_var]
+      if {$err_var == ""} {
+         set result [get_result_ok]
+      } else {
+         set result [get_result_failed]
+      }
+   } else {
+      set result [get_result_failed]
+   }
+
+   shutdown_core_system
+   delete_directory "$ts_config(product_root)\/$ts_config(cell)"
+   if {[file isdirectory "$ts_config(product_root)\/$ts_config(cell)"]} {
+      remote_delete_directory $host "$ts_config(product_root)\/$ts_config(cell)"
+   }
+#   set ts_host_config($host,spooldir) $spooldir_bckp
+#   remote_delete_directory $host $spooldir
+   return $result
+}
+
+proc get_auto_install_tests_result {report_var {arch_result_var arch_results}} {
+   upvar $report_var report
+   upvar $arch_result_var arch_results
+   return [get_result_ok]
+}
+
+proc get_auto_install_tests_html_message {report_var {arch_result_var arch_results}} {
+   upvar $report_var report
+   upvar $arch_result_var arch_results
+   return "This is html auto istallation result - not yet implemented."
+}
+
+proc get_cluster_configuration {} {
+   global ts_config
+
+   set sge_info_list ""
+   if {[fs_config_has_root_write_perm_on_fs $ts_config(product_root)]} {
+      lappend sge_info_list "Filesystem: root with write permissions"
+   } else {
+      lappend sge_info_list "Filesystem: root with no write permissions"
+   }
+   lappend sge_info_list "SGE root directory: $ts_config(product_root)"
+   lappend sge_info_list "SGE cell: $ts_config(cell)"
+   lappend sge_info_list "Cluster name: $ts_config(cluster_name)"
+   if {$ts_config(gridengine_version) >= 62} {
+      if {$ts_config(jmx_port) > 0} {
+         set jmx_enabled true
+      } else {
+         set jmx_enabled false
+      }
+      lappend sge_info_list "JMX enabled: $jmx_enabled"
+   }
+   lappend sge_info_list "Qmaster port: $ts_config(commd_port)"
+   lappend sge_info_list  "Execd port: [expr $ts_config(commd_port) + 1]"
+}

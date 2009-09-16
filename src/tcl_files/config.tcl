@@ -4407,11 +4407,8 @@ proc config_add_compile_archs { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_shadowd_hosts { only_check name config_array } {
-   global CHECK_CORE_SHADOWD
    global ts_host_config
    global fast_setup check_do_not_use_spool_config_entries
-
-   set CHECK_CORE_SHADOWD ""
 
    upvar $config_array config
 
@@ -4478,8 +4475,6 @@ proc config_shadowd_hosts { only_check name config_array } {
       }
    }
     
-   set CHECK_CORE_SHADOWD $value
-
    return $value
 }
 

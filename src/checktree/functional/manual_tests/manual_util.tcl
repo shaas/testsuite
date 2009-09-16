@@ -31,6 +31,59 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+proc manual_select_hosts {host_set {user_selection false}} {
+   global ts_config ts_host_config
+
+   set hosts ""
+   switch -- $host_set {
+      master {
+         set hosts $ts_config(master_host)
+      }
+      cluster {
+         set hosts [host_conf_get_cluster_hosts]
+      }
+      compile {
+         foreach host $ts_host_config(hostlist) {
+            if {[host_conf_is_compile_host $host]} {
+               lappend hosts $host
+            }
+         }
+      }
+      supported {
+         set hosts_arch [host_conf_get_arch_hosts [host_conf_get_archs \
+                                                     $ts_host_config(hostlist)]]
+         foreach host $hosts_arch {
+            if {[host_conf_is_supported_host $host]} {
+               lappend hosts $host
+            }
+         }
+      }
+   }
+
+   if {$user_selection} {
+      set name host_list
+      set my_config($name) $hosts
+      set my_config($name,desc) "The test will run on $host_set host(s). \
+                                           \nAdjust the host list if necessary:"
+      while {true} {
+         set hosts [config_generic 0 $name my_config "" host 0 0]
+         if {$hosts == -1} {
+            set hosts ""
+         }
+         puts -nonewline "You have choosed these hosts: $hosts. \
+                                                    Is the list correct? (y/n) "
+         set result [wait_for_enter 1]
+         if {$result == "y"} {
+            break
+         }
+      }
+   }
+
+   # TODO: if windows host is available, ask for the password!!!
+
+   return $hosts
+}
+
 #****** manual_util/sge_check_host_connection() ********************************
 #  NAME
 #     sge_check_host_connection() -- check the connection to host
@@ -58,11 +111,16 @@ proc sge_check_host_connection {report_var} {
 
    set msg "hallo"
    set output [start_remote_prog $host $CHECK_USER "echo" $msg prg_exit_state 10]
+   # TODO: why the connection test sometimes failed first time???
+   if {[string trim $output] != $msg} {
+      set output [start_remote_prog $host $CHECK_USER "echo" $msg prg_exit_state 10]
+   }
 
    if {[string trim $output] == $msg} {
       test_report report $curr_task_nr $id result [get_result_ok]
       return true
    } else {
+      test_report report $curr_task_nr $id value $output
       test_report report $curr_task_nr $id result [get_result_failed]
       return false
    }
@@ -99,8 +157,15 @@ proc sge_check_packages {report_var} {
    set result false
    if {$host_arch != $arch} {
       switch -- $host_arch {
-         lx26-amd64 {
-            if {$arch == lx24-amd64} {
+         "lx26-amd64" {
+            if {"$arch" == "lx24-amd64"} {
+               test_report report $curr_task_nr $id value "Using binaries $arch."
+               set result true
+            }
+         }
+         "lx26-x86" {
+            if {"$arch" == "lx24-x86"} {
+               test_report report $curr_task_nr $id value "Using binaries $arch."
                set result true
             }
          }
@@ -108,7 +173,7 @@ proc sge_check_packages {report_var} {
       if {!$result} {
          test_report report $curr_task_nr $id value "Wrong architecture setup. \
                   Testsuite configuration: $host_arch x sge resolves as: $arch."
-         test_report report $curr_task_nr $id result [get_result_failed]
+         test_report report $curr_task_nr $id result [get_result_skipped]
          return false
       }
    }
@@ -193,6 +258,7 @@ proc sge_check_version {report_var} {
 #
 #*******************************************************************************
 proc sge_check_system_running {report_var} {
+   global ts_config
    upvar $report_var report
 
    set id [register_test check_system_running report curr_task_nr]
@@ -200,18 +266,20 @@ proc sge_check_system_running {report_var} {
    set host [get_test_host report $curr_task_nr]
 
    ts_log_fine "Check if the system is running."
-   set basic_qmaster_pid [get_qmaster_pid $host]
+   set basic_qmaster_pid [get_qmaster_pid $ts_config(master_host)]
    if {$basic_qmaster_pid <= 0} {
       test_report report $curr_task_nr $id result [get_result_failed]
       test_report report $curr_task_nr $id value "Qmaster is not running."
       return false
    }
 
-   set basic_execd_pid [get_execd_pid $host]
-   if {$basic_execd_pid <= 0} {
-      test_report report $curr_task_nr $id result [get_result_failed]
-      test_report report $curr_task_nr $id value "Execd is not running."
-      return false
+   foreach ex_host $ts_config(execd_nodes) {
+      set basic_execd_pid [get_execd_pid $ex_host]
+      if {$basic_execd_pid <= 0} {
+         test_report report $curr_task_nr $id result [get_result_failed]
+         test_report report $curr_task_nr $id value "Execd on $ex_host is not running."
+         return false
+      }
    }
 
    set result [wait_for_load_from_all_queues 60]
@@ -300,7 +368,7 @@ proc sge_man {report_var} {
 
    # TODO: implement interactive mode
    if {[check_is_interactive]} {
-      ts_log_fine "This is not yet implemented, open man pages and wait for user's output"
+      test_report report $curr_task_nr $id value "User check."
       puts -nonewline "Manual pages are okay? (y/n)"
       set result [wait_for_enter 1]
       if {$result == "y"} {
@@ -319,13 +387,29 @@ proc sge_man {report_var} {
       set start_time [clock clicks -milliseconds]
       while {1} {
          set curr_time [clock clicks -milliseconds]
-         if {[expr ($curr_time - $start_time) / 1000.0] >= 10.0} {
+         if {[expr ($curr_time - $start_time) / 1000.0] >= 20.0} {
             append output timeout
             break
          }
          expect {
             -i $sp_id "*More*" {
-               ts_send $sp_id " \n"
+               ts_send $sp_id " "
+               set output $output$expect_out(0,string)
+               continue
+            }
+            -i $sp_id "*Standard input*" {
+               ts_send $sp_id " "
+               set output $output$expect_out(0,string)
+               continue
+            }
+            -i $sp_id "*Manual page*" {
+               ts_send $sp_id " "
+               set output $output$expect_out(0,string)
+               continue
+            }
+            -i $sp_id "*(END)*" {
+               ts_send $sp_id "q"
+               set output $output$expect_out(0,string)
                continue
             }
             -i $sp_id timeout {
@@ -335,10 +419,16 @@ proc sge_man {report_var} {
                break
             }
             -i $sp_id "_start_mark_*\n" {
+               ts_send $sp_id " "
                continue
             }
             -i $sp_id "_exit_status_" {
                break
+            }
+            -i $sp_id "*:" {
+               ts_send $sp_id " "
+               set output $output$expect_out(0,string)
+               continue
             }
             -i $sp_id "$ts_config(results_dir)*" {
                continue
@@ -364,23 +454,32 @@ proc sge_man {report_var} {
                continue
             }
              -i $sp_id "*\r" {
+               ts_send $sp_id "\n"
                set output $output$expect_out(0,string)
+               continue
             }
          }
       }
       close_spawn_process $sid
       if {$errors == 0} {
          set version ""
+         set expected_version [ge_get_gridengine_version]
          foreach line [split $output "\n"] {
             if {[string first "Last change:" $line] >= 0} {
                set version "[lindex $line 1]"
                break
             }
+            if {[string first "$expected_version " $line] >= 0} {
+               set version $expected_version
+               break
+            }
          }
-         if {$version == [ge_get_gridengine_version]} {
+         if {$version == $expected_version} {
+            set output "$line"
             set result [get_result_ok]
          } else {
-            set output "$version doesn't fit the expected version [ge_get_gridengine_version]!!!\n$output"
+            set output "$version doesn't fit the expected version \
+                                        [ge_get_gridengine_version]!!!\n$output"
             set result [get_result_failed]
          }
       } else {
@@ -627,16 +726,24 @@ proc sge_qacct {report_var} {
    set result [wait_for_jobend $job_id "Sleeper" 80 0]
 
    ts_log_fine "Accounting for a job $job_id"
-   set result [get_qacct $job_id qacct_info]
+   set result [get_qacct $job_id qacct_info $ts_config(master_host)]
    if {$result == 0} {
       test_report report $curr_task_nr $id result [get_result_ok]
       set qacct_list ""
       foreach qacct_item [lsort -dictionary [array names qacct_info]] {
-         append qacct_list "[format_fixed_width $qacct_item 20][string trim $qacct_info($qacct_item)]\n"
+         append qacct_list "[format_fixed_width $qacct_item 20][string trim \
+                                                    $qacct_info($qacct_item)]\n"
       }
       test_report report $curr_task_nr $id value $qacct_list
       return true
    } else {
+      if {[info exists qacct_info]} {
+         foreach qacct_item [lsort -dictionary [array names qacct_info]] {
+            append qacct_list "[format_fixed_width $qacct_item 20][string trim \
+                                                    $qacct_info($qacct_item)]\n"
+         }
+         test_report report $curr_task_nr $id value $qacct_list
+      }
       test_report report $curr_task_nr $id result [get_result_failed]
       return false
    }
@@ -743,8 +850,13 @@ proc sge_qmon {report_var} {
    set id [register_test qmon report curr_task_nr]
 
    set host [get_test_host report $curr_task_nr]
+   set arch [resolve_arch $host]
 
-   set qmon_bin "$ts_config(product_root)/bin/[resolve_arch $host]/qmon"
+   if {[string first "win" $arch] == 0} {
+      test_report report $curr_task_nr $id result [get_result_skipped]
+      return true
+   }
+   set qmon_bin "$ts_config(product_root)/bin/$arch/qmon"
    ts_log_fine "Start qmon"
    set sp_id [open_remote_spawn_process $host $CHECK_USER $qmon_bin ""]
    after 5000
@@ -753,7 +865,8 @@ proc sge_qmon {report_var} {
       return false
    } else {
       if {[check_is_interactive]} {
-         puts -nonewline "Qmon okay? (y/n)"
+         puts -nonewline "Qmon seems to be started properly. Click through the qmon, \
+                          close it, and check if the test result is okay. (y/n)"
          set result [wait_for_enter 1]
          if {$result == "y"} {
             test_report report $curr_task_nr $id result [get_result_ok]
@@ -810,7 +923,7 @@ proc sge_qsh {report_var} {
          unset sge_conf
       }
       hp11 {
-         set sge_conf(xterm) "/usr/X11R6/bin/xterm"
+         set sge_conf(xterm) "/usr/contrib/bin/X11/xterm"
          set_config sge_conf $host
          unset sge_conf
       }
@@ -1062,10 +1175,12 @@ proc sge_online_usage {report_var} {
             continue
          }
       } else {
-         set basic_status [get_result_ok]
-         set usage "qstat -j failed."
-         incr basic_error 1
-         break
+         if {$usage == ""} {
+            set basic_status [get_result_failed]
+            set usage "$usage"
+            incr basic_error 1
+            break
+         }
       }
    }
 
@@ -1076,11 +1191,12 @@ proc sge_online_usage {report_var} {
 
    delete_job $job_id 0 0 0
 
-   test_report report $curr_task_nr $id result $basic_status
    test_report report $curr_task_nr $id value $usage
    if {$basic_error == 0} {
+      test_report report $curr_task_nr $id result $basic_status
       return true
    } else {
+      test_report report $curr_task_nr $id result [get_result_failed]
       return false
    }
 }
@@ -1108,24 +1224,32 @@ proc sge_drmaa {report_var} {
 
    if { $ts_config(gridengine_version) < 61 } {
       ts_log_finest "basic_drmaa test not supported."
-      return [get_result_failed]
+      return
    }
 
    if {$ts_config(source_dir) == "none"} {
       ts_log_config "source directory is set to \"none\" - cannot run test"
-      return [get_result_failed]
+      return
    }
-
 
    set id [register_test drmaa report curr_task_nr]
 
    set host [get_test_host report $curr_task_nr]
-
    set host_arch [resolve_arch $host]
+
+   if {[string first "win" $host_arch] == 0} {
+      ts_log_finest "basic_drmaa test not supported."
+      test_report report $curr_task_nr $id result [get_result_skipped]
+      return
+   }
+
    if { [string first 64 $host_arch] >= 0 } {
       switch -exact $host_arch {
          sol-sparc64 {
-            lappend host_arch sol-sparc
+            # sol-sparc not supported since 62 version
+            if { $ts_config(gridengine_version) < 62 } {
+               lappend host_arch sol-sparc
+            }
          }
          sol-amd64 {
             lappend host_arch sol-x86
@@ -1146,6 +1270,7 @@ proc sge_drmaa {report_var} {
    set output ""
    foreach b_arch $host_arch {
       set err_count 0
+      set skipped_count 0
 
       ts_log_fine "Perform a drmaa test with $b_arch binaries"
       append output "$b_arch:\n"
@@ -1157,40 +1282,51 @@ proc sge_drmaa {report_var} {
          set compile_arch [start_remote_prog $host $CHECK_USER \
                         $ts_config(source_dir)/scripts/compilearch "-b $b_arch"]
          set compile_arch [string trim $compile_arch]
-         if {$compile_arch == ""} {
-            append output "Unknown compilearch! "
-            incr err_count 1
+      }
+      if {$compile_arch == ""} {
+         append output "Unknown compilearch! "
+         incr err_count 1
+      } else {
+         set drmaa_bin $ts_config(source_dir)/$compile_arch/test_drmaa_perf
+         if {[file isfile $drmaa_bin] != 1} {
+            set drmaa_bin "/vol2/SW/$b_arch/bin/test_drmaa_perf"
+         }
+         if {[file isfile $drmaa_bin] != 1} {
+            append output "$drmaa_bin not found! "
+            #incr err_count 1
+             incr skipped_count 1
          } else {
-            set drmaa_bin $ts_config(source_dir)/$compile_arch/test_drmaa_perf
-            if {[file isfile $drmaa_bin] != 1} {
-               set drmaa_bin "/vol2/SW/$b_arch/bin/test_drmaa_perf"
-            }
-            if {[file isfile $drmaa_bin] != 1} {
-               append output "$drmaa_bin not found! "
+            # set the shared library variable
+            set shared_lib_var [get_shared_lib_path_variable_name $b_arch]
+            set env($shared_lib_var) $ts_config(product_root)/lib/$b_arch
+            set result [start_remote_prog $host $CHECK_USER $drmaa_bin \
+                                              "-jobs 2 -threads 2 -wait yes \
+                       $ts_config(product_root)/examples/jobs/sleeper.sh 5" \
+                                                 prg_exit_state 120 0 "" env]
+            if {[string trim "$result"] == ""} {
+               append output "No output! "
                incr err_count 1
             } else {
-               # set the shared library variable
-               set shared_lib_var [get_shared_lib_path_variable_name $b_arch]
-               set env($shared_lib_var) $ts_config(product_root)/lib/$b_arch
-               set result [start_remote_prog $host $CHECK_USER $drmaa_bin \
-                          "-jobs 2 -threads 2 -wait yes $ts_config(product_root)/examples/jobs/sleeper.sh 5" \
-                          prg_exit_state 120 0 "" env]
                append output "$result "
                if {$prg_exit_state != 0} {
                   incr err_count 1
                }
             }
          }
-         append output "\n"
-         if {$err_count > 0} {
-            incr err_tests 1
-         }
-         set err_count 0
       }
+      append output "\n"
+      if {$err_count > 0} {
+         incr err_tests 1
+      }
+      set err_count 0
    }
 
    if {$err_tests == 0} {
-      set result [get_result_ok]
+      if {$skipped_count == 0} {
+         set result [get_result_ok]
+      } else {
+         set result [get_result_skipped]
+      }
    } else {
       set result [get_result_failed]
    }
@@ -1231,25 +1367,38 @@ proc sge_jdrmaa {report_var} {
    set jdrmaa_bin "/vol2/SW/$host_arch/bin/test_java_drmaa_perf.sh"
 
    if {[file isfile $jdrmaa_bin] != 1} {
-      test_report report $curr_task_nr $id result [get_result_failed]
+      test_report report $curr_task_nr $id result [get_result_skipped]
       test_report report $curr_task_nr $id value "$jdrmaa_bin not found!"
       return
    }
 
    ts_log_fine "Perform a jdrmaa test"
-   set java_path [get_java_home_for_host $host 1.5+]
+   set java_path [get_java_home_for_host $host 1.5+ 0]
+   if {"$java_path" == ""} {
+      set java_path [get_java_home_for_host $host 1.4]
+   } else {
+      if {$host_arch == "aix51"} {
+         set java_path [get_java_home_for_host $host 1.4]
+      }
+   }
    switch -exact $host_arch {
       hp11-64 {
          set env(SHLIB_PATH) "$ts_config(product_root)/lib/hp11"
       }
-      aix51 {
-         set java_path [get_java_home_for_host $host 1.4]
-      }
    }
-   set env(PATH) $java_path/bin
-   set result [start_remote_prog $host $CHECK_USER $jdrmaa_bin "" prg_exit_state 360 0 "" env]
+   set env(PATH) "$java_path/bin"
+   set result [start_remote_prog $host $CHECK_USER $jdrmaa_bin "" prg_exit_state 900 0 "" env]
    test_report report $curr_task_nr $id value $result
+   if {"$result" == ""} {
+      test_report report $curr_task_nr $id result [get_result_failed]
+      return
+   }
+   # TODO: adjust jdrmaa test to return !=0 exit status
    if {$prg_exit_state == 0} {
+      if {[string first "Error" $result] >= 0 || [string first "Exception" $result] >= 0} {
+         test_report report $curr_task_nr $id result [get_result_failed]
+         return false
+      }
       test_report report $curr_task_nr $id result [get_result_ok]
       return true
    } else {
@@ -1343,8 +1492,14 @@ proc sge_qmaster_log {report_var} {
 
    set host [get_test_host report $curr_task_nr]
 
-   set output [start_remote_prog $host $CHECK_USER "cat" "[get_qmaster_spool_dir]/messages"]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" \
+                                             "[get_qmaster_spool_dir]/messages"]
    test_report report $curr_task_nr $id value $output
+
+   set ignore_errors ""
+   lappend ignore_errors "*|E|error opening file * for reading: No such file or directory"
+   lappend ignore_errors "*|E|adminhost * already exists"
+   lappend ignore_errors "*|E|There are no jobs registered"
 
    if {$prg_exit_state == 0} {
       if {[check_is_interactive]} {
@@ -1359,14 +1514,34 @@ proc sge_qmaster_log {report_var} {
          }
       } else {
          set result true
-     }
+         foreach line [split $output "\n"] {
+            set line [string trim $line]
+            if {[string first "|C|" $line] >= 0} {
+               set result false
+               break
+            }
+            if {[string first "|E|" $line] >= 0} {
+               set is_error true
+               foreach err $ignore_errors {
+                  if {[string match "$err" "$line"] == 1} {
+                     set is_error false
+                     break
+                  }
+               }
+               if {$is_error} {
+                  set result false
+                  break
+               }
+            }
+         }
+      }
    } else {
       set result false
    }
    if {$result} {
       test_report report $curr_task_nr $id result [get_result_ok]
    } else {
-      test_report report $curr_task_nr $id result [get_result_ok]
+      test_report report $curr_task_nr $id result [get_result_failed]
    }
    return $result
 }
@@ -1426,7 +1601,182 @@ proc sge_reject_other_binaries {report_var} {
       return true
    } else {
       test_report report $curr_task_nr $id result [get_result_failed]
-      test_report report $curr_task_nr $id value "Qmaster crashed after submitting a job with wrong binaries!"
+      test_report report $curr_task_nr $id value "Qmaster crashed after \
+                                          submitting a job with wrong binaries!"
       return false
    }
+}
+
+#****** manual_util/sge_check_auto_install_logs() ******************************
+#  NAME
+#     sge_check_auto_install_logs() -- check the auto installation logs
+#
+#  SYNOPSIS
+#     sge_check_auto_install_logs { report_var }
+#
+#  FUNCTION
+#     Check the auto installation logs located at $SGE_ROOT/$SGE_CELL/common/install_logs
+#
+#  INPUTS
+#     report - the report object
+#
+#  SEE ALSO
+#     report_procedures/get_test_host()
+#
+#*******************************************************************************
+proc sge_check_auto_install_logs {report_var} {
+   global ts_config CHECK_USER
+   upvar $report_var report
+
+   set id [register_test check_logs report curr_task_nr]
+
+   set host [get_test_host report $curr_task_nr]
+
+   set log_files "$ts_config(product_root)/$ts_config(cell)/common/install_logs"
+   set fs_host [fs_config_get_server_for_path $log_files 0]
+   if {$fs_host == ""} {
+      set fs_host $host
+   }
+   set output ""
+   set files [start_remote_prog $fs_host $CHECK_USER "ls" "$log_files"]
+   foreach f $files {
+      set content [start_remote_prog $fs_host $CHECK_USER "cat" "$log_files/$f"]
+      append output "$f\n[report_table_line 100]\n$content\n"
+   }
+   if {$output == ""} {
+      test_report report $curr_task_nr $id result [get_result_failed]
+      test_report report $curr_task_nr $id value "No logs found in $log_files."
+   } else {
+      set failures "error failed critical denied"
+      set result [get_result_ok]
+      foreach line [split $output "\n"] {
+         set line [string trim $line]
+         foreach ff $failures {
+            if {[string first "$ff" "$line"] >= 0} {
+               set result [get_result_failed]
+               break
+            }
+         }
+         if {"$result" == [get_result_failed]} {
+            break
+         }
+      }
+      test_report report $curr_task_nr $id result $result
+      test_report report $curr_task_nr $id value $output
+   }
+
+}
+
+#****** manual_util/sge_check_win_gui() ****************************************
+#  NAME
+#     sge_check_win_gui() -- check the win gui job submission
+#
+#  SYNOPSIS
+#     sge_check_win_gui { report_var }
+#
+#  FUNCTION
+#     check the win gui job submission
+#
+#  INPUTS
+#     report - the report object
+#
+#  SEE ALSO
+#     report_procedures/get_test_host()
+#
+#*******************************************************************************
+proc sge_check_win_gui {report_var} {
+   global ts_config CHECK_USER
+   upvar $report_var report
+
+   ts_log_fine "Check the win gui job submission"
+
+   set id [register_test win_gui_job report curr_task_nr]
+
+   set host [get_test_host report $curr_task_nr]
+   set arch [resolve_arch $host]
+
+#   set notepad "/dev/fs/C/WINDOWS/notepad.exe"
+#   if {[check_is_interactive]} {
+#      puts -nonewline "Enter the path to notepad.exe"
+#      set notepad [wait_for_enter 1]
+#   }
+
+   set notepad "/dev/fs/C/WINDOWS/notepad.exe"
+   while {true} {
+      set is_remote [is_remote_file $host $CHECK_USER $notepad]
+      if {$is_remote} {
+         break
+      }
+      if {[check_is_interactive]} {
+         puts -nonewline "Enter the path to win gui job, \
+                                         or \"exit\" for skipping the test: "
+         set notepad [wait_for_enter 1]
+         if {$notepad == "exit"} {
+            test_report report $curr_task_nr $id value "User decision."
+            test_report report $curr_task_nr $id result [get_result_skipped]
+            return true
+         }
+      } else {
+         test_report report $curr_task_nr $id value "$notepad not found."
+         test_report report $curr_task_nr $id result [get_result_skipped]
+         return true
+      }
+   }
+
+   if {$ts_config(gridengine_version) >= 61} {
+      set args "-l display_win_gui=true"
+   } else {
+      set args "-v SGE_GUI_MODE=TRUE -l a=$arch"
+   }
+   append args " -b yes -shell no $notepad"
+   set job_id [submit_job $args 1 60 $host]
+
+   trigger_scheduling
+   after 1000
+
+   if {$job_id < 0} {
+      test_report report $curr_task_nr $id value "GUI job submission failed."
+      set result [get_result_failed]
+   } else {
+      if {[check_is_interactive]} {
+         puts -nonewline "win_gui_job was submitted. Open vncviewer ${host}:0, \
+              log in as user $CHECK_USER, and check if the notepad is running. \
+                                                Then close the notepad window. \
+                                                       Is the test okay? (y/n) "
+         set result [wait_for_enter 1]
+         if {$result == "y"} {
+            set result [get_result_ok]
+         } else {
+            set result [get_result_failed]
+         }
+      } else {
+         after 4000
+         delete_job $job_id
+         test_report report $curr_task_nr $id value "win_gui_job seems to be \
+                              working. Use interactive mode for complete check."
+         set result [get_result_ok]
+      }
+   }
+   if {$result == [get_result_ok]} {
+      after 2000
+      set output [get_qacct $job_id qacct_info $ts_config(master_host)]
+      if {$output == 0} {
+         set qacct_list ""
+         foreach qacct_item [lsort -dictionary [array names qacct_info]] {
+            append qacct_list "[format_fixed_width $qacct_item 20][string trim \
+                                                    $qacct_info($qacct_item)]\n"
+         }
+         test_report report $curr_task_nr $id value $qacct_list
+      } else {
+         test_report report $curr_task_nr $id value "Accounting for a job \
+                                                            $job_id is missing!"
+         set result [get_result_failed]
+      }
+   }
+   test_report report $curr_task_nr $id result $result
+}
+
+proc manual_cluster_parameters {} {
+   return "master_host shadowd_hosts execd_hosts commd_port jmx_port reserved_port \n
+   product_root product_feature cell cluster_name spooling_method bdb_server bdb_dir"
 }

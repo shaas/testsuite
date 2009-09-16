@@ -61,7 +61,7 @@
 #*******************************
 proc install_shadowd {} {
    global ts_config
-   global CHECK_CORE_SHADOWD CORE_INSTALLED
+   global CORE_INSTALLED
    global check_use_installed_system 
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
@@ -71,19 +71,24 @@ proc install_shadowd {} {
    set CORE_INSTALLED "" 
    read_install_list
 
+   set shadowd_hosts [replace_string $ts_config(shadowd_hosts) "none" ""]
+   if {[string trim $shadowd_hosts] == ""} {
+      return
+   }
+
    if {!$check_use_installed_system} {
       set feature_install_options ""
       set my_csp_host_list ""
 
       # support jmx ssl testsuite keystore and certificate creation
       if {$ts_config(gridengine_version) >= 62 && $ts_config(jmx_ssl) == "true" && $ts_config(jmx_port) != 0} {
-         set my_csp_host_list $CHECK_CORE_SHADOWD
+         set my_csp_host_list $shadowd_hosts
       }
  
       # are we installing secure grid engine?
       if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
-         set my_csp_host_list $CHECK_CORE_SHADOWD
+         set my_csp_host_list $shadowd_hosts
       }
 
       # if $my_csp_host_list != "" we copy certificates
@@ -95,7 +100,7 @@ proc install_shadowd {} {
       }
    }
  
-   foreach shadow_host $CHECK_CORE_SHADOWD {
+   foreach shadow_host $shadowd_hosts {
       ts_log_fine "testing shadowd settings for host $shadow_host ..."
       set info [check_shadowd_settings $shadow_host]
       if {$info != ""} {
@@ -105,7 +110,7 @@ proc install_shadowd {} {
 
       ts_log_fine "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
       if {$check_use_installed_system != 0} {
-         puts "no need to install shadowd on hosts \"$CHECK_CORE_SHADOWD\", noinst parameter is set"
+         puts "no need to install shadowd on hosts \"$shadowd_hosts\", noinst parameter is set"
          if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
