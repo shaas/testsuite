@@ -1157,10 +1157,10 @@ proc get_test_count {report_array task_nr {err_var errs} {skipped_var skipps}} {
    set test_errors ""
    set test_skipped ""
 
+   set test_count 0
    set output ""
    set filename $report($task_nr,filename)
    if {[file isfile $filename] && [file size $filename] != 0} {
-      set test_count 0
       set fp [open $filename r]
       set output [string trim [read $fp]]
       close $fp
@@ -1176,19 +1176,21 @@ proc get_test_count {report_array task_nr {err_var errs} {skipped_var skipps}} {
          }
       }
    } else {
-      set test_count $report($task_nr,test_count)
-      if {$test_count != 0} {
-         for {set i 0} {$i < $test_count} {incr i 1} {
-            if {$i < 10} {
-               set id 0$i
-            } else {
-               set id $i
-            }
-            set result $report($task_nr,$id,result)
-            if {$result == [get_result_failed]} {
-               lappend test_errors [get_test_name report $task_nr $id]
-            } elseif {$result == [get_result_skipped]} {
-               lappend test_skipped [get_test_name report $task_nr $id]
+      if {[info exists report($task_nr,test_count)]} {
+         set test_count $report($task_nr,test_count)
+         if {$test_count != 0} {
+            for {set i 0} {$i < $test_count} {incr i 1} {
+               if {$i < 10} {
+                  set id 0$i
+               } else {
+                  set id $i
+               }
+               set result $report($task_nr,$id,result)
+               if {$result == [get_result_failed]} {
+                  lappend test_errors [get_test_name report $task_nr $id]
+               } elseif {$result == [get_result_skipped]} {
+                  lappend test_skipped [get_test_name report $task_nr $id]
+               }
             }
          }
       }
