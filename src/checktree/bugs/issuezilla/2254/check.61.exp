@@ -140,6 +140,13 @@ proc issue_2254_cleanup  {} {
    del_queue "first.q" "" 1 1
    del_queue "second.q" "" 1 1
 
+   if {[get_rqs_list rqs_names "" "" 0] == 0} {
+      foreach elem $rqs_names {
+         ts_log_fine "Removing resource quota sets $elem ...\n"
+         del_rqs $elem
+       }
+   }
+
    set tmp_complex(F001) ""
    set_complex tmp_complex
    
@@ -149,13 +156,6 @@ proc issue_2254_cleanup  {} {
 
    ts_log_fine "Modify schedd back fast ...\n"
    mod_schedd_config mysched_config
- 
-   if {[get_rqs_list rqs_names "" "" 0] == 0} {
-      foreach elem $rqs_names {
-         ts_log_fine "Removing resource quota sets $elem ...\n"
-         del_rqs $elem
-       }
-   }
 
 }
 

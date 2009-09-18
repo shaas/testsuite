@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+MD-2009-09-18-0: Bugfix:     IZ 2254 failed, due a existing reference to a 
+                             complex in a rqs -> cleanup func failed
+                 Review:     JG
+
 AP-2009-09-16-1: Bugfix:     fixing procedure get_test_count
                  Belongs to: AP-2009-09-16-0
 
