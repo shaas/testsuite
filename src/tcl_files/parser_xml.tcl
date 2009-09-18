@@ -1783,7 +1783,6 @@ proc qstat_gdr_xml_parse { output } {
    
    # parse xml output and create lists based on the attributes
    set jobNumberList [$root selectNodes /job_info/queue_info/job_list/JB_job_number/text()]
-   
    set prioList [$root selectNodes /job_info/queue_info/job_list/JAT_prio/text()]
    set nameList [$root selectNodes /job_info/queue_info/job_list/JB_name/text()]
    set ownerList [$root selectNodes /job_info/queue_info/job_list/JB_owner/text()]

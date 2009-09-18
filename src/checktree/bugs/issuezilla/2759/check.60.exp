@@ -112,7 +112,7 @@ proc issue_2759_cleanup {} {
 #     sgeexecd -softstop and verify if the jobs are running (they have to be).
 #      
 #     
-##*******************************************************************************
+#*******************************************************************************
 proc issue_2759_test {} {
    global ts_config CHECK_USER issue_2759_hostname
 

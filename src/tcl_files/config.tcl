@@ -1082,7 +1082,7 @@ proc config_generic { only_check name config_array help_text check_type
 #
 #  INPUTS
 #     choice_list - the array of values and its descriptions
-#                 - if only one value is in the list, it's choosed automatically
+#                 - if only one value is in the list, it's chosen automatically
 #                   without user's input
 #                 - \"new\" is reserved for adding a new value to the list
 #                   it's useful for the lists which are generated from the
@@ -1203,7 +1203,7 @@ proc config_choose_value { choice_list null_value {count 1} {sel_values ""}
       }
                return -1
             }
-   # reset all previously set values and set it to null value, if null value choosed
+   # reset all previously set values and set it to null value, if null value chosen
    if { $output_value == $null_value } {
       set selected $output_value
       return 1

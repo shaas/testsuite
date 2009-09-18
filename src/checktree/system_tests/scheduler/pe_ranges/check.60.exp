@@ -86,7 +86,7 @@ proc pe_ranges_init_level {} {
 # -------- local test procedures: initialization------------------------------
 proc pe_ranges_setup_level {} {
    global CHECK_ACT_LEVEL ts_config
-   if { $CHECK_ACT_LEVEL == 1 } {
+   if {$CHECK_ACT_LEVEL == 1} {
       if {$ts_config(gridengine_version) < 61} {
          ts_log_config "Level 1 support only for GE >= 61"
          return 99
@@ -296,15 +296,15 @@ proc pe_ranges_test {} {
    set queue_settings(load_thresholds) "np_load_avg=11.75"
    mod_queue "res.q" $pe_ranges_test_hosts queue_settings
    
+   if {$CHECK_ACT_LEVEL == 1} {
+      del_rqs $rqs_name
+   }
+
    set global_host(complex_values) $orig_global_host(complex_values)
    set_exechost global_host global
    
    set test1_complex(test1) ""
    set_complex test1_complex
-
-   if { $CHECK_ACT_LEVEL == 1} {
-      del_rqs $rqs_name
-   }
 
    ts_log_fine "done"
 }
