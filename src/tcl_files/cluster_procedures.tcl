@@ -393,7 +393,7 @@ proc get_all_reserved_ports { } {
 #  SEE ALSO
 #     cluster_procedures/upgrade_cluster()
 #*******************************************************************************
-proc backup_remote_cluster_config { filename dir } {
+proc backup_remote_cluster_config {filename dir} {
    global ts_config CHECK_USER
 
    # read the configuration from file
@@ -406,7 +406,6 @@ proc backup_remote_cluster_config { filename dir } {
    set curr_dir "$ts_config(product_root)/util/upgrade_modules"
 
    set hostname $add_config(master_host)
-
    set envlist(SGE_ROOT) $add_config(product_root)
    set envlist(SGE_CELL) $add_config(cell)
    set envlist(SGE_QMASTER_PORT) $add_config(commd_port)
@@ -414,7 +413,7 @@ proc backup_remote_cluster_config { filename dir } {
 
    ts_log_fine "Back up of SGE configuration to $dir directory."
    set result [start_remote_prog $hostname $CHECK_USER $cmd $dir prg_exit_state 60 0 $curr_dir envlist]
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       ts_log_warning $result
    }
    return $prg_exit_state

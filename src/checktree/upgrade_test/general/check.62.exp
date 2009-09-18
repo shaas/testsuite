@@ -31,33 +31,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
-
-# Template for testsuite check
-# 
-# 1) replace the following symbols by your test specific names
-#    o upgrade   name of your test (e.g. consumable_test)
-#      (vi: 21s)
-#
-# 2) set check_root_access_needs to "yes" or "no" (if you need root access)
-#
-# 3) set check_category
-#
-# 4) set check_highest_level ( e.g.: runlevel "short" has reserved values from 0 to 99 ) 
-#
-# 5) set check_needs (e.g.: "init_core_system" this means that this test is not 
-#    started without succesfull run of "init_core_system" test
-# 6) implement the default functions (e.g.: upgrade_init_level)
-#
-# 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
-#    within each runlevel number
-#    PLEASE use ts_log_severe() to submit errors
-#    ts_log_severe() is used in many testsuite standard functions, so not every 
-#    function call must check the return state.
-# 
-
-
-
 # define global variable in this namespace
 global check_name 
 global check_category 
@@ -111,15 +84,6 @@ proc upgrade_test_setup {} {
    global CHECK_UPGRADE_TEMP_CONFIG_DIR
    global CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
 
-   
-   if { $ts_config(gridengine_version) >= 62 } {
-      ts_log_fine "This version can be tested by upgrade test"
-   } else {
-      ts_log_config "This test is not supported for Grid Engine versions below 62"
-      return 99
-   }
-
-
    # initiate the global values needed for upgrade tests
    # directories where the cluster configurations will be saved
    set CHECK_UPGRADE_TEMP_CONFIG_DIR "$ts_config(results_dir)/upgrade_configs"
@@ -171,11 +135,9 @@ proc upgrade_test_cleanup {} {
 proc upgrade_test_backup_initial_config {} {
    global ts_config CHECK_DEFAULTS_FILE
    global CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
-
    set result [backup_remote_cluster_config $CHECK_DEFAULTS_FILE $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR]
-
    ts_log_finest $result
-   if { $result != 0 } {
+   if {$result != 0} {
       ts_log_severe "Back up of current cluster configuration failed."
       return -1
    }
@@ -216,14 +178,14 @@ proc upgrade_test_init_cluster {} {
 
    # upgrade the cluster with the initial configuration
    set result [upgrade_test_upgrade_run_script $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR]
-   if { $result != 0 } {
+   if {$result != 0} {
       ts_log_severe "Upgrade of current cluster to the initial configuration failed."
       return -1
    }
 
    # start up execution deamons
    foreach host $ts_config(execd_nodes) {
-      if { ![is_execd_alive $host] } {
+      if {![is_execd_alive $host]} {
          set result [startup_daemon $host "execd"]
       }
    }
@@ -497,22 +459,17 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    global ts_config CHECK_DEBUG_LEVEL CHECK_USER CHECK_COMMD_PORT
    global CHECK_REPORT_EMAIL_TO CHECK_USER CHECK_DNS_DOMAINNAME
 
-   if { $ts_config(gridengine_version) < 62 } {
-      ts_log_finest "Upgrade test for $ts_config(gridengine_version) not supported."    
-      return 0
-   }
-
    set feature_install_options ""
-   if { $ts_config(product_feature) == "csp" } {
+   if {$ts_config(product_feature) == "csp"} {
       append feature_install_options "-csp"
    }
-   if { $ts_config(jmx_port) > 0 } {
+   if {$ts_config(jmx_port) > 0} {
       append feature_install_options " -jmx"
    }
 
-   set do_log_output 0 ;# _LOG
-   if { $CHECK_DEBUG_LEVEL == 2 } {
-     set do_log_output  1 ;# 1
+   set do_log_output 0
+   if {$CHECK_DEBUG_LEVEL == 2} {
+      set do_log_output 1
    }
 
    set have_windows_host [host_conf_have_windows]
@@ -613,9 +570,9 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
 
 
    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./inst_sge" "-upd $feature_install_options" 0 "$ts_config(product_root)"]
-   set sp_id [ lindex $id 1 ]
+   set sp_id [lindex $id 1]
    set my_upgrade_timeout 60
-   while { true } {
+   while {true} {
       log_user 1
       set timeout $my_upgrade_timeout
       expect {
@@ -1559,7 +1516,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
             continue
          }
 
-         -i $sp_id "Done" {
+         -i $sp_id "_END_OF_FILE_" {
             break
          }
 

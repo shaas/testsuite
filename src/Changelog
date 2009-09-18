@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+JG-2009-09-18-1: Bugfix:     fixed upgrade_test/general
+                 Review:     CR
+
 JG-2009-09-18-0: Bugfix:     pe_ranges test failed due to wrong order in
                              cleanup (same issue as with IZ 2254 test)
                  Cleanup:    Fixed an ADOC warning, made qrsh test more fault

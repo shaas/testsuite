@@ -7132,7 +7132,7 @@ proc is_qmaster_alive { hostname qmaster_spool_dir } {
 #     is_execd_alive() -- check if execd process is running
 #
 #  SYNOPSIS
-#     is_execd_alive { hostname execd_spool_dir } 
+#     is_execd_alive {hostname execd_spool_dir} 
 #
 #  FUNCTION
 #     This function searches the process table for a running execd process
@@ -7149,14 +7149,14 @@ proc is_qmaster_alive { hostname qmaster_spool_dir } {
 #     sge_procedures/is_scheduler_alive()
 #     sge_procedures/is_qmaster_alive()
 #*******************************************************************************
-proc is_execd_alive { hostname {execd_spool_dir ""} } {
+proc is_execd_alive {hostname {execd_spool_dir ""}} {
    get_current_cluster_config_array ts_config
    set execd_pid [get_execd_pid $hostname $execd_spool_dir]
    get_ps_info $execd_pid $hostname
    
    set alive 0
-   if { ($ps_info($execd_pid,error) == 0) } {
-      if { [ is_pid_with_name_existing $hostname $execd_pid "sge_execd" ] == 0 } { 
+   if {$ps_info($execd_pid,error) == 0} {
+      if {[is_pid_with_name_existing $hostname $execd_pid "sge_execd"] == 0} { 
          set alive 1
       }
    }
