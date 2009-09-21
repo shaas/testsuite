@@ -1357,7 +1357,7 @@ proc hedeby_get_version { { cvstagname "" } } {
 
    if { [info exists hedeby_config(hedeby_source_cvs_release)] } {
       if { $cvstagname == "" } {
-         set tag_name $config(hedeby_source_cvs_release) 
+         set tag_name $hedeby_config(hedeby_source_cvs_release) 
       } else {
          set tag_name $cvstagname
       }
@@ -1381,6 +1381,60 @@ proc hedeby_get_version { { cvstagname "" } } {
    return $version
 }
 
+#****** checktree_hedeby/hedeby_get_version_num() *****************************************
+#  NAME
+#     hedeby_get_version_num() -- returns the testsuite internal version number of hedeby
+#
+#  SYNOPSIS
+#     hedeby_get_version_num { { cvstagname "" } } 
+#
+#  FUNCTION
+#     Returns the internal testsuite version number of the hedeby source code. This
+#     might be used to create version depended tests.
+#
+#     The returned value is numeric and thus comparable. The maintrunk is always
+#     greater than any other version number.
+#
+#  INPUTS
+#     { cvstagname "" } - if not set to "" the version number for this cvs tag
+#                         is returned
+#
+#  RESULT
+#     number containing the internal testsuite version
+#
+#*******************************************************************************
+proc hedeby_get_version_num { { cvstagname "" } } {
+   global hedeby_config
+
+   if { $cvstagname == "" } {
+      if { [info exists hedeby_config(hedeby_source_cvs_release)] } {
+         set tag_name $hedeby_config(hedeby_source_cvs_release) 
+      } else {
+         ts_log_severe "configuration not available"
+         return -1
+      }
+   } else {
+      set tag_name $cvstagname
+   }
+   switch -- $tag_name {
+      "V01_TAG" {
+         return 0.1
+      }
+      "V02_TAG" {
+         return 0.2
+      }
+      "V10_U3_TAG" {
+         return 1.03
+      }
+      "maintrunk" {
+         # the version of the main trunk is bigger than anything else
+         return 1.0e20
+      }
+      default {
+         return 0
+      }
+   }
+}
 
 #****** checktree_hedeby/hedeby_init_config() *****************************************
 #  NAME

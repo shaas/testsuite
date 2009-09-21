@@ -6,6 +6,16 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-09-21-0: Enhancem.:  Hedeby:
+                             o Added test for PermanentRequestSLO with separate
+                               setting of usage
+                             o Added util/hedeby_get_version_num() to get the
+                               numerical version of Hedeby (useful for skipping
+                               tests)
+                 Issue:      676
+                 Review:     RH
+
 JG-2009-09-18-1: Bugfix:     fixed upgrade_test/general
                  Review:     CR
 

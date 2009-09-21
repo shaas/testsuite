@@ -1,0 +1,247 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes"
+set check_name                 "permanent_request"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "permanent request slo test with modify component commands"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "permanent_request_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "permanent_request_setup"
+set check_cleanup_level_function "permanent_request_cleanup"
+
+lappend check_functions "permanent_request_check"
+
+#****** slo/permanentRequest/permanent_request_init_level() ************************
+#  NAME
+#     permanent_request_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     permanent_request_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0 and 1
+#     are supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc permanent_request_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # This is runlevel 0
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+
+  return -1
+}
+
+#****** slo/permanentRequest/permanent_request_setup() *************************************
+#  NAME
+#     permanent_request_setup() -- level setup procedure
+#
+#  SYNOPSIS
+#     permanent_request_setup { } 
+#
+#  FUNCTION
+#     setup urgency, usage & quantity for PermanentRequestSLO
+#
+#     Skip this test for Hedeby versions < 1.05 (1.0u5)
+#     as the usage cannot be set separately for the SLO yet.
+#
+#  INPUTS
+#
+#  SEE ALSO
+#     slo/permanentRequest/permanent_request_cleanup()
+#     util/hedeby_get_version_num()
+#*******************************************************************************
+proc permanent_request_setup {} {
+   upvar #0 hedeby_permanent_request_ctx this
+
+   if { [hedeby_get_version_num] < 1.05 } {
+      ts_log_config "Skipping test, not supported in Hedeby version '[hedeby_get_version]' < 1.05"
+      return 99
+   }
+
+   set this(urgency)  10
+   set this(usage)    3
+   set this(quantity) 5
+}
+
+#****** slo/permanentRequest/permanent_request_cleanup() ***********************************
+#  NAME
+#     permanent_request_cleanup() -- level cleanup procedure
+#
+#  SYNOPSIS
+#     permanent_request_cleanup { } 
+#
+#  FUNCTION
+#     1) resets slo for spare pool
+#
+#  SEE ALSO
+#     slo/permanentRequest/permanent_request_setup()
+#*******************************************************************************
+proc permanent_request_cleanup {} {
+   upvar #0 hedeby_permanent_request_ctx this
+
+   # reset spare_pool SLO
+   reset_default_slos "mod_config" "spare_pool"
+
+   unset this
+}
+
+#****** slo/permanentRequest/permanent_request_check() *************************************
+#  NAME
+#     permanent_request_check() -- check fixed slo usage
+#
+#  SYNOPSIS
+#     permanent_request_check { } 
+#
+#  FUNCTION
+#     Step 1: check proper state of spare pool resources
+#             -> default values of PermanentRequestSLO
+#     Step 2: Change PermanentRequestSLO to quantity=5, usage=3, urgency=10
+#     Step 3: check state of spare pool resources after SLO change
+#     Step 4: check quantity and urgency of resource requests
+#
+#  SEE ALSO
+#     slo/fixed_usage/fixed_usage_check()
+#     slo/minResource/min_resource_check()
+#     slo/maxPendingJobs/max_pending_jobs_check()
+#*******************************************************************************
+proc permanent_request_check {} {
+   upvar #0 hedeby_permanent_request_ctx this
+
+   ####################################################################################################
+   ts_log_heading "Step 1: check proper state of spare pool resources"
+   ####################################################################################################
+   if {[get_resource_info]} {
+      return
+   }
+   # ts_log_fine [format_array res_info]
+
+   foreach res [get_all_spare_pool_resources] {
+      # check usage
+      if { $res_info($res,usage) != 1 } {
+         ts_log_severe "Default usage of resource $res in spare_pool is $res_info($res,usage) != 1"
+         return
+      } else {
+         ts_log_fine "Resource usage for resource $res OK."
+      }
+
+      # prepare exp_resource_info for step 3
+      set exp_resource_info($res,service) "spare_pool"
+      set exp_resource_info($res,state)   "ASSIGNED"
+      set exp_resource_info($res,usage)   $this(usage)
+
+   }
+   # check urgency and amount of resource request
+   if {[get_show_resource_request_info]} {
+      return
+   }
+   set slo_quantity $res_req_info(spare_pool,PermanentRequestSLO,quantity)
+   set slo_urgency  $res_req_info(spare_pool,PermanentRequestSLO,urgency)
+   if { $slo_quantity != 10 } {
+      ts_log_severe "Default quantity of PermanentRequestSLO resource request $slo_quantity != 10"
+      return
+   } else {
+      ts_log_fine "SLO quantity OK."
+   }
+   if { $slo_urgency != 1 } {
+      ts_log_severe "Default urgency of PermanentRequestSLO resource request $slo_urgency != 1"
+      return
+   } else {
+      ts_log_fine "SLO urgency OK."
+   }
+
+   ####################################################################################################
+   ts_log_heading "Step 2: Change PermanentRequestSLO of spare pool"
+   ####################################################################################################
+
+   # setup SLO values 
+   set SLO_name "PermanentRequestSLO_changed"
+   set res_filter ""
+   set req_filter ""
+   set slo [create_permanent_request_slo $this(urgency) $SLO_name $res_filter $req_filter $this(quantity) $this(usage)]
+   ts_log_finer "SLO for spare_pool: $slo"
+
+   set mod_method "mod_config"
+   if { [set_service_slos $mod_method "spare_pool" $slo] } {
+      return
+   }
+
+   ####################################################################################################
+   ts_log_heading "Step 3: check state of spare pool resources after SLO change"
+   ####################################################################################################
+   if { [wait_for_resource_info exp_resource_info] } {
+      return
+   }
+
+   ####################################################################################################
+   ts_log_heading "Step 4: check quantity and urgency of resource requests"
+   ####################################################################################################
+   # check urgency and amount of resource request
+   if {[get_show_resource_request_info]} {
+      return
+   }
+   set slo_quantity $res_req_info(spare_pool,PermanentRequestSLO_changed,quantity)
+   set slo_urgency  $res_req_info(spare_pool,PermanentRequestSLO_changed,urgency)
+   if { $slo_quantity != $this(quantity) } {
+      ts_log_severe "Default quantity of PermanentRequestSLO resource request $slo_quantity != $this(quantity)"
+      return
+   } else {
+      ts_log_fine "SLO quantity OK."
+   }
+   if { $slo_urgency != $this(urgency) } {
+      ts_log_severe "Default urgency of PermanentRequestSLO resource request $slo_urgency != $this(urgency)"
+      return
+   } else {
+      ts_log_fine "SLO urgency OK."
+   }
+}

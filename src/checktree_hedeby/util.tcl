@@ -7218,19 +7218,22 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #
 #  SYNOPSIS
 #     create_permanent_request_slo { {urgency 1 } 
-#     { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""} } 
+#     { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""}
+#     {quantity 10} {usage 1} } 
 #
 #  FUNCTION
 #     creates xml string with specified values
 #
 #  INPUTS
-#     {urgency 1 }                   - urceny value
+#     {urgency 1 }                   - urgency value of generated requests
 #     {name "PermanentRequestSLO" }  - name value
 #     {resourceFilter ""}            - optional: resource filter created with 
 #                                      procedure create_resource_filter()
 #     {requestFilter ""}             - optional: request filter created with 
 #                                      procedure create_request_filter()
 #                                      if "" -> default: type = "host"
+#     {quantity 10}                  - quantity of resource that is requested
+#     {usage    1 }                  - usage value for resources
 #
 #  RESULT
 #     xml string
@@ -7241,9 +7244,12 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #     util/set_hedeby_slos_config()
 #     util/create_resource_filter()
 #*******************************************************************************
-proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""}} {
-   set slo_txt ""
-   append slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
+proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""} {quantity 10} {usage 1}} {
+   if { $usage != $urgency } {
+      set slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\" quantity=\"$quantity\" usage=\"$usage\">"
+   } else {
+      set slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\" quantity=\"$quantity\">"
+   }
 
    if { $requestFilter != "" } {
       append slo_txt $requestFilter
