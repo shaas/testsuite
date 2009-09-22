@@ -4722,13 +4722,16 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
    # examine public procedure error states
    set was_error 0
-
+   set was_unsupported 0
+   private_check_error_run_test_level was_error was_unsupported
+   incr was_unsupported $warnings
+   
+   
    if {$setup_ret == 99 && $was_unsupported == 0 && $was_error == 0 } {
       # this means there was no ts_log_config. We will not let the test (level) be successful
       ts_log_severe "Test setup level function returned 99 without ts_log_config error! Setting test to failed!"
+      incr was_error 1
    }
-   private_check_error_run_test_level was_error was_unsupported
-   incr was_unsupported $warnings
 
    set end_time [clock seconds]
    set duration [expr $end_time - $start_time - [expr $total_check_duration / 1000.0]]
