@@ -104,23 +104,21 @@ proc issue_2345_setup {} {
    
 }
 
-proc issue_2345_cleanup  {} {
+proc issue_2345_cleanup {} {
    global ts_config
-   global consumable_complex_backup  
-   
-   del_queue "A.q" "" 1 1
+   global consumable_complex_backup
 
-   set tmp_complex(F001) ""
-   set_complex tmp_complex
-   
-   
    if {[get_rqs_list rqs_names "" "" 0] == 0} {
       foreach elem $rqs_names {
-         ts_log_fine "Removing resource quota sets $elem ...\n"
+         ts_log_fine "Removing resource quota sets $elem ..."
          del_rqs $elem
        }
    }
 
+   del_queue "A.q" "" 1 1
+
+   set tmp_complex(F001) ""
+   set_complex tmp_complex
 }
 
 #***********************************************************

@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+JG-2009-09-25-0: Bugfix:     fixed cleanup method in bugs/issuezilla/2345
+                 Review:     CR
+
 CR-2009-09-22-0: Bugfix:     fixed framework error for tests that return 99
                              in setup procedure to skip the test
                  Review:     AA
