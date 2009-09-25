@@ -253,4 +253,7 @@ proc issue_1760_cleanup {} {
       # Restart qmaster without envlist set
       startup_qmaster 0
    }
+   
+   # Remote fake exechost (created during -Ahgrp?)
+   start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-de $issue_1760_fake_host" result
 }
