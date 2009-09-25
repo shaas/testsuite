@@ -156,20 +156,47 @@ proc hedeby_issue609_setup_level {} {
    set this(filemoved) true
    # ------------------------------------------------------------------ 
    ts_log_heading "Setup 3 : Create new reporter file and store it in reporter spool dir"
-   # ------------------------------------------------------------------ 
-   #preparation of the new special file with empty lines
-   set data(0) 11
-   set data(1)  "1250078442869:SERVICE_ADDED:1:spare_pool:Service \[spare_pool\] has been added.:::"
-   set data(2)  "1250078442304:CS_OBJECT_ADDED:11:cs:name=active_component.spare_pool:::"
-   set data(3)  "1250078442873:REQUEST_PROCESS:1:spare_pool:n=10,urg=1,req='type = \"host\"':::"
-   set data(4)  "1250078442878:REQUEST_PENDING:2:spare_pool:n=10,urg=1,req='type = \"host\"':::"
-   set data(5)  "1250078442878:REQUEST_QUEUED:3:spare_pool:n=10,urg=1,req='type = \"host\"':::"
-   set data(6)  ""
-   set data(7)  "        "
-   set data(8)  "1250078498238:CS_OBJECT_CHANGED:12:cs:name=active_jvm.executor_vm:::"
-   set data(9)  "1250078498274:CS_OBJECT_ADDED:13:cs:name=active_component.executor_vm:::"
-   set data(10) "1250078498308:CS_OBJECT_CHANGED:14:cs:name=active_jvm.executor_vm:::"
-   set data(11) "1250078498316:CS_OBJECT_ADDED:15:cs:name=active_component.executor:::"
+   # ------------------------------------------------------------------
+   
+   #SDM 1.0u3 <= used different reporting file format
+   if {[hedeby_get_version] <= 1.03} {
+      set data(0) 21
+      set data(1) "1228827983629:NOTIFICATION:41225:REQUEST_QUEUED:30098:spare_pool:Request queued in resource provider."
+      set data(2) "1228827983629:NEED:41225:0:1:10:type = \"host\""
+      set data(3) "1228827983632:NOTIFICATION:41226:REQUEST_PROCESS:30099:spare_pool:Request is being processed in resource provider."
+      set data(4) "1228827983632:NEED:41226:0:1:10:type = \"host\""
+      set data(5) "1228827983632:NOTIFICATION:41227:REQUEST_QUEUED:30100:spare_pool:Request queued in resource provider."
+      set data(6) "1228827983632:NEED:41227:0:50:2:type = \"host\""
+      set data(7) "1228827983632:NOTIFICATION:41228:REQUEST_PENDING:30101:spare_pool:Request is pending in resource provider to be processed."
+      set data(8) "1228827983632:NEED:41228:0:1:10:type = \"host\""
+      set data(9) ""
+      set data(10) ""
+      set data(11) ""
+      set data(12) "1228827983632:NOTIFICATION:41229:REQUEST_PROCESS:30102:spare_pool:Request is being processed in resource provider."
+      set data(13) "1228827983632:NEED:41229:0:50:2:type = \"host\""
+      set data(14) "1228827983633:NOTIFICATION:41230:REQUEST_PENDING:30103:spare_pool:Request is pending in resource provider to be processed."
+      set data(15) "1228827983633:NEED:41230:0:50:2:type = \"host\""
+      set data(16) "                              "
+      set data(17) "1228827985106:NOTIFICATION:41231:RESOURCE_REQUEST:1703:p8420:Service \[p8420\] sent resource request that was triggered by \[fixed_usage\] SLO."
+      set data(18) "1228827985108:NOTIFICATION:41232:REQUEST_QUEUED:30104:p8420:Request queued in resource provider."
+      set data(19) ""
+      set data(20) "1228827985108:NOTIFICATION:41233:REQUEST_PROCESS:30105:p8420:Request is being processed in resource provider."
+      set data(21) "1228827985108:NOTIFICATION:41234:REQUEST_PROCESSED:30106:p8420:Request was processed by resource provider."
+   } else {   
+      #preparation of the new special file with empty lines
+      set data(0) 11
+      set data(1)  "1250078442869:SERVICE_ADDED:1:spare_pool:Service \[spare_pool\] has been added.:::"
+      set data(2)  "1250078442304:CS_OBJECT_ADDED:11:cs:name=active_component.spare_pool:::"
+      set data(3)  "1250078442873:REQUEST_PROCESS:1:spare_pool:n=10,urg=1,req='type = \"host\"':::"
+      set data(4)  "1250078442878:REQUEST_PENDING:2:spare_pool:n=10,urg=1,req='type = \"host\"':::"
+      set data(5)  "1250078442878:REQUEST_QUEUED:3:spare_pool:n=10,urg=1,req='type = \"host\"':::"
+      set data(6)  ""
+      set data(7)  "        "
+      set data(8)  "1250078498238:CS_OBJECT_CHANGED:12:cs:name=active_jvm.executor_vm:::"
+      set data(9)  "1250078498274:CS_OBJECT_ADDED:13:cs:name=active_component.executor_vm:::"
+      set data(10) "1250078498308:CS_OBJECT_CHANGED:14:cs:name=active_jvm.executor_vm:::"
+      set data(11) "1250078498316:CS_OBJECT_ADDED:15:cs:name=active_component.executor:::"
+   }
 
 
    set output [write_remote_file $this(master) $this(owner) $this(reppath)/report-0.log data] 

@@ -161,7 +161,8 @@ proc username_password_auth_setup {} {
       return 99
    }
 
-   if {[get_passwd "root"] == ""} {
+   #with passwordless ssh test should run
+   if {[have_root_passwd] != 0} {
       ts_log_config "Test 'username_password_auth' is not supported, have no root password!"
       unset this
       return 99

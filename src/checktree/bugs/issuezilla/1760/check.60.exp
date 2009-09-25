@@ -189,9 +189,22 @@ proc issue_1760_check {} {
 
    # Remove configuration
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result]
+   
+   set hasFakeHostConf 0   
+   #Check we do not have the configuration the the output
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-sconfl" result]
+   foreach out_line $output {
+      if {$out_line == $issue_1760_fake_host} {
+         set hasFakeHostConf 1
+         break
+      }
+   }
 
    if {$result != 0} {
-      ts_log_severe "Unable to remove host configuration -- issue 1760 still exists: $output"
+      ts_log_severe "Unable do qconf -sconfl $output"
+      return -1
+   } elseif {$hasFakeHostConf == 1} {
+      ts_log_severe "Could not remove configuration for unresovable host - issue 1760 exists -- $output"
       return -1
    }
 

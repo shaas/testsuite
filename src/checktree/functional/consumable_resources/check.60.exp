@@ -941,11 +941,11 @@ proc consumable_resources_test {} {
       set queue_settings(load_thresholds) "np_load_avg=11.75,test1=2"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
 
-      set qstat_F_1 [start_sge_bin "qstat" "-F | grep test"]
+      set qstat_F_1 [start_sge_bin "qstat" "-F | grep 'c:test'"]
       set job_id [submit_job "-l test1=1,h=$host_a -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
       wait_for_jobstart $job_id "leeper" 60
 
-      set qstat_F_2 [start_sge_bin "qstat" "-F | grep test"]
+      set qstat_F_2 [start_sge_bin "qstat" "-F | grep 'c:test'"]
 
       ts_log_fine "setting hold state of job $job_id"
       hold_job $job_id
@@ -962,7 +962,7 @@ proc consumable_resources_test {} {
          ts_log_severe "queue did not free alarm state"
       }
       
-      set qstat_F_3 [start_sge_bin "qstat" "-F | grep test"]
+      set qstat_F_3 [start_sge_bin "qstat" "-F | grep 'c:test'"]
 
       ts_log_fine "qstat1 (before job was started)   :\n$qstat_F_1"
       ts_log_fine "qstat2 (when job is running)      :\n$qstat_F_2"

@@ -125,10 +125,10 @@ proc ge_adapter_restart_test_check {} {
    #shutdown and startup of the ge_adapters 
    for {set i 0} {$i < $tries} {incr i} {
 
-      # get start time of test on testsuite host and remove 1 minute to be sure
+      # get start time of test on testsuite host and remove 20 secs to be sure
       # not to loose an event because of time differences between testsuite host
       # and the hedeby admin host
-      set start_time [expr [clock seconds] - 60]
+      set start_time [expr [clock seconds] - 20]
 
       foreach host $ge_qmaster_hosts {
          sdmadm_command_opt "sdc -c $service_names(service,$host) -h [get_service_host $host]"

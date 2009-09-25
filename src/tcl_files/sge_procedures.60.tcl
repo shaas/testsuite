@@ -948,17 +948,19 @@ proc get_current_drmaa_lib_extension { host } {
    foreach file_base $files {
       set file "$ts_config(product_root)/lib/$install_arch/$file_base"
       set file_type [file type $file]
+      #Let's skip all links, we just want the real library extension
       if { $file_type == "link" } {
-         set linked_to [file readlink $file]
-         set version_pos [string first "." $linked_to]
-         incr version_pos 1
-         set linked_to [string range $linked_to $version_pos end]
-         set version_pos [string first "." $linked_to]
-         incr version_pos -1
-         set lib_ext [string range $linked_to 0 $version_pos ]
-         ts_log_fine "lib extension is \"$lib_ext\""
-         return $lib_ext
+         continue
       }
+      ts_log_fine "DRMMA lib is $file"
+      set pos [string first "." $file]
+      set lib_ext [string range $file [expr $pos + 1] end]
+      set pos [string first "." $lib_ext]
+      if { $pos != -1 } {
+         set lib_ext [string range $lib_ext 0 [expr $pos - 1]]
+      }
+      ts_log_fine "lib extension is \"$lib_ext\""
+      return $lib_ext
    }
 }
 
