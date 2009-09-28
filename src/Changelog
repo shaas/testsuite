@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+MP-2009-09-28-0: Enhancem.:  issue 2755 has only been fixed from 6.2, but the
+                             file name is check.61.exp
+                 Review:     AP
+
 LP-2009-09-25-1: Bugfix:     issue1760 test left a reference to a fake host
                  Review:     JG
 
