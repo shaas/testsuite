@@ -878,6 +878,7 @@ proc convert_spool_file_to_html {spoolfile htmlfile {just_return_content 0}} {
 #     obj_name   - file object name of error
 #     array_name - array to spool
 #     { write_comment 1 } - if 1: write comment line into file
+#     { remove_backup 0 } - if 1: remove saved data (*.old file)
 #
 #  RESULT
 #     number of changed values 
@@ -885,7 +886,7 @@ proc convert_spool_file_to_html {spoolfile htmlfile {just_return_content 0}} {
 #  SEE ALSO
 #     file_procedures/read_array_from_file()
 #*******************************************************************************
-proc spool_array_to_file { filename obj_name array_name { write_comment 1 }} {
+proc spool_array_to_file { filename obj_name array_name { write_comment 1 } {remove_backup 0}} {
    upvar $array_name data
 
    ts_log_fine "saving object \"$obj_name\" ..."
@@ -894,7 +895,7 @@ proc spool_array_to_file { filename obj_name array_name { write_comment 1 }} {
 
    spool_array_add_data $filename $obj_name data $write_comment file_dat
 
-   spool_array_finish $filename file_dat
+   spool_array_finish $filename file_dat $remove_backup
 }
 
 
@@ -967,7 +968,7 @@ proc spool_array_add_data {filename obj_name array_name {write_comment 0} {data_
    }
 }
 
-proc spool_array_finish {filename {data_array spool_array_data}} {
+proc spool_array_finish {filename {data_array spool_array_data} {remove_backup 0}} {
    upvar $data_array data
 
    # write data to a temp file
@@ -988,6 +989,11 @@ proc spool_array_finish {filename {data_array spool_array_data}} {
       file rename $filename.tmp $filename
       file delete $filename.tmp
    }
+
+   if {[file isfile $filename.old] && $remove_backup} {
+      file delete $filename.old
+   }
+
 }
 
 #****** file_procedures/save_file() ********************************************
@@ -2575,15 +2581,28 @@ proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
 #     hostname           - remote host where the mkdir command should be started
 #     dir                - full directory path
 #     {win_local_user 0} - optional parameter which goes into start_remote_prog
+#     {user ""}          - optional parameter which specifies the user. Default
+#                          mkdir user is CHECK_USER
+#     {permissions ""}   - optional parameter which specifies the file permissions
+#                          of the created dir. (chmod permission parameter) 
 #
 #  RESULT
 #     command output
 #*******************************************************************************
-proc remote_file_mkdir {hostname dir {win_local_user 0}} {
+proc remote_file_mkdir {hostname dir {win_local_user 0} {user ""} {permissions ""}} {
   global CHECK_USER
-  set result [start_remote_prog $hostname $CHECK_USER "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user]
+  if {$user == ""} {
+     set exec_user $CHECK_USER
+  } else {
+     set exec_user $user
+  }
+  set result [start_remote_prog $hostname $exec_user "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user]
   if {$prg_exit_state != 0} {
-     ts_log_severe "Cannot create directory $dir as user $CHECK_USER on host $hostname: $result"
+     ts_log_severe "Cannot create directory $dir as user $exec_user on host $hostname: $result"
+  }
+  if {$permissions != ""} {
+      ts_log_fine "setting permissions of dir \"$dir\" to $permissions"
+      start_remote_prog $hostname $exec_user "chmod" "$permissions $dir"
   }
   return $result
 }
@@ -3253,12 +3272,11 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
       # It seems that a ls -al on the parent directory flush nfs caches
       # However on windows hosts the ls -al does not work
       if {$is_windows == 1} {
-         set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
+         set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
       } else {
          set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -f $path" prg_exit_state 60 0 "" "" 0 0]
       }
   
-      set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -d $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
          # The directory must be here
          if {$prg_exit_state == 0} {
@@ -3365,7 +3383,7 @@ proc is_remote_file {hostname user fpath {be_quiet 0}} {
 #     path_procedures/wait_for_remote_path()
 #*******************************************************************************
 proc is_remote_path {hostname user path} {
-   set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0]
+   set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
    if {$prg_exit_state == 0} {
       ts_log_finest "found path: $hostname:$path"
       return 1;
@@ -3906,7 +3924,8 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
 
    set spooldir ""
    set is_master_host 0
-   if {$check_do_not_use_spool_config_entries == 2} {
+   if {$check_do_not_use_spool_config_entries == 2 &&
+       $subdir == "qmaster"} {
       if {[resolve_host $host] == [resolve_host $ts_config(master_host)]} {
          ts_log_fine "\"no_local_qmaster_spool\" option is set, this is master host"
          set is_master_host 1
@@ -4513,7 +4532,10 @@ proc have_dirs_same_base_dir {dir_name1 dir_name2} {
 #     from the current TS) don't influence the current TS.
 #
 #  INPUTS
-#     none
+#     {get_local_file 0} optional: return filename of deletion file for local
+#                                  deletion files 
+#     {config_file ""}   optional: return filename of deletion file specified
+#                                  configuration file
 #
 #  RESULT
 #     the full path to the "testsuite delete file" for the current
@@ -4523,11 +4545,15 @@ proc have_dirs_same_base_dir {dir_name1 dir_name2} {
 #     file_procedures/delete_file_at_startup()
 #     check.exp/delete_temp_script_file()
 #*******************************************************************************
-proc get_testsuite_delete_filename { {get_local_file 0} } {
+proc get_testsuite_delete_filename { {get_local_file 0} {config_file ""}} {
    global ts_config
    global CHECK_DEFAULTS_FILE
 
-   set ts_config_name [file rootname [file tail $CHECK_DEFAULTS_FILE]]
+   if {$config_file == ""} {
+      set ts_config_name [file rootname [file tail $CHECK_DEFAULTS_FILE]]
+   } else {
+      set ts_config_name [file rootname [file tail $config_file]]
+   }
 
    if {$get_local_file == 0} {
       set ret_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete.$ts_config_name"
