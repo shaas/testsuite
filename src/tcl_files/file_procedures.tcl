@@ -3029,6 +3029,10 @@ proc wait_for_file {path_to_file seconds {to_go_away 0} {do_error_check 1}} {
 #     path             - full path to file
 #     { mytimeout 60 } - timeout in seconds
 #     {raise_error 1}  - do report errors?
+#     {to_go_away}     - if 1 the method waits until the file disappears
+#                        else it waits until the file appears
+#     {method "complete_remote"}  - if this parameter is "complete_remote" the wait_for_remote_file.exp scripts is
+#                        used. Otherwise the traditional method is used
 #
 #  RESULT
 #     0 on success
@@ -3038,18 +3042,69 @@ proc wait_for_file {path_to_file seconds {to_go_away 0} {do_error_check 1}} {
 #     file_procedures/wait_for_file()
 #     file_procedures/wait_for_remote_dir()
 #*******************************************************************************
-proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to_go_away 0}} {
+proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to_go_away 0} { method "complete_remote"} } {
+   global ts_host_config
+   global ts_config
+
+
    if {$to_go_away == 0} {
       ts_log_fine "looking for file \"$path\" to appear on host $hostname"
    } else {
       ts_log_fine "looking for file \"$path\" to vanish on host $hostname"
    }
+
+   set is_windows 0
+   if {[host_conf_get_arch $hostname] == "win32-x86"} {
+      set is_windows 1
+      set method "tradditional"
+   }
+   if { $method == "complete_remote"} {
+      set exp_cmd [get_binary_path $hostname "expect"]
+      if {$exp_cmd != ""} {
+         set cmd_timeout [expr $mytimeout + 10]
+         set output [start_remote_prog $hostname $user "$exp_cmd" \
+                                       "$ts_config(testsuite_root_dir)/scripts/wait_for_file.exp file $path $mytimeout $to_go_away" \
+                                       prg_exit_state $cmd_timeout 0 "" "" 0 0]
+
+         if {$to_go_away == 0} {
+            switch -exact -- $prg_exit_state {
+               "0" { ts_log_finer  "ok - file exists on host $hostname" }
+               "1" { ts_log_severe "Timeout while waiting for remote file $path on host $hostname to appear" $raise_error }
+               "2" { ts_log_severe "Invalid arguments for wait_for_file script" $raise_error }
+               "3" { ts_log_severe "Expected that path $path is a file, however it is a directory" $raise_error }
+               default { ts_log_severe "wait_for_file.exp script exited which unexpected error code ($prg_exit_state)" }
+            }
+         } else {
+            switch -exact -- $prg_exit_state {
+               "0" { ts_log_finer  "ok - file exists on host $hostname" }
+               "1" { ts_log_severe "Timeout while waiting for remote file $path on host $hostname to vanish" $raise_error }
+               "2" { ts_log_severe "Invalid arguments for wait_for_file script" $raise_error }
+               "3" { ts_log_severe "Expected that path $path is a file, however it is a directory" $raise_error }
+               default { ts_log_severe "wait_for_file.exp script exited which unexpected error code ($prg_exit_state)" }
+           }
+         }
+         if {$prg_exit_state == 0} {
+            return 0
+         }
+         return -1
+      }
+   }
+
+   # Here starts the old legacy code for the case that expect is not defined in the host
+   # configuration
    set is_ok 0
    set my_mytimeout [expr [timestamp] + $mytimeout] 
    set have_logged_a_dot 0
+   set dir [file dirname $path]
+
    while {$is_ok == 0} {
-      set output [start_remote_prog $hostname $user "ls" "$path" prg_exit_state 20 0 "" "" 0 0]
-      set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
+      # It seems that a ls -al on the parent directory flush nfs caches
+      # However on windows hosts the ls -al does not work
+      if {$is_windows == 1} {
+         set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
+      } else {
+         set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -f $path" prg_exit_state 60 0 "" "" 0 0]
+      }
       if {$to_go_away == 0} {
          # The file must be here
          if {$prg_exit_state == 0} {
@@ -3127,7 +3182,10 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
 #     path             - full path to file
 #     { mytimeout 60 } - timeout in seconds
 #     {raise_error 1}  - do report errors?
-#
+#     {to_go_away}     - if 1 the method waits until the directory disappears
+#                        else it waits until the directory appears
+#     {method "fast}   - if this parameter is "complete_remote" the wait_for_remote_file.exp scripts is
+#                        used. Otherwise the traditional method is used
 #  RESULT
 #     0 on success
 #     -1 on error
@@ -3136,18 +3194,71 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
 #     file_procedures/wait_for_file()
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
-proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
+proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} {method "complete_remote"}} {
+
+   global ts_host_config
+   global ts_config
+
+
    if {$to_go_away == 0} {
       ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" to appear" $path $hostname $user]
    } else {
       ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" to vanish" $path $hostname $user]
    }
+
+   set is_windows 0
+   if {[host_conf_get_arch $hostname] == "win32-x86"} {
+      set is_windows 1
+      set method "tradditional"
+   }
+
+   if {$method == "complete_remote"} {
+      set exp_cmd [get_binary_path $hostname "expect"]
+      if {$exp_cmd != ""} {
+         set cmd_timeout [expr $mytimeout + 10]
+         set output [start_remote_prog $hostname $user "$exp_cmd" \
+                                       "$ts_config(testsuite_root_dir)/scripts/wait_for_file.exp dir $path $mytimeout $to_go_away" \
+                                       prg_exit_state $cmd_timeout 0 "" "" 0 0]
+         if {$to_go_away == 0} {
+            switch -exact -- $prg_exit_state {
+               "0" { ts_log_finer  "ok - directory exists on host $hostname" }
+               "1" { ts_log_severe "Timeout while waiting for remote directory $path on host $hostname to appear" $raise_error }
+               "2" { ts_log_severe "Invalid arguments for wait_for_file script" $raise_error }
+               "3" { ts_log_severe "Expected that path $path is a directory, however it is a directory" $raise_error }
+               default { ts_log_severe "wait_for_file.exp script exited which unexpected error code ($prg_exit_state)" }
+            }
+         } else {
+            switch -exact -- $prg_exit_state {
+               "0" { ts_log_finer  "ok - file exists on host $hostname" }
+               "1" { ts_log_severe "Timeout while waiting for remote directory $path on host $hostname to vanish" $raise_error }
+               "2" { ts_log_severe "Invalid arguments for wait_for_file script" $raise_error }
+               "3" { ts_log_severe "Expected that path $path is a directory, however it is a file" $raise_error }
+               default { ts_log_severe "wait_for_file.exp script exited which unexpected error code ($prg_exit_state)" }
+            }
+         }
+         if {$prg_exit_state == 0} {
+            return 0
+         }
+         return -1
+      }
+   }
+
+   # Here starts the old legacy code for the case that expect is not defined in the host
+   # configuration
    set is_ok 0
    set my_mytimeout [expr [timestamp] + $mytimeout] 
+   set dir [file dirname $path]
 
    while {$is_ok == 0} {
-      set output [start_remote_prog $hostname $user "ls" "$path" prg_exit_state 20 0 "" "" 0 0]
-      set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
+      # It seems that a ls -al on the parent directory flush nfs caches
+      # However on windows hosts the ls -al does not work
+      if {$is_windows == 1} {
+         set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
+      } else {
+         set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -f $path" prg_exit_state 60 0 "" "" 0 0]
+      }
+  
+      set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -d $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
          # The directory must be here
          if {$prg_exit_state == 0} {

@@ -1,0 +1,113 @@
+#!/vol2/TCL_TK/glinux/bin/tclsh
+# expect script 
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+proc usage { msg } {
+   puts $msg
+   puts ""
+   puts "wait_for_file  <mode> <path> <timeout> <to_go_away>"
+   puts ""
+   puts "   <mode>     file: the path is treated as file"
+   puts "              dir: the path is treated as directory" 
+   puts "   <path>     path to the file or directory"
+   puts "   <timeout>  max waiting time in seconds"
+   puts "   <to_go_away>  if 1 it is expected that the file or directory"
+   puts "                 will disappears, otherwise it is expected that the file"
+   puts "                 or directory will be created"
+   puts ""
+   puts "Exit code:"
+   puts ""
+   puts "    0    if the file disappeared or came up as expected"
+   puts "    1    if the file did not disappear or come up as expected"
+   puts "    2    invalid arguments"
+   puts "    3    if the expected file type (file or directory) does not match"  
+   exit 2 
+}
+
+if { [llength $argv] != 4 } {
+   usage "Error: Invalid number of arguments"
+}
+
+switch  -exact -- [lindex $argv 0]  {
+    "file"  { set mode "file" }
+    "dir"   { set mode "dir"  }
+    default { usage "Error: Unkown mode [lindex $argv 0]" }
+} 
+
+set path [lindex $argv 1]
+
+set timeout_arg [lindex $argv 2]
+if { [regexp "^\[0-9\]+\$" $timeout_arg] == 0 } {
+   usage "Error: timeout must be a possitive number ($timeout_arg)"
+}
+set timeout [expr [timestamp] +  $timeout_arg]
+
+switch -exact -- [lindex $argv 3] {
+        "0" { set to_go_away 0 }
+        "1" { set to_go_away 1 }
+    default { usage "Error: Invalid value for to_go_away" }
+}
+
+set dir [file dirname $path]
+puts "dir = $dir"
+
+while {[timestamp] < $timeout} {
+   # the ls -al on the directory updates NFS caches
+   catch {exec "ls" "-al" $dir ">" "/dev/null"}
+   set exits  [file exists $path]
+ 
+   if {$exits} { 
+      if {$mode == "file" && [file isdirectory $path]} {
+         exit 3
+      }
+      if {$mode == "dir" && [file isfile $path]} {
+         exit 3
+      }
+      if {$to_go_away == 0 && $mode == "file"} {
+         set rc [catch {exec "cat" "$path" ">" "/dev/null"} ]
+         if { $rc != 0} {
+            puts "cat failed ($cat_res)"
+            set exits 0
+         }
+      }
+   }
+   if {$to_go_away == 1 && $exits == 0} {
+      exit 0
+   }
+   if {$to_go_away == 0 && $exits == 1} {
+      exit 0
+   }
+   after 500
+}
+# timeout
+exit 1

@@ -48,8 +48,8 @@ set check_init_level_procedure "issue_67_init_level"
 set check_functions            ""   
 set check_highest_level        0
 
-set check_setup_function "issue_67_setup"
-set check_cleanup_function "issue_67_cleanup"
+set check_setup_function ""
+set check_cleanup_function ""
 
 lappend check_functions "issue_67_check"
 
@@ -67,43 +67,30 @@ proc issue_67_init_level {} {
   return -1
 }
 
-proc issue_67_setup {} {
-   global CHECK_OUTPUT
-   global issue_67_current_cluster_config
-   
-   puts $CHECK_OUTPUT "doing setup ..."
-   set issue_67_current_cluster_config [get_current_cluster_config_nr]
-}
-
-proc issue_67_cleanup {} {
-   global CHECK_OUTPUT
-   global issue_67_current_cluster_config
-
-   puts $CHECK_OUTPUT "doing cleanup ..."
-
-   set_current_cluster_config_nr $issue_67_current_cluster_config
-}
-
+#****** check.62/issue_67_check() **********************************************
+#  NAME
+#     issue_67_check() -- checks the exit code of the sdmadm suj command 
+#
+#  SYNOPSIS
+#     issue_67_check { } 
+#
+#  FUNCTION
+#
+#     Checks that the exit code of the sdmadm suj command is not zero if some jvms
+#     are already running
+#
+#*******************************************************************************
 proc issue_67_check {} {
-   global CHECK_OUTPUT
-   global hedeby_config
-
-   set host $hedeby_config(hedeby_master_host)
-   set user [get_hedeby_startup_user]
-
-   set match_str  [create_bundle_string "ParentStartupService.skipRunningJvm" xyz "*"]
-   set match_str2 [create_bundle_string "ParentStartupService.skippedRunningJvms" xyz "*"]
 
    # start system on master host again, don't raise errors ...
-   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj" prg_exit_state "" 0]
-   set ret $prg_exit_state
+   set opts(user)        [get_hedeby_startup_user]
+   set opts(raise_error) 0
+   ts_log_heading "Starting up jvms on master again"
+   sdmadm_command_opt "suj" opts ;# startup_jvm
  
-   ts_log_fine "starting already running jvm returns exit state $ret"
-
    # now check the exit state ...
-   puts $CHECK_OUTPUT "exit state of sdmadm start command is \"$ret\""
-   if { $ret == 0 } {
-      add_proc_error "issue_67_check" -1 "issue 67 encountered: exit state is not set != 0 on startup error"
+   if { $prg_exit_state == 0 } {
+      ts_log_severe "issue 67 encountered: exit state is not set != 0 on startup error"
    }
 }
 

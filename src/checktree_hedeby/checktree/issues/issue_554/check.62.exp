@@ -265,7 +265,6 @@ proc hedeby_issue554_check {} {
        set exp_res_info($resource,service) "resource_provider"
        set exp_res_info($resource,flags) "{}"
        set exp_res_info($resource,state) "UNASSIGNED"
-       set exp_res_info($resource,type) "temp"
    }
    set retval [wait_for_resource_info exp_res_info 120 0 mvr_error]
    if {$retval != 0} {

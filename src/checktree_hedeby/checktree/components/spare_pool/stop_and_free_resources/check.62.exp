@@ -51,10 +51,8 @@ set check_highest_level        0
 set check_setup_level_function "spare_pool_stop_and_free_resources_setup"
 set check_cleanup_level_function "spare_pool_stop_and_free_resources_cleanup"
 
-lappend check_functions "spare_pool_stop_and_free_resources_ge_service_check"
+lappend check_functions "spare_pool_stop_and_free_resources_check"
 
-# this context stores the setup of the test
-global spare_pool_stop_and_free_resources_ctx
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
@@ -95,6 +93,67 @@ proc spare_pool_stop_and_free_resources_init_level {} {
 #
 #  FUNCTION
 #
+#     checks the version of the SDM system and calls the version specifiy setup method
+#
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_setup {} {
+   if {[hedeby_get_version_num] <= 1.04} {
+       return [spare_pool_stop_and_free_resources_104_setup]
+   } else {
+       return [spare_pool_stop_and_free_resources_current_setup]
+   }
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup() ***************************
+#  NAME
+#     spare_pool_stop_and_free_resources_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_cleanup { } 
+#
+#  FUNCTION
+#     checks the version of the SDM system and calls the version specifiy cleanup method
+#
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_cleanup {} {
+   if {[hedeby_get_version_num] <= 1.04} {
+       return [spare_pool_stop_and_free_resources_104_cleanup]
+   } else {
+       return [spare_pool_stop_and_free_resources_current_cleanup]
+   }
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_check() ***************************
+#  NAME
+#     spare_pool_stop_and_free_resources_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_cleanup { } 
+#
+#  FUNCTION
+#     checks the version of the SDM system and calls the version specifiy check method
+#
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_check {} {
+   if {[hedeby_get_version_num] <= 1.04} {
+       return [spare_pool_stop_and_free_resources_104_check]
+   } else {
+       return [spare_pool_stop_and_free_resources_current_check]
+   }
+}
+
+
+# ------------------- test function version for SDM > 1.04 --------------------------
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_current_setup() *****************************
+#  NAME
+#     spare_pool_stop_and_free_resources_current_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_current_setup { } 
+#
+#  FUNCTION
+#
 #  INPUTS
 #     no input values
 #
@@ -102,9 +161,147 @@ proc spare_pool_stop_and_free_resources_init_level {} {
 #     no return values
 #
 #  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_current_cleanup()
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_current_setup {} {
+   # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
+   upvar #0 spare_pool_stop_and_free_resources_ctx ctx
+   
+   set ctx(static_resource)     ""
+   set ctx(mvr_list) {}
+
+   foreach res [get_all_spare_pool_resources] {
+      if { $ctx(static_resource) == "" } {
+         set ctx(static_resource) $res
+      } else {
+         lappend ctx(mvr_list) $res
+      }
+   }
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Make first resource of spare_pool static"
+   # ---------------------------------------------------------------------------
+   set static_resource_props(static) "true"
+   mod_hedeby_resource $ctx(static_resource) static_resource_props
+
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_current_cleanup() ***************************
+#  NAME
+#     spare_pool_stop_and_free_resources_current_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_current_cleanup { } 
+#
+#  FUNCTION
+#     The hedeby reset is don by reset_hedeby() which will move all resources
+#     back to their original configured service.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_current_setup()
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_current_cleanup {} {
+   
+   # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
+   upvar #0 spare_pool_stop_and_free_resources_ctx ctx
+   
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Delete the static flag of the static_resource"
+   # ---------------------------------------------------------------------------
+   set res_props(static) "false"
+   mod_hedeby_resource $ctx(static_resource) res_props
+   unset res_props
+
+   unset ctx
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_current_check() ***********************
+#  NAME
+#     spare_pool_stop_and_free_resources_current_check() -- test the stop service with free resources flag
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_current_check { } 
+#
+#  FUNCTION
+#     This test checks whether the stop action with -fr option of the spare_pool 
+#     is working
+#
+#     actions:
+#        Step 1: Stop the spare_pool service with the freeResource flag
+#        Step 2: Check that all nonstatic resource are moved to resource provider
+#        Step 3: Start the spare_pool service
+#        Step 4: Check that all spare_pool resources are returned to spare_pool
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_setup()
 #     stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup()
 #*******************************************************************************
-proc spare_pool_stop_and_free_resources_setup {} {
+proc spare_pool_stop_and_free_resources_current_check {} {
+   # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
+   upvar #0 spare_pool_stop_and_free_resources_ctx ctx
+
+   # get some global settings
+   get_hedeby_default_services service_names
+   
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 1: Stop the spare_pool service with the freeResource flag"
+   # ---------------------------------------------------------------------------
+   sdmadm_command_opt "sds -s spare_pool -fr"
+   if { $prg_exit_state != 0 } {
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 2: Check that all nonstatic resource are moved to resource provider"
+   # ---------------------------------------------------------------------------
+   foreach res $ctx(mvr_list) {
+      set exp_resource_info($res,service) "resource_provider"
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "UNASSIGNED" ;# resource at RP are always UNASSIGNED
+   }
+   if {[wait_for_resource_info exp_resource_info]} {
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 3: Start the spare_pool service"
+   # ---------------------------------------------------------------------------
+   sdmadm_command_opt "sus -s spare_pool"
+   if { $prg_exit_state != 0 } {
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   ts_log_heading "Step 4: Check that all spare_pool resources return to spare_pool"
+   # ---------------------------------------------------------------------------
+   unset exp_resource_info
+   set exp_resource_info($ctx(static_resource),service) "spare_pool"
+   set exp_resource_info($ctx(static_resource),flags) "S"
+   set exp_resource_info($ctx(static_resource),state) "ASSIGNED"
+   
+   foreach res $ctx(mvr_list) {
+      set exp_resource_info($res,service) spare_pool
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+
+   wait_for_resource_info exp_resource_info
+}
+
+# ------------------- test function version for SDM <= 1.04 --------------------------
+
+proc spare_pool_stop_and_free_resources_104_setup {} {
    # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
    upvar #0 spare_pool_stop_and_free_resources_ctx ctx
    
@@ -176,7 +373,7 @@ proc spare_pool_stop_and_free_resources_setup {} {
 #  SEE ALSO
 #     stop_and_free_resources/spare_pool_stop_and_free_resources_setup()
 #*******************************************************************************
-proc spare_pool_stop_and_free_resources_cleanup {} {
+proc spare_pool_stop_and_free_resources_104_cleanup {} {
    
    # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
    upvar #0 spare_pool_stop_and_free_resources_ctx ctx
@@ -202,13 +399,13 @@ proc spare_pool_stop_and_free_resources_cleanup {} {
    unset ctx
 }
 
-#****** stop_and_free_resources/spare_pool_stop_and_free_resources_ge_service_check() *****************************
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_104_check() *****************************
 #  NAME
 #     spare_pool_stop_and_free_resources_ge_service_check() -- test the stop service with free resources flag
 #                                         for GE services
 #
 #  SYNOPSIS
-#     spare_pool_stop_and_free_resources_ge_service_check { } 
+#     spare_pool_stop_and_free_resources_104_check { } 
 #
 #  FUNCTION
 #     This test checks whether the stop action with -fr option of the spare_pool 
@@ -232,7 +429,7 @@ proc spare_pool_stop_and_free_resources_cleanup {} {
 #     stop_and_free_resources/spare_pool_stop_and_free_resources_setup()
 #     stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup()
 #*******************************************************************************
-proc spare_pool_stop_and_free_resources_ge_service_check {} {
+proc spare_pool_stop_and_free_resources_104_check {} {
    # alias global variable spare_pool_stop_and_free_resources_ctx to ctx
    upvar #0 spare_pool_stop_and_free_resources_ctx ctx
 

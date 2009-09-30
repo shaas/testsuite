@@ -129,8 +129,8 @@ proc min_resource_setup {} {
 
    # we need min 3 services
    if { [llength $service_names(services)] < 3 } {
-      ts_log_severe "expected to have at least 3 GE services (examine OS names and availabe services)"
-      return
+      ts_log_config "expected to have at least 3 GE services (examine OS names and availabe services)"
+      return 99
    }
 
    set this(A) [lindex $service_names(services) 0]
@@ -901,7 +901,7 @@ proc min_resource_check_error_filter {} {
    min_resource_setup_slo "A" 1 ;# don't regard resources in error state
 
    ts_log_fine "killing execd of resource '$error_res' at service A ($this(A)) to produce error resource ..."
-   produce_error_resource $error_res "hard"
+   produce_error_resource $error_res "soft"
 
    ts_log_fine "wait that service A ($this(A)) gets all its resources again ..."
    unset -nocomplain exp_resource_info

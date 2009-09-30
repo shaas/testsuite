@@ -6958,6 +6958,7 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #     {urgency 50 }          - urgency value
 #     { name "fixed_usage" } - name value
 #     { resource_filter "" } - resource filter for the slo
+#     { usage ""}            - usage value (if empty no usage is set)
 #
 #  RESULT
 #     xml string
@@ -6967,9 +6968,16 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #     util/create_fixed_usage_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" } {resource_filter "" }} {
-   
-   set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
+proc create_fixed_usage_slo {{urgency 50 } {name "fixed_usage"} {resource_filter ""} {usage ""}} {
+  
+   if {$usage == ""} {
+      set usage $urgency
+   }
+   if {$usage != $urgency} {
+      set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\" usage=\"$usage\">"
+   } else {
+      set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
+   }
    if {$resource_filter != ""} {
       append slo "<common:resourceFilter>$resource_filter</common:resourceFilter>"
    }   
@@ -7233,7 +7241,7 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #                                      procedure create_request_filter()
 #                                      if "" -> default: type = "host"
 #     {quantity 10}                  - quantity of resource that is requested
-#     {usage    1 }                  - usage value for resources
+#     { usage ""}                    - usage value (if empty no usage is set)
 #
 #  RESULT
 #     xml string
@@ -7244,8 +7252,11 @@ proc create_job_filter { resProp {op "&amp;"} } {
 #     util/set_hedeby_slos_config()
 #     util/create_resource_filter()
 #*******************************************************************************
-proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""} {quantity 10} {usage 1}} {
-   if { $usage != $urgency } {
+proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {resourceFilter ""} {requestFilter ""} {quantity 10} {usage ""}} {
+   if {$usage == ""} {
+      set usage $urgency
+   }
+   if {$usage != $urgency} {
       set slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\" quantity=\"$quantity\" usage=\"$usage\">"
    } else {
       set slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\" quantity=\"$quantity\">"

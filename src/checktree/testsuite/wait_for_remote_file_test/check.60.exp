@@ -1,0 +1,265 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "wait_for_remote_file_test_init_level"
+
+# define test's name and run level descriptions
+set check_name            "wait_for_remote_file_test"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "measures the time need for wait_for_file operations"
+
+
+# define test's dependencies
+set check_needs           "" 
+
+# setup and cleanup functions
+set check_setup_function wait_for_remote_file_test_setup
+set check_cleanup_function wait_for_remote_file_test_cleanup
+
+set check_setup_level_function ""
+set check_cleanup_level_function ""
+
+
+# define test's procedure order
+set check_functions "wait_for_remote_file_test_test"
+
+
+#****** wait_for_remote_file_test_init_level() ************************
+#  NAME
+#     wait_for_remote_file_test_init_level() -- init level function 
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_init_level { } 
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      } 
+   } 
+   return -1  ;# no other level 
+}
+
+
+#****** wait_for_remote_file_test_setup() *****************************
+#  NAME
+#     wait_for_remote_file_test_setup() -- test setup function 
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_setup { } 
+#
+#  FUNCTION
+#     
+#    Collects all test hosts
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_setup {} {
+   upvar #0 wait_for_remote_file_test_ctx this
+   set this(hosts) [get_all_hosts]
+}
+
+#****** check.60/wait_for_remote_file_test_cleanup() ***************************
+#  NAME
+#     wait_for_remote_file_test_cleanup() -- test cleanup method 
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_cleanup { } 
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_cleanup {} {
+   upvar #0 wait_for_remote_file_test_ctx this
+   unset this
+}
+
+#****** check.60/wait_for_remote_file_test_test() ******************************
+#  NAME
+#     wait_for_remote_file_test_test() -- run the wait_for_remote_file_test 
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_test { } 
+#
+#  FUNCTION
+#
+#     This method measures the time needed for the wait_for_remote_file/
+#     wait_for_remote_dir calls with variation of the parameters
+#     to_go_away and method.
+#     It prints the result for each variation into a table
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_test {} {
+   upvar #0 wait_for_remote_file_test_ctx this
+   global CHECK_USER
+
+
+   if {[wait_for_remote_file_test_measure "traditional"] != 0} {
+      return
+   }
+   if {[wait_for_remote_file_test_measure "complete_remote"] != 0} {
+      return
+   }
+
+   wait_for_remote_file_test_print_result "file_appear"
+   wait_for_remote_file_test_print_result "file_disappear"
+   wait_for_remote_file_test_print_result "dir_appear"
+   wait_for_remote_file_test_print_result "file_disappear"
+}
+
+#****** wait_for_remote_file_test_print_result() **********************
+#  NAME
+#     wait_for_remote_file_test_print_result() -- print the result for a method  
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_print_result { mode } 
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_print_result { mode } {
+   upvar #0 wait_for_remote_file_test_ctx this
+
+   ts_log_heading "Results for $mode"
+
+   ts_log_fine "    Host            |    arch     | fast(ms) | old(ms)  | speedup"
+   ts_log_fine "--------------------+-------------|----------+----------|----------"
+   foreach host $this(hosts) {
+       set speed_up [expr $this($host,traditional,$mode) - $this($host,complete_remote,$mode)]
+       ts_log_fine [format "%20s|%13s|%10d|%10d|%10d" \
+                      $host \
+                      [host_conf_get_arch $host] \
+                      $this($host,complete_remote,$mode) \
+                      $this($host,traditional,$mode) \
+                      $speed_up]
+
+   }
+}
+
+
+#****** wait_for_remote_file_test_measure() ***************************
+#  NAME
+#     wait_for_remote_file_test_measure() --  
+#
+#  SYNOPSIS
+#     wait_for_remote_file_test_measure { method } 
+#
+#  FUNCTION
+#     Measures the time for a wait_for_remote_file calls
+#
+#  INPUTS
+#     method - method parameters for the wait_for_remote_... call
+#
+#*******************************************************************************
+proc wait_for_remote_file_test_measure { method } {
+   upvar #0 wait_for_remote_file_test_ctx this
+   global CHECK_USER
+
+   foreach host $this(hosts) {
+      set tmpdir [get_tmp_directory_name $host]
+      set this($host,file) "$tmpdir/blubber"
+      remote_file_mkdir $host $tmpdir
+      wait_for_remote_dir $host $CHECK_USER $tmpdir
+      set this($host,fshost) [fs_config_get_filesystem_server $this($host,file)]
+   } 
+
+   ts_log_heading "$method: Measure time for remote files to appear"
+   set timeout 60
+   set to_go_away 0
+   set raise_error 1
+   foreach host $this(hosts) {
+      start_remote_prog $this($host,fshost) $CHECK_USER "echo" "blubber > $this($host,file)"
+      if {$prg_exit_state != 0} {
+         return 1
+      }
+      set st [clock clicks -milliseconds]
+      wait_for_remote_file $host $CHECK_USER $this($host,file) $timeout $raise_error $to_go_away $method
+      set this($host,$method,file_appear) [expr [clock clicks -milliseconds] - $st]
+   }
+
+
+   ts_log_heading "$method: Measure time for remote files to disappear"
+   set to_go_away 1
+   foreach host $this(hosts) {
+      start_remote_prog $this($host,fshost) $CHECK_USER "rm" "$this($host,file)"
+      if {$prg_exit_state != 0} {
+         return 1
+      }
+      set st [clock clicks -milliseconds]
+      wait_for_remote_file $host $CHECK_USER $this($host,file) $timeout $raise_error $to_go_away $method
+      set this($host,$method,file_disappear) [expr [clock clicks -milliseconds] - $st]
+   }
+
+   ts_log_heading "$method: Measure time for remote directories to appear"
+   set to_go_away 0
+   foreach host $this(hosts) {
+      start_remote_prog $this($host,fshost) $CHECK_USER "mkdir" "$this($host,file)"
+      if {$prg_exit_state != 0} {
+         return 1
+      }
+      set st [clock clicks -milliseconds]
+      wait_for_remote_dir $host $CHECK_USER $this($host,file) $timeout $raise_error $to_go_away $method
+      set this($host,$method,dir_appear) [expr [clock clicks -milliseconds] - $st]
+   }
+
+
+   ts_log_heading "$method: Measure time for remote directories to disappear"
+   set to_go_away 1
+   foreach host $this(hosts) {
+      start_remote_prog $this($host,fshost) $CHECK_USER "rmdir" "$this($host,file)"
+      if {$prg_exit_state != 0} {
+         return 1
+      }
+      set st [clock clicks -milliseconds]
+      wait_for_remote_dir $host $CHECK_USER $this($host,file) $timeout $raise_error $to_go_away $method
+      set this($host,$method,dir_disappear) [expr [clock clicks -milliseconds] - $st]
+   }
+   return 0
+}
+
+

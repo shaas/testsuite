@@ -6,6 +6,14 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+RH-2009-09-30-0: Enhancem.:  wait_for_remote_dir and wait_for_remote_file
+                             uses external script to wait for files or 
+                             directories
+                 Review:     CR
+                 Enhancem.:  Hedeby: Broken tests after ambigous resource detection
+                             removal fixed
+                 Review:     MB
+
 MP-2009-09-28-0: Enhancem.:  issue 2755 has only been fixed from 6.2, but the
                              file name is check.61.exp
                  Review:     AP
