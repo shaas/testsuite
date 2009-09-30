@@ -3274,7 +3274,7 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
       if {$is_windows == 1} {
          set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
       } else {
-         set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -f $path" prg_exit_state 60 0 "" "" 0 0]
+         set output [start_remote_prog $hostname $user "ls" "-al $dir > /dev/null && test -d $path" prg_exit_state 60 0 "" "" 0 0]
       }
   
       if {$to_go_away == 0} {
