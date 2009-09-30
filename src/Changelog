@@ -6,6 +6,13 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-09-30-0: Enhancem.:  Improved tests qmod_reschedule and path alias
+                 Enhancem.:  start_qmaster fails early if qmaster startup exists
+                             with non-zero exit code
+                 Enhancem.:  Using actual instead of default timeouts for SMF
+                             tests
+                 Review:     JG
+
 CR-2009-09-30-1: Bugfix:     fixed bug in CR-2009-09-30-0
                  Belongs To: CR-2009-09-30-0
 

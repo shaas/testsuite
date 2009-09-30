@@ -153,15 +153,18 @@ proc path_alias_setup {} {
          set output [start_remote_prog $host $CHECK_USER "pwd" "" prg_exit_state 60 0 $ts_config(product_root)]
          set output [string trim $output]
          if { $output != $ts_config(product_root) } {
-            ts_log_fine "host $host seems to have an automounter prefix! checking ..."
+            ts_log_fine "host $host seems to have an automounter prefix! checking ... (got \"$output\"   expected \"$ts_config(product_root)\")"
             set pos [string first $ts_config(product_root) $output]
             set prefix [string range $output 0 $pos]
             ts_log_fine "automounter prefix is \"$prefix\" on host $host"
-            set data(src-path,$index)     "$prefix"
-            set data(sub-host,$index)     "*"
-            set data(exec-host,$index)    "*" 
-            set data(replacement,$index)  "/"
-            incr index 1
+            #sge-root can be a symbolic link (the prefix can still be empty)
+            if {$prefix != ""} {
+               set data(src-path,$index)     "$prefix"
+               set data(sub-host,$index)     "*"
+               set data(exec-host,$index)    "*" 
+               set data(replacement,$index)  "/"
+               incr index 1
+            }
          }
       }
 
@@ -221,6 +224,7 @@ proc path_alias_main {} {
    global path_alias_test
    global PATH_ALIAS_OUTPUT1
    global PATH_ALIAS_OUTPUT2
+   global CHECK_DISPLAY_OUTPUT
    global CHECK_USER
 
    set files1_old [start_remote_prog $ts_config(master_host) $CHECK_USER "ls" "$PATH_ALIAS_OUTPUT1"]
@@ -249,7 +253,13 @@ proc path_alias_main {} {
       set command     "> qsh_pwd_output_$elem.txt ; sleep 10"
       create_shell_script $pwd_script $elem "pwd" "$command " "" "" "/bin/sh" 0 1 1 1
 
-      set args "-cwd -l h=${elem} -- -e $pwd_script"
+      #This job needs a DISPLAY
+      if { $CHECK_DISPLAY_OUTPUT != "undefined" } {
+         set args "-v DISPLAY=$CHECK_DISPLAY_OUTPUT"
+      } else {
+         set args ""
+      }      
+      set args "$args -cwd -l h=${elem} -- -e $pwd_script"
       ts_log_fine "qsh $args"
       set output [start_remote_prog $elem $CHECK_USER "qsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
       ts_log_fine $output

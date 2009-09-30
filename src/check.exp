@@ -786,8 +786,6 @@ proc have_ssh_access {} {
                }
            }
         }
-        set log_user 0
-        close_spawn_process $id 1
         if { $have_access != 1 } {
             log_user 1
             set have_complete_access 0
@@ -8552,8 +8550,8 @@ proc operate_additional_clusters {operation} {
    if {$ts_config(additional_config) != "none"} {
        foreach filename $ts_config(additional_config) {
           if {[operate_add_cluster $filename $operation] != 0} {
-            set ret_val 1
-         }
+          set ret_val 1
+       }
       }
    } else {
       ts_log_fine "no additional clusters defined"

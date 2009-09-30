@@ -657,20 +657,20 @@ proc smf_advanced_restart_test {host service {timeout 30} {kill_restarts 1}} {
    #SVCADM
    #######
    #svcadm enable -t
-   if {[smf_start_svcadm $host $service "enable" "-t" 1] == -1} {
+   if {[smf_start_svcadm $host $service "enable" "-t" 1 $timeout] == -1} {
       return -1
    }
    #svcadm disable -t
-   if {[smf_start_svcadm $host $service "disable" "-t" 1] == -1} {
+   if {[smf_start_svcadm $host $service "disable" "-t" 1 $timeout] == -1} {
       return -1
    }
    #svcadm enable -st
    # TODO: This fast smf disable/enable trigger produces a qmaster deadlock !!!
-   if {[smf_start_svcadm $host $service "enable" "-st"] == -1} {
+   if {[smf_start_svcadm $host $service "enable" "-st" $timeout] == -1} {
       return -1
    }
    #svcadm disable -st
-   if {[smf_start_svcadm $host $service "disable" "-st"] == -1} {
+   if {[smf_start_svcadm $host $service "disable" "-st" $timeout] == -1} {
       return -1
    }
    #svcadm restart
