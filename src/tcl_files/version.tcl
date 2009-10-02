@@ -169,57 +169,55 @@ proc get_version_info { {version_information_array_name ""} } {
    if {[file isfile $qconf_bin]} {
       # We don't use start_sge_bin since we don't want to call this over JGDI
       set result [start_remote_prog $qconf_host $CHECK_USER $qconf_bin "-help" prg_exit_state 15 0 "" "" 1 1 0 1]
-      if {$prg_exit_state != 0} {
-         set help [ split $result "\n" ]
-         if { ([string first "fopen" [ lindex $help 0]]        >= 0) ||
-              ([string first "error" [ lindex $help 0]]        >= 0) ||
-              ([string first "product_mode" [ lindex $help 0]] >= 0) } {
-             ts_log_finer "cannot get version starting qconf -help!"
+      set help [ split $result "\n" ]
+      if { ([string first "fopen" [ lindex $help 0]]        >= 0) ||
+           ([string first "error" [ lindex $help 0]]        >= 0) ||
+           ([string first "product_mode" [ lindex $help 0]] >= 0) } {
+          ts_log_finer "cannot get version starting qconf -help!"
+      } else {
+         set CHECK_PRODUCT_VERSION_NUMBER [string trim [lindex $help 0]]
+         if { [ string first "exit" $CHECK_PRODUCT_VERSION_NUMBER ] >= 0 } {
+            ts_log_finer "output of qconf -help contains \"exit\"! Output: \"$CHECK_PRODUCT_VERSION_NUMBER\""
+            set CHECK_PRODUCT_VERSION_NUMBER "n.a."
          } else {
-            set CHECK_PRODUCT_VERSION_NUMBER [string trim [lindex $help 0]]
-            if { [ string first "exit" $CHECK_PRODUCT_VERSION_NUMBER ] >= 0 } {
-               ts_log_finer "output of qconf -help contains \"exit\"! Output: \"$CHECK_PRODUCT_VERSION_NUMBER\""
-               set CHECK_PRODUCT_VERSION_NUMBER "n.a."
-            } else {
-               if {$ts_config(gridengine_version) == 53} {
-                  # SGE(EE) 5.x: we have a product mode file
-                  set product_mode "unknown"
-                  if { [file isfile $ts_config(product_root)/$ts_config(cell)/common/product_mode ] == 1 } {
-                     set product_mode_file [ open $ts_config(product_root)/$ts_config(cell)/common/product_mode "r" ]
-                     gets $product_mode_file product_mode
-                     close $product_mode_file
-                  } else {
-                     # SGE(EE) 6.x: product mode is in bootstrap file
-                     set product_mode $ts_config(product_type)
+            if {$ts_config(gridengine_version) == 53} {
+               # SGE(EE) 5.x: we have a product mode file
+               set product_mode "unknown"
+               if { [file isfile $ts_config(product_root)/$ts_config(cell)/common/product_mode ] == 1 } {
+                  set product_mode_file [ open $ts_config(product_root)/$ts_config(cell)/common/product_mode "r" ]
+                  gets $product_mode_file product_mode
+                  close $product_mode_file
+               } else {
+                  # SGE(EE) 6.x: product mode is in bootstrap file
+                  set product_mode $ts_config(product_type)
+               }
+               if { $ts_config(product_feature) == "csp" } {
+                  if { [ string first "csp" $product_mode ] < 0 } {
+                     ts_log_info "get_version_info - product feature is not csp ( secure )"
+                     ts_log_info "testsuite setup error - stop"
+                     testsuite_shutdown 1
                   }
-                  if { $ts_config(product_feature) == "csp" } {
-                     if { [ string first "csp" $product_mode ] < 0 } {
-                        ts_log_info "get_version_info - product feature is not csp ( secure )"
-                        ts_log_info "testsuite setup error - stop"
-                        testsuite_shutdown 1
-                     }
-                  } else {
-                     if { [ string first "csp" $product_mode ] >= 0 } {
-                        ts_log_info "get_version_info - product feature is csp ( secure )"
-                        ts_log_info "testsuite setup error - stop"
-                        testsuite_shutdown 1
-                     }
+               } else {
+                  if { [ string first "csp" $product_mode ] >= 0 } {
+                     ts_log_info "get_version_info - product feature is csp ( secure )"
+                     ts_log_info "testsuite setup error - stop"
+                     testsuite_shutdown 1
                   }
-                  if { $CHECK_PRODUCT_TYPE == "sgeee" } {
-                     if { [ string first "sgeee" $product_mode ] < 0 } {
-                        ts_log_info "get_version_info - no sgeee system"
-                        ts_log_info "please remove the file"
-                        ts_log_info "\n$ts_config(product_root)/$ts_config(cell)/common/product_mode"
-                        ts_log_info "\nif you want to install a new sge system"
-                        ts_log_info "testsuite setup error - stop"
-                        testsuite_shutdown 1
-                     }
-                  } else {
-                     if { [ string first "sgeee" $product_mode ] >= 0 } {
-                        ts_log_info "get_version_info - this is a sgeee system"
-                        ts_log_info "testsuite setup error - stop"
-                        testsuite_shutdown 1
-                     }
+               }
+               if { $CHECK_PRODUCT_TYPE == "sgeee" } {
+                  if { [ string first "sgeee" $product_mode ] < 0 } {
+                     ts_log_info "get_version_info - no sgeee system"
+                     ts_log_info "please remove the file"
+                     ts_log_info "\n$ts_config(product_root)/$ts_config(cell)/common/product_mode"
+                     ts_log_info "\nif you want to install a new sge system"
+                     ts_log_info "testsuite setup error - stop"
+                     testsuite_shutdown 1
+                  }
+               } else {
+                  if { [ string first "sgeee" $product_mode ] >= 0 } {
+                     ts_log_info "get_version_info - this is a sgeee system"
+                     ts_log_info "testsuite setup error - stop"
+                     testsuite_shutdown 1
                   }
                }
             }

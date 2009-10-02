@@ -6,6 +6,11 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-02-0  Bugfix:     fixed wrong version detection in testsuite which
+                             expected qstat -help to exit with exit state 1
+                             which was changed by a bugfix.
+                 Review:     DG
+
 LP-2009-09-30-0: Enhancem.:  Improved tests qmod_reschedule and path alias
                  Enhancem.:  start_qmaster fails early if qmaster startup exists
                              with non-zero exit code
