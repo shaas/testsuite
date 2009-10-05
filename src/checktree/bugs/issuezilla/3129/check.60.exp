@@ -1,0 +1,149 @@
+#!/usr/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3129_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_3129"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "make sure exec hosts are not spooled when the global config is changed"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_3129_setup
+set check_cleanup_function issue_3129_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_3129_test"
+
+proc issue_3129_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_3129_setup {} {
+   global ts_config
+   global issue_3129_hosts issue_3129_backup
+
+   if {$ts_config(spooling_method) != "classic"} {
+      ts_log_info "we run this test only with classic spooling"
+      return 99
+   }
+
+   # we test on one host
+   set issue_3129_hosts [host_conf_get_suited_hosts]
+
+   # we want to modify the global config - make a backup
+   get_config issue_3129_backup
+}
+
+proc issue_3129_cleanup {} {
+   global ts_config
+   global issue_3129_hosts issue_3129_backup
+
+   # standard reset config
+   reset_config issue_3129_backup
+
+   # unset our test's global variables
+   foreach var "issue_3129_hosts issue_3129_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc get_exec_host_classic_spool_time {host} {
+   global ts_config CHECK_USER
+
+   # check the exec_host spool file on the master host
+   set spooldir [get_qmaster_spool_dir]
+   set spoolfile "$spooldir/exec_hosts/$host"
+   set time [remote_file_get_mtime $ts_config(master_host) $CHECK_USER $spoolfile]
+
+   return $time
+}
+
+proc issue_3129_test {} {
+   global issue_3129_hosts
+
+   # current time stamp of the exec host object
+   set correct_spool_time [get_exec_host_classic_spool_time $issue_3129_hosts]
+
+   # modify the global config
+   set config(load_report_time) "0:0:2"
+   set_config config
+
+   # monitor the time stamp of the exec host spool file for one minute:
+   # it may not get written
+   set end [expr [clock seconds] + 60]
+   while {[clock seconds] < $end} {
+      set spool_time [get_exec_host_classic_spool_time $issue_3129_hosts]
+      # error - we couldn't read the spool file
+      # ts_log_severe has been done in remote_file_get_mtime
+      if {$spool_time == 0} {
+         break
+      }
+      # error - the exec host got spooled
+      if {$spool_time > $correct_spool_time} {
+         ts_log_severe "the exec host $issue_3129_hosts got spooled after global config change"
+         break
+      }
+
+      after 1000
+   }
+}

@@ -2607,6 +2607,44 @@ proc remote_file_mkdir {hostname dir {win_local_user 0} {user ""} {permissions "
   return $result
 }
 
+#****** file_procedures/remote_file_get_mtime() ***************************************
+#  NAME
+#     remote_file_get_mtime() -- get file modification time
+#
+#  SYNOPSIS
+#     remote_file_get_mtime {hostname user path} 
+#
+#  FUNCTION
+#     Returns the file modification time of a file on a certain host.
+#     On error, an error condition is raised (ts_log_severe)
+#     and 0 is returned.
+#
+#  INPUTS
+#     hostname - the host on which to check the mtime
+#     user     - the user who will do the check
+#     path     - absolute filepath
+#
+#  RESULT
+#     the file modification time, or 0 on error
+#*******************************************************************************
+proc remote_file_get_mtime {hostname user path} {
+   global ts_config
+
+   set time 0
+
+   # we start an expect script to call file mtime
+   set expect_bin [get_binary_path $hostname "expect"]
+   set script "$ts_config(testsuite_root_dir)/scripts/file_mtime.tcl"
+   set output [start_remote_prog $hostname $user $expect_bin "$script $path" prg_exit_state 60 0 "" "" 0 0]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "retrieving modification time of file $path on host $hostname failed:\n$output"
+   } else {
+      set time $output
+   }
+
+   return $time
+}
+
 #****** file_procedures/check_for_core_files() *********************************
 #  NAME
 #     check_for_core_files() -- search for core files
@@ -3927,7 +3965,7 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    if {$check_do_not_use_spool_config_entries == 2 &&
        $subdir == "qmaster"} {
       if {[resolve_host $host] == [resolve_host $ts_config(master_host)]} {
-         ts_log_fine "\"no_local_qmaster_spool\" option is set, this is master host"
+         ts_log_finer "\"no_local_qmaster_spool\" option is set, this is master host"
          set is_master_host 1
       }
    }
@@ -3939,9 +3977,9 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    # we do not support them at all!
    if {$check_do_not_use_spool_config_entries == 1} {
       if {[resolve_arch $host] == "win32-x86"} {
-         ts_log_fine "\"no_local_spool\" option is set, but we are on Windows - allowing local spool dir"
+         ts_log_finer "\"no_local_spool\" option is set, but we are on Windows - allowing local spool dir"
       } else {
-         ts_log_fine "\"no_local_spool\" option is set - returning empty spool dir" 
+         ts_log_finer "\"no_local_spool\" option is set - returning empty spool dir" 
          return $spooldir
       }
    }
@@ -3950,9 +3988,9 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
        $is_master_host &&
        $subdir == "qmaster"} {
       if {[resolve_arch $host] == "win32-x86"} {
-         ts_log_fine "\"no_local_qmaster_spool\" option is set, but we are on Windows - allowing local spool dir"
+         ts_log_finer "\"no_local_qmaster_spool\" option is set, but we are on Windows - allowing local spool dir"
       } else {
-         ts_log_fine "\"no_local_qmaster_spool\" option is set - returning empty spool dir" 
+         ts_log_finer "\"no_local_qmaster_spool\" option is set - returning empty spool dir" 
          return $spooldir
       }
    }
