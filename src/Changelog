@@ -6,6 +6,8 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-05-0: Bugfix:     removed wait_for_enter in qstat test
+
 JG-2009-10-05-0: Enhancem.:  added new test bugs/issuezilla/3129
                              added function remote_file_get_mtime to retrieve
                              the modification time of a file/directory.

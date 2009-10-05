@@ -428,7 +428,6 @@ proc test_qstat_j_xml {} {
    if {$found_error != ""} {
       append found_error "xml output:\n$xmloutput\nplain output:\n$plainoutput\n"
       ts_log_severe $found_error
-      wait_for_enter
    }
    delete_all_jobs 
    reset_config_and_propagate stored_configuration $host
