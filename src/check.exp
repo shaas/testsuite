@@ -4599,6 +4599,7 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
    # only continue, if we have check_functions at all
    set setup_ret 1
+   set was_unsupported 0
    if {$runlevel_error_text != ""} {
       ts_log_severe "check \"$check_name\" cannot start in runlevel $level ([get_run_level_name $level]):\n$runlevel_error_text"
       if {$CHECK_USE_HUDSON == 1} {
@@ -4710,7 +4711,6 @@ proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
 
       if {$do_run_hook == 1} {
          set was_error 0
-         set was_unsupported 0
          private_check_error_run_test_level was_error was_unsupported
          if {[exec_start_runlevel_hooks 0 $was_error $path] != 0} {
             ts_log_severe "check \"$check_name\" did not cleanup the system correctly! Start test run hook returned an error!"

@@ -1713,7 +1713,7 @@ proc generate_html_report_task {report_array} {
             } else {
                append content [create_html_target ${host}_label_${err}]
             }
-            append content [create_html_link "Back to the top" "$filename"]
+            append content [create_html_link "Back to the top" "[file tail $filename]"]
             set color [get_color_failed]
          } elseif {[string match "*[get_result_skipped]" [string trim $line]]} {
             set color [get_color_skipped]
@@ -1722,7 +1722,7 @@ proc generate_html_report_task {report_array} {
          }
          append content [create_html_non_formated_text $line false $color]
       }
-      append content [create_html_link "Back to the top" "$filename"]
+      append content [create_html_link "Back to the top" "[file tail $filename]"]
    }
 
    return $content

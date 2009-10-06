@@ -308,6 +308,11 @@ proc qmod_issue_1131 {} {
 proc qmod_issue_3071 {} {
    global ts_config
 
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_info "The issue 3071 is not fixed for versions < 6.2, skipping the test."
+      return
+   }
+
    # submit sleeper job
    set job_id [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60]  
 

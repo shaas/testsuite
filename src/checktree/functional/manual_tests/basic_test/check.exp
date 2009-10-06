@@ -305,6 +305,10 @@ proc basic_test {report_var} {
       set ts_host_config($host,spooldir) $spooldir_master
    }
 
+   if {"$ts_config(spooling_method)" == "classic"} {
+      set ts_config(bdb_server) "none"
+   }
+
    if {[string compare $ts_config(bdb_server) "none"] != 0} {
       set ts_config(bdb_dir) $spooldir/bdb
       install_bdb_rpc

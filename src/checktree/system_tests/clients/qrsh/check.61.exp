@@ -249,6 +249,11 @@ proc qrsh_w_v_test {} {
 proc qrsh_pty_yes_redirect {} {
    global ts_config CHECK_USER
    global qrsh_hostlist
+
+   if {$ts_config(gridengine_version) < 62} {
+      ts_log_info "Skipping the test, qrsh option -pty not implemented for versions < 6.2"
+      return
+   }
   
    foreach submit_host $qrsh_hostlist {
       foreach host $qrsh_hostlist {

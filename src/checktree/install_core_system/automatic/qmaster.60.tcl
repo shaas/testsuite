@@ -118,6 +118,8 @@ proc install_qmaster {} {
    set my_timeout 500
    set exit_val 0
 
+   switch_spooling
+
    ts_log_fine "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf"
    if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
       set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config_$ts_config(cell).conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]

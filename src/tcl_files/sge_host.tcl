@@ -69,10 +69,6 @@ proc get_exechost_error {result host raise_error} {
    set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_EXEC_XISNOTANEXECUTIONHOST_S $host]
    set messages(-2) [translate_macro MSG_SGETEXT_CANTRESOLVEHOST_S $host]
-
-
-   # we might have version dependent, exechost specific error messages
-   #get_exechost_error_vdep messages $host
  
    # now evaluate return code and raise errors
    set ret [handle_sge_errors "get_exechost" "qconf -se $host" $result messages $raise_error]
@@ -586,9 +582,6 @@ proc del_adminhost_error {result host on_host raise_error} {
    set messages(index) "-1 "
    set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "administrative host" $host]
 
-   # we might have version dependent, exechost specific error messages
-   get_exechost_error_vdep messages $on_host
-
    # now evaluate return code and raise errors
    set ret [handle_sge_errors "del_adminhost" "qconf -dh $host" $result messages $raise_error]
 
@@ -715,9 +708,6 @@ proc add_adminhost_error {result host on_host raise_error} {
    # recognize certain error messages and return special return code
    set messages(index) "-1 "
    set messages(-1) [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "adminhost" $host]
-
-   # we might have version dependent, exechost specific error messages
-   get_exechost_error_vdep messages $on_host
 
    # now evaluate return code and raise errors
    set ret [handle_sge_errors "add_adminhost" "qconf -ah $host" $result messages $raise_error]

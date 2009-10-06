@@ -194,13 +194,10 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
          }
       }
    }
-   # TODO: FIX this, does not work with other branches
-   if {$ts_config(gridengine_version) >= 62 } {
-      add_message_to_container messages -5 [translate_macro MSG_RESOURCEQUOTA_INVALIDUSERFILTER]
-      add_message_to_container messages -4 [translate_macro MSG_RESOURCEQUOTA_INVALIDPROJECTFILTER]
-      add_message_to_container messages -3 [translate_macro MSG_RESOURCEQUOTA_INVALIDPEFILTER]
-   }
-   # TODO: END
+
+   add_message_to_container messages -5 [translate_macro MSG_RESOURCEQUOTA_INVALIDUSERFILTER]
+   add_message_to_container messages -4 [translate_macro MSG_RESOURCEQUOTA_INVALIDPROJECTFILTER]
+   add_message_to_container messages -3 [translate_macro MSG_RESOURCEQUOTA_INVALIDPEFILTER]
    add_message_to_container messages -2 [translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*"]
    add_message_to_container messages -1 [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "resource quota set" "*"]
    add_message_to_container messages  0 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]

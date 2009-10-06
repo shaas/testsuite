@@ -2508,7 +2508,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
       set result [start_remote_prog $value $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" "cvs" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          ts_log_finest $result
-         puts "cvs not found on host $host. Enhance your PATH envirnoment"
+         puts "cvs not found on host $value. Enhance your PATH envirnoment"
          return -1
       } else {
          ts_log_finest $result

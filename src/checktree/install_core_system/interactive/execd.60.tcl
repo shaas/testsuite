@@ -166,13 +166,17 @@ proc install_execd {{report_var report}} {
          ts_log_fine "architecture: $remote_arch"
          ts_log_fine "sensor file:  $sensor_file"
          ts_log_fine "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
+         set fs_host [fs_config_get_server_for_path $ts_config(product_root) 0]
+         if {$fs_host == ""} {
+            set fs_host $ts_config(master_host)
+         }
          if {$CHECK_ADMIN_USER_SYSTEM == 0} {
             set copy_user "root"
          } else {
             set copy_user $CHECK_USER
          }
          set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-         set result [start_remote_prog $ts_config(master_host) $copy_user "cp" "$arguments" prg_exit_state 60 0 "" "" 1 0 0 1 1] 
+         set result [start_remote_prog $fs_host $copy_user "cp" "$arguments" prg_exit_state 60 0 "" "" 1 0 0 1 1]
          ts_log_fine "result: $result"
          ts_log_fine "copy exit state: $prg_exit_state" 
       }

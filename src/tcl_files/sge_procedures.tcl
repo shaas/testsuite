@@ -9330,3 +9330,83 @@ proc cleanup_tmpdirs {} {
       start_remote_prog $node $clean_user "rm" "-rf $tmpdir"
    }
 }
+
+#****** sge_procedures/switch_spooling() ***************************************
+#  NAME
+#     switch_spooling() -- switch the spooling method
+#
+#  SYNOPSIS
+#     switch_spooling {}
+#
+#  FUNCTION
+#     Switch the spooling method for the auto installation, if necessary.
+#
+#   SEE ALSO
+#      scripts/switch_spooling.sh
+#
+#*******************************************************************************
+proc switch_spooling {} {
+   global ts_config CHECK_USER
+
+   set arch [resolve_arch $ts_config(master_host)]
+   set args "$arch "
+   append args [replace_string $ts_config(spooling_method) berkeleydb bdb]
+   set fs_host [fs_config_get_server_for_path $ts_config(product_root) 0]
+   if {$fs_host == ""} {
+      set fs_host $ts_config(master_host)
+   }
+   set output [start_remote_prog $fs_host "root" \
+                   "$ts_config(testsuite_root_dir)/scripts/switch_spooling.sh" \
+                             $args prg_exit_state 10 0 $ts_config(product_root)]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER \
+                                  "ls" "-la $ts_config(product_root)/bin/$arch"]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER \
+                              "ls" "-la $ts_config(product_root)/utilbin/$arch"]
+
+}
+
+#****** sge_procedures/is_bdb_server_running() *********************************
+#  NAME
+#     is_bdb_server_running() -- indicate if the bdb server is running
+#
+#  SYNOPSIS
+#     is_bdb_server_running {hostname}
+#
+#  FUNCTION
+#     Indicate if the bdb server is running on the host $hostname.
+#
+#  INPUTS
+#     hostname                      - host name
+#
+#  RESULT
+#     true -  the server is running on the hostname*
+#     false - the server is not running on the hostname
+#
+#  NOTE
+#     if the $ts_config(product_root) is too long the function doesn't
+#     necessarilly returns the correct result since the p result is cut off.
+#     This is dependent on the architecture of the host.
+#     To avoid this problem, choos the short path of the product root.
+#
+#  SEE ALSO
+#     control_procedures/ps_grep()
+#*******************************************************************************
+proc is_bdb_server_running {hostname} {
+
+   set bdb_process_string "berkeley_db_svc"
+   set index_list [ps_grep $bdb_process_string $hostname ps_info]
+
+   if {[string trim $index_list] == ""} {
+      return false
+   }
+
+   foreach elem $index_list {
+      if {[string first $bdb_process_string $ps_info(string,$elem)] >= 0 && \
+                      [is_pid_with_name_existing $hostname $ps_info(pid,$elem) \
+                                                    $bdb_process_string] == 0} {
+         ts_log_fine "BDB server is running on the host $hostname!"
+         return true
+      }
+   }
+   return false
+}

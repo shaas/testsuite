@@ -120,9 +120,27 @@ proc auto_install_setup {} {
    }
 
    set auto_install_hosts [manual_select_hosts $auto_install_host_set $auto_install_host_select]
+   set auto_install_test_hosts [host_conf_get_suited_hosts 2 {sol-amd64 \
+                                sol-sparc64 lx24-amd64 lx24-x86} {} {win32-x86}]
+   if {$ts_config(bdb_server) == "none"} {
+      set bdb_found false
+      for {set i 0} {$i < 5} {incr i 1} {
+         set auto_install_bdb [host_conf_get_suited_hosts 1 {sol-amd64 \
+                                sol-sparc64 lx24-amd64 lx24-x86} {} {win32-x86}]
+         if {![is_bdb_server_running $auto_install_bdb]} {
+            set bdb_found true
+            break
+         }
+      }
+   } else {
+      set bdb_found true
+      set auto_install_bdb $ts_config(bdb_server)
+   }
 
-   set auto_install_test_hosts [host_conf_get_suited_hosts 2 {sol-amd64 sol-sparc64 \
-                                            lx24-amd64 lx24-x86} {} {win32-x86}]
+   if {!$bdb_found} {
+      ts_log_config "No bdb server found."
+      return
+   }
 
    set auto_install_test_identificator "AUTO_INSTALL"
 
@@ -142,7 +160,7 @@ proc auto_install_setup {} {
 proc auto_install_cleanup {} {
    global ts_config ts_config_backup
 #   global system_was_alive
-   global auto_install_hosts auto_install_test_hosts
+   global auto_install_hosts auto_install_test_hosts auto_install_bdb
 
    # restore ts_config parameters
    foreach param [array names ts_config_backup] {
@@ -154,7 +172,7 @@ proc auto_install_cleanup {} {
 #   }
 
    # unset our test's global variables
-   foreach var "ts_config_backup auto_install_hosts auto_install_test_hosts" {
+   foreach var "ts_config_backup auto_install_hosts auto_install_test_hosts auto_install_bdb" {
       if {[info exists $var]} {
          unset $var
       }
@@ -217,7 +235,7 @@ proc auto_install_test_set {} {
 proc auto_install_cluster_configure {host case} {
    global ts_config auto_install_host ts_config_backup
    global check_do_not_use_spool_config_entries
-   global auto_install_test_hosts
+   global auto_install_test_hosts auto_install_bdb
 
    set arch [resolve_arch $host]
    if {[string first "win" $arch] == 0} {
@@ -273,7 +291,7 @@ proc auto_install_cluster_configure {host case} {
       }
       "bdb_rpc" {
          set ts_config(spooling_method) berkeleydb
-         set ts_config(bdb_server) [lindex $auto_install_test_hosts 1]
+         set ts_config(bdb_server) $auto_install_bdb
       }
    }
 }

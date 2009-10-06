@@ -1640,8 +1640,10 @@ proc sge_check_auto_install_logs {report_var} {
    set output ""
    set files [start_remote_prog $fs_host $CHECK_USER "ls" "$log_files"]
    foreach f $files {
-      set content [start_remote_prog $fs_host $CHECK_USER "cat" "$log_files/$f"]
-      append output "$f\n[report_table_line 100]\n$content\n"
+      if {[file isfile $log_files/$f] == 1} {
+         set content [start_remote_prog $fs_host $CHECK_USER "cat" "$log_files/$f"]
+         append output "$f\n[report_table_line 100]\n$content\n"
+      }
    }
    if {$output == ""} {
       test_report report $curr_task_nr $id result [get_result_failed]
