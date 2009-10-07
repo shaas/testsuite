@@ -216,6 +216,29 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
    return 0
 }
 
+#****** gettext_procedures/is_macro_available() ********************************
+#  NAME
+#     is_macro_available() -- check if macro is existing
+#
+#  SYNOPSIS
+#     is_macro_available { macro_name } 
+#
+#  FUNCTION
+#     Figure out if the specified macro is available.
+#
+#  INPUTS
+#     macro_name - name of the source code macro
+#
+#  RESULT
+#     true or false
+#*******************************************************************************
+proc is_macro_available { macro_name } {
+   set result [sge_macro $macro_name 0]
+   if {$result == -1 || $result == ""} {
+      return false
+   }
+   return true
+}
 
 proc get_macro_messages_file_name { } {
   global CHECK_PROTOCOL_DIR ts_config

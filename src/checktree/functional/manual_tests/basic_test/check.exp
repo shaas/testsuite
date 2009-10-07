@@ -344,6 +344,7 @@ proc basic_test {report_var} {
       sge_drmaa report
       sge_jdrmaa report
       sge_jsv report
+      sge_check_32bit_binaries report
       sge_qmaster_log report
       sge_reject_other_binaries report
       set test_count [get_test_count report task_${curr_task_nr} err_var]

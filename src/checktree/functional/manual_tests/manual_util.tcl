@@ -478,8 +478,7 @@ proc sge_man {report_var} {
             set output "$line"
             set result [get_result_ok]
          } else {
-            set output "$version doesn't fit the expected version \
-                                        [ge_get_gridengine_version]!!!\n$output"
+            set output "$version doesn't fit the expected version [ge_get_gridengine_version]!"
             set result [get_result_failed]
          }
       } else {
@@ -1243,27 +1242,9 @@ proc sge_drmaa {report_var} {
       return
    }
 
-   if { [string first 64 $host_arch] >= 0 } {
-      switch -exact $host_arch {
-         sol-sparc64 {
-            # sol-sparc not supported since 62 version
-            if { $ts_config(gridengine_version) < 62 } {
-               lappend host_arch sol-sparc
-            }
-         }
-         sol-amd64 {
-            lappend host_arch sol-x86
-         }
-         lx24-amd64 {
-            lappend host_arch lx24-x86
-         }
-         lx24-ia64 {
-            lappend host_arch lx24-x86
-         }
-         hp11-64 {
-            lappend host_arch hp11
-         }
-      }
+   set arch_32 [manual_arch32_mapping $host_arch]
+   if {"$arch_32" != ""} {
+      lappend host_arch $arch_32
    }
 
    set err_tests 0
@@ -1290,7 +1271,7 @@ proc sge_drmaa {report_var} {
          set drmaa_bin $ts_config(source_dir)/$compile_arch/test_drmaa_perf
          if {[file isfile $drmaa_bin] != 1} {
             set drmaa_bin "/vol2/SW/$b_arch/bin/test_drmaa_perf"
-         }
+            }
          if {[file isfile $drmaa_bin] != 1} {
             append output "$drmaa_bin not found! "
             #incr err_count 1
@@ -1778,7 +1759,118 @@ proc sge_check_win_gui {report_var} {
    test_report report $curr_task_nr $id result $result
 }
 
+#****** manual_util/sge_check_32bit_binaries() *********************************
+#  NAME
+#     sge_check_32bit_binaries() -- check the 32-bit binaries
+#
+#  SYNOPSIS
+#     sge_check_32bit_binaries { report_var }
+#
+#  FUNCTION
+#     Check the functionality of 32-bit binaries on 64-bit hosts.
+#
+#  INPUTS
+#     report - the report object
+#
+#  NOTES
+#     Issue 301: add option to run 32bit binaries on 64bit platform
+#     TODO: when it's implemented, this check can be removed and we can run the
+#           whole basic_test with 32bit binaries
+#
+#  SEE ALSO
+#     report_procedures/get_test_host()
+#     manual_util/manual_arch32_mapping()
+#
+#*******************************************************************************
+proc sge_check_32bit_binaries {report_var} {
+   global ts_config CHECK_USER
+   upvar $report_var report
+
+   ts_log_fine "Check 32-bit binaries"
+
+   set id [register_test 32-bit report curr_task_nr]
+
+   set host [get_test_host report $curr_task_nr]
+   set arch [resolve_arch $host]
+
+   set arch_32 [manual_arch32_mapping $arch]
+
+   if {"$arch_32" == ""} {
+      test_report report $curr_task_nr $id result [get_result_skipped]
+      return
+   }
+
+   set fs_host [fs_config_get_server_for_path $ts_config(product_root) 0]
+   if {$fs_host == ""} {
+      set fs_host $host
+   }
+   if {[remote_file_isdirectory $fs_host $ts_config(product_root)/bin/$arch_32] == 0} {
+      test_report report $curr_task_nr $id value "binaries $arch_32 not installed."
+      test_report report $curr_task_nr $id result [get_result_skipped]
+      return
+   }
+
+   set shared_lib_var [get_shared_lib_path_variable_name $arch_32]
+   set env($shared_lib_var) $ts_config(product_root)/lib/$arch_32
+
+   array set args {}
+   set args(qstat) "-f"
+   set args(qhost) ""
+   set args(qconf) "-help | head -1"
+   set args(qsub) "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
+   set args(qacct) ""
+   set cmd_errors 0
+   set output ""
+   foreach cmd [array names args] {
+      set res [start_remote_prog $host $CHECK_USER \
+                      "$ts_config(product_root)/bin/$arch_32/$cmd" $args($cmd) \
+                                                     prg_exit_state 60 0 "" env]
+      if {$prg_exit_state != 0} {
+         incr cmd_errors 1
+      }
+      append output "$cmd $args($cmd)\n$res\n"
+   }
+
+   test_report report $curr_task_nr $id value $output
+   if {$cmd_errors > 0} {
+      test_report report $curr_task_nr $id result [get_result_failed]
+   } else {
+      test_report report $curr_task_nr $id result [get_result_ok]
+   }
+
+}
+
 proc manual_cluster_parameters {} {
    return "master_host shadowd_hosts execd_hosts commd_port jmx_port reserved_port \n
    product_root product_feature cell cluster_name spooling_method bdb_server bdb_dir"
+}
+
+proc manual_arch32_mapping {arch} {
+   global ts_config
+
+   switch -- $arch {
+      "hp11-64" {
+         set arch_32 "hp11"
+      }
+      "lx24-amd64" -
+      "lx24-ia64" {
+         set arch_32 "lx24-x86"
+      }
+      "lx26-amd64" {
+         set arch_32 "lx26-x86"
+      }
+      "sol-amd64" {
+         set arch_32 "sol-x86"
+      }
+      "sol-sparc64" {
+         # sol-sparc not supported for versions 6.2 and higher
+         if {$ts_config(gridengine_version) < 62} {
+            set arch_32 "sol-sparc"
+         }
+      }
+      default {
+         set arch_32 ""
+      }
+   }
+   return $arch_32
 }
