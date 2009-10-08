@@ -67,6 +67,8 @@ set check_functions {}
 lappend check_functions "issue_2542_check_funcionality"
 lappend check_functions "issue_2542_check_bad_tc_number"
 lappend check_functions "issue_2542_check_tc_with_non_array_job"
+lappend check_functions "issue_2542_check_qalter_tc"
+lappend check_functions "issue_2542_check_qalter_tc_with_non_array_job"
 
 proc issue_2542_init_level {} {
    global CHECK_ACT_LEVEL
@@ -137,9 +139,72 @@ proc issue_2542_check_tc_with_non_array_job {} {
    global ts_config
 
    set job_id [submit_job "-tc 2 $ts_config(product_root)/examples/jobs/sleeper.sh 5" 0 60]
-   ts_log_fine "my_job (issue_2542_check_bad_tc_number): ${job_id}"
+   ts_log_fine "my_job (issue_2542_check_tc_with_non_array_job): ${job_id}"
    if {${job_id} > -1} {
        ts_log_severe "submit job should have failed"
+   }
+
+   return
+}
+
+proc issue_2542_check_qalter_tc {} {
+   global CHECK_USER ts_config
+   set tc 2
+   set qalter_tc 3
+   set tasks_count 4
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   ts_log_fine "checking qalter -tc functionality. Submitting array job with ${tasks_count} tasks restricted to ${tc} tasks."
+
+   set job_id [submit_job "-t 1-${tasks_count} -tc ${tc} ${ts_config(product_root)}/examples/jobs/sleeper.sh 25" 1 60]
+   wait_for_jobstart ${job_id} "Sleeper" 60 1 1
+
+   start_sge_bin "qalter" "-tc ${qalter_tc} ${job_id}"
+   start_sge_bin "qconf" "-tsm"
+
+   set result [start_sge_bin "qstat" "-f"]
+   ts_log_fine "qstat -f output:\n${result}"
+   set lines [split ${result} "\n"]
+   set running_tasks_count 0
+   set pattern "^\[ \]*${job_id}.+Sleeper\[ \]+${CHECK_USER}\[ \]+\[rt\]"
+
+   foreach line $lines {
+      if {[regexp ${pattern} ${line} match] == 1} {
+         incr running_tasks_count
+      }
+   }
+   if {${running_tasks_count} != ${qalter_tc}} {
+      ts_log_severe "qalter -tc ${qalter_tc} ${job_id} doesn't work. ${running_tasks_count} tasks are running."
+   } else {
+      ts_log_fine "qalter -tc ${qalter_tc} ${job_id} works ok. ${running_tasks_count} tasks are running."
+   }
+
+   set result [start_sge_bin "qalter" "-tc -1 ${job_id}"]
+   set expected [translate_macro MSG_ULNG_INVALID_TASK_CONCURRENCY_I "-1"]
+   if { [string match "${result}" "${expected}"] != 0 } {
+      ts_log_fine "${result}"
+      ts_log_fine "${expected}"
+      ts_log_severe "Verification of positive value of -tc option doesn't work"
+   }
+
+   return
+}
+
+proc issue_2542_check_qalter_tc_with_non_array_job {} {
+   global ts_config
+
+   set job_id [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 5" 0 60]
+   ts_log_fine "my_job (issue_2542_check_qalter_tc_with_non_array_job): ${job_id}"
+
+   set result [start_sge_bin "qalter" "-tc 2 ${job_id}"]
+   set tc_string [translate_macro MSG_JOB_TASK_CONCURRENCY]
+   set expected [translate_macro MSG_PARSE_INVALIDOPTIONARGUMENTX_S ${tc_string}]
+   if { [string match ${result} ${expected}] != 0 } {
+      ts_log_fine "${result}"
+      ts_log_fine "${expected}"
+      ts_log_severe "Verification whether altered job is array job doesn't work"
    }
 
    return

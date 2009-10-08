@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+JF-2009-10-08-0: Enhancem.:  Testsuite test for RFI 6684887 qalter part
+                 Review:     EB
+
 AP-2009-10-07-0: Enhancem.:  added basic test of 32bit binaries on 64bit platforms.
                  Bugfix:     adjusted messages in add_rqs procedure.
                  Review:     CR
