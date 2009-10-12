@@ -83,7 +83,16 @@ puts "dir = $dir"
 
 while {[timestamp] < $timeout} {
    # the ls -al on the directory updates NFS caches
-   catch {exec "ls" "-al" $dir ">" "/dev/null"}
+   catch {
+      set tmp_path_string ""
+      foreach tmp_path [file split $dir] {
+         append tmp_path_string $tmp_path
+         exec "ls" "-al" $tmp_path_string ">" "/dev/null"
+         if {$tmp_path_string != "/"} {
+            append tmp_path_string "/"
+         }
+      }
+   }
    set exits  [file exists $path]
  
    if {$exits} { 
