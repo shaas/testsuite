@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-12-2: Cleanup:    o changed logging order for resolve_arch error 
+                               output
+                 Review:     EB
+
 CR-2009-10-12-1: Enhancem.:  o wait_for_file.exp: Doing ls -la for all directory
                                parts of the file/dir which is waited for
                  Review:     EB
