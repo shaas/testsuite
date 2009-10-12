@@ -93,7 +93,7 @@ proc issue_1914_setup {} {
    
    # save orig config
    get_config backup_config $test_host
-
+   
    #add new test queue
    set new_queue(load_thresholds) "np_load_avg=11.75"
    add_queue $test_queue $test_host new_queue
@@ -112,7 +112,7 @@ proc issue_1914_cleanup {} {
 
 proc issue_1914_submit_test_job {job_type host user test_path} {
    global ts_config
-   global CHECK_DISPLAY_OUTPUT
+   global CHECK_DISPLAY_OUTPUT CHECK_SHELL_PROMPT
 
    #cleaning up queues before submit test
    delete_all_jobs
@@ -298,6 +298,19 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   ts_log_fine "deleting job with id $job_id, because we don't know user password ..."
                   delete_job $job_id
                }
+               
+               -i $sp_id "X${host}X" {
+                  ts_log_fine "found matching shell response text! Sending exit ..."
+                  ts_send $sp_id "exit\n" $host
+                  set error 0
+               }
+               
+               -i $sp_id "waiting for interactive job to be scheduled*" {                  
+               }
+               
+               -i $sp_id -re $CHECK_SHELL_PROMPT {
+                  ts_send $sp_id "echo X`hostname`X\n" $host 1
+               }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
                   set daemon_error 1
                }
@@ -378,7 +391,7 @@ proc issue_1914_check_host_state {host} {
 #return 1 if test passed, 0 if failed 
 proc issue_1914_test_submit {job host path error_test} {
    global ts_user_config
-   set res [issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path] 
+   set res [issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path]
    if {$res == [issue_1914_check_host_state $host] && $res == $error_test} {
       return 1
    }
@@ -435,7 +448,7 @@ proc issue_1914_test {} {
       }
       #clean up file after test
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
-         
+      
       if {$ts_config(gridengine_version) < 61} {
          #testing daemon set to relative path value (not absolute path)
          set path "tmp/daemon_$act_time"
@@ -461,7 +474,7 @@ proc issue_1914_test {} {
       } else {
          ts_log_fine "Test 4 for \"$job\" passed"
       }
-      #test for issue 2174 when file has execution permission but is not 
+      #test for issue 2174 when file has execution permission but is not
       #proper daemon file - binary
       start_remote_prog $test_host $CHECK_USER "touch" "$path"
       start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
@@ -472,15 +485,19 @@ proc issue_1914_test {} {
       } else {
          ts_log_fine "Test 5 for \"$job\" passed"
       }
+      #Let's wait until all previous jobs are gone
+      #(we might have a job in dr state after Test 5 which would be prematurely assumed to be job from test 6)
+      wait_for_end_of_all_jobs 60
+      
       #clean up file after test
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
-       
+      
       #start the test with correct daemon configuration 
       set error 0
-      set_config_and_propagate backup_config $test_host
+      set_config_and_propagate backup_config $test_host 1
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
-         issue 1914 fix didn't work for correct $daemon configuration"
+         ts_log_severe "Testing job $job with default configuration failed,
+         issue 1914 fix didn't work for correct configuration"
       } else {
          ts_log_fine "Test 6 for \"$job\" passed"
       }
