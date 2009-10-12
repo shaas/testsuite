@@ -63,6 +63,8 @@ set check_needs           "init_core_system"
 set check_setup_function qrstat_test_setup
 set check_cleanup_function qrstat_test_cleanup
 
+set check_description(0) "test qrstat -help, -u, -explain and -ar option" 
+
 # define test's procedure order
 set check_functions {}
 lappend check_functions "qrstat_help"

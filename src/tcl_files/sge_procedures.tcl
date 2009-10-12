@@ -7660,7 +7660,7 @@ proc shutdown_all_shadowd { hostname } {
 #     sge_procedures/startup_execd()
 #     sge_procedures/startup_shadowd()
 #*******************************
-proc shutdown_bdb_rpc { hostname } {
+proc shutdown_bdb_rpc { hostname {shutdown_all 0}} {
    global CHECK_ADMIN_USER_SYSTEM
    global CHECK_USER 
    get_current_cluster_config_array ts_config
@@ -7669,7 +7669,12 @@ proc shutdown_bdb_rpc { hostname } {
 
    ts_log_fine "shutdown bdb_rpc daemon for system installed at $ts_config(product_root) ..."
 
-   set index_list [ ps_grep "$ts_config(product_root)" "$hostname" ]
+   if {$shutdown_all} {
+      set grep_string "berkeley_db_svc"
+   } else {
+      set grep_string "$ts_config(product_root)"
+   }
+   set index_list [ ps_grep "$grep_string" "$hostname" ]
    set new_index ""
    foreach elem $index_list {
       if { [ string first "berkeley_db_svc" $ps_info(string,$elem) ] >= 0 } {

@@ -369,9 +369,23 @@ proc install_shadowd {} {
 
       # close connection to inst_sge
       close_spawn_process $id
+   }
 
-      if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
+   foreach shadow_host $shadowd_hosts {
+      set my_timeout [timestamp]
+      incr my_timeout 60
+      set is_running 0
+      while {[timestamp] < $my_timeout} {
+         if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
+            ts_log_fine "waiting for running shadowd on host $shadow_host ..."
+         } else {
+            set is_running 1
+            break
+         }
+      }
+      if {$is_running == 0} {
          ts_log_severe "shadowd on host $shadow_host is not running"
+         break
       }
    }
 }

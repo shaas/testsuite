@@ -6,6 +6,29 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-12-0: Enhancem.:  o enabled current_version_upgrade test (still some
+                               TODOs in code)
+                             o enhanced shutdown_bdb_rpc() with optional 
+                               parameter to shutdown all bdb server processes 
+                               on the specified host
+                             o optimized start_remote_prog() usage on various
+                               places NOT to source the sge settings file
+                             o new procedure: 
+                               fs_config_get_local_base_spool_dir_list_by_fstype()
+                               Returns a list of available spool base dirs which
+                               are mounted via the specified file system type.
+                             o sge_macro(): 
+                               only delete macro messages file (done if a macro
+                               is not availabe) when a source directory is 
+                               defined in the testsuite configuration.
+                             o shadowd installation:
+                               wait for startup of all shadowds with timeout
+                             o new command line parameter: create_csv_report
+                               (generate test analysis, export it to csv file)
+                             o additional enhancements for remote cluster 
+                               control procedures
+                 Review:     SH
+ 
 LP-2009-10-12-0: Bugfix:     Fixed test for issue 1914
                  Review:     AP
 

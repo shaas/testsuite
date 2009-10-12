@@ -144,6 +144,7 @@ proc wait_for_remote_file_test_test {} {
    if {[wait_for_remote_file_test_measure "traditional"] != 0} {
       return
    }
+   ts_log_fine "starting with complete remote ..."
    if {[wait_for_remote_file_test_measure "complete_remote"] != 0} {
       return
    }
@@ -200,6 +201,7 @@ proc wait_for_remote_file_test_measure { method } {
    upvar #0 wait_for_remote_file_test_ctx this
    global CHECK_USER
 
+   ts_log_fine "create tmp directories for all hosts ..."
    foreach host $this(hosts) {
       set tmpdir [get_tmp_directory_name $host]
       set this($host,file) "$tmpdir/blubber"

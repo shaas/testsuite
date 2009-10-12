@@ -1093,6 +1093,54 @@ proc fs_config_get_filesystemlist_by_fstype {filesystem_type} {
    return [array names ret]
 }
 
+#****** config_filesystem/fs_config_get_local_base_spool_dir_list_by_fstype() ******
+#  NAME
+#     fs_config_get_local_base_spool_dir_list_by_fstype() -- get base spool dir
+#
+#  SYNOPSIS
+#     fs_config_get_local_base_spool_dir_list_by_fstype { filesystem_type host 
+#     {do_cleanup 1} } 
+#
+#  FUNCTION
+#     Return testsuite spool directory list for the specified file system type
+#
+#  INPUTS
+#     filesystem_type - parameter for fs_config_get_filesystemlist_by_fstype
+#                       call - e.g. "nfs" "nfs4"
+#     host            - name of host where the file operations are executed
+#     {do_cleanup 1}  - cleanup spool dir before returning (if set to 1)
+#
+#  RESULT
+#     Returns a list of available spool base directories which are mounted via
+#     the specified file system type. 
+#
+#  SEE ALSO
+#     config_filesystem/fs_config_get_filesystemlist_by_fstype()
+#*******************************************************************************
+proc fs_config_get_local_base_spool_dir_list_by_fstype {filesystem_type host {do_cleanup 1}} {
+   get_current_cluster_config_array ts_config
+   global CHECK_USER
+
+   set fs_list [fs_config_get_filesystemlist_by_fstype $filesystem_type]
+   set return_list {}
+   foreach fs $fs_list {
+      if {[remote_file_isdirectory $host $fs/fs_testsuite] == 0} {
+         if {[have_root_passwd] == 0} {
+            remote_file_mkdir $host $fs/fs_testsuite 0 "root" "777"
+         } else {
+            ts_log_severe "cannot access directory \"$fs/fs_testsuite\" as user \"$CHECK_USER\" on host \"$host\". It should be possible to create a subdirectory for every testsuite user."
+         }
+      }
+       
+      set spooldir "$fs/fs_testsuite/$ts_config(commd_port)/spooldb"
+      if {$do_cleanup} {
+         cleanup_spool_dir_for_host $ts_config(master_host) "$fs/fs_testsuite" "spooldb"
+      }
+      lappend return_list $spooldir
+   }
+   return $return_list
+}
+
 #****** config_filesystem/fs_config_get_supported_filesystem_list **************
 #  NAME
 #     fs_config_get_supported_filesystem_list() -- get a list of currently supported 

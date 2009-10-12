@@ -57,9 +57,14 @@
 #*******************************************************************************
 global warnings_already_logged
 proc sge_macro { macro_name {raise_error 1} } {
-   global warnings_already_logged
+   global warnings_already_logged ts_config
 
    set value ""
+
+   # TODO: Remove all the "*" from the macro definitions. They should be exaclty the same like used in the
+   # install scripts. First we have to solve the problem about line wrap at column 80 when the parameters (%s)
+   # are responsible that the CR/LF characters might be on a different position when the parameters have variable length
+   # Perhaps we should use a no automatic line wrap switch when installing in testsuite mode (set by environment variable)
 
    # special handling for install macros
    switch -exact $macro_name {
@@ -199,7 +204,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINT_UPGRADE_IJS_SELECTION" { set value "\nThe backup configuration includes information for running \ninteractive jobs. Do you want to use the IJS information from \nthe backup ('y') or use new default values ('n') (y/n) \[y\] >> " }
       "DISTINCT_UPGRADE_NEXT_RANK_NUMBER" { set value "\nBackup contains last * ID *. As a suggested value, we added 1000 \nto that number and rounded it up to the nearest 1000.\nIncrease the value, if appropriate.\nChoose the new next * ID \[*\] >> " }
       "DISTINCT_UPGRADE_USE_EXISTING_JMX" { set value "Found JMX settings in the backup\nUse the JMX settings from the backup ('y') or reconfigure ('n') (y/n) \[y\] >> " }
-      "DISTINCT_UPGRADE_USE_EXISTING_SPOOLING" { set value "\nUse previous * spooling method ('y') or use new spooling method ('n') (y/n) \[y\] >> " }
+      "DISTINCT_UPGRADE_USE_EXISTING_SPOOLING" { set value "\nUse previous %s spooling method ('y') or use new spooling method *" }
       "DISTINT_ENTER_CA_COUNTRY_CODE" { set value "Please enter your two letter country code, e.g. 'US' >> " }
       "DISTINT_ENTER_CA_STATE" { set value "Please enter your state >> " }
       "DISTINT_ENTER_CA_LOCATION" { set value "Please enter your location, e.g city or buildingcode >> " }
@@ -221,11 +226,14 @@ proc sge_macro { macro_name {raise_error 1} } {
    if {$raise_error} {
       if { $value == -1 } {
          set macro_messages_file [get_macro_messages_file_name]
-         ts_log_config "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
-         if { [ file isfile $macro_messages_file] } {
-            file delete $macro_messages_file
+         ts_log_severe "could not find macro \"$macro_name\" in source code!"
+         if {$ts_config(source_dir) != "none"} {
+            ts_log_config "deleting macro messages file:\n$macro_messages_file"
+            if { [ file isfile $macro_messages_file] } {
+               file delete $macro_messages_file
+            }
+            update_macro_messages_list
          }
-         update_macro_messages_list
       }
    }
    if {[string first "-" $value] >= 0 && [info exists warnings_already_logged($macro_name)] == 0} {

@@ -216,6 +216,9 @@ set do_wait_on_error 0
 global define_daily_build_nr
 set define_daily_build_nr "true"
 
+global create_csv_file
+set create_csv_file "false"
+
 # if we know the config is ok, we don't want to check it,
 # e.g. we don't want to connect to all hosts during setup
 #      or check the CVS version at every testsuite startup
@@ -680,7 +683,7 @@ proc print_errors {} {
                set test_name [lindex $help 1]
                set test_proc [lindex $help 0]
                set test_error [lindex $help 3]
-               puts "$test_name: procedure \"$test_proc\" - $test_error"
+               puts "$test_name: procedure \"$test_proc\":\n$test_error"
             }
          }
       }
@@ -2799,12 +2802,47 @@ proc enhanced_setup {} {
 # --   check_c_source_code_files_for_macros
 }
 
+proc get_category_string_out_of_path { path seperator } {
+   set result ""
+   set list [split $path "/"]
+   set found 0
+   for {set i 0} {$i < [llength $list]} { incr i 1} {
+      if {$found == 0} {
+         if {[string match "*checktree*" [lindex $list $i]]} {
+            set found 1
+            append result [lindex $list $i]
+         }
+      } else {
+         append result $seperator
+         append result [lindex $list $i]
+      }
+   }
+   return $result
+}
 
-
+#   set ts_checktree(act_nr) 1             ;# contains the next free number for a checktree directory element
+#   set ts_checktree(0,dir_name) "root"    ;# set directory name of root element
+#   set ts_checktree(0,test_available) 0   ;# there is no test available for the directory entry 0
+#   set ts_checktree(0,upper_nrs) 0        ;# upper_nrs contains the directory number of the parent checktree
+#   set ts_checktree(root) 0               ;# maps the directory path to directory number
+#   set ts_checktree($i,max_level_count) 
+#   set ts_checktree($i,check_levels) 
+#   set ts_checktree($nr,check_name) $check_name
+#   set ts_checktree($nr,check_needs) $check_needs
+#   set ts_checktree($nr,check_init_level_procedure) $check_init_level_procedure
+#   set ts_checktree($nr,check_highest_level) $check_highest_level
+#   set ts_checktree($nr,check_category) $check_category
+#   set ts_checktree($nr,check_functions) $check_functions
+#   set ts_checktree($nr,dir_name) $path
+#   set ts_checktree($path)        $nr
+#   set ts_checktree($nr,sub_nrs) {}                   ;# list of numbers of subdirectories checktree elements
+#   set ts_checktree($nr,upper_nrs) 0
+#   set ts_checktree($index,$level,check_description)
+# 239 test(s) available in subdir: checktree
 proc build_checktree {} {
-   global ts_checktree
+   global ts_checktree create_csv_file
    global ACT_CHECKTREE CHECK_CUR_CONFIG_FILE
-   global ts_config
+   global ts_config CHECK_USER
    global fast_setup custom_checktree CHECK_USE_HUDSON
 
    if { [info exists ts_checktree] } {
@@ -2972,6 +3010,88 @@ proc build_checktree {} {
       }
    }
 
+   if {$create_csv_file == true} {
+      set available_tests 0
+      set available_test_levels 0
+      set available_test_functions 0
+      set available_test_scenarios 0
+
+      set file_data(0) 0
+      set file_data_index 2
+      set file_name "$ts_config(testsuite_root_dir)/checktree_export_file.csv"
+
+      # first detect the categories
+      
+      set max_cat 0
+      for {set index 0} {$index < $ts_checktree(act_nr)} {incr index 1} {
+         if {$ts_checktree($index,test_available) != 0} {
+            set cat [get_category_string_out_of_path $ts_checktree($index,dir_name) "|"]
+            set list [split $cat "|"]
+            set max_cat [max $max_cat [llength $list]]
+         }
+      }
+
+      # ts_log_fine "checktree depth: $max_cat"
+      set file_data(1) ""
+      for {set i 1} {$i <= $max_cat} { incr i 1} {
+         if {$file_data(1) != ""} {
+            append file_data(1) "|"
+         }
+         append file_data(1) "category $i"
+      }
+      append file_data(1) "|Name|Level count|Function count|Description|Location"
+
+      
+      for {set index 0} {$index < $ts_checktree(act_nr)} {incr index 1} {
+         if {$ts_checktree($index,test_available) != 0} {
+            set nr_of_levels [llength $ts_checktree($index,check_levels)]
+            set nr_of_functions [llength $ts_checktree($index,check_functions)]
+
+            set location_string [get_category_string_out_of_path $ts_checktree($index,dir_name) "/"]
+            set location_category_string [get_category_string_out_of_path $ts_checktree($index,dir_name) "|"]
+            set missing_categories [expr $max_cat - [llength [split $location_category_string "|"]]]
+            for {set i 0} {$i < $missing_categories} { incr i 1} {
+               append location_category_string "|"
+            }
+
+            set description_text ""
+            foreach level $ts_checktree($index,check_levels) {
+               # create csv line for office
+               set tmp_description ""
+               foreach elem [split $ts_checktree($index,$level,check_description) "|"] {
+                  if {$tmp_description != ""} {
+                     append tmp_description "/"
+                  }
+                  append tmp_description $elem
+               }
+               if {$description_text != ""} {
+                  append description_text "#"
+               }
+               append description_text "Level $level: $tmp_description"
+            }
+
+            set csv_line "$location_category_string|$ts_checktree($index,check_name)|$nr_of_levels|$nr_of_functions|\"$description_text\"|$location_string"
+            set file_data($file_data_index) $csv_line
+            incr file_data_index 1
+
+            incr available_tests 1
+            set available_test_levels [expr $available_test_levels + $nr_of_levels]
+            set available_test_functions [expr $available_test_functions + $nr_of_functions]
+            set available_test_scenarios [expr $available_test_scenarios + ($nr_of_functions * $nr_of_levels)]
+
+         }
+      }
+      ts_log_fine "Summary:"
+      ts_log_fine "available tests:     $available_tests"
+      ts_log_fine "available levels:    $available_test_levels"
+      ts_log_fine "available functions: $available_test_functions"
+      ts_log_fine "available scenarios: $available_test_scenarios"
+      ts_log_fine "checktree exported to file $file_name"
+      set file_data(0) [expr $file_data_index - 1]
+      write_remote_file [gethostname] $CHECK_USER $file_name file_data
+      puts "csv data written to \"$file_name\"."
+      exit 0
+   }
    return 0
 }
 
@@ -2979,8 +3099,8 @@ proc build_checktree {} {
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_highest_level check_init_level_procedure check_name check_needs
-   global check_category CHECK_USER check_source_files
-   global CHECK_ACT_LEVEL sourced_commands
+   global check_category CHECK_USER check_source_files check_functions
+   global CHECK_ACT_LEVEL sourced_commands  check_description
 
    # remember last check name - we'll reset to it on function exit
    set old_check_name $check_name
@@ -2995,6 +3115,10 @@ proc read_checktree_nodes { path } {
    set check_setup_function "--"
    set check_category "--"
    set check_source_files "--"
+   set check_functions "--"
+   if {[info exists check_description]} {
+      unset check_description
+   }
 
    # try to find and source check files in this directory for the configured N1GE version
    set sourced_files [ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]
@@ -3022,7 +3146,8 @@ proc read_checktree_nodes { path } {
                puts "--------------------------------------------------------------"
                testsuite_shutdown 1
             }
-         }
+            set ts_checktree($nr,$lt,check_description) $check_description($lt)
+         } 
       }
 
       if {$check_init_level_procedure == "--" || $check_init_level_procedure == ""} {
@@ -3086,6 +3211,7 @@ proc read_checktree_nodes { path } {
       set ts_checktree($nr,check_init_level_procedure) $check_init_level_procedure
       set ts_checktree($nr,check_highest_level) $check_highest_level
       set ts_checktree($nr,check_category) $check_category
+      set ts_checktree($nr,check_functions) $check_functions
    } else {
       set ts_checktree($nr,test_available) 0
    }
@@ -4841,15 +4967,22 @@ proc check_root_access {path} {
 #     delete_temp_script_files() -- delete temp. generated testsuite files
 #
 #  SYNOPSIS
-#     delete_temp_script_files { }
+#     delete_temp_script_files { { config_file ""} } 
 #
 #  FUNCTION
 #     This procedure deletes all temp. generated testsuite files stored in the
 #     file returned by get_testsuite_delete_filename(). The files are also
 #     removed from the internal script cache used in open_remote_spawn_process()
 #
+#  INPUTS
+#     { config_file ""} - if set the temp files of a different testsuite config
+#                         file are deleted. (Useful if test generates a cloned
+#                         testsuite config file and test starts it up with 
+#                         operate_add_cluster() to delete the temp files for the
+#                         remote cluster)
+#
 #*******************************************************************************
-proc delete_temp_script_files { } {
+proc delete_temp_script_files { { config_file ""} } {
    global ts_config CHECK_USER
 
    
@@ -4857,7 +4990,7 @@ proc delete_temp_script_files { } {
    set local_host [gethostname]
 
    # first delete local files on the hosts
-   set local_del_file_name [get_testsuite_delete_filename 1]
+   set local_del_file_name [get_testsuite_delete_filename 1 $config_file]
    if {[is_remote_file $local_host $CHECK_USER $local_del_file_name]} {
       get_file_content $local_host $CHECK_USER $local_del_file_name local_del_files
       for { set i 1} { $i <= $local_del_files(0) } { incr i 1 } {
@@ -4874,7 +5007,7 @@ proc delete_temp_script_files { } {
    }
 
    ts_log_fine "deleting temporary used files ..."
-   set del_file_name [get_testsuite_delete_filename]
+   set del_file_name [get_testsuite_delete_filename 0 $config_file]
    set temp_del_file_name "${del_file_name}.old"
 
    set host [fs_config_get_server_for_path $del_file_name 0]
@@ -8581,6 +8714,9 @@ proc operate_additional_clusters {operation} {
 #     {atimeout 120} - timeout for operation outputs
 #     {execute_func_return rpc_retval} - remote procedure return values
 #                                        when execute_func is used
+#     {ignore_spool_switches 0} - do not inherit spool dir switches
+#     {additional_switches ""}  - use some additional testsuite command line
+#                                 options for the remote cluster startup
 #
 #  RESULT
 #     Exit state of the remote expect testsuite call
@@ -8588,7 +8724,7 @@ proc operate_additional_clusters {operation} {
 #  SEE ALSO
 #     check/operate_additional_clusters()
 #*******************************************************************************
-proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} } {
+proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} {ignore_spool_switches 0} {additional_switches ""}} {
    global CHECK_USER CHECK_HTML_DIRECTORY
    global check_use_installed_system fast_setup be_quiet
    global check_do_clean_compile do_not_update ts_config ts_log_config
@@ -8652,14 +8788,21 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
       append args " testsuite_trash"
    }
 
-   # inherit "no_local_spool" command line param
-   if {$check_do_not_use_spool_config_entries == 1} {
-      append args " no_local_spool"
+   if {$ignore_spool_switches == 0} {
+      # inherit "no_local_spool" command line param
+      if {$check_do_not_use_spool_config_entries == 1} {
+         append args " no_local_spool"
+      }
+
+      # inherit "no_local_qmaster_spool" command line param
+      if {$check_do_not_use_spool_config_entries == 2} {
+         append args " no_local_qmaster_spool"
+      }
    }
 
-   # inherit "no_local_qmaster_spool" command line param
-   if {$check_do_not_use_spool_config_entries == 2} {
-      append args " no_local_qmaster_spool"
+   # inherit additional command line param
+   if {$additional_switches != ""} {
+      append args " $additional_switches"
    }
 
 
@@ -8822,7 +8965,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                   incr error_found 1
                }
                if { $proc_found == 2 } {
-                  append rpcret $line
+                  append rpcret "$line\n"
                }
                if { $proc_found == 1 } {
                   incr proc_found 1
@@ -9081,6 +9224,8 @@ for {set i 0} {$i < $argc} {incr i} {
       puts ""
       puts "no_daily_build_nr     Don't define daily build number at compile time."
       puts ""
+      puts "create_csv_report     Analyse checktree and create a *.csv file in testsuite directory."
+      puts ""
       testsuite_shutdown 1
    }
 
@@ -9091,6 +9236,11 @@ for {set i 0} {$i < $argc} {incr i} {
 
    if {([string compare [lindex $argv $i] "--no_daily_build_nr"] == 0) || ([string compare [lindex $argv $i] "no_daily_build_nr"] == 0) } {
       set define_daily_build_nr "false"
+      continue
+   }
+
+   if {([string compare [lindex $argv $i] "--create_csv_report"] == 0) || ([string compare [lindex $argv $i] "create_csv_report"] == 0) } {
+      set create_csv_file "true"
       continue
    }
 

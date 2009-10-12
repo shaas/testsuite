@@ -240,6 +240,7 @@ proc is_macro_available { macro_name } {
    return true
 }
 
+
 proc get_macro_messages_file_name { } {
   global CHECK_PROTOCOL_DIR ts_config
 
@@ -1078,13 +1079,11 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
       if { [ info exists l10n_raw_cache($msg_text) ] } {
           set back $l10n_raw_cache($msg_text)
           set prg_exit_state 0
-          ts_log_finest "reading message from l10n raw cache ..."
       } else {
-          ts_log_finest "translating message ..."
           set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
-          ts_log_finest "adding message to l10n raw cache ..."
       }
+      ts_log_finest "message\n\"$msg_text\" translated to\n\"$back\""
    } else {
       set num_params [ replace_string $msg_text "%s" "" 1]
       set para_num 1
@@ -1098,13 +1097,13 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
       if { [ info exists l10n_install_cache($msg_text) ] } {
          set back $l10n_install_cache($msg_text)
          set prg_exit_state 0
-         ts_log_finest "reading message from l10n install cache ..."
       } else {
-         ts_log_finest "translating message ..."
          set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
+         # we have line wrap and variable parameter length
+         # PROBLEM: (TODO) we cannot say on which position the infotext will do a line break wrap-around
          set l10n_install_cache($msg_text) $back
-         ts_log_finest "adding message to l10n install cache ..."
       }
+      ts_log_finest "message\n\"$msg_text\" translated to\n\"$back\""
    }
    if { $prg_exit_state == 0} {
       set trans_mes "$back"

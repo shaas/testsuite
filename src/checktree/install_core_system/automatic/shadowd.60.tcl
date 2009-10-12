@@ -144,8 +144,9 @@ proc install_shadowd {} {
          if {$exit_val != 0} {
             ts_log_warning "install shadowd hosts failed\n$shadow_host as $install_user: inst_sge $inst_sge_param:\n$output"
          }
-     }
-     foreach shadow_host $shadowd_hosts {
+      }
+
+      foreach shadow_host $shadowd_hosts {
          ts_log_fine "testing shadowd settings for host $shadow_host ..."
          set info [check_shadowd_settings $shadow_host]
          if {$info != ""} {
@@ -153,11 +154,24 @@ proc install_shadowd {} {
             continue
          }
          ts_log_fine "checking shadowd on host $shadow_host ($ts_config(product_type) system) ..."
-         if { [is_daemon_running $shadow_host "sge_shadowd"] == 1 } {
+         
+         set my_timeout [timestamp]
+         incr my_timeout 60
+         set is_running 0
+         while {[timestamp] < $my_timeout} {
+            if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
+               ts_log_fine "waiting for running shadowd on host $shadow_host ..."
+            } else {
+               set is_running 1
+               break
+            }
+         }
+         if { $is_running == 1 } {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
          } else {
-            ts_log_warning "install shadowd on host $shadow_host failed\nShadowd is not running!\n"
+            ts_log_warning "install shadowd on host $shadow_host failed!\n\"is_daemon_running $shadow_host sge_shadowd\" returned $running_return_value!"
+            break
          }
       }
    }
