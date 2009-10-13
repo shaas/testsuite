@@ -214,6 +214,14 @@ proc private_get_xterm_path { host } {
       return $xterm_path_cache($host)
    }
 
+   if {[resolve_arch $host] == "hp11"} {
+      set xterm_candidate_path "/usr/contrib/bin/X11/xterm"
+      if { [is_remote_file $host $CHECK_USER $xterm_candidate_path 1] } {
+         set xterm_path_cache($host) $xterm_candidate_path
+         return $xterm_candidate_path
+      }
+   }
+
    set xterm_path [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "xterm" prg_exit_state 60 0 "" "" 1 0]
    if { [is_remote_file $host $CHECK_USER $xterm_path 1] } {
       set xterm_path_cache($host) $xterm_path

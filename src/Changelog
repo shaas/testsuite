@@ -6,6 +6,11 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-13-0: Enhancem.:  private_get_xterm_path():
+                             prefered xterm binary search path for hp11 is now
+                             "/usr/contrib/bin/X11/xterm"
+                 Review:     SH
+
 AP-2009-10-13-0: Bugfix:     issue 3129 failed for berkeleydb spooling.
                  Belongs to: JG-2009-10-05-0
                  Bugfix:     set_config - adding configuration from the file.
