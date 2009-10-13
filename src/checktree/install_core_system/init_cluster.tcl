@@ -674,14 +674,17 @@ proc setup_execd_conf {} {
                ts_log_fine "host $host has xterm setting to \"$tmp_config($elem)\""
                if {![is_remote_file $host $CHECK_USER $tmp_config($elem)]} {
                   set config_xterm_path [get_binary_path $host "xterm"]
-                  ts_log_info "host \"$host\" xterm path \"$tmp_config($elem)\" not found!\nsetting xterm to \"$config_xterm_path\""
+                  set tmp_log_text "Host \"$host\" xterm path \"$tmp_config($elem)\" not found!\n"
+                  append tmp_log_text "The install script should check if the default xterm path is available during installation!\n"
+                  append tmp_log_text "Testsuite is setting xterm for host \"$host\" to \"$config_xterm_path\"!\n"
+                  ts_log_info $tmp_log_text
                   set tmp_config($elem) $config_xterm_path
                }
-               # TODO (CR): Activate this code when "xterm" is configured in TS host configuration
-               # if {[string trim $tmp_config($elem)] != [string trim [get_binary_path $host "xterm"]] } {
-               #    ts_log_fine "host \"$host\": xterm path \"$tmp_config($elem)\" is not set to configured xterm path \"[get_binary_path $host "xterm"]\""
-               #    set tmp_config($elem) [get_binary_path $host "xterm"]
-               # }
+               set config_xterm_path [get_binary_path $host "xterm"]
+               if {[string trim $tmp_config($elem)] != [string trim $config_xterm_path] } {
+                  ts_log_fine "host \"$host\": xterm path \"$tmp_config($elem)\" is not set to configured xterm path \"$config_xterm_path\"\nSetting xterm to \"$config_xterm_path\""
+                  set tmp_config($elem) $config_xterm_path
+               }
             }
             "load_sensor" {
                # on windows, we have a load sensor, on other platforms not
