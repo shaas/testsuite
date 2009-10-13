@@ -3120,6 +3120,21 @@ proc parse_table_output { output array_name delimiter } {
          if { $is_table_line } {
             ts_log_finest "parsing table line \"[expr ($act_table_line + 1)]\""
             set is_word_wrap 0
+            set column_nr 0
+            set column_start($column_nr) 0
+            set column_end($column_nr) 0
+            set last_pos 0
+            while {1} {
+               set pos [string first $delimiter $line $last_pos]
+               if { $pos < 0 } {
+                  break
+               }
+               set column_end($column_nr) [ expr ( $pos - 1 ) ]
+               incr column_nr 1
+               set last_pos [ expr ( $pos + 1) ]
+               set column_start($column_nr) $last_pos
+            }
+            set column_end($column_nr) "end"
             for {set b 0} {$b<=$column_nr} {incr b 1} {
                set value [string trim [string range $line $column_start($b) $column_end($b)]]
 
