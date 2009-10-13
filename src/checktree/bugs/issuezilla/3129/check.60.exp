@@ -81,7 +81,7 @@ proc issue_3129_setup {} {
    global issue_3129_hosts issue_3129_backup
 
    if {$ts_config(spooling_method) != "classic"} {
-      ts_log_info "we run this test only with classic spooling"
+      ts_log_config "we run this test only with classic spooling"
       return 99
    }
 

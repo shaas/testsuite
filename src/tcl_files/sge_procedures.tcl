@@ -2411,7 +2411,7 @@ proc get_config { change_array {host global} {atimeout 60}} {
 #*******************************
 proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset 0}} {
    global env
-   global CHECK_USER
+   global CHECK_USER CHECK_JOB_OUTPUT_DIR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar_orig
@@ -2420,13 +2420,30 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset
       set chgar($elem) $chgar_orig($elem)
    }
 
-   set values [array names chgar]
-
-   # get old config - we want to compare it to new one
-   if {$do_add == 0} {
-      set qconf_cmd "-mconf"
+   add_message_to_container messages -1 [translate_macro_if_possible MSG_CONF_THEPATHGIVENFORXMUSTSTARTWITHANY_S "*"]
+   add_message_to_container messages -2 [translate_macro_if_possible MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS "execd_spool_dir"]
+   add_message_to_container messages -3 [translate_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I "*"]
+   add_message_to_container messages -4 [translate_macro MSG_PARSE_EDITFAILED]
+   if {$do_add == 1} {
+      add_message_to_container messages 0 [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+      add_message_to_container messages 1 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set tmpfile "$CHECK_JOB_OUTPUT_DIR/$host"
+      set qconf_cmd "-Aconf $tmpfile"
+      array set data {}
+      set line_cnt 0
+      foreach elem [array names chgar] {
+         incr line_cnt 1
+         set data($line_cnt) "$elem $chgar($elem)"
+      }
+      set data(0) $line_cnt
+      write_remote_file $ts_config(master_host) $CHECK_USER $tmpfile data
+      set output [start_sge_bin qconf $qconf_cmd $ts_config(master_host) $CHECK_USER]
+      delete_remote_file $ts_config(master_host) $CHECK_USER $tmpfile
+      unset data
+   } else {
+      add_message_to_container messages 0 [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+      add_message_to_container messages 1 [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
       set config_return [get_config current_values $host]
-
       if {$do_reset && $config_return == 0} {
          # Any elem in current_values which should not be in new config
          # have to be defined in new config as parameter with empty string
@@ -2436,32 +2453,15 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset
             }
          }
       }
+      set qconf_cmd "-mconf $host"
       set vi_commands [build_vi_command chgar current_values]
-   } else {
-      set qconf_cmd "-aconf"
-      set vi_commands [build_vi_command chgar] 
+      set output [start_vi_edit qconf $qconf_cmd $vi_commands messages \
+                                            $ts_config(master_host) $CHECK_USER]
    }
 
-   set GIDRANGE [translate_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I "*"]
-   set EDIT_FAILED [translate_macro MSG_PARSE_EDITFAILED]
-   set master_arch [resolve_arch $ts_config(master_host)]
-
-   if {$ts_config(gridengine_version) == 53} {
-      set MODIFIED [translate_macro MSG_SGETEXT_CONFIG_MODIFIEDINLIST_SSS $CHECK_USER "*" "*"]
-      set ADDED    [translate_macro MSG_SGETEXT_CONFIG_ADDEDTOLIST_SSS $CHECK_USER "*" "*"]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___" $raise_error]
-   } else {
-      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
-      set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
-
-      # some SGE versions might not have the following macros
-      set EFFECT [translate_macro_if_possible MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS "execd_spool_dir"]
-      set PATH_CHECK [translate_macro_if_possible MSG_CONF_THEPATHGIVENFORXMUSTSTARTWITHANY_S "*"]
-
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE $EFFECT $PATH_CHECK "___ABCDEFG___" $raise_error]
-   }
-
-   if {$result != 0 && $result != -3 && $result != -5}  {
+   set result [handle_sge_errors "set_config" "qconf $qconf_cmd" \
+                                    [string trim $output] messages $raise_error]
+   if {$result < 0}  {
       ts_log_severe "could not add or modify configuration for host $host ($result)" $raise_error
    }
 
@@ -2526,11 +2526,7 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
       set joined_spawn_list {}
 
       # get host and spooldir of an execd - where to look for messages file
-      if {$host == "global"} {
-         set host_list $ts_config(execd_nodes)
-      } else {
-         lappend host_list $host
-      }
+      set host_list $ts_config(execd_nodes)
 
       foreach conf_host $host_list {
          # Begin watching messages file for changes,
@@ -7660,7 +7656,7 @@ proc shutdown_all_shadowd { hostname } {
 #     sge_procedures/startup_execd()
 #     sge_procedures/startup_shadowd()
 #*******************************
-proc shutdown_bdb_rpc { hostname {shutdown_all 0}} {
+proc shutdown_bdb_rpc { hostname } {
    global CHECK_ADMIN_USER_SYSTEM
    global CHECK_USER 
    get_current_cluster_config_array ts_config
@@ -7669,12 +7665,7 @@ proc shutdown_bdb_rpc { hostname {shutdown_all 0}} {
 
    ts_log_fine "shutdown bdb_rpc daemon for system installed at $ts_config(product_root) ..."
 
-   if {$shutdown_all} {
-      set grep_string "berkeley_db_svc"
-   } else {
-      set grep_string "$ts_config(product_root)"
-   }
-   set index_list [ ps_grep "$grep_string" "$hostname" ]
+   set index_list [ ps_grep "$ts_config(product_root)" "$hostname" ]
    set new_index ""
    foreach elem $index_list {
       if { [ string first "berkeley_db_svc" $ps_info(string,$elem) ] >= 0 } {
