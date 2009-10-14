@@ -6,6 +6,12 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+LP-2009-10-14-0: Enhancem.:  Renamed get_hedeby_version_num to
+                             get_hedeby_version
+                 Enhancem.:  reinit clears blacklisted resources
+                 Bugfix:     Fixes so that the tests work with 1.0u3 again
+                 Review:     MG
+
 MG-2009-10-13-0: Bugfix:     parse_table_output fails if the width of the 
                              content of the cell is widther than header width.                            
                  Review:     RM

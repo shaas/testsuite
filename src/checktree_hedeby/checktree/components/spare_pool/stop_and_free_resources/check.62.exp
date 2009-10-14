@@ -97,7 +97,7 @@ proc spare_pool_stop_and_free_resources_init_level {} {
 #
 #*******************************************************************************
 proc spare_pool_stop_and_free_resources_setup {} {
-   if {[hedeby_get_version_num] <= 1.04} {
+   if {[hedeby_get_version] <= 1.04} {
        return [spare_pool_stop_and_free_resources_104_setup]
    } else {
        return [spare_pool_stop_and_free_resources_current_setup]
@@ -116,7 +116,7 @@ proc spare_pool_stop_and_free_resources_setup {} {
 #
 #*******************************************************************************
 proc spare_pool_stop_and_free_resources_cleanup {} {
-   if {[hedeby_get_version_num] <= 1.04} {
+   if {[hedeby_get_version] <= 1.04} {
        return [spare_pool_stop_and_free_resources_104_cleanup]
    } else {
        return [spare_pool_stop_and_free_resources_current_cleanup]
@@ -135,7 +135,7 @@ proc spare_pool_stop_and_free_resources_cleanup {} {
 #
 #*******************************************************************************
 proc spare_pool_stop_and_free_resources_check {} {
-   if {[hedeby_get_version_num] <= 1.04} {
+   if {[hedeby_get_version] <= 1.04} {
        return [spare_pool_stop_and_free_resources_104_check]
    } else {
        return [spare_pool_stop_and_free_resources_current_check]

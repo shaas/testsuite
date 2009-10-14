@@ -418,9 +418,9 @@ proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
       for {set line 0} {$line < $table(table_lines)} {incr line 1} {
          foreach col $table(table_columns) {
             if { $col == "complex" && $table($col,$line) == "arch"} {
-               set res_property $table(resource property,$line)
-               set complex_arch $table(complex value,$line)
-               set res_value $table(resource value,$line)
+               set res_property $table(resource_property,$line)
+               set complex_arch $table(complex_value,$line)
+               set res_value $table(resource_value,$line)
                if {![info exists ge_arch_mapping_table($complex_arch,properties)]} {
                   set ge_arch_mapping_table($complex_arch,properties) {}
                }
@@ -1998,7 +1998,7 @@ proc private_start_parallel_sdmadm_command {host_list exec_user info {raise_erro
          foreach host $hostlist {
             close_spawn_process $ispid_list($host)
          }
-      } 
+      }
 
       foreach host $hostlist {
          set reported_error 0
@@ -2631,10 +2631,12 @@ proc reset_hedeby {{force 0}} {
       set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
       append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
    }
-
+   
    if {$error_text != ""} {
       ts_log_info $error_text
    }
+   
+   remove_blacklisted
 
    # wait for resources to get "assigned" state
    set ret_val [wait_for_resource_state "ASSIGNED"]
@@ -2666,6 +2668,60 @@ proc reset_hedeby {{force 0}} {
       return 1
    }
    return 0
+}
+
+
+#****** util/remove_blacklisted() ****************************************************
+#  NAME
+#     remove_blacklisted() -- search for and remove blacklisted resources
+#
+#  SYNOPSIS
+#     remove_blacklisted { {raise_error 0} } 
+#
+#  FUNCTION
+#     Search for and remove blacklisted resources
+#
+#  INPUTS
+#     raise_error - if 1, generates TCL SEVERE
+#
+#  SEE ALSO
+#     util/startup_hedeby()
+#     util/shutdown_hedeby()
+#     util/reset_hedeby()
+#*******************************************************************************
+proc remove_blacklisted {{raise_error 0}} {
+   global check_use_installed_system
+   global hedeby_config
+
+   ts_log_fine "Searching for blacklisted resources ..."
+   
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set error_text ""
+   # Check if we have blacklisted resources
+   set sdmadm_command_line "-p $pref_type -s $sys_name sb"
+   sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 1 table
+   # Remove all blacklisted resources from all services
+   set found_error 0
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      #cols are "service resource id"
+      set service $table(service,$line)
+      set resource $table(resource_id,$line)
+      ts_log_info "Error: Unexpected blacklisted resource $resource in service $service"
+      set sdmadm_command_line "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
+      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
+      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+      found_error 1
+   }
+   if {$found_error} {
+      if {$raise_error} {
+         ts_log_severe $error_text
+      } else {
+         ts_log_fine $error_text
+      }
+   }
 }
 
 
@@ -2820,12 +2876,7 @@ proc move_resources_to_default_services {} {
    sdmadm_command $exec_host $admin_user $sdmadm_command prg_exit_state "" 1 table
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
       set service $table(service,$line)
-      #1.0u3 or earlier
-      if {[info exists table(resource,$line)]} {
-         set resource $table(resource,$line)
-      } else {
-         set resource $table(resource_id,$line)
-      }
+      set resource $table(resource_id,$line)
       set sdmadm_command "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
       sdmadm_command $exec_host $admin_user $sdmadm_command
       if {$prg_exit_state != 0} {
@@ -3095,6 +3146,8 @@ proc parse_table_output { output array_name delimiter } {
             for {set b 0} {$b<=$column_nr} {incr b 1} {
                ts_log_finest "c$b s$column_start($b) e$column_end($b)"
                set value [string trim [string range $line $column_start($b) $column_end($b)]]
+               #TCL array cannot contain a value with a space array(resource id,0) => TCL error
+               set value [regsub -all " " $value "_"]
                set column_names($b) $value
                lappend table_col_list $value
                ts_log_finest "found column \"$column_names($b)\""
@@ -3107,13 +3160,13 @@ proc parse_table_output { output array_name delimiter } {
          
          # find out delimiter count of current line
          set is_table_line 0
-         set nr_delemitters 0
+         set nr_delimiters 0
          for {set b 0} {$b<[string length $line]} {incr b 1} {
             if {[string index $line $b] == $delimiter} {
-               incr nr_delemitters 1
+               incr nr_delimiters 1
             }
          }
-         if {$nr_delemitters == $column_nr} {
+         if {$nr_delimiters == $column_nr} {
             set is_table_line 1
          }
  
@@ -4304,7 +4357,7 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          # With SDM1.0u5 the name of the event type has been changed from
          # SERVICE_UKNOWN to SERVICE_UNKNOWN
          # We accept in the filter both versions
-         if { $type == "SERVICE_UKNOWN" | $type == "SERVICE_UNKNOWN" } {
+         if { $type == "SERVICE_UKNOWN" || $type == "SERVICE_UNKNOWN" } {
             append filter_args "(type = \"SERVICE_UNKNOWN\" | type = \"SERVICE_UKNOWN\")"
          } else {
             append filter_args "type = \"$type\""
@@ -4423,7 +4476,9 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
                      } else {
                         set hist_value ""
                      }
-                     if {$exp_value != $hist_value} {
+                     if {$exp_value != $hist_value
+                        && !(($exp_value == "SERVICE_UKNOWN" && $hist_value == "SERVICE_UNKNOWN")
+                        || ($exp_value == "SERVICE_UNKNOWN" && $hist_value == "SERVICE_UKNOWN")) } {
                         ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $tmp_exp_index ($val must be '$exp_value'"
                         set evt_matches 0
                         break

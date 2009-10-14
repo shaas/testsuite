@@ -1333,60 +1333,10 @@ proc config_hedeby_java_version { only_check name config_array } {
 
 #****** checktree_hedeby/hedeby_get_version() *****************************************
 #  NAME
-#     hedeby_get_version() -- returns the testsuite internal version id of build
+#     hedeby_get_version() -- returns the testsuite internal version number of hedeby
 #
 #  SYNOPSIS
 #     hedeby_get_version { { cvstagname "" } } 
-#
-#  FUNCTION
-#     Returns the internal testsuite version number of the hedeby source code. This
-#     might be used to create version depended tests.
-#
-#  INPUTS
-#     { cvstagname "" } - if not set to "" the version number for this cvs tag
-#                         is returned
-#
-#  RESULT
-#     string containing the internal testsuite version
-#
-#*******************************************************************************
-proc hedeby_get_version { { cvstagname "" } } {
-   global hedeby_config CHECK_OUTPUT
-
-   set version "unsupported"
-
-   if { [info exists hedeby_config(hedeby_source_cvs_release)] } {
-      if { $cvstagname == "" } {
-         set tag_name $hedeby_config(hedeby_source_cvs_release) 
-      } else {
-         set tag_name $cvstagname
-      }
-      switch -- $tag_name {
-         "V01_TAG" {
-            set version "0.1"
-         }
-         "V02_TAG" {
-            set version "0.2"
-         }
-         "V10_U3_TAG" {
-            set version "1.0u3"
-         }
-         "maintrunk" {
-            set version "maintrunk"
-         }
-      }
-   } else {
-      add_proc_error "hedeby_get_version" -1 "configuration not available"
-   }
-   return $version
-}
-
-#****** checktree_hedeby/hedeby_get_version_num() *****************************************
-#  NAME
-#     hedeby_get_version_num() -- returns the testsuite internal version number of hedeby
-#
-#  SYNOPSIS
-#     hedeby_get_version_num { { cvstagname "" } } 
 #
 #  FUNCTION
 #     Returns the internal testsuite version number of the hedeby source code. This
@@ -1403,7 +1353,7 @@ proc hedeby_get_version { { cvstagname "" } } {
 #     number containing the internal testsuite version
 #
 #*******************************************************************************
-proc hedeby_get_version_num { { cvstagname "" } } {
+proc hedeby_get_version { { cvstagname "" } } {
    global hedeby_config
 
    if { $cvstagname == "" } {
@@ -1423,8 +1373,20 @@ proc hedeby_get_version_num { { cvstagname "" } } {
       "V02_TAG" {
          return 0.2
       }
+      "V10_U1_TAG" {
+         return 1.01
+      }
+      "V10_U2_TAG" {
+         return 1.02
+      }
       "V10_U3_TAG" {
          return 1.03
+      }
+      "V10_U4_TAG" {
+         return 1.04
+      }
+      "V10_U5_TAG" {
+         return 1.05
       }
       "maintrunk" {
          # the version of the main trunk is bigger than anything else
