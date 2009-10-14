@@ -2465,7 +2465,6 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_18
       show_config ts_config
       wait_for_enter
-      return 0
    }
 
    if {[string compare $ts_config(version) "1.18"] == 0} {
@@ -4217,7 +4216,7 @@ proc run_tests {path runcompleted} {
                lappend check_ok_state $test_result
                lappend check_ok_date  [clock format [clock seconds]]
                lappend check_ok_pass  $pass_no
-            }
+               }
             -2 {
                # dependencies - try again
                lappend check_missing_dep $check
