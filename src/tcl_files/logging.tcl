@@ -787,11 +787,14 @@ proc ts_log_get_function {} {
 #     ts_log_get_stacktrace() -- get stacktrace of calling function
 #
 #  SYNOPSIS
-#     ts_log_get_stacktrace {}
+#     ts_log_get_stacktrace {skip_stack_levels 4}
 #
 #  FUNCTION
 #     Internal function!
 #     Get a stacktrace up to the calling function.
+#
+#  INPUTS
+#     skip_stack_levels - the amount of stack trace frames to skip (by default 4)
 #
 #  RESULT
 #     String containing the stack trace.
@@ -807,12 +810,12 @@ proc ts_log_get_function {} {
 #  SEE ALSO
 #     logging/ts_log_get_function()
 #*******************************************************************************
-proc ts_log_get_stacktrace {} {
-   # assume that we got called from ts_private_log_send_mail, 
+proc ts_log_get_stacktrace {{skip_stack_levels 4}} {
+   # by default assume that we got called from ts_private_log_send_mail, 
    # called from ts_private_do_log,
    # called from ts_log, ts_log_severe, ts_log_warning, etc.
    # so we skip our own level, plus 3 other levels
-   set stack_level [expr [info level] -4]
+   set stack_level [expr [info level] - $skip_stack_levels]
    set stack_trace "  0: toplevel\n"
    for {set i 1} {$i <= $stack_level} {incr i} {
       append stack_trace [format "%3d: %s\n" $i [info level $i]]
@@ -1109,10 +1112,10 @@ proc ts_private_log_do_output {level message raise_error function} {
          if {$raise_error} {
             puts ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
             puts [ts_log_get_level_name $level]
-            puts "runlevel    : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
-            puts "check       : $check_name"
-            puts "procedure   : $function"
-            puts "called from : $CHECK_CUR_PROC_NAME"
+            puts "runlevel   : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
+            puts "check      : $check_name"
+            puts "stacktrace :"
+            puts [ts_log_get_stacktrace]
             puts "----------------------------------------------------------------"
             puts $message
             puts "----------------------------------------------------------------"

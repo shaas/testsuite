@@ -104,7 +104,6 @@ proc jvms_stress_test_cleanup {} {
 #*******************************************************************************
 proc jvms_stress_test_check {} {
    global hedeby_config
-   set error_text ""
    set tries 4
 
    set ge_qmaster_hosts [get_hedeby_default_services service_names]
@@ -127,27 +126,19 @@ proc jvms_stress_test_check {} {
    }
 
    #shutdown and startup of the hedeby 
-   for {set i 0} {$i < $tries} {incr i} {
-      set ret [shutdown_hedeby]
-      if {$ret != 0} {
-        append error_text "There was an error while shutdown the Hedeby system.\n"
+   for {set cycle_nr 1} {$cycle_nr <= $tries} {incr cycle_nr} {
+      ts_log_heading "Test cycle $cycle_nr of $tries"
+      if {[shutdown_hedeby] != 0 } {
+         return
       }
-      set ret [startup_hedeby]
-      if {$ret != 0} {
-        append error_text "There was an error while startup the Hedeby system.\n"
-      }   
 
-      # check if all components are running
-      set ret [wait_for_component_info expected_components]
-      if {$ret != 0} {
-        append error_text "The running components state is different than expected.\n"
+      if {[startup_hedeby] != 0 } {
+         return
       }
-   }
 
-
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
+      if {[wait_for_component_info expected_components] != 0 } {
+         return
+      }
    }
 }
 
