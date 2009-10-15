@@ -2462,7 +2462,7 @@ proc check_option_@ {} {
 #*******************************
 proc check_huge_script {} {
    global ts_config CHECK_PROTOCOL_DIR
-   global job_output_dir test_host
+   global job_output_dir test_host CHECK_USER
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT steps_per_queue size_interval
 
    # first clean up output directory:
@@ -2492,6 +2492,7 @@ proc check_huge_script {} {
       }
       close $f
    
+      wait_for_remote_file $test_host $CHECK_USER $filename
       set submit_size [file size $filename]
       ts_log_fine "submitting job script of size $submit_size bytes allowing a timeout of $HUGE_SCRIPT_TIMEOUT s"
    

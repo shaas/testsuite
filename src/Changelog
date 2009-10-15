@@ -6,6 +6,14 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-10-15-0: Bugfix:     - fixed arco dbwriter tests
+                             - fixed qsub test
+                             - new procedure wait_for_event_client()
+                             - startup_qmaster now waits until qmaster is 
+                               available
+                             - get_event_client_list() was duplicate defined.
+                               added new parameter to get evc list.
+                 Review:     SH
 
 TB-2009-10-15-0: Enhancem.:  error logging to STDOUT now contains complete
                              stacktrace

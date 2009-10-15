@@ -54,7 +54,8 @@
 #     sge_procedures/get_sge_error()
 #     sge_procedures/get_qconf_list()
 #*******************************************************************************
-proc get_event_client_list { {on_host ""} {as_user ""} {raise_error 1}} {
+proc get_event_client_list { {on_host ""} {as_user ""} {raise_error 1} { result_list "evc_list"} } {
+   upvar $result_list out
 
    return [get_qconf_list "get_event_client_list" "-secl" out $on_host $as_user $raise_error]
 

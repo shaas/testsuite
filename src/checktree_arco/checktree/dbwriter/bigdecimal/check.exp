@@ -118,10 +118,7 @@ proc bigdecimal_setup {} {
 
    # setup reporting params (enable job_log)
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=true sharelog=00:10:00"
-   if {[set_config config] != 0} {
-      ts_log_config "Can not set reporting_params"
-      return -1
-   }
+   set_config config
 
    # Delete the dbwriter log file to make sure only errors raised during this test are logged
    if { [file isfile "$DBWRITER_LOG_FNAME"] == 1 } {

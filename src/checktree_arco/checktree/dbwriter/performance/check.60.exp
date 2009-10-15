@@ -96,6 +96,7 @@ proc arco_dbwriter_performance_setup  {} {
    global ts_config 
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
+   global arco_dbwriter_performance_org_config
    global CHECK_USER
    
    set sqlutil_id ""

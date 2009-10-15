@@ -1014,6 +1014,7 @@ proc translate_macro_if_possible {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} 
 
    set msg [sge_macro $macro 0]
    if {$msg == -1} {
+      ts_log_fine "$macro does not exist in Grid Engine $ts_config(gridengine_version)"
       set ret "$macro does not exist in Grid Engine $ts_config(gridengine_version)"
    } else {
       set ret [translate $ts_config(master_host) 1 0 0 $msg $par1 $par2 $par3 $par4 $par5 $par6]

@@ -2455,8 +2455,7 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset
       }
       set qconf_cmd "-mconf $host"
       set vi_commands [build_vi_command chgar current_values]
-      set output [start_vi_edit qconf $qconf_cmd $vi_commands messages \
-                                            $ts_config(master_host) $CHECK_USER]
+      set output [start_vi_edit qconf $qconf_cmd $vi_commands messages $ts_config(master_host) $CHECK_USER]
    }
 
    set result [handle_sge_errors "set_config" "qconf $qconf_cmd" \
@@ -6669,6 +6668,25 @@ proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
       }
    }
  
+   # now wait until qmaster is availabe
+   set my_timeout [timestamp]  
+   incr my_timeout 60
+   set is_reachable 0
+   while {[timestamp] < $my_timeout} {
+      start_sge_bin qstat "" $ts_config(master_host)
+      if {$prg_exit_state == 0} {
+         set is_reachable 1
+         ts_log_fine "qmaster is reachable!"
+         break
+      } else {
+         ts_log_fine "waiting for qmaster startup ..."
+      }
+      after 1000
+   }
+   if {$is_reachable == 0} {
+      ts_log_severe "qmaster is not reachable timeout!"
+      return -1
+   }
    return 0
 }
 
@@ -9002,36 +9020,55 @@ proc get_detached_settings {{output_var result} {on_host ""} {as_user ""} {raise
 
 }
 
-#****** sge_procedures/get_event_client_list() *****************************************
+
+#****** sge_procedures/wait_for_event_client() *********************************
 #  NAME
-#     get_event_client_list() -- get the event client list
+#     wait_for_event_client() -- wait for a event client
 #
 #  SYNOPSIS
-#     get_event_client_list { {output_var result} {on_host ""} {as_user ""} {raise_error 1}  }
+#     wait_for_event_client { evc_name {to_go_away 0} } 
 #
 #  FUNCTION
-#     Calls qconf -secl to retrieve the event client list
+#     procedure calls qconf -secl to find out which event clients are registered
+#     and returns when the specified event client is available/not available
 #
 #  INPUTS
-#     output_var      - result will be placed here
-#     {on_host ""}    - execute qconf on this host, default is master host
-#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - raise an error condition on error (default), or just
-#                       output the error message to stdout
+#     evc_name       - name of event client, e.g. "qsub"
+#     {to_go_away 0} - default 0: return when client is connected
+#                      if 1: return when client is NOT connected
 #
 #  RESULT
-#     0 on success, an error code on error.
-#     For a list of error codes, see sge_procedures/get_sge_error().
-#
-#  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
+#     none
 #*******************************************************************************
-proc get_event_client_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   upvar $output_var out
+proc wait_for_event_client { evc_name {to_go_away 0}} {
+   set my_timeout [timestamp]
+   incr my_timeout 60
+   while {[timestamp] < $my_timeout} {
+      set back [get_event_client_list "" "" 1 result]
+      if {$back == 0} {
+         set found_event_client 0
+         foreach elem $result {
+            set event_client [string trim [lindex $elem 1]]
+            if {$event_client != "" && $event_client != "NAME"} {
+               ts_log_fine "check event client \"$event_client\""
+               if {$event_client == $evc_name} {
+                  incr found_event_client 1
+               }
+            }
+         }
+         if {$to_go_away == 0 && $found_event_client != 0} {
+            ts_log_fine "Found $found_event_client Event client(s) \"$evc_name\""
+            return
+         }
 
-   return [get_qconf_list "get_event_client_list" "-secl" out $on_host $as_user $raise_error]
-
+         if {$to_go_away != 0 && $found_event_client == 0} {
+            ts_log_fine "No Event client(s) \"$evc_name\" found"
+            return
+         }
+      }
+      after 1000
+   }
+   ts_log_severe "timeout while waiting for event client \"$evc_name\""
 }
 
 #****** sge_procedures/trigger_scheduling() ************************************
