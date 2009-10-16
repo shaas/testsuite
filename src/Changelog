@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-10-16-0: Bugfix:     o fixed automounter prefix problem in qsub test
+                             o increased timeout for arco junit test
+                 Review:     SH
+
 TB-2009-10-16-0: Bugfix:     hedeby_get_version_num (sic!) replaced by
                              hedeby_get_version in slo/permanentRequest test
                  Belongs to: LP-2009-10-14-0

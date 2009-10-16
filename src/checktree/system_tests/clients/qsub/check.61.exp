@@ -67,7 +67,9 @@ proc qsub_wd {} {
    set jobargs "-h -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
    set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
-   if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
+   # we do a string match because of possible automounter prefixes (e.g. /tmp_mnt)
+   # cwdir MUST be part of reported working dir (at least from the left side)
+   if {![string match "*$cwdir" $qstat_j_info(cwd)]} {
       set error_text "qsub did not set the correct working dir(2): $cwdir != $qstat_j_info(cwd)\n"
       ts_log_severe $error_text
    }
@@ -87,7 +89,10 @@ proc qsub_wd {} {
    set jobargs "-h -wd $wdir -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
    set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
-   if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
+
+   # we do a string match because of possible automounter prefixes (e.g. /tmp_mnt)
+   # cwdir MUST be part of reported working dir (at least from the left side)
+   if {![string match "*$cwdir" $qstat_j_info(cwd)]} {
       set error_text "qsub did not set the correct working dir(4): $cwdir != $qstat_j_info(cwd)\n"
       ts_log_severe $error_text
    }
