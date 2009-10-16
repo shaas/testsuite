@@ -137,8 +137,7 @@ if {$ts_config(gridengine_version) >= 62} {
 #*******************************************************************************
 proc arco_compile { compile_hosts a_report } {
    upvar $a_report report
-   set java_build_host [host_conf_get_java_compile_host]
-   return [arco_build $java_build_host "all" report]
+   return [arco_build [host_conf_get_java_compile_host] "all" report]
 }
 
 #****** checktree/arco_compile_clean() *****************************************
@@ -174,8 +173,7 @@ proc arco_compile { compile_hosts a_report } {
 #*******************************************************************************
 proc arco_compile_clean { compile_hosts a_report } {
    upvar $a_report report
-   set java_build_host [host_conf_get_java_compile_host]
-   return [arco_build $java_build_host "clean" report]
+   return [arco_build [host_conf_get_java_compile_host] "clean" report]
 }
 
 
@@ -212,14 +210,18 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    global ts_config ts_host_config arco_config
    
    upvar $a_report report
-   
-   ts_log_fine "will not build on $compile_hosts!"
-   set build_host [host_conf_get_java_compile_host]
-   ts_log_fine "build is done on java compile host \"$build_host\""
-
+ 
+   if {[llength $compile_hosts] != 1} {
+      set build_host [host_conf_get_java_compile_host]
+      ts_log_config "There was a problem with compile_hosts list: \"$compile_hosts\", using \"$build_host\" for building arco"
+   } else {
+      set build_host $compile_hosts
+   }
    
    set task_nr [report_create_task report "arco_build_$target" $build_host]
 
+   ts_log_fine "creating target \"$target\" on compile host \"$build_host\""
+   
    if {$ts_config(source_dir) == "none"} {
       report_task_add_message report $task_nr "source directory is set to \"none\" - cannot build"
       report_finish_task report $task_nr -1

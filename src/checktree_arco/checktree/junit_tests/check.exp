@@ -68,7 +68,9 @@ proc arco_junit_init_level {} {
 
 proc arco_junit_setup_level {} {
    # clean the arco database (drop all objects)
+   ts_log_fine "cleaning up database ..."
    arco_clean_database 1
+   ts_log_fine "cleaning up database ...done"
 }
 
 proc arco_junit_cleanup_level {} {
@@ -124,10 +126,11 @@ proc arco_junit_check {} {
 
    set dbwriter_host $arco_config(dbwriter_host)
 
-   report_add_message report "java build host is \"$dbwriter_host\""
+   report_add_message report "running build script on dbwriter host \"$dbwriter_host\""
    report_add_message report "Creating junit config file $file_name"
    report_add_message report "$dbwriter_host: $cmd $cmd_args"
 
+   ts_log_fine "${dbwriter_host}:${CHECK_USER} starting $cmd $cmd_args ..."
    set output [start_remote_prog $dbwriter_host $CHECK_USER $cmd "$cmd_args"]
    if { $prg_exit_state != 0 } {
       report_add_message report "sed of DBWriterTestConfig.properties.template failed, exit state $prg_exit_state"
@@ -141,6 +144,7 @@ proc arco_junit_check {} {
    append ant_options " -Duse.classpath.from.sge.root=true"
    append ant_options " -Dsge.root=$ts_config(product_root)"
 
+   ts_log_fine "starting ant test ..."
    set res [arco_build $dbwriter_host "test" report $ant_options 180]
    
    if { $res != 0 } {
