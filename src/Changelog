@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-10-16-0: Bugfix:     Do not check online maxvmen usage on GE < 62
+                 Review:     CR
+
 CR-2009-10-16-0: Bugfix:     o fixed automounter prefix problem in qsub test
                              o increased timeout for arco junit test
                  Review:     SH

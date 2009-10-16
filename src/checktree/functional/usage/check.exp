@@ -433,9 +433,11 @@ proc usage_check {jobid qstat_j_info slots acct_slots expected_wallclock} {
    if {[expr abs($acct_mem - $expected_mem)] > [expr $expected_mem / 20]} {
       lappend result "accounting memory usage ($acct_mem) differs more than 5% from expected usage ($expected_mem) on host $qacct_info(hostname)"
    }
-   # online maxvmem
-   if {[expr abs($acct_maxvmem - $online_maxvmem)] > [expr $acct_maxvmem / 10]} {
-      lappend result "accounting maxvmem usage ($acct_maxvmem) differs from online maxvmen usage ($online_maxvmem) on host $qacct_info(hostname)"
+   if {$ts_config(gridengine_version) >= 62} {
+      # online maxvmem
+      if {[expr abs($acct_maxvmem - $online_maxvmem)] > [expr $acct_maxvmem / 10]} {
+         lappend result "accounting maxvmem usage ($acct_maxvmem) differs from online maxvmen usage ($online_maxvmem) on host $qacct_info(hostname)"
+      }
    }
 
    # number of accounting records
