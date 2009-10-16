@@ -99,12 +99,12 @@ proc permanent_request_init_level {} {
 #
 #  SEE ALSO
 #     slo/permanentRequest/permanent_request_cleanup()
-#     util/hedeby_get_version_num()
+#     util/hedeby_get_version()
 #*******************************************************************************
 proc permanent_request_setup {} {
    upvar #0 hedeby_permanent_request_ctx this
 
-   if { [hedeby_get_version_num] < 1.05 } {
+   if { [hedeby_get_version] < 1.05 } {
       ts_log_config "Skipping test, not supported in Hedeby version '[hedeby_get_version]' < 1.05"
       return 99
    }

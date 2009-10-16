@@ -6,6 +6,12 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-10-16-0: Bugfix:     hedeby_get_version_num (sic!) replaced by
+                             hedeby_get_version in slo/permanentRequest test
+                 Belongs to: LP-2009-10-14-0
+                 Review:     RH
+
 CR-2009-10-15-0: Bugfix:     - fixed arco dbwriter tests
                              - fixed qsub test
                              - new procedure wait_for_event_client()
