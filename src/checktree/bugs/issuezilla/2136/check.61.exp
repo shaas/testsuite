@@ -117,13 +117,13 @@ proc issue_2136_do_test {host test} {
 
    # evaluate result
    if {$ok} {
-      if {$result == 0} {
+      if {$result >= 0} {
          ts_log_fine "ok as expected:     $name $value"
       } else {
          ts_log_severe "setting $name to $value in $host config shouldn't have failed"
       }
    } else {
-      if {$result == 0} {
+      if {$result >= 0} {
          ts_log_severe "setting $name to $value in $host config should have failed"
       } else {
          ts_log_fine "failed as expected: $name $value"
