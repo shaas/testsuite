@@ -159,10 +159,10 @@ proc install_shadowd {} {
          incr my_timeout 60
          set is_running 0
          while {[timestamp] < $my_timeout} {
-            if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
+            set is_running [is_daemon_running $shadow_host "sge_shadowd"]
+            if {$is_running != 1} {
                ts_log_fine "waiting for running shadowd on host $shadow_host ..."
             } else {
-               set is_running 1
                break
             }
          }
@@ -170,7 +170,7 @@ proc install_shadowd {} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
          } else {
-            ts_log_warning "install shadowd on host $shadow_host failed!\n\"is_daemon_running $shadow_host sge_shadowd\" returned $running_return_value!"
+            ts_log_warning "install shadowd on host $shadow_host failed!\n\"is_daemon_running $shadow_host sge_shadowd\" returned $is_running!"
             break
          }
       }
