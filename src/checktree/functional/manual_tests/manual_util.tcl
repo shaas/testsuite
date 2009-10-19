@@ -70,8 +70,13 @@ proc manual_select_hosts {host_set {user_selection false}} {
          if {$hosts == -1} {
             set hosts ""
          }
-         puts -nonewline "You have choosed these hosts: $hosts. \
+         if {$hosts == ""} {
+            puts -nonewline "No host selected. This will only generate the report \
+    of completed tests. Is it okay (y), or do you want to choose any hosts (n)?"
+         } else {
+            puts -nonewline "You have choosed these hosts: $hosts. \
                                                     Is the list correct? (y/n) "
+         }
          set result [wait_for_enter 1]
          if {$result == "y"} {
             break
@@ -460,7 +465,7 @@ proc sge_man {report_var} {
             }
          }
       }
-      close_spawn_process $sid
+      close_spawn_process $sid 1 0
       if {$errors == 0} {
          set version ""
          set expected_version [ge_get_gridengine_version]
@@ -858,33 +863,47 @@ proc sge_qmon {report_var} {
    set qmon_bin "$ts_config(product_root)/bin/$arch/qmon"
    ts_log_fine "Start qmon"
    set sp_id [open_remote_spawn_process $host $CHECK_USER $qmon_bin ""]
-   after 5000
    if {$sp_id == ""} {
       test_report report $curr_task_nr $id result [get_result_failed]
       return false
-   } else {
-      if {[check_is_interactive]} {
-         puts -nonewline "Qmon seems to be started properly. Click through the qmon, \
-                          close it, and check if the test result is okay. (y/n)"
-         set result [wait_for_enter 1]
-         if {$result == "y"} {
-            test_report report $curr_task_nr $id result [get_result_ok]
-            return true
-         } else {
-            test_report report $curr_task_nr $id result [get_result_failed]
-            return false
-         }
-         close_spawn_process $sp_id
+   }
+   after 5000
+   if {[check_is_interactive]} {
+      puts -nonewline "Qmon seems to be started properly. Click through the qmon, \
+                       close it, and check if the test result is okay. (y/n)"
+      set result [wait_for_enter 1]
+      if {$result == "y"} {
+         test_report report $curr_task_nr $id result [get_result_ok]
+         return true
       } else {
-         # TODO: does it always return -1 on success?
-         if {[close_spawn_process $sp_id] != -1} {
-            test_report report $curr_task_nr $id value "Probably a display problem"
-            test_report report $curr_task_nr $id result [get_result_failed]
-            return false
-         } else {
-            test_report report $curr_task_nr $id result [get_result_ok]
-            return true
+         test_report report $curr_task_nr $id result [get_result_failed]
+         return false
+      }
+      close_spawn_process $sp_id
+   } else {
+      after 3000
+      set qmon_running false
+      set qmon_process_string "qmon"
+      set index_list [ps_grep $qmon_process_string $host ps_info]
+      if {[string trim $index_list] != ""} {
+         foreach elem $index_list {
+            if {[string first $qmon_process_string $ps_info(string,$elem)] >= 0 && \
+                          [is_pid_with_name_existing $host $ps_info(pid,$elem) \
+                                                   $qmon_process_string] == 0} {
+               set qmon_running true
+            }
          }
+      }
+      # if $SGE_ROOT path is too long the running process is not necessarilly found
+      # close the process and if it return success, report ok result
+      set close_status [close_spawn_process $sp_id 1 0]
+      if {$qmon_running || $close_status == -1} {
+         test_report report $curr_task_nr $id result [get_result_ok]
+         return true
+      } else {
+         test_report report $curr_task_nr $id value "Probably a display problem."
+         test_report report $curr_task_nr $id result [get_result_failed]
+         return false
       }
    }
 }
@@ -1009,16 +1028,21 @@ proc sge_qrsh_hostname {report_var} {
    set host [get_test_host report $curr_task_nr]
 
    ts_log_fine "Test qrsh hostname"
-   if { $ts_config(gridengine_version) < 61} {
-      switch -glob [resolve_arch $host] {
-         hp11-64 {
-            set sge_conf(execd_params) "INHERIT_ENV=0"
-            set_config sge_conf
-            unset sge_conf
-         }
-      }
+
+   set host_arch [resolve_arch $host]
+   if {$ts_config(gridengine_version) < 61 && $host_arch == "hp11-64" } {
+      set sge_conf(execd_params) "INHERIT_ENV=0"
+      set_config sge_conf
+      unset sge_conf
    }
-   set result [start_sge_bin qrsh hostname $host $CHECK_USER]
+
+   if {$ts_config(gridengine_version) <= 61 && $host_arch == "win32-x86" } {
+      set user "root"
+   } else {
+      set user $CHECK_USER
+   }
+
+   set result [start_sge_bin qrsh hostname $host $user]
    set result [string trim $result]
    test_report report $curr_task_nr $id value [string trim $result]
    if {[qrsh_output_contains $result $host]} {
@@ -1102,17 +1126,21 @@ proc sge_online_usage {report_var} {
    set job_id [submit_job "$ts_config(product_root)/examples/jobs/worker.sh"]
    if {$job_id < 0} {
       test_report report $curr_task_nr $id result [get_result_failed]
-      test_report report $curr_task_nr $id value "Job didn't start."
+      test_report report $curr_task_nr $id value "Job submission failed."
       return false
    }
 
-   trigger_scheduling
+   set job_start [wait_for_jobstart $job_id "worker.sh" 60 1 1]
+   if {$job_start != 0} {
+      test_report report $curr_task_nr $id result [get_result_failed]
+      test_report report $curr_task_nr $id value "Job start failed."
+      return false
+   }
 
    set host_arch [resolve_arch $host]
-   after 15000
    set usage ""
    set basic_error 0
-
+   set basic_status [get_result_failed]
    while true {
       set result [get_qstat_j_info $job_id qstat_j_info]
       if {$result == 1} {
@@ -1150,18 +1178,25 @@ proc sge_online_usage {report_var} {
                switch -glob $host_arch {
                   aix* -
                   win* {
+                     set usage "No usage expected.\n$usage"
                      set basic_status [get_result_ok]
                      break
                   }
                   hp11* -
                   darwin* {
                      if {$ts_config(gridengine_version) < 62} {
+                        set usage "No usage expected.\n$usage"
                         set basic_status [get_result_ok]
                         break
                      }
                   }
                }
-               after 3000
+               if {"$mem_value" != "0.00000 GBs"} {
+                  # cpu should be reported
+                  set basic_status [get_result_failed]
+                  break
+               }
+               after 1000
                ts_log_progress
                continue
             } else {
@@ -1169,13 +1204,16 @@ proc sge_online_usage {report_var} {
                break
             }
          } else {
-            set basic_status [get_result_failed]
-            after 3000
+            after 1000
             continue
+         }
+         set qacct [get_qacct $job_id qacct_info $ts_config(master_host)]
+         if {$qacct == 0} {
+            # job already finished
+            break
          }
       } else {
          if {$usage == ""} {
-            set basic_status [get_result_failed]
             set usage "$usage"
             incr basic_error 1
             break
@@ -1358,7 +1396,7 @@ proc sge_jdrmaa {report_var} {
    if {"$java_path" == ""} {
       set java_path [get_java_home_for_host $host 1.4]
    } else {
-      if {$host_arch == "aix51"} {
+      if {$host_arch == "aix51" || $host_arch == "irix65"} {
          set java_path [get_java_home_for_host $host 1.4]
       }
    }
@@ -1848,6 +1886,7 @@ proc manual_cluster_parameters {} {
 proc manual_arch32_mapping {arch} {
    global ts_config
 
+   set arch_32 ""
    switch -- $arch {
       "hp11-64" {
          set arch_32 "hp11"
@@ -1867,9 +1906,6 @@ proc manual_arch32_mapping {arch} {
          if {$ts_config(gridengine_version) < 62} {
             set arch_32 "sol-sparc"
          }
-      }
-      default {
-         set arch_32 ""
       }
    }
    return $arch_32
