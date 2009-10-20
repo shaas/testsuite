@@ -129,6 +129,8 @@ proc executor_reload_setup {} {
    global executor_reload_host
    global check_name
 
+   upvar #0 executor_reload_ctx this
+
    # skip test if sdm-test.jar is not there
    set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
 
@@ -140,7 +142,7 @@ proc executor_reload_setup {} {
 
 
    ts_log_fine "doing setup"
-   set executor_reload_host [lindex [get_all_spare_pool_resources] 0]
+   set this(host)  [pick_random [get_all_spare_pool_resources]]
 }
 
 
@@ -156,10 +158,12 @@ proc executor_reload_setup {} {
 #
 #*******************************************************************************
 proc executor_reload_cleanup {} {
-   global executor_reload_host
-   
+   upvar #0 executor_reload_ctx this
+  
    ts_log_fine "doing cleanup ..."
-   hedeby_executor_set_keep_files $executor_reload_host false
+   hedeby_executor_set_keep_files $this(host) false
+
+   unset this
 }
 
 
@@ -187,74 +191,85 @@ proc executor_reload_cleanup {} {
 #
 #*******************************************************************************
 proc executor_reload_check {} {
-   global CHECK_USER hedeby_config
-   global executor_reload_host
+   upvar #0 executor_reload_ctx this
+   global CHECK_USER
 
-   set host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set sdmadm_command_line "-p $pref_type -s $sys_name exe -h $executor_reload_host -e \"pwd\""
+   set sdmadm_command_line "exe -h $this(host) -e \"pwd\""
 
-   
-   ts_log_fine "Peform executor_reload test on executor@$executor_reload_host"
-   
+   #---------------------------------------------------------------------------
+   ts_log_heading "Setting keepFiles flag on executor at host '$this(host)'"
+   #---------------------------------------------------------------------------
+ 
    # set the keep files flag of the executor to true
-   if { [hedeby_executor_set_keep_files $executor_reload_host true] != 0 } {
+   if { [hedeby_executor_set_keep_files $this(host) true] != 0 } {
       # error message has already been reported
       return 1
    }
    
    # Cleanup the executors spool directory
-   if { [hedeby_executor_cleanup $executor_reload_host] != 0 } {
+   if { [hedeby_executor_cleanup $this(host)] != 0 } {
       # error message has already been reported
       return 1
    }
    
-   # Execute a dummy cmmand 
-   set output [sdmadm_command $host $admin_user $sdmadm_command_line]
+   #---------------------------------------------------------------------------
+   ts_log_heading "Executing pwd command on executor on host '$this(host)'"
+   #---------------------------------------------------------------------------
+   set output [sdmadm_command_opt "exe -h $this(host) -e pwd"]
    if { $prg_exit_state != 0 } {
       return 1
    }
-   set local_spool_dir [get_hedeby_local_spool_dir $executor_reload_host]
-   set output [start_remote_prog $executor_reload_host $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
+
+   #---------------------------------------------------------------------------
+   ts_log_heading "Checking that files in the tmp directory of the executor exists"
+   #---------------------------------------------------------------------------
+   set local_spool_dir [get_hedeby_local_spool_dir $this(host)]
+   set output [start_remote_prog $this(host) $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
    if { $prg_exit_state != 0 } {
-      ts_log_severe "Can not execute a command on executor on host $executor_reload_host\nOutput is \n$output"
+      ts_log_severe "Can not execute a command on executor on host $this(host)\nOutput is \n$output"
    } else { 
       set output [string trim $output]
       if { $output == "0" } {
-         set error_text "It seems that settings keepFiles flag to true for executor on host $executor_reload_host has no effect\n"
+         set error_text "It seems that settings keepFiles flag to true for executor on host $this(host) has no effect\n"
          append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
          ts_log_severe $error_text
       }
    }
    
+   #---------------------------------------------------------------------------
+   ts_log_heading "Clearing keepFiles flag on executor at host '$this(host)'"
+   #---------------------------------------------------------------------------
    # set the keep files flag of the executor to false
-   if { [hedeby_executor_set_keep_files $executor_reload_host false] != 0 } {
+   if { [hedeby_executor_set_keep_files $this(host) false] != 0 } {
       # error message has already been reported
       return 1
    }
    
    # Cleanup the executors spool directory
-   if { [hedeby_executor_cleanup $executor_reload_host] != 0 } {
+   if { [hedeby_executor_cleanup $this(host)] != 0 } {
       # error message has already been reported
       return 1
    }
    
-   # Execute a dummy cmmand 
-   set output [sdmadm_command $host $admin_user $sdmadm_command_line]
+   #---------------------------------------------------------------------------
+   ts_log_heading "Executing pwd command on executor on host '$this(host)'"
+   #---------------------------------------------------------------------------
+   set output [sdmadm_command_opt "exe -h $this(host) -e pwd"]
    if { $prg_exit_state != 0 } {
       return 1
    }
    
-   set local_spool_dir [get_hedeby_local_spool_dir $executor_reload_host]
-   set output [start_remote_prog $executor_reload_host $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
+   #---------------------------------------------------------------------------
+   ts_log_heading "Checking that no files in the tmp directory of the executor exists"
+   #---------------------------------------------------------------------------
+   set local_spool_dir [get_hedeby_local_spool_dir $this(host)]
+   set output [start_remote_prog $this(host) $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
    if { $prg_exit_state != 0 } {
-      ts_log_severe "Can not execute a command on executor on host $executor_reload_host\nOutput is \n$output"
+      ts_log_severe "Can not execute a command on executor on host $this(host)\nOutput is \n$output"
    } else { 
       set output [string trim $output]
       if { $output != "0" } {
-         set error_text "It seems that settings keepFiles flag to false for executor on host $executor_reload_host has no effect\n"
+         set error_text "It seems that settings keepFiles flag to false for executor on host $this(host) has no effect\n"
          append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
          ts_log_severe $error_text
       }

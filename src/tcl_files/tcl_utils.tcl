@@ -288,3 +288,34 @@ proc max {arg1 arg2} {
    }
    return $ret
 }
+
+
+#****** tcl_utils/remove_from_list() ************************************************
+#  NAME
+#     remove_from_list() -- remove an element from a list
+#
+#  SYNOPSIS
+#     remove_from_list { list elem } 
+#
+#  FUNCTION
+#
+#    Searches elem in list and removes it
+#
+#  INPUTS
+#     list - the list 
+#     elem - the element 
+#
+#  RESULT
+#
+#     The new list without elem or the original list if elem has not been found
+#
+#*******************************************************************************
+proc remove_from_list { list  elem } {
+
+   set i [lsearch $list $elem]
+   if { $i < 0 } {
+      return $list
+   }
+   return [lreplace $list $i $i]
+}
+

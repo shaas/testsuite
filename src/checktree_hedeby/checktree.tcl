@@ -41,6 +41,7 @@ global ACT_CHECKTREE
 
 # ts_source $ACT_CHECKTREE/sql_util
 ts_source $ACT_CHECKTREE/util
+ts_source $ACT_CHECKTREE/cloud
 
 set  hedeby_config(initialized) 0
 set  hedeby_checktree_nr $ts_checktree($ACT_CHECKTREE)

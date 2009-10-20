@@ -1,0 +1,295 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_cloud_simhost"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Moves one cloud resource into spare_pool and back to cloud service"
+set check_description(100)     "Moves 100 cloud resources into spare_pool and back to cloud service"
+set check_description(200)     "Moves 1000 cloud resources into spare_pool and back to cloud service"
+set check_description(300)     "Moves 10000 cloud resources into spare_pool and back to cloud service"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_cloud_simhost_init_level"
+set check_functions            {}   
+set check_highest_level        300
+
+set check_setup_level_function "hedeby_cloud_simhost_setup_level"
+set check_cleanup_level_function "hedeby_cloud_simhost_cleanup_level"
+
+lappend check_functions "hedeby_cloud_simhost_check"
+
+
+#****** cloud_simhost/hedeby_cloud_simhost_init_level() ************************
+#  NAME
+#     hedeby_cloud_simhost_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_cloud_simhost_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_cloud_simhost_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {[expr $CHECK_ACT_LEVEL % 100] == 0 } {
+     # This test runs only the highest enabled level
+     # all other level can be skipped
+     set highest_level 0
+     foreach level { 0 100 200 300 } {
+        if {[is_level_enabled $level] == 0} {
+           set highest_level $level
+        }
+     }
+     if { $CHECK_ACT_LEVEL == $highest_level } {
+        return 0
+     }
+  }
+  return -1
+}
+
+#****** cloud_simhost/hedeby_cloud_simhost_setup_level() *********************************
+#  NAME
+#     hedeby_cloud_simhost_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_simhost_setup_level { } 
+#
+#  FUNCTION
+#     set up hedeby_cloud_simhost_ctx variable. Depending in the run level it
+#     defines the number of resources moved by the test
+#
+#     Run level  |   # resources
+#     0          |   1
+#     100        |   100
+#     200        |   1000
+#     300        |   10000 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_simhost_setup_level {} {
+
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "This test work only with bound/unbound resource.\nHedeby [hedeby_get_version] does not support bound/unbound resources"
+      return 99
+   }
+
+   upvar #0 hedeby_cloud_simhost_ctx this
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+
+   set this(service)          "cloud_with_simhosts"
+   set this(service_host)     $hedeby_config(hedeby_master_host)
+   set this(cleanup_actions) ""
+
+   switch -- $CHECK_ACT_LEVEL {
+       0      { set this(res_count) 10 }
+       100    { set this(res_count) 100 }
+       200    { set this(res_count) 1000 }
+       300    { set this(res_count) 10000 }
+       default { 
+          ts_log_severe "Unsupported run level $CHECK_ACT_LEVEL"
+          return
+       } 
+   }
+
+   set this(res_names) sim0
+   for {set i 2} {$i <= $this(res_count)} {incr i 1} {
+      lappend this(res_names) "sim$i"
+   }
+
+   # The timeout for the resource moved depends on the number of resources
+   set this(timeout) [expr $this(res_count) * 5]
+   return
+}
+
+#****** cloud_simhost/hedeby_cloud_simhost_cleanup_level() *******************************
+#  NAME
+#     hedeby_cloud_simhost_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_simhost_cleanup_level { } 
+#
+#  FUNCTION
+#
+#
+#     Removes the cloud resources from the system
+#     Removes the cloud service from the system
+#
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_simhost_cleanup_level {} {
+   upvar #0 hedeby_cloud_simhost_ctx this
+
+   if {[lsearch $this(cleanup_actions) "remove_resource"] >= 0} {
+      #---------------------------------------------------------------------
+      ts_log_heading "Removing cloud resources from system"
+      #---------------------------------------------------------------------
+      if {[info exists this(res_ids)]} {
+         set res_ids $this(res_ids)
+         set opts(res_id_type) "resource_id"
+      } else {
+         set  res_ids $this(res_names)
+         set opts(res_id_type) "resource"
+      }
+      if {[hedeby_remove_resources $res_ids opts] != 0} { 
+         reset_hedeby 1
+         unset this
+         return
+      }
+   }
+
+   if {[lsearch $this(cleanup_actions) "remove_service"] >= 0} {
+      #---------------------------------------------------------------------
+      ts_log_heading "Removing cloud service '$this(service)' from system"
+      #---------------------------------------------------------------------
+      if {[hedeby_remove_service $this(service) $this(service_host)] != 0} {
+         reset_hedeby 1
+         unset this
+         return
+      }
+   }
+
+   unset this
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** cloud_simhost/hedeby_cloud_simhost_check *****************************
+#  NAME
+#     hedeby_cloud_simhost_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_cloud_simhost_check{ } 
+#
+#  FUNCTION
+#
+#    This test performs the following steps:
+#
+#       o Adding simhost cloud service '$this(service)' to system
+#       o Adding $this(res_count) virtual resources to cloud service '$this(service)'
+#       o Moving cloud resources to spare_pool
+#       o Moving cloud resources back cloud service '$this(service)'
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_cloud_simhost_check {} {   
+   upvar #0 hedeby_cloud_simhost_ctx this
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding simhost cloud service '$this(service)' to system"
+   #---------------------------------------------------------------------
+   set sopts(cloud_type)   "simhost"
+   set sopts(service_name) $this(service)
+   set sopts(host)         $this(service_host)
+   set sopts(start)        "true"
+   set sopts(maxCloudHostsInSystemLimit) $this(res_count)
+
+   if {[hedeby_add_cloud_service sopts] != 0} {
+      return
+   }
+   unset sopts
+   lappend this(cleanup_actions) "remove_service"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding $this(res_count) virtual resources to cloud service '$this(service)'"
+   #---------------------------------------------------------------------
+   set opts(res_id_array) res_id_array
+   set opts(timeout)      $this(timeout)
+
+   if {[hedeby_add_resources_to_service $this(res_names) $this(service) opts] != 0} {
+      return
+   }
+   set this(res_ids) {}
+   foreach res $this(res_names) {
+      lappend this(res_ids) $res_id_array($res)
+   }
+   ts_log_fine "Res ids: $this(res_ids)"
+   unset res_id_array
+   unset opts
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Moving cloud resources to spare_pool"
+   #---------------------------------------------------------------------
+   set opts(timeout)  $this(timeout)
+   set opts(final_flags) "{}"
+   set opts(final_state) "ASSIGNED"
+   if {[hedeby_move_resources $this(res_ids) "spare_pool" opts] != 0} {
+      return
+   }
+   unset opts
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Moving cloud resources back cloud service '$this(service)'"
+   #---------------------------------------------------------------------
+   set opts(timeout)     $this(timeout)
+   set opts(final_flags) "U"
+   set opts(final_state) "ASSIGNED"
+   hedeby_move_resources $this(res_ids) $this(service) opts
+
+   set this(cleanup_actions) [remove_from_list $this(cleanup_actions) "remove_resources"]
+}
+

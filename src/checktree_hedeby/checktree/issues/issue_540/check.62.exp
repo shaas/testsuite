@@ -162,13 +162,11 @@ proc hedeby_issue540_cleanup_level {} {
          if {$prg_exit_state != 0} {
             set doReset 1
          }
-	 unset suj_opts
-	 lappend this(cleanup_actions) "shutdown_jvm"
+	      unset suj_opts
+	      lappend this(cleanup_actions) "shutdown_jvm"
       }
       
-      set seq {}
-      lappend seq ":%s#root=\".*\"#root=\"$this(sge_root)\"#\n"
-      if {[hedeby_issue540_mod_service $seq] != 0} {
+      if {[hedeby_change_sge_root_in_ge_service $this(service_name) $this(sge_root)] != 0} {
          set doReset 1
       }
    }
@@ -233,20 +231,18 @@ proc hedeby_issue540_check {} {
    upvar #0 hedeby_issue540_ctx this
 
    # --------------------------------------------------------------------------
-   # Step 1: Configure an invalid sge_root for the ge_service
+   ts_log_heading "Step 1: Configure an invalid sge_root for the ge_service"
    # --------------------------------------------------------------------------
    set fake_sge_root "/tmp"
-   set seq {}
-   lappend seq ":%s#root=\".*\"#root=\"$fake_sge_root\"#\n"
 
-   if {[hedeby_issue540_mod_service $seq] != 0} {
+   if {[hedeby_change_sge_root_in_ge_service $this(service_name) $fake_sge_root] != 0} {
       # error is already reported
       return
    }
    lappend this(cleanup_actions) "reset_config"
 
    # --------------------------------------------------------------------------
-   # Step 2: Shutdown the jvm where the ge service is running
+   ts_log_heading "Step 2: Shutdown the jvm where the ge service is running"
    # --------------------------------------------------------------------------
    sdmadm_command_opt "sdj -j $this(jvm) -h $this(master_host)"
    if {$prg_exit_state != 0} {
@@ -257,7 +253,7 @@ proc hedeby_issue540_check {} {
 
    
    # --------------------------------------------------------------------------
-   # Step 3: Startup the jvm where the ge service should run
+   ts_log_heading "Step 3: Startup the jvm where the ge service should run"
    # --------------------------------------------------------------------------
    set suj_opt(host) $this(master_host) ;# execute command on ge service adapter host
    set suj_opt(user) [get_hedeby_startup_user]
@@ -268,7 +264,7 @@ proc hedeby_issue540_check {} {
    }
    
    # --------------------------------------------------------------------------
-   # Step 4: Check that the jvm has been started
+   ts_log_heading "Step 4: Check that the jvm has been started"
    # --------------------------------------------------------------------------
    set exp_ji($this(jvm),$this(master_host),state) "STARTED" 
    set err_ji($this(jvm),$this(master_host),state) "STOPPED"
@@ -295,7 +291,7 @@ proc hedeby_issue540_check {} {
    set this(cleanup_actions) [lreplace $this(cleanup_actions) 1 1]
 
    # --------------------------------------------------------------------------
-   # Step 5: Check that the component state of the GE service is STOPPED
+   ts_log_heading "Step 5: Check that the component state of the GE service is STOPPED"
    # --------------------------------------------------------------------------
 
    set exp_ci($this(service_name),$this(master_host),state) "STOPPED"
@@ -334,37 +330,3 @@ proc hedeby_issue540_check {} {
    }
 }
 
-#****** check.62/hedeby_issue540_mod_service() *********************************
-#  NAME
-#     hedeby_issue540_mod_service() -- modify the configuration of the GE service 
-#
-#  SYNOPSIS
-#     hedeby_issue540_mod_service { mod_sequence } 
-#
-#  FUNCTION
-#
-#     Modifies the configuration of the GE service used by this test (with 'sdmadm mc')
-#
-#  INPUTS
-#     mod_sequence - the vi sequence for modifing the configuration (a TCL list)
-#
-#  RESULT
-#
-#     -1  if hedeby_mod_setup_opt failed
-#     else exit status of the 'sdmadm mc' command
-#
-#*******************************************************************************
-proc hedeby_issue540_mod_service { mod_sequence } {
-   upvar #0 hedeby_issue540_ctx this
-
-   set ispid [hedeby_mod_setup_opt "mc -c $this(service_name)" error_text opts]
-   if { $error_text != "" } {
-      ts_log_severe "Could not start sdmadm mc: $error_text"
-      return -1
-   }
-   ts_log_finer "Modify config of component $this(service_name) with: '$mod_sequence'"
-  
-   hedeby_mod_sequence $ispid $mod_sequence error_text
-   hedeby_mod_cleanup $ispid error_text
-   return $prg_exit_state
-}

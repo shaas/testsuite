@@ -1,0 +1,248 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_684"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Checks for regression of issue 684"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_684_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue_684_setup_level"
+set check_cleanup_level_function "hedeby_issue_684_cleanup_level"
+
+lappend check_functions "hedeby_issue_684_check"
+
+
+#****** cloud_simhost/hedeby_issue_684_init_level() ************************
+#  NAME
+#     hedeby_issue_684_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue_684_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue_684_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  switch -- $CHECK_ACT_LEVEL {
+     0 { return 0 }
+     default { return -1 }
+  }
+}
+
+#****** cloud_simhost/hedeby_issue_684_setup_level() *********************************
+#  NAME
+#     hedeby_issue_684_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue_684_setup_level { } 
+#
+#  FUNCTION
+#     set up hedeby_issue_684_ctx variable. 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_684_setup_level {} {
+
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "Issue 685 is not fixed in Hedeby version [hedeby_get_version], skip this test"
+      return 99
+   }
+
+   upvar #0 hedeby_issue_684_ctx this
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+
+   set this(service)         "cloud_issue_684"
+   set this(master_host)     $hedeby_config(hedeby_master_host)
+   set this(cleanup_actions) ""
+
+   set this(unbound_name) issue_684_res
+
+   return
+}
+
+#****** cloud_simhost/hedeby_issue_684_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue_684_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_issue_684_cleanup_level { } 
+#
+#  FUNCTION
+#
+#   Removes the cloud service from the system if the remove_service is
+#   stored in this(cleanup_actions)
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_684_cleanup_level {} {
+   upvar #0 hedeby_issue_684_ctx this
+
+   if {[lsearch $this(cleanup_actions) "remove_service"] >= 0} {
+      #---------------------------------------------------------------------
+      ts_log_heading "Removing cloud service '$this(service)' from system"
+      #---------------------------------------------------------------------
+      if {[hedeby_remove_service $this(service_name) $this(master_host)] != 0} {
+         reset_hedeby 1
+         unset this
+         return
+      }
+   }
+
+   unset this
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** cloud_simhost/hedeby_issue_684_check *****************************
+#  NAME
+#     hedeby_issue_684_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_issue_684_check{ } 
+#
+#  FUNCTION
+#
+#    This test performs the following steps:
+#
+#       o Add simhost cloud service '$this(service)' to system
+#       o Add a virtual resource to cloud service to ensure that something is spooled
+#       o Remove the cloud service
+#       o Wait that the spool directory of service and the spool directory in SCP
+#         disappears 
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_684_check {} {   
+   upvar #0 hedeby_issue_684_ctx this
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding simhost cloud service '$this(service)' to system"
+   #---------------------------------------------------------------------
+   set sopts(cloud_type)   "simhost"
+   set sopts(service_name) $this(service)
+   set sopts(host)         $this(master_host)
+   set sopts(start)        "true"
+
+   if {[hedeby_add_cloud_service sopts] != 0} {
+      return
+   }
+   lappend this(cleanup_actions) "remove_service"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding a virtual resources to cloud service '$this(service)'"
+   #---------------------------------------------------------------------
+   if {[hedeby_add_resources_to_service $this(unbound_name) $this(service)] != 0} {
+      return
+   }
+   lappend this(cleanup_actions) "remove_resource"
+
+   set ri($this(unbound_name),service) "$this(service)" 
+   set ri($this(unbound_name),flags) "U"
+   set ri($this(unbound_name),state) "ASSIGNED"
+   if {[wait_for_resource_info_opt ri opts] != 0} {
+       return
+   }
+   unset ri
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Removing cloud service '$this(service)' from system"
+   #---------------------------------------------------------------------
+   if {[hedeby_remove_service $this(service) $this(master_host)] != 0} {
+      reset_hedeby 1
+      unset this
+      return
+   }
+
+   set this(cleanup_actions) {}
+   
+   #---------------------------------------------------------------------
+   ts_log_heading "Checking that the spool directory of service '$this(service)' disappears"
+   #---------------------------------------------------------------------
+   set base_dir  [get_hedeby_local_spool_dir $this(master_host)]
+   set service_spool_dir "$base_dir/spool/$this(service)"
+   set scp_spool_dir "$base_dir/spool/resource_provider/$this(service)"
+   set timeout     60
+   set raise_error 1
+   set to_go_away  1
+
+   wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $service_spool_dir \
+                       $timeout $raise_error $to_go_away
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Checking that the spool directory of SCP '$this(service)' disappears"
+   #---------------------------------------------------------------------
+
+   wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $scp_spool_dir \
+                       $timeout $raise_error $to_go_away
+
+}
+

@@ -6,6 +6,20 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+RH-2009-10-20-0: Enhancem.:  o Basic test for simhost cloud adapter added
+                             o get_resource_info considers resource_ids
+                             o wait_for_resource_info: pool interval depends
+                               on remaining time until timeout
+                               reduced output
+                             o New helper method:
+                                - remove_from_list: remove elem from list
+                                - hedeby_remove_service
+                                - hedeby_add_resources_to_service
+                                - hedeby_move_resources
+                                - hedeby_remove_resources
+                                - hedeby_change_sge_root_in_ge_service 
+                 Bugfix:     Fix of issue 685 broken several vi sequences
+              
 AP-2009-10-19-0: Bugfix:     Manual tests adjustment.
                  Review:     LP
 

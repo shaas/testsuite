@@ -232,11 +232,12 @@ proc hedeby_issue537_check {} {
    set ispid [hedeby_mod_setup_opt $arguments error_text3]
    set sequence {}
 
-   lappend sequence "/root=\"\"\n"
-   lappend sequence "dd"
-   lappend sequence "i"
-   lappend sequence "root=\"${sge_root}\"\n"
-     
+   lappend sequence "/ge_adapter:connection\n"  ;# Search for connection tag
+   lappend sequence "/root=\n"                  ;# Search for root attribute
+   lappend sequence "ct "                       ;# change to blank
+   lappend sequence "root=\"${sge_root}\""      ;# insert the new root attribute
+   lappend sequence "[format "%c" 27]"          ;# ESC  
+
    hedeby_mod_sequence $ispid $sequence error_text3
    set output [hedeby_mod_cleanup $ispid error_text3 prg_exit_state 0]
 
@@ -319,10 +320,11 @@ proc hedeby_issue537_check {} {
    set ispid [hedeby_mod_setup_opt $arguments error_text3]
    set sequence {}
 
-   lappend sequence "/root=\"\"\n"
-   lappend sequence "dd"
-   lappend sequence "i"
-   lappend sequence "root=\"${sge_root}\"\n"
+   lappend sequence "/ge_adapter:connection\n"  ;# Search for connection tag
+   lappend sequence "/root=\n"                  ;# Search for root attribute
+   lappend sequence "ct "                       ;# change to blank
+   lappend sequence "root=\"${sge_root}\""      ;# insert the new root attribute
+   lappend sequence "[format "%c" 27]"          ;# ESC  
      
    hedeby_mod_sequence $ispid $sequence error_text3
    set output [hedeby_mod_cleanup $ispid error_text3 prg_exit_state 0]

@@ -133,7 +133,7 @@ proc permanent_request_cleanup {} {
    # reset spare_pool SLO
    reset_default_slos "mod_config" "spare_pool"
 
-   unset this
+   unset -nocomplain this
 }
 
 #****** slo/permanentRequest/permanent_request_check() *************************************

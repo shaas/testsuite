@@ -3271,6 +3271,7 @@ proc parse_table_output { output array_name delimiter } {
 #     {preference_type ""}   - preference type of the hedeby system
 #                                 (default: [get_hedeby_pref_type])
 #     { cached 0 }           - if the cached parameter is not 0 call sdmdm sr -cached
+#     {ril res_id_list}      - name of tcl list where the resource ids are stored 
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -3281,13 +3282,15 @@ proc parse_table_output { output array_name delimiter } {
 #                                 which are ambiguous (double or more
 #                                 times assignment to a service)
 #
-#             res_info(TS_NAME,INFO_TYPE) - resource info value
+#             res_info(<res_name>,INFO_TYPE) - resource info value
+#             res_prop(<res_name>,PROPERTY)  - resource property value  
+#             res_prop(<res_name>,prop_list) - resource property list
+#             res_info(<res_id>,INFO_TYPE)   - resource info value
+#             res_prop(<res_id>,PROPERTY)    - resource property value  
+#             res_prop(<res_id>,prop_list)   - resource property list
 #
-#             res_prop(TS_NAME,PROPERTY)  - resource property value  
-#           
-#             res_prop(TS_NAME,prop_list) - resource property list
-#
-#                where TS_NAME is testsuite resource name
+#                where <res_name> is testsuite resource name
+#                where <res_id>   is the id of the resource
 #                where INFO_TYPE is "id", "service", "state", "type",
 #                                   "annotation", "flags" or "usage"
 #                where PROPERTY is hedeby resource property
@@ -3310,7 +3313,7 @@ proc parse_table_output { output array_name delimiter } {
 #     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""} { cached 0 } } {
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""} { cached 0 } {ril res_id_list} } {
    global hedeby_config
 
    # setup arguments
@@ -3318,6 +3321,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    upvar $rp resource_properties
    upvar $da resource_ambiguous
    upvar $rl resource_list
+   upvar $ril resource_id_list
    upvar $sdmout output
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
@@ -3351,7 +3355,8 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    # cleanup the lists
    set resource_ambiguous {}
    set resource_list {}
-
+   set resource_id_list {}
+   set double_assigned_resource_list {}
 
    # now we start sdmadm sr command ...
    set sdmadm_command "-d -p $pref_type -s $sys_name sr -all"
@@ -3367,7 +3372,9 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 
    # we expect the following table commands for ShowResourceStateCliCommand ...
    set exp_columns {}
-   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.id"]
+
+   set res_id_col [create_bundle_string "ShowResourceStateCliCommand.col.id"]
+   lappend exp_columns $res_id_col
 
    if {[exists_bundle_string ShowResourceStateCliCommand.col.name]} {
       set res_name_col [create_bundle_string "ShowResourceStateCliCommand.col.name"]
@@ -3384,7 +3391,8 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.state"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.type"]
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.anno"]
-   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.flags"]
+   set flags_col [create_bundle_string "ShowResourceStateCliCommand.col.flags"]
+   lappend exp_columns $flags_col
    lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.usage"]
 
    set res_ignore_list {}
@@ -3399,10 +3407,15 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    }
    
    # now we fill up the arrays ... 
-   set resource_list {}
-   set double_assigned_resource_list {}
+
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+       #ts_log_fine "Processing line $line ------------------------------------"
+       #foreach col $table(table_columns) {
+       #   ts_log_fine ="table\[$line,$col\]=$table($col,$line)"
+       #}
       set resource_name $table($res_name_col,$line)
+      set resource_id   $table($res_id_col,$line)
+
       set do_ignore 0
       foreach ignore_resource $res_ignore_list {
          if { [string match $ignore_resource $resource_name] } {
@@ -3415,20 +3428,32 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
          # provider the resources have the @SERVICE appended
          # => Testsuite is ignoring appendix of hostname
          set help [split $resource_name "@"]
-         set ts_resource_name [resolve_host [lindex $help 0]]
-         if {$ts_resource_name != $resource_name} {
-            ts_log_finer "using resource name \"$ts_resource_name\" for resource id \"$resource_name\""
+         set ts_resource_name [lindex $help 0]
+       
+         # Resolve the hostname only of the resource is bound 
+         if { [string first $table($flags_col,$line) "U"] < 0 } {
+            set ts_resource_name [resolve_host $ts_resource_name]
+            if {$ts_resource_name != $resource_name} {
+               ts_log_finer "using resource name \"$ts_resource_name\" for resource id \"$resource_name\""
+            }
          }
+
+         lappend resource_id_list $resource_id
          if { [lsearch -exact $resource_list $ts_resource_name] < 0 } { 
             lappend resource_list "$ts_resource_name"
+            set res_line($ts_resource_name) $line
          } else {
+            ts_log_fine "Found double assigned resource '$ts_resource_name' in line $line"
+            ts_log_fine "Duplicate defined in line $res_line($ts_resource_name)"
             lappend double_assigned_resource_list $ts_resource_name
          }
          foreach col $table(table_columns) {
             if {![info exists resource_info($ts_resource_name,$col)]} {
                set resource_info($ts_resource_name,$col) {}
+               set resource_info($resource_id,$col) {}
             }
             lappend resource_info($ts_resource_name,$col) [lindex $table($col,$line) 0]
+            lappend resource_info($resource_id,$col) [lindex $table($col,$line) 0]
             ts_log_finer "resource_info($ts_resource_name,$col) = $resource_info($ts_resource_name,$col)"
          }
          if {[llength $table(additional,$line)] > 0} {
@@ -3439,7 +3464,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
                   set value [string range $elem [expr ( $pos + 1)] end]
                   set property [string trim $property]
                   set value [string trim $value]
-                  
+
                   if {![info exists resource_properties($ts_resource_name,prop_list)]} {
                      set resource_properties($ts_resource_name,prop_list) {}
                   }
@@ -3483,6 +3508,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    }
    ts_log_finer "resource list: $resource_list"
    set resource_ambiguous $double_assigned_resource_list
+
    return 0
 }
 
@@ -3570,6 +3596,7 @@ proc get_resource_info_opt { {ri res_info} {opt ""} } {
 #     {da res_list_not_uniq} - see get_resource_info() 
 #     {expect_no_ambiguous_resources 0} - if set to 1: don't expect ambiguous resources
 #     { cached }             - see get_resource_info()
+#     {ril res_id_list}      - name of tcl list where the resource ids are stored 
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -3602,7 +3629,7 @@ proc get_resource_info_opt { {ri res_info} {opt ""} } {
 #     util/wait_for_resource_info()
 #     util/wait_for_service_info()
 #*******************************************************************************
-proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {expect_no_ambiguous_resources 0} { cached 0 } } {
+proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {expect_no_ambiguous_resources 0} { cached 0 } {ril res_id_list} } {
    global hedeby_config
    # setup arguments
    upvar $exp_resinfo exp_res_info
@@ -3611,6 +3638,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    upvar $rp resource_properties
    upvar $da resource_ambiguous
    upvar $rl resource_list
+   upvar $ril resource_id_list
 
 
    if {$host == ""} {
@@ -3645,8 +3673,9 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    set prefs_type ""
 
    while {1} {
-      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output \
-                                    $system_name $prefs_type $cached]
+      set retval [get_resource_info $host $user resource_info resource_properties resource_list \
+                                    resource_ambiguous $raise_error sdmadm_output \
+                                    $system_name $prefs_type $cached resource_id_list]
       if {$retval != 0} {
          append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
          append error_text "expected resource info was:\n$expected_resource_info"
@@ -3659,6 +3688,8 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
          break
       }
       set not_matching ""
+      unset -nocomplain not_matching_res
+
       foreach val $exp_values {
          if {![info exists resource_info($val)]} {
             set resource_info($val) "missing"
@@ -3696,7 +3727,31 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
             ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
          } else {
             append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
+            set index [string first "," $val]
+            if {$index > 0 } {
+               set res_name [string range $val 0 $index]
+               set not_matching_res($res_name) 1
+            } else {
+               ts_log_fine "Not matching resource value '$val' does not contain a comma, don't know the resource"
+            }
          }
+      }
+
+      if {[info exists not_matching_res]} {
+         set not_matching_res_count [array size not_matching_res]
+      } else {
+         set not_matching_res_count 0
+      }
+
+      set cur_time [timestamp]
+      set cur_time_left [expr ($my_timeout - $cur_time)]
+
+      set sleep_time [expr $cur_time_left / 60]
+      if {$sleep_time < 1} {
+         set sleep_time 1
+      } elseif {$sleep_time > 10 } {
+         set sleep_time 10
+         ts_log_fine "Next try in $sleep_time seconds"
       }
 
       if {$not_matching == ""} {
@@ -3708,17 +3763,18 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
             break
          }
       } else {
-         set cur_time [timestamp]
-         set cur_time_left [expr ($my_timeout - $cur_time)]
-         ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
-         ts_log_fine "still not matching resource info:\n$not_matching"
+         ts_log_fine "$not_matching_res_count resources are still not matching ... (timeout in ${cur_time_left}s, next try in ${sleep_time}s))"
+         if {$not_matching_res_count < 10} {
+            ts_log_fine "still not matching resource info:\n$not_matching"
+         }
       }
       if {[timestamp] >= $my_timeout} {
          append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected resource states!\n"
          append error_text "==> NOT matching values:\n$not_matching"
          break
       }
-      after 1000
+
+      after [expr $sleep_time * 1000]
    }
 
    if {$error_text != "" } {
@@ -3757,6 +3813,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 #                                              found resource is stored  
 #       opt(res_list)                        - name of the variable (upvar) where the list of found resources
 #                                              is stored
+#       opt(res_id_list)                     - name of the variable (upvar) where the list of found resource ids is stored
 #       opt(res_list_not_uniq)               - name of the variable (upvar) where the list of non unique resources
 #                                              is stored
 #       opt(expect_not_ambiguous_resources)  - If set to 1 the command checks that no ambiguous resources are avaiable
@@ -3799,6 +3856,7 @@ proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
    set opts(res_info)   ""
    set opts(res_prop)    ""
    set opts(res_list)    ""
+   set opts(res_id_list)   ""
    set opts(res_list_not_uniq) ""
    set opts(expect_no_ambiguous_resources) 0
    set opts(cached) 0
@@ -3821,13 +3879,17 @@ proc wait_for_resource_info_opt { exp_res_info { opt "" } } {
       upvar $opts(res_list) res_list
    }
 
+   if { $opts(res_id_list) != "" } {
+      upvar $opts(res_id_list) res_id_list
+   }
+
    if { $opts(res_list_not_uniq) != "" } {
       upvar $opts(res_list_not_uniq) res_list_not_uniq
    }
 
    return [wait_for_resource_info exp_info  $opts(timeout) $opts(raise_error) error_var\
                                   $opts(host) $opts(user) res_info res_prop res_list \
-                                  res_list_not_uniq $opts(expect_no_ambiguous_resources) $opts(cached)]
+                                  res_list_not_uniq $opts(expect_no_ambiguous_resources) $opts(cached) res_id_list]
 }
 
 #****** util/wait_for_service_info() *******************************************
@@ -4129,12 +4191,13 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #     {hist_lines}    - if this parameter is not "". The found history lines will be returned
 #                       into this array. The array will have the following elements
 #
-#        hist_lines(count)            -- number of found lines
-#        hist_lines(<index>,time)     -- timestamp of the history line
-#        hist_lines(<index>,type)     -- the type of the notification
-#        hist_lines(<index>,resource) -- the resource
-#        hist_lines(<index>,service)  -- the service
-#        hist_lines(<index>,desc)     -- the description of the notification
+#        hist_lines(count)               -- number of found lines
+#        hist_lines(<index>,time)        -- timestamp of the history line
+#        hist_lines(<index>,type)        -- the type of the notification
+#        hist_lines(<index>,resource)    -- the resource
+#        hist_lines(<index>,resource_id) -- the resource id
+#        hist_lines(<index>,service)     -- the service
+#        hist_lines(<index>,desc)        -- the description of the notification
 #
 #     {raise_error 1} - raise error 
 #     {host ""}       - host where the sdmadm command will be executed 
@@ -4180,77 +4243,83 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
    } else {
       set execute_user $user
    }
-   
-   
-   set max(resource) 8
-   set max(type)     8
-   set max(service)  8
-   for {set i 0} {$i < $exp_hist(count)} {incr i} {
-      foreach val { "type" "resource" "service" } {
-         if {[info exists exp_hist($i,$val)]} {
-            set len [string length exp_hist($i,$val)]
-            if {$max($val) < $len } {
-               set max($val) $len
-            }
-         }
-      }
+  
+   set allowed_vals { "type" "resource"  "resource_id" "service" } 
+
+   foreach val $allowed_vals {
+      set max($val) 8
    }
-   for {set i 0} {$i < $error_hist(count)} {incr i} {
-      foreach val { "type" "resource" "service" } {
-         if {[info exists error_hist($i,$val)]} {
-            set len [string length error_hist($i,$val)]
-            if {$max($val) < $len } {
-               set max($val) $len
+
+   set level [info level]
+
+   foreach a_hist { exp_hist error_hist } {
+      upvar #$level $a_hist hist
+      for {set i 0} {$i < $hist(count)} {incr i} {
+         foreach val $allowed_vals {
+            if {[info exists hist($i,$val)]} {
+               set exp_exists($val) 1
+               set len [string length hist($i,$val)]
+               if {$max($val) < $len } {
+                  set max($val) $len
+               }
             }
          }
       }
    }
 
-   set header    "Waiting for the following events in history\n"
-   
-   append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "type" "resource" "service"]
-   set len [expr $max(type) + $max(resource) + $max(service) + 2]
+   set header_message(exp_hist) "Waiting for the following events in history\n"
+   set header_message(error_hist) "Will terminate on the following events:\n"
+   set header ""
+   set first 1 
+   set len 0
+   foreach val [array names exp_exists] {
+      if {$first} {
+         set first 0
+      } else {
+         append header "|"
+      }
+      append header [format "%-$max($val)s" $val]
+      incr len [expr $max($val) + 2]
+   }
+   append header "\n"
+
    set delimiter ""
    for {set i 0} {$i < $len} {incr i} {
       append delimiter "-"
    }
    append delimiter "\n"
-   append header $delimiter
-   for {set i 0} {$i < $exp_hist(count)} {incr i} {
-      set type ""
-      if {[info exists exp_hist($i,type)]} {
-         set type $exp_hist($i,type)
+
+   set message ""
+
+   foreach a_hist {exp_hist error_hist} {
+      upvar #$level $a_hist hist
+
+      if {$hist(count) > 0} {
+         append message $header_message($a_hist)
+         append message $header
+         append message $delimiter
+
+         for {set i 0} {$i < $hist(count)} {incr i} {
+            set first 1
+            foreach val [array names exp_exists] {
+               if {$first} {
+                  set first 0
+               } else {
+                  append message "|"
+               }
+               set tmp_val ""
+               if {[info exists hist($i,$val)]} {
+                  set tmp_val $hist($i,$val)
+               }
+               append message [format "%-$max($val)s" $tmp_val]
+            }
+            append message "\n"
+         }
       }
-      set res ""
-      if {[info exists exp_hist($i,resource)]} {
-         set res $exp_hist($i,resource)
-      }
-      set service ""
-      if {[info exists exp_hist($i,service)]} {
-         set service $exp_hist($i,service)
-      }
-      append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "$type" "$res" "$service"]
-   }
-   append header $delimiter
-   append header "Will terminate on the following events:\n"
-   append header $delimiter
-   for {set i 0} {$i < $error_hist(count)} {incr i} {
-      set type ""
-      if {[info exists error_hist($i,type)]} {
-         set type $error_hist($i,type)
-      }
-      set res ""
-      if {[info exists error_hist($i,resource)]} {
-         set res $error_hist($i,resource)
-      }
-      if {[info exists error_hist($i,service)]} {
-         set service $error_hist($i,service)
-      }
-      append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "$type" "$res" "$service"]
-   }
-   append header $delimiter
-   ts_log_fine "$header"
-   
+    }
+
+   ts_log_fine $message
+
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -4259,52 +4328,29 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
    set exp_values [array names exp_hist]
    set filter_args ""
    
-   set resources {}
-   set services {}
-   set types {}
-   
-   for {set i 0} {$i < $exp_hist(count)} {incr i} {
-      if {[info exists exp_hist($i,resource)]} {
-         if {[lsearch $resources $exp_hist($i,resource)] < 0} {
-            lappend resources $exp_hist($i,resource)
-         }
-      }
-      if {[info exists exp_hist($i,service)]} {
-         if {[lsearch $services $exp_hist($i,service)] < 0} {
-            lappend services $exp_hist($i,service)
-         }
-      }
-      if {[info exists exp_hist($i,type)]} {
-         if {[lsearch $types $exp_hist($i,type)] < 0} {
-            lappend types $exp_hist($i,type)
+   foreach val $allowed_vals {
+      set filter_values($val) {}
+   }
+
+   foreach a_hist {exp_hist error_hist} {
+      upvar #$level $a_hist hist
+      for {set i 0} {$i < $hist(count)} {incr i} {
+         foreach val [array names exp_exists] { 
+             if {[info exists hist($i,$val)]} {
+                if {[lsearch $filter_values($val) $hist($i,$val)] < 0} {
+                   lappend filter_values($val) $hist($i,$val)
+                }
+             }
          }
       }
    }
-   for {set i 0} {$i < $error_hist(count)} {incr i} {
-      if {[info exists error_hist($i,resource)]} {
-         if {[lsearch $resources $error_hist($i,resource)] < 0} {
-            lappend resources $error_hist($i,resource)
-         }
-      }
-      if {[info exists error_hist($i,service)]} {
-         if {[lsearch $services $error_hist($i,service)] < 0} {
-            lappend services $error_hist($i,service)
-         }
-      }
-      if {[info exists error_hist($i,type)]} {
-         if {[lsearch $types $error_hist($i,type)] < 0} {
-            lappend types $error_hist($i,type)
-         }
-      }
-   }
-   
    # Build the filter
    set filter_args ""
    
-   if {[llength $resources] > 0} {
+   if {[llength $filter_values(resource)] > 0} {
       append filter_args "("
       set first 1
-      foreach resource $resources {
+      foreach resource $filter_values(resource) {
          if {$first} {
             set first 0
          } else {
@@ -4322,13 +4368,31 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
       append filter_args ")"
    }
    
-   if {[llength $services] > 0} {
+   if {[llength $filter_values(resource_id)] > 0} {
       if {[string length $filter_args] > 0} {
          append filter_args " & "
       }
       append filter_args "("
       set first 1
-      foreach service $services {
+      foreach resource_id $filter_values(resource_id) {
+         if {$first} {
+            set first 0
+         } else {
+            append filter_args "|"
+         }
+         ts_log_finer "Adding resource id '$resource_id' to filter"
+         append filter_args " resource_id = \"$resource_id\""
+      }
+      append filter_args ")"
+   }
+
+   if {[llength $filter_values(service)] > 0} {
+      if {[string length $filter_args] > 0} {
+         append filter_args " & "
+      }
+      append filter_args "("
+      set first 1
+      foreach service $filter_values(service) {
          if {$first} {
             set first 0
          } else {
@@ -4340,13 +4404,13 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
       append filter_args ")"
    }
    
-   if {[llength $types] > 0} {
+   if {[llength $filter_values(type)] > 0} {
       if {[string length $filter_args] > 0} {
          append filter_args " & "
       }
       append filter_args "("
       set first 1
-      foreach type $types {
+      foreach type $filter_values(type) {
          if {$first} {
             set first 0
          } else {
@@ -7638,11 +7702,14 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       hedeby_mod_sequence $ispid $sequence errors
       set timeout 2
    } else { 
-      after 1000 ;# TODO: be sure to wait one second so that file timestamp has changed
+      after 1010 ;# TODO: be sure to wait one second so that file timestamp has changed
                   # This might be done by have start timestamp and endtimestamp and only
                   # wait if timestamp has not changed (too fast edit)
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence "Go[format "%c" 27]" ;# Put a new line at the end, increases the 
+                                            ;# chance that the file is considered as changed
+                                            ;# (compares modification time and file size)
       lappend sequence ":wq\n"        ;# save and quit
       hedeby_mod_sequence $ispid $sequence errors
       set timeout 60
@@ -7966,12 +8033,11 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    if { $service != "spare_pool" } {
       # search and replace sloUpdateInterval if service is not spare_pool
       lappend sequence "/sloUpdateInterval\n"
-      lappend sequence "ma/>\n"
-      lappend sequence ":'a,.s/unit=\".*\"/unit=\"$update_interval_unit\"/\n"
-      lappend sequence "[format "%c" 27]" ;# ESC
-      lappend sequence "/sloUpdateInterval\n"
-      lappend sequence "ma/>\n"
-      lappend sequence ":'a,.s/value=\".*\"/value=\"$update_interval_value\"/\n"
+      # jump to beginning of next word, delete until '/' of tag closing '/>'
+      lappend sequence "Wd/\\/>\n"
+      # insert at cursor position both parameters ...
+      lappend sequence "iunit=\"$update_interval_unit\" value=\"$update_interval_value\""
+      # ... and exit insert mode
       lappend sequence "[format "%c" 27]" ;# ESC
    }
 
@@ -8071,20 +8137,16 @@ proc remove_resource_property { resource prop_list {opt ""} } {
 #
 #*******************************************************************************
 proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "executor" } } {
-   global hedeby_config
-   set system_name [get_hedeby_system_name]
-   set host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
-   set pref_type [get_hedeby_pref_type]
 
    set error_text ""
-   set arguments "-p $pref_type -s $system_name mc -c $executor_name"
-   set ispid [hedeby_mod_setup $host $admin_user $arguments error_text]
+   set ispid [hedeby_mod_setup_opt "mc -c $executor_name" error_text]
    
    set sequence {}
-   lappend sequence "[format "%c" 27]" ;# ESC
-   lappend sequence ":%s/keepFiles=\".*\"//\n"
+   # Delete the keepFiles attribute
+   lappend sequence ":%s/keepFiles=\"\[^\"\]*\"//\n"
+   # Append the new keepFiles attribute directly after the executor tag
    lappend sequence ":%s/executor:executor/executor:executor keepFiles=\"$keep_files\"/\n"
+   lappend sequence ":w! /tmp/set_keep_files.xml\n"
    
    hedeby_mod_sequence $ispid $sequence error_text
    set output [hedeby_mod_cleanup $ispid error_text]
@@ -8092,7 +8154,7 @@ proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "
       return $prg_exit_state
    }
    
-   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type uc -c $executor_name -h $executor_host"]
+   set output [sdmadm_command_opt "-d uc -c $executor_name -h $executor_host"]
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
@@ -11013,3 +11075,361 @@ proc is_simple_install_system { } {
    }
 }
 
+
+#****** util/hedeby_remove_service() *******************************************
+#  NAME
+#     hedeby_remove_service() -- remove a service from the SDM system
+#
+#  SYNOPSIS
+#     hedeby_remove_service { service_name } 
+#
+#  FUNCTION
+#
+#     Stop the service component (sdmadm sdc) and removes the service (sdmadm rs)
+#
+#  INPUTS
+#     service_name - the name of the service
+#     { service_host ""} - the host where the service is running. If the value of this parameters
+#                          is an empty string the service host will determined by call
+#                          get_service_info
+#
+#  RESULT
+#
+#     0 -- if the service has been removed
+#     else error
+#
+#*******************************************************************************
+proc hedeby_remove_service { service_name {service_host ""} } {
+
+   if { $service_host == "" } {
+      get_service_info si
+
+      if {[info exists si($service_name,host)]} {
+         set service_host $si($service_name,host)
+      } else {
+         ts_log_severe "Service '$service_name' not found"
+         return -1
+      }
+      unset si
+   }
+   sdmadm_command_opt "sdc -c $service_name -h $service_host" ;# shutdown_component
+   if {$prg_exit_state != 0} {
+      return -2
+   }
+   set eci($service_name,$service_host,state) "STOPPED" 
+   if {[wait_for_component_info_opt eci] != 0} {
+      return -3
+   }
+   sdmadm_command_opt "rs -s $service_name"  ;# remove_service
+   if {$prg_exit_state != 0} {
+      return -4
+   }
+   return 0
+}
+
+#****** util/hedeby_add_resources_to_service() *********************************
+#  NAME
+#     hedeby_add_resources_to_service() -- add resources to a hedeby service
+#
+#  SYNOPSIS
+#     hedeby_add_resources_to_service { res_names target_service { opt "" } } 
+#
+#  FUNCTION
+#
+#     Add a all resource defined in the res_names list to a service.  Waits
+#     until the resources goes into ASSIGNED state.  Optionally in stores the
+#     resource ids of the resource in a tcl array
+#
+#  INPUTS
+#     res_names      - list of unbound_names for resource that will be added
+#     target_service - the target service for the resource
+#     { opt "" }     - options array for the add
+#
+#     In addtion to the default hedeby options (see sdmadm_command_opt) 
+#     this method knows the following options:
+#
+#     opt(res_id_array)   name of the tcl array where the ids of the added resources will be
+#                         stored (key is the unbound_name of the resource, value is the id)
+#
+#     opt(res_prop_array) name of the tcl array where additional resource properties for the
+#                         resources are stored. The keys in the array must have the form
+#                         <unbound_name>,<res_property_name>
+#
+#     opt(timeout)        waiting time for resources going into ASSIGNED state (default 60s)
+#
+#  RESULT
+#     0 -- All resource have been assigned to the service, the resource ids are stored in
+#          opt(res_id_array)
+#     else -- error occurred (reason has been reported)
+#
+#  EXAMPLE
+#
+#    set res_names { "res1" "res2" }
+#    set res_props(res1,foo) "foo"
+#    set res_props(res2,foo) "foo"
+#
+#    set opts(res_id_array)    res_id_array
+#    set opts(res_prop_array)  res_prop_array
+#
+#    hedeby_add_resources_to_service $res_names "service" opts
+#
+#    foreach res [array names res_id_array] {
+#       puts "res $res has id $res_id_array($res)"
+#    }
+#
+#  NOTES
+#
+#   !!!Attention!!! 
+#
+#   Storing the resource ids in the res_id_array will not work if the resource
+#   properties from res_prop_array changes the resource name. 
+#
+#*******************************************************************************
+proc hedeby_add_resources_to_service { res_names target_service { opt "" } } {
+
+   set opts(timeout)        60
+   set opts(res_prop_array) ""
+   set opts(res_id_array)   ""
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   if {$opts(res_prop_array) != ""} {
+      upvar $opts(res_prop_array) res_prop_array
+   }
+   if {$opts(res_id_array) != ""} {
+      upvar $opts(res_id_array) res_id_array
+   }
+
+   set tasks(STANDARD_IN) ""
+   set res_count [llength $res_names]
+   foreach res $res_names {
+      append tasks(STANDARD_IN) "unbound_name=$res\n"
+      if {$opts(res_prop_array) != ""} {
+         foreach res_prop_def [array names res_prop_array] {
+            set prop_def [split $res_prop_def ","]
+            if {[llength $prop_def] != 2} {
+               set msg    "Invalid resource property definition '$res_prop_def'.\n"
+               append msg "Entries in res_id_array must have the form <res_name>,<prop_name>"
+               return -1
+            }
+
+            if {[lindex $prop_def 0] == $res} {
+               set key [lindex $prop_def 1]
+               set value $res_prop_array($res_prop_def)
+               append tasks(STANDARD_IN) "$key=$value\n"
+            }
+         }
+      }
+      append tasks(STANDARD_IN) "====\n"
+      set ri($res,service) "$target_service" 
+      set ri($res,state) "ASSIGNED"
+   }
+
+   # Prepare options for sdmadm ar
+   copy_hedeby_proc_opt_arg_exclude sopts sdmadm_opts { "timeout" "res_prop_array" "res_id_array" }
+   set sdmadm_opts(interactive_tasks) tasks
+
+   sdmadm_command_opt "ar -s $target_service -f -" sdmadm_opts
+   unset sdmadm_opts
+   if {$prg_exit_state != 0} {
+      return -2
+   }
+
+   # Prepare options for wait_for_resource_info_opt
+   copy_hedeby_proc_opt_arg_exclude sopts wait_opts { "res_prop_array" "res_id_array" }
+   if {$opts(res_id_array) != ""} {
+      set wait_opts(res_info) res_info
+   }
+   if {[wait_for_resource_info_opt ri wait_opts] != 0} {
+       return -3
+   }
+   unset ri
+   if {$opts(res_id_array) != ""} {
+      foreach res $res_names {
+         set res_id_array($res) $res_info($res,id)
+      }
+   }
+   ts_log_fine "Resources successfully added to service '$target_service'"
+   return 0
+}
+
+#****** util/hedeby_move_resources() *******************************************
+#  NAME
+#     hedeby_move_resources() -- Move resources
+#
+#  SYNOPSIS
+#     hedeby_move_resources { res_names target_service opt } 
+#
+#  FUNCTION
+#
+#   Moves resources to a service and wait until the resources reach
+#   a final state.
+#
+#  INPUTS
+#     res_ids_or_names  - list of resource ids or names
+#     target_service   - the target service
+#     { opt ""  }      - option for the command
+#
+#         opt(timeout)     - max. waiting time until the resource must reach the
+#                            final state (default 60s)
+#         opt(final_state) - the final state of the resource (default ASSIGNED)
+#         opt(final_flags) - the final flags of the resource (default "{}")
+#
+#  RESULT
+#
+#    0    -  all resource moved and reached their final state
+#    else -  error
+#
+#  EXAMPLE
+#
+#   set opts(timeout)     60
+#   set opts(final_flags) "U"
+#   set opts(final_state) "ASSIGNED"
+#   hedeby_move_resources res#123 spare_pool opts
+#
+#*******************************************************************************
+proc hedeby_move_resources { res_ids_or_names target_service opt } {
+
+   set opts(timeout)     60          ;# timeout for the wait_for_resource_info
+   set opts(final_state) "ASSIGNED"
+   set opts(final_flags) "{}"
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   set rarg [join $res_ids_or_names ","]
+
+   copy_hedeby_proc_opt_arg_exclude opts sdmadm_opts { "timeout" "final_state" "final_flags" }
+   sdmadm_command_opt "mvr -r $rarg -s $target_service" sdmadm_opts ;# move_resource
+   if {$prg_exit_state != 0} {
+      return -1
+   }
+   
+   foreach res $res_ids_or_names {
+      set ri($res,service) $target_service
+      set ri($res,flags) $opts(final_flags)
+      set ri($res,state) $opts(final_state)
+   }
+   copy_hedeby_proc_opt_arg_exclude opts wait_opts { "final_state" "final_flags" }
+   if {[wait_for_resource_info_opt ri wait_opts] != 0} {
+       return -2
+   }
+   return 0
+}
+
+#****** util/hedeby_remove_resources() *****************************************
+#  NAME
+#     hedeby_remove_resources() -- Remove resources from the SDM system
+#
+#  SYNOPSIS
+#     hedeby_remove_resources { res_ids_or_names {opt ""} } 
+#
+#  FUNCTION
+#
+#    Removes a set of the resource from the SDM system. The resources can be addressed
+#    by resource name or resource id. The method block until the RESOURCE_REMOVED events
+#    are availaible in the history.
+#
+#  INPUTS
+#     res_ids_or_names - list if resource ids or names
+#     {opt ""}         - options for the removal
+#
+#       opt(timeout)      max. waiting time for the RESORUCE_REMOVED event
+#       opt(res_id_type)  how are the resources addressed:
+#                         "resource_id" => the resources in res_ids_or_names are
+#                                          addressed via the resource ids
+#                         "resource_names" => The resource in res_ids_or_names are
+#                                             addressed via the resource names
+#                         (default "resource_id") 
+#
+#  RESULT
+#
+#     0   -  all resources are removed, all RESOURCE_REMOVED event found in history
+#     else error
+#
+#  EXAMPLE
+#
+#  set opt(timeout) 60
+#  set opt(res_id_type)  "resource_names"
+#  
+#  hedeby_remove_resources { foo.bar  foo1.bar } opt
+#   
+#*******************************************************************************
+proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
+
+   set opts(timeout)     60
+   set opts(res_id_type) "resource_id"
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   if { !($opts(res_id_type) == "resource_id" || $sopts(res_id_type) == "resource")} {
+      ts_log_severe "Invalid value for opt(res_id_type) (valid values are 'resource_id' or 'resource'"
+      return -1
+   }
+
+   set rarg [join $res_ids_or_names ","]
+
+   copy_hedeby_proc_opt_arg_exclude opts sdmadm_opts { "timeout" "res_id_type" }
+
+   set start_time [clock seconds]
+
+   sdmadm_command_opt "rr -r $res_ids_or_names" sdmadm_opts
+   if { $prg_exit_state != 0 } {
+      return -1
+   }
+   set i 0
+   foreach res $res_ids_or_names {
+      set hist($i,$res_id_type) $res 
+      set hist($i,type)         "RESOURCE_REMOVED"
+      incr i
+   }
+   set hist(count) $i
+   set error_hist(count) 0
+   if {[wait_for_notification $start_time hist error_hist $opts(timeout)] != 0} {
+      return -2
+   }
+   return 0
+}
+
+
+#****** util/hedeby_change_sge_root_in_ge_service() *********************************
+#  NAME
+#     hedeby_change_sge_root_in_ge_service() -- Change sge_root for ge service
+#
+#  SYNOPSIS
+#     hedeby_change_sge_root_in_ge_service { new_root } 
+#
+#  FUNCTION
+#
+#     Changes the root attribute (containing the path to SGE_ROOT) in the configuration
+#     of a ge service
+#
+#  INPUTS
+#
+#     new_root the new SGE_ROOT
+#
+#  RESULT
+#
+#     -1  if hedeby_mod_setup_opt failed
+#     else exit status of the 'sdmadm mc' command
+#
+#*******************************************************************************
+proc hedeby_change_sge_root_in_ge_service { ge_service new_root } {
+
+   set ispid [hedeby_mod_setup_opt "mc -c $ge_service" error_text]
+   if { $error_text != "" } {
+      ts_log_severe "Could not start sdmadm mc: $error_text"
+      return -1
+   }
+   ts_log_finer "Changing SGE_ROOT in config of $ge_service ($new_root)"
+  
+   set seq {}
+   lappend seq "/ge_adapter:connection\n"  ;# Search for connection tag
+   lappend seq "/root=\n"                  ;# Search for root attribute
+   lappend seq "ct "                       ;# change to blank
+   lappend seq "root=\"$new_root\""        ;# insert the new root attribute
+   lappend seq "[format "%c" 27]"          ;# ESC  
+
+   hedeby_mod_sequence $ispid $seq error_text
+   hedeby_mod_cleanup $ispid error_text
+   return $prg_exit_state
+}
