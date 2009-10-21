@@ -69,8 +69,10 @@ set check_description(303)  "Different hosts (>= SGE 6.1); Different Java-versio
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_level_function "drmaaj_setup"
-set check_cleanup_level_function "drmaaj_cleanup"
+set check_setup_function "drmaaj_setup"
+set check_cleanup_function "drmaaj_cleanup"
+set check_setup_level_function "drmaaj_setup_level"
+set check_cleanup_level_function "drmaaj_cleanup_level"
 
 # define test's procedure order
 set check_functions ""
@@ -577,6 +579,7 @@ proc drmaaj_check { } {
    global CHECK_ACTUAL_TEST_PATH
    global CHECK_USER CHECK_ACT_LEVEL
    global hosts_in_runlevel
+   global drmaaj_global_errors
 
    # test the 32 bit lib on 64 bit virtual machine 
    set do_an_additional_32_bit_test "true"
@@ -656,7 +659,10 @@ proc drmaaj_check { } {
                   set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                   if {$prg_exit_state != 0} {
-                     ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 64 bit host failed at host $host: $test_output Java version: $java Run level: $CHECK_ACT_LEVEL"
+                     append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+                     append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
+                     append drmaaj_global_errors "command: \"$java $options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite\"\n"
+                     append drmaaj_global_errors "DRMAA-J jUnit test for 32 bit lib on 64 bit host failed:\n$test_output\n\n"
                   }
                }
             }
@@ -697,8 +703,11 @@ proc drmaaj_check { } {
                 ts_log_fine "Perform: $host $java $options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" 
                 set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
-                if {$prg_exit_state != 0} { 
-                   ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed at host $host: $test_output Java version: $java Run level: $CHECK_ACT_LEVEL"
+                if {$prg_exit_state != 0} {
+                   append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+                   append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
+                   append drmaaj_global_errors "command: \"$java $options_for_32_bit_test junit.textui.TestRunner DrmaaSuite\"\n"
+                   append drmaaj_global_errors "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed:\n$test_output\n\n"
                 }
              }
             continue 
@@ -706,12 +715,16 @@ proc drmaaj_check { } {
 
          # start JUnit DRMAA test
          # ----------------------
-         ts_log_fine "Perform: $host $java $java_options junit.textui.TestRunner DrmaaSuite"
+         ts_log_fine "Perform as $CHECK_USER: $host $java $java_options junit.textui.TestRunner DrmaaSuite"
          
+
          set test_output [start_remote_prog $host $CHECK_USER $java "$java_options junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
          if {$prg_exit_state != 0} {
-            ts_log_severe "DRMAA-J jUnit test suite failed at host $host:\n$test_output \n Java version: $java Run level: $CHECK_ACT_LEVEL"
+            append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+            append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
+            append drmaaj_global_errors "command: \"$java $java_options junit.textui.TestRunner DrmaaSuite\"\n"
+            append drmaaj_global_errors "DRMAA-J jUnit test suite failed:\n$test_output\n\n"
          }
       }
       # go through all Java versions
@@ -956,13 +969,27 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
    }
 }
 
+proc drmaaj_setup {} {
+   global drmaaj_global_errors
+   set drmaaj_global_errors ""
+}
 
-#****** check.60.exp/drmaaj_setup() ************************************************
+proc drmaaj_cleanup {} {
+   global drmaaj_global_errors
+
+   if {$drmaaj_global_errors != ""} {
+      ts_log_severe $drmaaj_global_errors
+   }
+   unset drmaaj_global_errors
+}
+
+
+#****** check.60.exp/drmaaj_setup_level() ************************************************
 #  NAME
-#     drmaaj_setup() -- ??? 
+#     drmaaj_setup_level() -- ??? 
 #
 #  SYNOPSIS
-#     drmaaj_setup { } 
+#     drmaaj_setup_level { } 
 #
 #  FUNCTION
 #     Setup of test environment. 
@@ -975,14 +1002,17 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc drmaaj_setup {} {
+proc drmaaj_setup_level {} {
    global drmaaj_config current_drmaa_mode ts_config 
    global hosts_in_runlevel CHECK_ACT_LEVEL
+   global drmaaj_test_errors
    
    if {$ts_config(source_dir) == "none"} {
       ts_log_config "source directory is set to \"none\" - cannot run test"
       return 99
    }
+
+   set drmaaj_test_errors ""
 
    # returning -1 causes disabling a certain runlevel
    # here per run level settings can be prepared
@@ -1145,19 +1175,19 @@ proc drmaaj_setup {} {
    }
 }
 
-#****** check.60.exp/drmaaj_cleanup() ******
+#****** check.60.exp/drmaaj_cleanup_level() ******
 #  NAME
 #     drmaa_test_st_input_becomes_output() -- Test to ensure 
 #      input/output is treated correctly by DRMAA
 #
 #  SYNOPSIS
-#     drmaaj_cleanup {}
+#     drmaaj_cleanup_level {}
 #
 #  FUNCTION
-#     Undo changes since drmaaj_setup
+#     Undo changes since drmaaj_setup_level
 #
 #*******************************
-proc drmaaj_cleanup {} {
+proc drmaaj_cleanup_level {} {
    global backup_qmaster_params drmaaj_config ts_config current_drmaa_mode hosts_in_runlevel
 
    delete_all_jobs
