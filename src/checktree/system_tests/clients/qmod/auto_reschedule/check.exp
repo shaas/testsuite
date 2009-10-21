@@ -149,8 +149,8 @@ proc auto_reschedule_setup {} {
       return 99
    }
 
-   if {$CHECK_ACT_LEVEL == 3 && $ts_config(gridengine_version) < 62 } {
-      ts_log_config "Runlevel 3 needs Grid Engine version >= 62"
+   if {($CHECK_ACT_LEVEL == 3 || $CHECK_ACT_LEVEL == 2) && $ts_config(gridengine_version) < 62 } {
+      ts_log_config "Runlevel $CHECK_ACT_LEVEL needs Grid Engine version >= 62"
       return 99
    }
 
@@ -380,6 +380,7 @@ proc auto_reschedule_unknown_check_master {} {
       # here we have global reschedule_unkown enabled
       ts_log_fine "global reschedule_unkown enabled"
       wait_for_jobpending $job_id2 "Sleeper" 100 
+      ts_log_fine "reschedule_kill=$reschedule_kill"
       if {$reschedule_kill == 0} {
          if {[is_job_running $job_id3 "Sleeper"] != 1} {
             ts_log_severe "job $job_id3 should still run"
@@ -397,6 +398,7 @@ proc auto_reschedule_unknown_check_master {} {
          if {[is_job_running $job_id4 "Sleeper"] != -1} {
             ts_log_severe "pe (master) job $job_id4 should be reaped"
          }
+         ts_log_fine "reschedule_slave=$reschedule_slave"
          if {$reschedule_slave == 0} {
             if {[is_job_running $job_id5 "Sleeper"] != 1} {
                ts_log_severe "pe (slave) job $job_id5 should still run"

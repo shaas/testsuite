@@ -2355,8 +2355,8 @@ proc get_config { change_array {host global} {atimeout 60}} {
 #     {do_reset 0}  - if 1: any existing parameter is removed if not in change_array
 #
 #  RESULT
-#     -1 : timeout
-#      0 : ok
+#     < 0 : error
+#     >= 0 : ok
 #
 #     The change_array variable is build as follows:
 #
