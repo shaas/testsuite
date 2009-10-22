@@ -304,7 +304,7 @@ proc hedeby_check_master_host_file_permissions {} {
    set ignore_path {}
    lappend ignore_path "./tmp/executor"
    lappend ignore_path "./tmp/executor/*"
-
+   lappend ignore_path "./log/*"
 
    get_hedeby_default_services service_names
    foreach service $service_names(services) {
@@ -356,6 +356,7 @@ proc hedeby_file_permissions_check_managed_host {} {
       set ignore_path {}
       lappend ignore_path "./tmp/executor"
       lappend ignore_path "./tmp/executor/*"
+      lappend ignore_path "./log/*"
 
       hedeby_file_permissions_add_dir "log"
       hedeby_file_permissions_add_dir "run"
@@ -436,9 +437,7 @@ proc hedeby_file_permissions_add_ge_service_files { host ignore_path_var { ef_va
          ts_log_fine "expecting spool dir for service \"$service\""
          hedeby_file_permissions_add_dir  "spool/$service"  "" $admin_user ef
 
-         # Ignore all protocol files of failed execd (un)installations
-         lappend ignore_path "./log/$service"
-         lappend ignore_path "./log/$service/*"
+         # Files in log/$service must not be considered, they are globally excluded
 
          hedeby_file_permissions_add_file "spool/$service/res#*.srf" "" $admin_user ef
       }
@@ -479,10 +478,6 @@ proc hedeby_file_permissions_add_jvm_files { jvms_var { ef_var "" } } {
 
    foreach jvm $jvms(list) {
       hedeby_file_permissions_add_file "security/daemons/$jvm.keystore" "-rw-------" $jvms($jvm,owner)  ef
-      hedeby_file_permissions_add_file "log/$jvm-*.log.lck"             "" $jvms($jvm,owner)  ef
-      hedeby_file_permissions_add_file "log/$jvm-*.log"                 "" $jvms($jvm,owner)  ef
-      hedeby_file_permissions_add_file "log/$jvm.stdout"                "" $jvms($jvm,owner)  ef
-      hedeby_file_permissions_add_file "log/$jvm.stderr"                "" $jvms($jvm,owner)  ef
       hedeby_file_permissions_add_file "run/$jvm@*"                     "" $jvms($jvm,owner)  ef
    }
 }

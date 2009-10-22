@@ -171,7 +171,7 @@ proc hedeby_issue_684_cleanup_level {} {
 #       o Add simhost cloud service '$this(service)' to system
 #       o Add a virtual resource to cloud service to ensure that something is spooled
 #       o Remove the cloud service
-#       o Wait that the spool directory of service and the spool directory in SCP
+#       o Wait that the spool and temp directory of service and the spool directory in SCP
 #         disappears 
 #   
 #  INPUTS
@@ -197,6 +197,29 @@ proc hedeby_issue_684_check {} {
    }
    lappend this(cleanup_actions) "remove_service"
 
+   set base_dir  [get_hedeby_local_spool_dir $this(master_host)]
+   set service_spool_dir "$base_dir/spool/$this(service)"
+   set service_tmp_dir  "$base_dir/tmp/$this(service)"
+   set scp_spool_dir     "$base_dir/spool/resource_provider/$this(service)"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Checking the service '$this(service)' creates spool and temp directory"
+   #---------------------------------------------------------------------
+   set timeout     60
+   set raise_error 0
+   set to_go_away  0
+   if {[wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $service_spool_dir \
+                       $timeout $raise_error $to_go_away] != 0} {
+      ts_log_severe "Service '$this(service) did not create spool directory '$service_spool_dir' at startup"
+      return
+   }
+
+   if {[wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $service_tmp_dir \
+                       $timeout $raise_error $to_go_away] != 0} {
+      ts_log_severe "Service '$this(service) did not create temp directory '$service_tmp_dir' at startup"
+      return
+   }
+
    #---------------------------------------------------------------------
    ts_log_heading "Adding a virtual resources to cloud service '$this(service)'"
    #---------------------------------------------------------------------
@@ -221,26 +244,27 @@ proc hedeby_issue_684_check {} {
       unset this
       return
    }
-
    set this(cleanup_actions) {}
-   
-   #---------------------------------------------------------------------
-   ts_log_heading "Checking that the spool directory of service '$this(service)' disappears"
-   #---------------------------------------------------------------------
-   set base_dir  [get_hedeby_local_spool_dir $this(master_host)]
-   set service_spool_dir "$base_dir/spool/$this(service)"
-   set scp_spool_dir "$base_dir/spool/resource_provider/$this(service)"
+
    set timeout     60
    set raise_error 1
    set to_go_away  1
 
+   #---------------------------------------------------------------------
+   ts_log_heading "Checking that the spool directory of service '$this(service)' disappears"
+   #---------------------------------------------------------------------
    wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $service_spool_dir \
+                       $timeout $raise_error $to_go_away
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Checking that the temp directory of service '$this(service)' disappears"
+   #---------------------------------------------------------------------
+   wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $service_tmp_dir \
                        $timeout $raise_error $to_go_away
 
    #---------------------------------------------------------------------
    ts_log_heading "Checking that the spool directory of SCP '$this(service)' disappears"
    #---------------------------------------------------------------------
-
    wait_for_remote_dir $this(master_host) [get_hedeby_admin_user]  $scp_spool_dir \
                        $timeout $raise_error $to_go_away
 
