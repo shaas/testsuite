@@ -159,6 +159,8 @@ proc host_aliases_test_test1 {} {
       set nr_aliases [llength $host_name_array(aliases)]
       if { $nr_aliases == 0 } {
          ts_log_config "can't run test, host $ts_config(master_host) has no aliases"
+      } elseif { $nr_aliases == 1 && [string tolower [lindex $host_name_array(aliases) 0]] == "loghost"} {
+         ts_log_config "can't run test, host $ts_config(master_host) has single unsuitable alias loghost"
       } else {
          if { $host_name_array(hostname) != $host_name_array(sgename) } {
             ts_log_severe "there seems to be an host_aliases file, because hostname and sgename are not identical"
