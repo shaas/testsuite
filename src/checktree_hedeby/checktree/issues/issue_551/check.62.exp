@@ -156,13 +156,11 @@ proc hedeby_issue551_cleanup_level {} {
 #       MaxPendingJobsSLO is not working
 #
 #      Executed steps:
-#        1. modify configuration of one of the GE Adapters by adding there 
-#           MaxPendingJobsSLO slo with smdadm mc -c <component> command.
-#        2. update configuration of the component where slo was added with 
-#           sdmadm uc -c <component>
-#        3. disable all queue instances of the cluster qmod -d "*" on ge adapter host
-#        4. submit couple of sleeper jobs to the cluster
-#        5. Check if the jobs finish thanks to sent slo.
+#
+#         o Modify the SLO setup of GE service (MaxPendingJobsSLO(urg=65), fixed_usage(usage=50)
+#         o Disable all queues in the cluster behind the GE service
+#         o Submit one sleeper job
+#         o Wait until the MPJ SLOs produces a need
 #   
 #  INPUTS
 #     no input parameters
@@ -175,42 +173,55 @@ proc hedeby_issue551_check {} {
    global check_name
    upvar #0 hedeby_issue551_ctx ctx
 
-   ts_log_fine "Running test '$check_name' with ge-adapter '$ctx(ge_adapter)' ..."
-
-   set error_text ""
    get_current_cluster_config_array ts_config
    set sge_root $ts_config(product_root)
 
-   #add MaxPendingJobs slo to the configuration of the ge adapter
-   #sloUpdateInterval is set to 10 seconds
-   set slos [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" "" 1]
-   if {[set_service_slos "mod_config" $ctx(ge_adapter) $slos 1 "seconds" 10] != 0} {
-      append error_text "Setting slos for service \"$ctx(ge_adapter)\" failed!"
+
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Setting up SLOs for ge service '$ctx(ge_adapter)'"
+   #--------------------------------------------------------------------------------
+   set slo_name "mpj"
+   set urg      65
+   set slo_update_interval 10
+
+   # define a request filter that never matches a movable resource 
+   set requestFilter "<common:request>static = true</common:request>"
+   set resourceFilter ""
+
+   set slos [create_max_pending_jobs_slo $urg $slo_name $resourceFilter $requestFilter "" 1]
+
+   # Add a fixed_usage SLO, the assigned resources should not move
+   append slos [create_fixed_usage_slo 50]
+
+   if {[set_service_slos "mod_config" $ctx(ge_adapter) $slos 1 "seconds" $slo_update_interval] != 0} {
+      return
    }
 
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Disable all queues of cluster '$ctx(ge_adapter)'"
+   #--------------------------------------------------------------------------------
    #disable all queues of our ge_adapter service 
    ts_log_fine "disabling queues on qmaster $ctx(master_host)"
    if {[disable_queue {\\*}] != 0} {
-      append error_text "Disabling of queues of service $ctx(ge_adapter) on resource $ctx(master_host) failed!"
+      ts_log_severe "Disabling of queues of service $ctx(ge_adapter) on resource $ctx(master_host) failed!"
+      return
    }
 
-   #submit sleeper jobs, job should wait cause all queues are disabled
-   set tries 3
-   set sleep_time 10
-   for {set i 0} {$i < $tries} {incr i} {
-      set my_outputs "-o /dev/null -e /dev/null"
-      set arguments "$my_outputs $sge_root/examples/jobs/sleeper.sh $sleep_time"
-      submit_job $arguments
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Submit a sleeper job"
+   #--------------------------------------------------------------------------------
+   if {[submit_job "-o /dev/null -e /dev/null $sge_root/examples/jobs/sleeper.sh 1"] < 0} {
+      return
+   }
+
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Waiting until SLO '$slo_name' produces a need"
+   #--------------------------------------------------------------------------------
+   set si($ctx(ge_adapter),$slo_name,quantity)  1
+   set si($ctx(ge_adapter),$slo_name,urgency)   $urg
+   set timeout 25 
+   if {[wait_for_service_slo_info si $timeout] != 0} {
+      ts_log_severe "MaxPendingJobsSLO in GE service '$ctx(ge_adapter)' did  produce a need"
    }
    
-   #now we are waiting for need to be send and for additional resource on which job could be executed
-   set time [expr "30 + $tries * $sleep_time"] ;# in seconds
-   if {[wait_for_end_of_all_jobs $time] != 0} {
-      append error_text "Service $ctx(ge_adapter) did not get additional resources to finish submitted jobs"
-   }
-   
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
-   }
 }

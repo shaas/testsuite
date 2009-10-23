@@ -230,8 +230,15 @@ proc permanent_request_check {} {
    if {[get_show_resource_request_info]} {
       return
    }
-   set slo_quantity $res_req_info(spare_pool,PermanentRequestSLO_changed,quantity)
-   set slo_urgency  $res_req_info(spare_pool,PermanentRequestSLO_changed,urgency)
+
+   if {![info exists res_req_info(spare_pool,$SLO_name,quantity)]} {
+      set msg "Did not find a resource request for SLO PermanentRequestSLO_changed.\n"
+      append msg "Existing resource requests:\n[format_array res_req_info]"
+      ts_log_severe $msg
+      return
+   }
+   set slo_quantity $res_req_info(spare_pool,$SLO_name,quantity)
+   set slo_urgency  $res_req_info(spare_pool,$SLO_name,urgency)
    if { $slo_quantity != $this(quantity) } {
       ts_log_severe "Default quantity of PermanentRequestSLO resource request $slo_quantity != $this(quantity)"
       return
