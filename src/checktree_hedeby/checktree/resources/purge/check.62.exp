@@ -1,0 +1,773 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+##########################################################################
+# This test checks the purge_resource command that was introduced to
+# fix RFE issue 687.
+#
+# The different types of purge tests:
+#   - purge resource in ASSIGNED   state from GE service        
+#   - purge resource in ERROR      state from GE service        
+#   - purge resource in ASSIGNED   state from spare pool
+#   - purge resource in ASSIGNED   state from cloud adapter     
+#   - purge resource in ERROR      state from cloud adapter     
+#   - purge resource in UNASSIGNED state from resource provider 
+#
+# Each type is tested in a separate run level.
+#
+# For each test there is a separate setup and cleanup function that is
+# dispatched from the run level setup and cleanup functions.
+#
+# The basic sequence of actions is:
+#   1) create resource in appropriate state
+#   2) purge resource
+#   3) wait for REMOVE and REMOVED events in history
+#   4) recreate resource (cleanup)
+#
+global hedeby_purge_resource_test_types
+set hedeby_purge_resource_test_types {GE_ASSIGNED GE_ERROR SP_ASSIGNED CLOUD_ASSIGNED CLOUD_ERROR RP_UNASSIGNED}
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_purge_resource"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set i 0
+foreach type $hedeby_purge_resource_test_types {
+   set check_description($i)   "Purge resource test with type: [lindex $hedeby_purge_resource_test_types $i]"
+   incr i
+}
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_purge_resource_init_level"
+set check_highest_level        [expr [llength $hedeby_purge_resource_test_types] - 1]
+
+set check_setup_function         "hedeby_purge_resource_setup"
+set check_cleanup_function       "hedeby_purge_resource_cleanup"
+set check_setup_level_function   "hedeby_purge_resource_setup_level"
+set check_cleanup_level_function "hedeby_purge_resource_cleanup_level"
+
+set check_functions            {}   
+lappend check_functions "hedeby_purge_resource_check"
+
+
+
+#****** resources/purge/hedeby_purge_resource_init_level() ************************
+#  NAME
+#     hedeby_purge_resource_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. This test has as many run
+#     levels as there are entries in the hedeby_purge_resource_test_types array.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for allowed run levels
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_purge_resource_init_level {} {
+  global CHECK_ACT_LEVEL hedeby_purge_resource_test_types
+
+  if { $CHECK_ACT_LEVEL < [llength $hedeby_purge_resource_test_types] } {
+     return 0
+  }
+  
+  return -1
+}
+
+#****** resources/purge/hedeby_purge_resource_setup() *********************************
+#  NAME
+#     hedeby_purge_resource_setup() -- setup function
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_setup{ } 
+#
+#  FUNCTION
+#     This function is called once per test (not once per run level)
+#
+#     Set up hedeby_purge_resource_ctx variable. And check if test is supported.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_setup { } {
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "This test works only with the purge_resource command.\nHedeby [hedeby_get_version] does not support this command."
+      return 99
+   }
+
+   upvar #0 hedeby_purge_resource_ctx this
+   global hedeby_config
+
+   # pick a random GE service and resource from this service for GE assigned test
+   get_hedeby_default_services service_names
+   set this(ge,service) [pick_random $service_names(services)]
+   set this(ge,res)     [pick_random $service_names(execd_hosts,$this(ge,service))]
+   # we need the host on which the service runs for getting the correct timestamp
+   # for wait_for_notification call
+   set this(ge,host)    $service_names(master_host,$this(ge,service))
+
+   # pick a random GE service and resource from this service for GE error test
+   set this(ge_err,service) [pick_random $service_names(services)]
+   set this(ge_err,res)     [pick_random $service_names(execd_hosts,$this(ge_err,service))]
+   set this(ge_err,host)    $service_names(master_host,$this(ge_err,service))
+
+   # pick a random spare pool resource for spare pool assigned test
+   set this(sp,res)  [pick_random [get_all_spare_pool_resources]]
+   # spare pool always runs on SDM master host
+   set this(sp,host) $hedeby_config(hedeby_master_host)
+
+   # set values for cloud service tests (with simhosts)
+   set this(cloud,service) "simcloud"
+   set this(cloud,host)    $hedeby_config(hedeby_master_host)
+   set this(cloud,res)     "sim1"
+
+   return
+}
+
+#****** resources/purge/hedeby_purge_resource_cleanup() *******************************
+#  NAME
+#     hedeby_purge_resource_cleanup() -- cleanup function
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_cleanup{ } 
+#
+#  FUNCTION
+#     Cleans up the whole test. Called once per test, not per runlevel.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_cleanup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   unset -nocomplain this
+   return
+}
+
+#****** resources/purge/hedeby_purge_resource_setup_level() *********************************
+#  NAME
+#     hedeby_purge_resource_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_setup_level { } 
+#
+#  FUNCTION
+#     Dispatch to the relevant function for the current run level and print out
+#     a heading for this runlevel.
+#
+#     -> hedeby_purge_resource_XXX_setup
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_setup_level {} {
+   global CHECK_ACT_LEVEL check_description
+   ts_log_heading $check_description($CHECK_ACT_LEVEL)
+
+   hedeby_purge_resource_dispatch "setup"
+}
+
+#****** resources/purge/hedeby_purge_resource_cleanup_level() *******************************
+#  NAME
+#     hedeby_purge_resource_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_cleanup_level { } 
+#
+#  FUNCTION
+#     Dispatch to the relevant function for the current run level.
+#
+#     -> hedeby_purge_resource_XXX_cleanup
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_cleanup_level {} {
+   hedeby_purge_resource_dispatch "cleanup"
+}
+
+
+#****** resources/purge/hedeby_purge_resource_check *****************************
+#  NAME
+#     hedeby_purge_resource_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_check{ } 
+#
+#  FUNCTION
+#
+#     This test is called for every run level and performs the following steps:
+#
+#     o Purge $this(res) from the system
+#     o Wait until the history contains a REMOVE and REMOVED event for this resource
+#
+#     The setup and cleanup is done in the test type specific setup and cleanup
+#     functions hedeby_purge_resource_XXX_setup and hedeby_purge_resource_XXX_cleanup
+#   
+#  INPUTS
+#     this(res)  - the resource to purge 
+#     this(host) - the host on which the owning service of resource this(res) runs
+#
+#  RESULT
+#     no return value
+#*******************************************************************************
+proc hedeby_purge_resource_check {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   ts_log_heading "Purging resource $this(res)"
+
+   # get the remote time from the host on which the service is running as the
+   # history events get their timestamps from the creating host of the event
+   set start_time [get_remote_time $this(host)]
+
+   # purge the resource
+   sdmadm_command_opt "pr -r $this(res)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+
+   # and wait for REMOVE, REMOVED event in history
+   set hist(0,resource) $this(res)
+   set hist(0,type)     "RESOURCE_REMOVE"
+   set hist(1,resource) $this(res)
+   set hist(1,type)     "RESOURCE_REMOVED"
+   set hist(count) 2
+   set err_hist(count) 0
+
+   wait_for_notification $start_time hist err_hist
+   return
+}
+
+#****** check.62/hedeby_purge_resource_dispatch() ******************************
+#  NAME
+#     hedeby_purge_resource_dispatch() -- helper function for setup/cleanup level dispatch
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_dispatch { dispatch_type } 
+#
+#  FUNCTION
+#     Helper function that dispatches to the respective setup and cleanup
+#     functions depending on the current CHECK_ACT_LEVEL.
+#
+#  INPUTS
+#     dispatch_type - "setup" or "cleanup"
+#
+#  SEE ALSO
+#     hedeby_purge_resource_setup_level()
+#     hedeby_purge_resource_cleanup_level()
+#*******************************************************************************
+proc hedeby_purge_resource_dispatch { dispatch_type } {
+   global CHECK_ACT_LEVEL hedeby_purge_resource_test_types
+
+   set type [lindex $hedeby_purge_resource_test_types $CHECK_ACT_LEVEL]
+   set proc_name "hedeby_purge_resource_${type}_$dispatch_type"
+   if {[llength [info procs $proc_name]]} {
+      # procedure is known -> call it
+      $proc_name
+   } else {
+      # procedure unknown -> internal error
+      ts_log_warning "Internal error: Unknown procedure '$proc_name', aborting ..."
+   }
+}
+
+
+#****** check.62/hedeby_purge_resource_cloud_setup_helper() ********************
+#  NAME
+#     hedeby_purge_resource_cloud_setup_helper() -- helper for setting up cloud tests
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_cloud_setup_helper { } 
+#
+#  FUNCTION
+#     Helper function that adds the cloud service this(cloud,service) of type
+#     simhost to the system. Furthermore the this(cloud,res) resource is added
+#     to this cloud service.
+#
+#     Used in hedeby_purge_resource_CLOUD_XXX_setup functions.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_cloud_setup_helper {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   set this(res)  $this(cloud,res)
+   set this(host) $this(cloud,host)
+   set this(cloud,do_cleanup) 0
+
+   set opts(cloud_type)   "simhost"
+   set opts(service_name) $this(cloud,service)
+   set opts(host)         $this(cloud,host)
+   set opts(start)        "true"
+   set opts(maxCloudHostsInSystemLimit) 10
+   if {[hedeby_add_cloud_service opts] != 0} {
+      return
+   }
+   unset opts
+   # we need to remove the service in the cleanup
+   set this(cloud,do_cleanup) 1
+
+   if {[hedeby_add_resources_to_service $this(cloud,res) $this(cloud,service)] != 0} {
+      return
+   }
+}
+
+#****** check.62/hedeby_purge_resource_cloud_cleanup_helper() ******************
+#  NAME
+#     hedeby_purge_resource_cloud_cleanup_helper() -- helper for cleaning up cloud tests
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_cloud_cleanup_helper { } 
+#
+#  FUNCTION
+#     Helper function that removes the cloud service from the system.
+#
+#     Used in hedeby_purge_resource_CLOUD_XXX_cleanup functions
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_cloud_cleanup_helper {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   if {$this(cloud,do_cleanup)} {
+      if {[hedeby_remove_service $this(cloud,service) $this(cloud,host)] != 0} {
+         return
+      }
+   }
+}
+
+#****** check.62/hedeby_purge_resource_GE_ASSIGNED_setup() *********************
+#  NAME
+#     hedeby_purge_resource_GE_ASSIGNED_setup() -- setup for test type GE_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_GE_ASSIGNED_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an ASSIGNED resource from a GE service.
+#
+#     Nothing needs to be done here.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_GE_ASSIGNED_setup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   set this(res)  $this(ge,res)
+   set this(host) $this(ge,host)
+}
+
+#****** check.62/hedeby_purge_resource_GE_ASSIGNED_cleanup() *******************
+#  NAME
+#     hedeby_purge_resource_GE_ASSIGNED_cleanup() -- cleanup for test type GE_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_GE_ASSIGNED_cleanup { } 
+#
+#  FUNCTION
+#     As the purge_resource does not uninstall the execd, the purged resource
+#     is autodiscovered automatically by the GE service. We simply have to wait
+#     for it.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_GE_ASSIGNED_cleanup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   # simply wait until resource is autodiscovered again
+   unset -nocomplain exp_res_info
+   set exp_res_info($this(ge,res),service) $this(ge,service)
+   set exp_res_info($this(ge,res),state)   "ASSIGNED"
+   wait_for_resource_info exp_res_info
+}
+
+#****** check.62/hedeby_purge_resource_GE_ERROR_setup() ************************
+#  NAME
+#     hedeby_purge_resource_GE_ERROR_setup() -- setup for test type GE_ERROR
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_GE_ERROR_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an ERROR resource from a GE service.
+#
+#     Uses the produce_error_resource function for creating the resource in ERROR
+#     state.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_GE_ERROR_setup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   set this(res)  $this(ge_err,res)
+   set this(host) $this(ge_err,host)
+
+   # set resource into ERROR state
+   produce_error_resource $this(res)
+}
+
+#****** check.62/hedeby_purge_resource_GE_ERROR_cleanup() **********************
+#  NAME
+#     hedeby_purge_resource_GE_ERROR_cleanup() -- cleanup for test type GE_ERROR
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_GE_ERROR_cleanup { } 
+#
+#  FUNCTION
+#     Uses reset_produced_error_resource to restart the execd on the resource.
+#     Then the resource is autodiscovered automatically as in the case of
+#     GE_ASSIGNED. So the cleanup just has to wait for the resource to appear.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_GE_ERROR_cleanup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   # reset resource from ERROR state, but take care that resource was purged from system
+   set res_was_purged 1
+   if { [reset_produced_error_resource $this(res) $res_was_purged] != 0 } {
+      return
+   }
+
+   # simply wait until resource is autodiscovered again
+   unset -nocomplain exp_res_info
+   set exp_res_info($this(res),service) $this(ge_err,service)
+   set exp_res_info($this(res),state)   "ASSIGNED"
+   wait_for_resource_info exp_res_info
+}
+
+#****** check.62/hedeby_purge_resource_SP_ASSIGNED_setup() *********************
+#  NAME
+#     hedeby_purge_resource_SP_ASSIGNED_setup() -- setup for test type SP_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_SP_ASSIGNED_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an ASSIGNED resource from the spare pool
+#
+#     It is not possible to produce a resource in ERROR state at the spare
+#     pool, so there is no test for this.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_SP_ASSIGNED_setup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   set this(res)  $this(sp,res)
+   set this(host) $this(sp,host)
+}
+
+#****** check.62/hedeby_purge_resource_SP_ASSIGNED_cleanup() *******************
+#  NAME
+#     hedeby_purge_resource_SP_ASSIGNED_cleanup() -- cleanup for test type SP_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_SP_ASSIGNED_cleanup { } 
+#
+#  FUNCTION
+#     Cleanup for purging of an ASSIGNED resource from the spare pool
+#
+#     Readd the purged resource to the spare pool and wait until it is ASSIGNED.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_SP_ASSIGNED_cleanup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   add_host_resources $this(res) "spare_pool"
+
+   unset -nocomplain exp_res_info
+   set exp_res_info($this(res),service) "spare_pool"
+   set exp_res_info($this(res),state)   "ASSIGNED"
+   wait_for_resource_info exp_res_info
+}
+
+#****** check.62/hedeby_purge_resource_CLOUD_ASSIGNED_setup() ******************
+#  NAME
+#     hedeby_purge_resource_CLOUD_ASSIGNED_setup() -- setup for test type CLOUD_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_CLOUD_ASSIGNED_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an ASSIGNED resource from a cloud service
+#
+#     Sets up a simhost cloud service with one resource this(cloud,res) for purging.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_CLOUD_ASSIGNED_setup {} {
+   hedeby_purge_resource_cloud_setup_helper
+}
+
+#****** check.62/hedeby_purge_resource_CLOUD_ASSIGNED_cleanup() ****************
+#  NAME
+#     hedeby_purge_resource_CLOUD_ASSIGNED_cleanup() -- cleanup of test type CLOUD_ASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_CLOUD_ASSIGNED_cleanup { } 
+#
+#  FUNCTION
+#     Removes the cloud service from the system.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_CLOUD_ASSIGNED_cleanup {} {
+   hedeby_purge_resource_cloud_cleanup_helper
+}
+
+#****** check.62/hedeby_purge_resource_CLOUD_ERROR_setup() *********************
+#  NAME
+#     hedeby_purge_resource_CLOUD_ERROR_setup() -- setup of test type CLOUD_ERROR
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_CLOUD_ERROR_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an ERROR resource from a cloud service
+#
+#     Sets up a simhost cloud service with one resource this(cloud,res). To
+#     produce the error, the startupAction is reconfigured so that the first
+#     step produces an error. Then, when the startup of the simhost is
+#     triggered by moving the host to the spare pool, the resource goes into
+#     ERROR state.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_CLOUD_ERROR_setup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+   global ts_config
+
+   hedeby_purge_resource_cloud_setup_helper
+
+   # now change the startup action
+   set new_content    "<gef:step xsi:type=\"gef:ScriptingStepConfig\" name=\"fail\">\n"
+   append new_content "  <gef:script>\n"
+   append new_content "    <gef:file>$ts_config(testsuite_root_dir)/checktree_hedeby/scripts/gef_failing_step.sh</gef:file>\n"
+   append new_content "  </gef:script>\n"
+   append new_content "</gef:step>\n"
+   if {[hedeby_change_gef_action $this(cloud,service) "startupAction" $new_content] != 0} {
+      return
+   }
+
+   # and create ERROR state by triggering move to spare pool
+   sdmadm_command_opt "mvr -r $this(res) -s spare_pool"
+   if {$prg_exit_state != 0} {
+      return
+   }
+
+   set eri($this(res),service) $this(cloud,service)
+   set eri($this(res),state)   "ERROR"
+   if {[wait_for_resource_info_opt eri ] != 0} {
+      return
+   }
+   unset eri
+}
+
+#****** check.62/hedeby_purge_resource_CLOUD_ERROR_cleanup() *******************
+#  NAME
+#     hedeby_purge_resource_CLOUD_ERROR_cleanup() -- cleanup of test type CLOUD_ERROR
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_CLOUD_ERROR_cleanup { } 
+#
+#  FUNCTION
+#     Removes the cloud service from the system.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_CLOUD_ERROR_cleanup {} {
+   hedeby_purge_resource_cloud_cleanup_helper
+}
+
+#****** check.62/hedeby_purge_resource_RP_UNASSIGNED_setup() *******************
+#  NAME
+#     hedeby_purge_resource_RP_UNASSIGNED_setup() -- setup of test type RP_UNASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_RP_UNASSIGNED_setup { } 
+#
+#  FUNCTION
+#     Setup for purging of an UNASSIGNED resource from the resource provider
+#
+#     Shutdown the spare pool with -free_resources option. The resources go to
+#     resource provider and stay there UNASSIGNED.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_RP_UNASSIGNED_setup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   set this(res)  $this(sp,res)
+   set this(host) $this(sp,host)
+
+   set this(sp,do_cleanup) 0
+
+   # shutdown spare pool with free resources flag assigns the resources from
+   # spare pool to RP
+   sdmadm_command_opt "sds -s spare_pool -fr"
+   if { $prg_exit_state != 0 } {
+      return
+   }
+   set this(sp,do_cleanup) 1
+
+   # wait for resources to appear at resource provider
+   foreach res [get_all_spare_pool_resources] {
+      set eri($res,service) "resource_provider"
+      set eri($res,state)   "UNASSIGNED"
+   }
+   if {[wait_for_resource_info_opt eri ] != 0} {
+      return
+   }
+   unset eri
+}
+
+#****** check.62/hedeby_purge_resource_RP_UNASSIGNED_cleanup() *****************
+#  NAME
+#     hedeby_purge_resource_RP_UNASSIGNED_cleanup() -- cleanup of test type RP_UNASSIGNED
+#
+#  SYNOPSIS
+#     hedeby_purge_resource_RP_UNASSIGNED_cleanup { } 
+#
+#  FUNCTION
+#     For cleaning up, the spare pool is started up and the purged resource is
+#     readded. The other resources from spare pool are automatically moved
+#     back to spare pool because of the PermanentRequestSLO.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_purge_resource_RP_UNASSIGNED_cleanup {} {
+   upvar #0 hedeby_purge_resource_ctx this
+
+   if {$this(sp,do_cleanup)} {
+      # startup spare pool
+      sdmadm_command_opt "sus -s spare_pool"
+      if { $prg_exit_state != 0 } {
+         return
+      }
+
+      # readd resource to spare pool
+      if {[add_host_resources $this(res) "spare_pool"] != 0} {
+         return
+      }
+
+      # and wait until all spare pool resources are assigned again
+      foreach res [get_all_spare_pool_resources] {
+         set eri($res,service) "spare_pool"
+         set eri($res,state)   "ASSIGNED"
+      }
+      if {[wait_for_resource_info_opt eri ] != 0} {
+         return
+      }
+      unset eri
+   }
+}

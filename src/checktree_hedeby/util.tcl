@@ -281,6 +281,10 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #  RESULT
 #     the prg_exit_state of the sdmadm command
 #
+#  NOTES
+#     TODO: use the new hedeby_add_resources_to_service after setting up
+#     default properties (no temp file necessary)
+#
 #*******************************************************************************
 proc add_host_resources { host_resources { service "spare_pool" } { on_host "" } { as_user ""} {raise_error 1} } {
    global hedeby_config
@@ -352,6 +356,8 @@ proc add_host_resources { host_resources { service "spare_pool" } { on_host "" }
    # now use sdmadm command ...
    set opt(exit_var) ar_exit_state
    set opt(raise_error) $raise_error
+   set opt(user) $exec_user
+   set opt(host) $exec_host
    sdmadm_command_opt "ar -f $file_name -s $service" opt
 
    if {$ar_exit_state == 0} {
@@ -359,7 +365,7 @@ proc add_host_resources { host_resources { service "spare_pool" } { on_host "" }
          set exp_res_info($res,state) "ASSIGNED"
          set exp_res_info($res,service) "$service"
       }
-      wait_for_resource_info exp_res_info 60 $raise_error
+      set ar_exit_state [wait_for_resource_info exp_res_info 60 $raise_error]
       unset exp_res_info
    }
 
@@ -4173,7 +4179,7 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #     This method poll every 3 seconds the history of the sdm system (sdmadm shist)
 #     and search in the result for a sequence of events.
 #     It will stop if 
-#       - events does not occur in the correct order
+#       - events do not occur in the correct order
 #       - the timeout is reached
 #       - an event of the error history has been found 
 #
@@ -6761,7 +6767,7 @@ proc produce_error_resource { resource { method "soft" } } {
 #     reset_produced_error_resource() -- reset produced ERROR state
 #
 #  SYNOPSIS
-#     reset_produced_error_resource { resource } 
+#     reset_produced_error_resource { resource {resource_was_removed 0} }
 #
 #  FUNCTION
 #     This procedure is used to cleanup the ERROR state of a resource which
@@ -6770,6 +6776,8 @@ proc produce_error_resource { resource { method "soft" } } {
 #
 #  INPUTS
 #     resource - resource to startup the execd
+#     resource_was_removed - if the resource was removed from the system
+#                            altogether, default = 0 (not removed)
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -6777,8 +6785,12 @@ proc produce_error_resource { resource { method "soft" } } {
 #  SEE ALSO
 #     util/produce_error_resource()
 #*******************************************************************************
-proc reset_produced_error_resource { resource } {
-   set ge_hosts [get_hedeby_current_services service_names]
+proc reset_produced_error_resource { resource {resource_was_removed 0}} {
+   if {$resource_was_removed} {
+      set ge_hosts [get_hedeby_default_services service_names]
+   } else {
+      set ge_hosts [get_hedeby_current_services service_names]
+   }
 
    set error_text ""
    if { ![info exists service_names(ts_cluster_nr,$resource)] } {
@@ -11136,9 +11148,9 @@ proc hedeby_remove_service { service_name {service_host ""} } {
 #
 #  FUNCTION
 #
-#     Add a all resource defined in the res_names list to a service.  Waits
-#     until the resources goes into ASSIGNED state.  Optionally in stores the
-#     resource ids of the resource in a tcl array
+#     Add all resources defined in the res_names list to a service.  Waits
+#     until the resources go into ASSIGNED state.  Optionally it stores the
+#     resource ids of the resource in a tcl array.
 #
 #  INPUTS
 #     res_names      - list of unbound_names for resource that will be added

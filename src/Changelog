@@ -6,6 +6,17 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-10-23-0: Enhancem.:  o added SDM test for RFE issue 687:
+                               resources/purge/check.62.exp
+                             o added SDM test for move resource from serviceA
+                               to serviceA:
+                               resources/move/same_service/check.62.exp
+                             o new SDM cloud helper function
+                               hedeby_change_gef_action
+                 Bugfix:     Fixed changed bundle strings
+                 Review:     RH
+
 RH-2009-10-22-0: Bugfix:     Hedeby
                              o Issue 551 test improved
                              o tcl error in permanentRequestSLO test fixed
@@ -16,9 +27,9 @@ LP-2009-10-22-0: Bugfix:     Made host_aliases test unsupported for loghost
                  Review:     JO
 
 RH-2009-10-22-0: Bugfix:     Hedeby:
-                                o file_permission test ignores files in log directory
-                                o issue_684 test checks that tmp dir of removed service
-                                  disappears
+                             o file_permission test ignores files in log directory
+                             o issue_684 test checks that tmp dir of removed service
+                               disappears
                  Review:     TB
 
 CR-2009-10-21-1: Enhancem.:  o modified drmaaj test to run all checklevels even

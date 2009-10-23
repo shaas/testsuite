@@ -194,3 +194,81 @@ proc hedeby_create_cloud_service_sequence_for_ec2 { service_opts sequence } {
 }
 
 
+#****** cloud/hedeby_change_gef_action() *******************
+#  NAME
+#     hedeby_change_gef_action() -- get the vi sequence for ec2 cloud type
+#
+#  SYNOPSIS
+#     hedeby_change_gef_action { service_opts } 
+#
+#  FUNCTION
+#     Modifies the configuration of the given service, updates the
+#     configuration and waits until the service is running again.
+#
+#     The action_type decides which action in the configuration is
+#     changed/replaced. The action_type must already exist in the
+#     configuration, otherwise the vi sequence fails.
+#
+#
+#  INPUTS
+#     service        - the name of the service to modify
+#     action_type    - the type of the action (startupAction, shutdownAction, etc.)
+#     action_content - the new content of the action XML element (without
+#                      surrounding xxxAction element)
+#
+#  RESULT
+#    0 -  on success
+#    else error
+#
+#  EXAMPLE
+#
+#    set new_content    "<gef:step xsi:type=\"gef:ScriptingStepConfig\" name=\"fail\">\n"
+#    append new_content "  <gef:script>\n"
+#    append new_content "    <gef:file>$ts_config(testsuite_root_dir)/scripts/gef_failing_step.sh</gef:file>\n"
+#    append new_content "  </gef:script>\n"
+#    append new_content "</gef:step>\n"
+#    if {[hedeby_change_gef_action $this(cloud,service) "startupAction" $new_content] != 0} {
+#       return
+#    }
+#
+#*******************************************************************************
+proc hedeby_change_gef_action { service action_type action_content {opt ""} } {
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   set ispid [hedeby_mod_setup_opt "mc -c $service" error_text opts]
+   if { $error_text != "" } {
+      ts_log_severe "Could not start sdmadm mc: $error_text"
+      return -1
+   }
+   ts_log_fine "Changing $action_type of service $service..."
+
+   set new_action    "<cloud_adapter:$action_type>\n"
+   append new_action "$action_content\n"
+   append new_action "</cloud_adapter:$action_type>\n"
+   ts_log_finer "New action:\n$new_action"
+
+   set seq {}
+   lappend seq "/$action_type\n"        ;# Search for action start tag
+   lappend seq "ma"                     ;# mark line
+   lappend seq "n"                      ;# Search for action end tag
+   lappend seq ":'a,.change\n"          ;# Change the lines
+   lappend seq $new_action              ;# insert action
+   lappend seq ".\n"                    ;# end insert mode with . line
+
+   hedeby_mod_sequence $ispid $seq error_text
+   hedeby_mod_cleanup $ispid error_text
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+
+   # update component
+   set output [sdmadm_command_opt "uc -c $service" opts]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+
+   # and wait for component startup
+   set exp_serv_info($service,cstate) "STARTED"
+   return [wait_for_service_info exp_serv_info 60 $opts(raise_error)]
+}

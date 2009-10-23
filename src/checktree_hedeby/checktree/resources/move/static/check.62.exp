@@ -129,9 +129,8 @@ proc static_resource_assignment_check {} {
       }
 
       # build expected output message from bundle properties file ... 
-      set xyz(0) "$service"
-      set xyz(1) "$resource*"
-      set expected_output [create_bundle_string "scp.rr.ir.s" xyz]
+      set xyz(0) "$resource*"
+      set expected_output [create_bundle_string "ara.ex.resStatic" xyz]
       ts_log_fine "expected output: \"$expected_output\""
 
       # get sdmadm output message string ...
