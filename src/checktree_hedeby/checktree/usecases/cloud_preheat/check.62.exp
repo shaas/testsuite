@@ -1,0 +1,428 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_cloud_preheat"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests cloud adapter with a spare_pool to preheat cloud resources"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_cloud_preheat_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_cloud_preheat_setup_level"
+set check_cleanup_level_function "hedeby_cloud_preheat_cleanup_level"
+
+lappend check_functions "hedeby_cloud_preheat_check"
+
+
+#****** cloud_preheat/hedeby_cloud_preheat_init_level() ************************
+#  NAME
+#     hedeby_cloud_preheat_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_cloud_preheat_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_cloud_preheat_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** cloud_preheat/hedeby_cloud_preheat_setup_level() *********************************
+#  NAME
+#     hedeby_cloud_preheat_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_preheat_setup_level { } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_preheat_setup_level {} {
+
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "This test work only with bound/unbound resource.\nHedeby [hedeby_get_version] does not support bound/unbound resources"
+      return 99
+   }
+
+   upvar #0 hedeby_cloud_preheat_ctx this 
+   upvar #0 hedeby_cloud_preheat_qmaster_config qmaster_config
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+
+   set this(cloud_service)    "sim"
+   set this(service_host)     $hedeby_config(hedeby_master_host)
+   set this(sim1,id)          "sim1"
+   set this(sim2,id)          "sim2"
+   set this(timeout)          60
+
+   get_hedeby_default_services service_names
+   set this(ge_service)  [pick_random $service_names(services)]
+   #set this(ge_service)  [lindex $service_names(services) 0]
+
+   set this(cleanup_actions) ""
+
+   # To disable the queues of the cluster we must switch
+   # the current cluster number
+   # Will be reset in the cleanup function
+   set this(org_cluster_nr) [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(ge_service))
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Disabling all queues in cluster '$this(ge_service)'"
+   #---------------------------------------------------------------------
+   if {[disable_queue {\\*}] != 0} {
+      ts_log_severe "Could not disable the queues in cluster '$this(ge_service)'"
+      return
+   }
+
+   # GEAdapter install script for sim_hosts modifies the global qmaster params
+   # => save configuration and restore it in cleanup
+   get_config qmaster_config
+
+}
+
+#****** cloud_preheat/hedeby_cloud_preheat_cleanup_level() *******************************
+#  NAME
+#     hedeby_cloud_preheat_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_preheat_cleanup_level { } 
+#
+#  FUNCTION
+#     Deletes all jobs on current cluster
+#     Removes the cloud resources from the system
+#     Removes the cloud service from the system
+#     Resets qmaster config (get rid of simhost mode)
+#     Resets current cluster config number
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_preheat_cleanup_level {} {
+   upvar #0 hedeby_cloud_preheat_ctx this
+   upvar #0 hedeby_cloud_preheat_qmaster_config qmaster_config
+
+   if {[lsearch $this(cleanup_actions) "delete_job"] >= 0} {
+      delete_all_jobs
+   }
+
+   if {[lsearch $this(cleanup_actions) "remove_sim1"] >= 0} {
+      hedeby_remove_resources $this(sim1,id)
+   }
+
+   if {[lsearch $this(cleanup_actions) "remove_sim2"] >= 0} {
+      hedeby_remove_resources $this(sim2,id)
+   }
+
+   if {[lsearch $this(cleanup_actions) "remove_cloud_service"] >= 0} {
+      hedeby_remove_service $this(cloud_service) $this(service_host)
+   }
+
+   reset_default_slos "mod_config"
+
+   enable_queue {\\*}
+
+   if {[info exists qmaster_config]} {
+      # Restore the global qmaster config
+      reset_config qmaster_config
+      unset qmaster_config
+   } 
+   # Reset the cluster number
+   set_current_cluster_config_nr $this(org_cluster_nr)
+
+   # Reset the context
+   unset this
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** cloud_preheat/hedeby_cloud_preheat_check *****************************
+#  NAME
+#     hedeby_cloud_preheat_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_cloud_preheat_check{ } 
+#
+#  FUNCTION
+#
+#    This test performs the following steps:
+#
+#      o Setup a cloud adapter for simhost (service name = sim)
+#      o Setup a spare_pool (acting as preheater for cloud resources, service_name = spare_pool)
+#        (Reusing existing spare_pool)
+#    
+#     SLOSetup:
+#
+#       Setup the SLOs in a way that spare resources from spare_pool are always
+#       preferred, this means that the usage of the resources in spare_pool must be
+#       lower than the usage of resources in sim.
+#       To guarantee that the spare pool is correctly filled with preheated
+#       resources a MinResourceSLO in spare_pool service is needed.
+#       To guarantee that unused resources are shutdown/unbound the sim service
+#       needs a PermanentRequestSLO. The urgency of the PermanentRequestSLO must
+#       be lower than the urgency of the MinResourceSLO of spare_pool.
+#       To prohibit that the resources need by MinResourceSLO in spare_pool are moved
+#       back to sim, the usage of the resource in spare_pool must not less than the urgency
+#       of the PermanentRequestSLO in sim.
+#       These conditions lead to the following SLO setup:
+#
+#       service      SLO                  urgency   usage
+#       -----------------------------------------------------------------------
+#       ge           MaxPendingJobsSLO    50        50    averageSlotsPerHost=1
+#       sim          PermanentRequestSLO   5        10 
+#       spare_pool   MinResourceSLO       20         5    min=1
+#
+#
+#      Precondition of the test:
+#
+#      All queues in the GE service are disabled, the originally assigned resources
+#      must not accept any job.
+#
+#      Executed Steps:
+#
+#      o Add one resources to the sim service
+#      o Check that the cloud resource moves to spare_pool
+#      o Add a second resource to the sim service
+#      o submit one job into the GE cluster (long running)
+#      o check that the cloud resource from spare_pool moves to ge service
+#      o check that the second cloud resource moves into spare_pool
+#      o delete the job
+#      o check that the cloud resource from ge service moves to sim
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_cloud_preheat_check {} {   
+   upvar #0 hedeby_cloud_preheat_ctx this
+
+   set reqFilter "<common:request>owner='$this(cloud_service)'</common:request>"
+   set resFilter "<common:resourceFilter>owner='$this(cloud_service)'</common:resourceFilter>"
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding simhost cloud service '$this(cloud_service)' to system"
+   #---------------------------------------------------------------------
+   # Setup PermanentRequestSLO for $this(cloud_service)
+   set perm_slo(name) "perm_req_for_sim"
+   set perm_slo(urgency)        5
+   set perm_slo(usage)          10
+   set perm_slo(requestFilter)  $reqFilter
+   set perm_slo(resourceFilter) $resFilter
+
+   set sopts(cloud_type)   "simhost"
+   set sopts(service_name) $this(cloud_service)
+   set sopts(host)         $this(service_host)
+   set sopts(slos)         [create_permanent_request_slo_opt perm_slo]
+   set sopts(start)        "true"
+   if {[hedeby_add_cloud_service sopts] != 0} {
+      return
+   }
+   unset sopts
+   set this(cleanup_actions) "remove_cloud_service"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Setting up SLOs for spare_pool"
+   #---------------------------------------------------------------------
+   set min_res_slo(urgency)        20
+   set min_res_slo(usage)          5 
+   set min_res_slo(name)           "min_res_for_sim_res"
+   set min_res_slo(min)            1
+   set min_res_slo(requestFilter)  $reqFilter
+   set min_res_slo(resourceFilter) $resFilter
+   if {[set_service_slos_opt "spare_pool" [create_min_resource_slo_opt min_res_slo]] != 0} {
+      return
+   }
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Setting up SLOs for GE service '$this(ge_service)'"
+   #---------------------------------------------------------------------
+   set mpj_slo(urgency)               50
+   set mpj_slo(name)                  "mpj_for_sim_res"
+   set mpj_slo(usage)                 50
+   set mpj_slo(averageSlotsPerHost)   1
+   set mpj_slo(max)                   1
+   set mpj_slo(requestFilter)         $reqFilter
+   set mpj_slo(resourceFilter)        $resFilter
+   set opts(update_interval_unit)     "seconds"
+   set opts(update_interval_value)    30
+   if {[set_service_slos_opt $this(ge_service) [create_max_pending_jobs_slo_opt mpj_slo ] opts] != 0} {
+      return
+   }
+   unset opts
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding first virtual resources to cloud service '$this(cloud_service)'"
+   #---------------------------------------------------------------------
+
+   # Make the resource in a first step static, otherwise the
+   # it would be immediately moved to spare_pool (due to SLO setup)
+   # and the hedeby_add_resource_to_service method would fail
+   set res_props(sim1,static)    "true"
+   set opts(timeout)        $this(timeout)
+   set opts(res_id_array)   res_id_array
+   set opts(res_prop_array) res_props
+   if {[hedeby_add_resources_to_service "sim1" $this(cloud_service) opts] != 0} {
+      ts_log_severe "add cloud resource failed"
+      return
+   }
+   unset res_props
+   set this(sim1,id) $res_id_array(sim1)
+   ts_log_fine "Id of resource sim1: $this(sim1,id)"
+   unset res_id_array
+   unset opts
+   lappend this(cleanup_actions) "remove_sim1"
+
+   set res_prop(static)  "false"
+   if {[mod_hedeby_resource $this(sim1,id) res_prop] != 0} {
+      ts_log_severe "Resetting the static flag failed"
+      return
+   }
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Waiting until resource sim1 is moved to spare_pool"
+   #---------------------------------------------------------------------
+   set exp_ri($this(sim1,id),service) "spare_pool"
+   set exp_ri($this(sim1,id),state)   "ASSIGNED"
+   set opts(timeout) 120
+   if {[wait_for_resource_info_opt exp_ri opts] != 0} {
+      return
+   }
+   unset exp_ri opts
+   
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding second virtual resources to cloud service '$this(cloud_service)'"
+   #---------------------------------------------------------------------
+   set opts(res_id_array) res_id_array
+   set opts(timeout)      $this(timeout)
+   if {[hedeby_add_resources_to_service "sim2" $this(cloud_service) opts] != 0} {
+      return
+   }
+   set this(sim2,id) $res_id_array(sim2)
+   ts_log_fine "Id of resource sim2: $this(sim2,id)"
+   unset res_id_array
+   unset opts
+   lappend this(cleanup_actions) "remove_sim2"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Waiting until resource sim2 is assigned to service '$this(cloud_service)'"
+   #---------------------------------------------------------------------
+   set exp_ri($this(sim2,id),service) $this(cloud_service)
+   set exp_ri($this(sim2,id),state)   "ASSIGNED"
+   set opts(timeout) 120
+   if {[wait_for_resource_info_opt exp_ri opts] != 0} {
+      return
+   }
+   unset exp_ri opts
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Submitting one long running job into the cluster '$this(ge_service)'"
+   #---------------------------------------------------------------------
+   if {[submit_sleeper_job 3600] < 0} {
+      ts_log_severe "Cloud not submit a sleeper jobs into cluster '$this(ge_service)'"
+      return
+   }
+   lappend this(cleanup_actions) "delete_job"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Waiting until resource move sim1 -> '$this(ge_service)' and sim2 -> spare_pool"
+   #---------------------------------------------------------------------
+   set exp_ri($this(sim1,id),service) $this(ge_service)
+   set exp_ri($this(sim1,id),state)   "ASSIGNED"
+   set exp_ri($this(sim2,id),service) "spare_pool"
+   set exp_ri($this(sim2,id),state)   "ASSIGNED"
+   set opts(timeout) 120
+   if {[wait_for_resource_info_opt exp_ri opts] != 0} {
+      return
+   }
+   unset exp_ri opts
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Deleting all jobs in cluster '$this(ge_service)'"
+   #---------------------------------------------------------------------
+   if {[delete_all_jobs] != 1} {
+      ts_log_severe "Could not delete the long running sleeper job"
+      return
+   }
+   set this(cleanup_actions) [remove_from_list $this(cleanup_actions) "delete_job"]
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Waiting until only resource sim1 moves into service '$this(cloud_service)'" 
+   #---------------------------------------------------------------------
+   set exp_ri($this(sim1,id),service) $this(cloud_service)
+   set exp_ri($this(sim1,id),state)   "ASSIGNED"
+   set exp_ri($this(sim2,id),service) "spare_pool"
+   set exp_ri($this(sim2,id),state)   "ASSIGNED"
+   set opts(timeout)  120    
+   if {[wait_for_resource_info_opt exp_ri opts] != 0} {
+      return
+   }
+   unset exp_ri opts
+}
+

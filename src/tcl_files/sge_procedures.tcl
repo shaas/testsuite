@@ -4976,6 +4976,37 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    return $ret_code
 }
 
+#****** sge_procedures/submit_sleeper_job() ************************************
+#  NAME
+#     submit_sleeper_job() -- Submit a sleeper job into the cluster
+#
+#  SYNOPSIS
+#     submit_sleeper_job { sleep_time {additional_qsub_args ""} } 
+#
+#  FUNCTION
+#     Submits a sleeber job into the cluster, with its output redirected to /dev/null
+#
+#  INPUTS
+#     sleep_time           - the sleep time in seconds
+#     additional_qsub_args - additional arguments for qsub
+#
+#  RESULT
+#     Result of the submit_job method
+#
+#  EXAMPLE
+#     submit_sleeper_job 30 "-N MySleeper"
+#
+#  SEE ALSO
+#     sge_procedures/submit_job()
+#*******************************************************************************
+proc submit_sleeper_job { sleep_time { additional_qsub_args "" } } {
+
+  global ts_config
+
+  return [submit_job "$additional_qsub_args -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh $sleep_time"]
+
+}
+
 #****** sge_procedures/quick_submit_job() ******
 # 
 #  NAME

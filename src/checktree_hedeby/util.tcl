@@ -7159,17 +7159,67 @@ proc create_fixed_usage_slo {{urgency 50 } {name "fixed_usage"} {resource_filter
 #     util/create_resource_filter()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""} {request ""}} {
-   set slo_text ""
-   append slo_text "<common:slo xsi:type=\"common:MinResourceSLOConfig\" min=\"$min\" urgency=\"$urgency\" name=\"$name\">"
+proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""} {request ""} {usage ""} } {
+   if {$usage == ""} {
+      set usage $urgency
+   }
+   if {$usage != $urgency} {
+      set slo "<common:slo xsi:type=\"common:MinResourceSLOConfig\" urgency=\"$urgency\" name=\"$name\" min=\"$min\" usage=\"$usage\">"
+   } else {
+      set slo "<common:slo xsi:type=\"common:MinResourceSLOConfig\" urgency=\"$urgency\" name=\"$name\" min=\"$min\">"
+   }
    if {$request != ""} {
-      append slo_text $request
+      append slo $request
    }
    if {$resourceFilter != ""} {
-      append slo_text $resourceFilter
+      append slo $resourceFilter
    }
-   append slo_text "</common:slo>"
-   return $slo_text
+   append slo "</common:slo>"
+   return $slo
+}
+
+#****** util/create_min_resource_slo_opt() *************************************
+#  NAME
+#     create_min_resource_slo_opt() -- Opt version of create_min_resource_slo
+#
+#  SYNOPSIS
+#     create_min_resource_slo_opt { opt } 
+#
+#  FUNCTION
+#     Creates the xml tag for a minResourceSLO
+#
+#  INPUTS
+#     opt - option array. The following options are supported
+#        opt(urgency)        -  Urgency of the slo
+#        opt(usage)          -  Usage of the SLO (if "" the usage with be taken from opt(urgency))
+#        opt(name)           -  Name of the SLO (default min_res)
+#        opt(min)            -  Value for the min attribute of the minResourceSLO (default 2)
+#        opt(requestFilter)  -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:request>....</common:request>) 
+#                               (default "")
+#        opt(resourceFilter) -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:resourceFilter>....</common:resourceFilter>) 
+#                               (default "")
+#
+#  RESULT
+#    the xml string
+#
+#  SEE ALSO
+#     util/create_min_resource_slo
+#*******************************************************************************
+proc create_min_resource_slo_opt { opt } {
+
+   set opts(urgency)        50
+   set opts(usage)          ""
+   set opts(name)           "min_res"
+   set opts(min)            2
+   set opts(resourceFilter) ""
+   set opts(requestFilter)  ""
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   return [create_min_resource_slo $opts(urgency) $opts(name) $opts(min)\
+                                   $opts(resourceFilter) $opts(requestFilter) $opts(usage)]
 }
 
 #****** util/create_filter() **************************************
@@ -7423,30 +7473,80 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
    return $slo_txt
 }
 
+#****** util/create_permanent_request_slo_opt() ********************************
+#  NAME
+#     create_permanent_request_slo_opt() -- opt version of create_permanent_request_slo
+#
+#  SYNOPSIS
+#     create_permanent_request_slo_opt { opt } 
+#
+#  FUNCTION
+#
+#     Create the xml string for a permanent request SLO
+#
+#  INPUTS
+#     opt - Option for the permanent request SLO. The following options are 
+#           supported:
+#        opt(urgency)        -   Urgency of the slo
+#        opt(usage)          -   Usage of the SLO (if "" the usage with be taken from opt(urgency))
+#        opt(name)           -   Name of the SLO (default min_res)
+#        opt(quantity)       -   Quantity for the SLO (default 10)
+#        opt(requestFilter)  -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:request>....</common:request>) 
+#                               (default "")
+#        opt(resourceFilter) -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:resourceFilter>....</common:resourceFilter>) 
+#                               (default "")
+#
+#  RESULT
+#     the xml string for the SLO
+#
+#  SEE ALSO
+#     util/create_permanent_request_slo
+#*******************************************************************************
+proc create_permanent_request_slo_opt { opt } {
+
+   set opts(urgency)        1
+   set opts(name)           "PermanentRequestSLO"
+   set opts(resourceFilter) ""
+   set opts(requestFilter)  ""
+   set opts(quantity)       10
+   set opts(usage)          ""
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   return [create_permanent_request_slo $opts(urgency) $opts(name) \
+                      $opts(resourceFilter) $opts(requestFilter) $opts(quantity) $opts(usage)]
+
+}
+
 #****** util/create_max_pending_jobs_slo() ************************************
 #  NAME
 #     create_max_pending_jobs_slo() -- create max pending jobs slo xml string
 #
 #  SYNOPSIS
 #     create_max_pending_jobs_slo { {urgency 1 } {name "MaxPendingJobsSLO" } {resourceFilter ""}
-#     {requestFilter ""} { jobFilter ""} { max 1 } {averagesph 10} {maxWaitTimeForJobs 2} 
+#                        {requestFilter ""} { jobFilter ""} { max 1 } {averageSlotsPerHost 10} {{maxWaitTimeForJobs_value 2} 
+#                        {maxWaitTimeForJobs_unit "minutes"} {usage ""} }
 #
 #  FUNCTION
 #     creates xml string with specified values
 #
 #  INPUTS
-#     { urgency 1 }                  - urgency value
-#     { name "MaxPendingJobsSLO" }   - name value
-#     { max 1 }                      - maximun number of pending jobs for this host.
-#     {resourceFilter ""}            - optional: resource filter created with 
-#                                      procedure create_resource_filter()
-#     {requestFilter ""}             - optional: request filter created with 
-#                                      procedure create_request_filter()
-#     {jobFilter ""}                 - optional: job filter created with 
-#                                      procedure create_job_filter()
-#     {averagesph 10}                - optional: average slots per host value.
+#     { urgency 1 }                       - urgency value
+#     { name "MaxPendingJobsSLO" }        - name value
+#     { max 1 }                           - maximun number of pending jobs for this host.
+#     {resourceFilter ""}                 - optional: resource filter created with 
+#                                           procedure create_resource_filter()
+#     {requestFilter ""}                  - optional: request filter created with 
+#                                           procedure create_request_filter()
+#     {jobFilter ""}                      - optional: job filter created with 
+#                                           procedure create_job_filter()
+#     {averageSlotsPerHost 10}            - optional: average slots per host value.
 #
-#     {maxWaitTimeForJobs 2}         - optional: wait time for job to start
+#     {maxWaitTimeForJobs_value 2}        - optional: value for the wait time for job to start
+#     {maxWaitTimeForJobs_unit "minutes"} - optional: unit for wait time for job to start
+#     {usage ""}                          - optional: usage for the slo
 #
 #  RESULT
 #     xml string
@@ -7457,18 +7557,21 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_max_pending_jobs_slo {{ urgency 1 } { name "MaxPendingJobsSLO" } { resourceFilter "" } 
-                                 { requestFilter "" } { jobFilter "" } { max 1 } {averagesph 10} 
-                                 {maxWaitTimeForJobs 2}} {
-   set slo_txt ""
-   append slo_txt "<common:slo xsi:type=\"ge_adapter:MaxPendingJobsSLOConfig\" urgency=\"$urgency\" name=\"$name\" max=\"$max\" averageSlotsPerHost=\"$averagesph\">"
+                                 { requestFilter "" } { jobFilter "" } { max 1 } {averageSlotsPerHost 10} 
+                                 {maxWaitTimeForJobs_value 2} {maxWaitTimeForJobs_unit "minutes"} {usage ""} } {
+   if {$usage == ""} {
+      set usage $urgency
+   }
+   set slo_txt "<common:slo xsi:type=\"ge_adapter:MaxPendingJobsSLOConfig\" urgency=\"$urgency\""
+   if {$usage != $urgency} {
+      append slo_txt " usage=\"$usage\""
+   }
+   append slo_txt " name=\"$name\" max=\"$max\" averageSlotsPerHost=\"$averageSlotsPerHost\">"
    
    if { $requestFilter != "" } {
       append slo_txt $requestFilter
    }
    
-   if { $maxWaitTimeForJobs != 2 } {
-      append slo_txt         "<ge_adapter:maxWaitTimeForJobs unit=\"minutes\" value=\"$maxWaitTimeForJobs\"/>"
-   }
    
    if { $resourceFilter != "" } {
       append slo_txt $resourceFilter
@@ -7477,9 +7580,69 @@ proc create_max_pending_jobs_slo {{ urgency 1 } { name "MaxPendingJobsSLO" } { r
    if { $jobFilter != "" } {
       append slo_txt $jobFilter
    }
+
+   append slo_txt "<ge_adapter:maxWaitTimeForJobs unit=\"$maxWaitTimeForJobs_unit\" value=\"$maxWaitTimeForJobs_value\"/>"
    
    append slo_txt "</common:slo>"
    return $slo_txt
+}
+
+#****** util/create_max_pending_jobs_slo_opt() *********************************
+#  NAME
+#     create_max_pending_jobs_slo_opt() -- Opt version of create_max_pending_jobs_slo
+#
+#  SYNOPSIS
+#     create_max_pending_jobs_slo_opt { opt } 
+#
+#  FUNCTION
+#
+#     Create the xml string for a MaxPendingJobsSLO
+#
+#  INPUTS
+#     opt - Option for the max pending jobs SLO. The following options are 
+#           supported:
+#        opt(urgency)                       -   Urgency of the slo
+#        opt(usage)                         -   Usage of the SLO (if "" the usage with be taken from opt(urgency))
+#        opt(name)                          -   Name of the SLO (default min_res)
+#        opt(requestFilter)                 -  *Complete* xml tag for the request filter of the SLO
+#                                              (in the form <common:request>....</common:request>) 
+#                                              (default "")
+#        opt(resourceFilter)                -  *Complete* xml tag for the request filter of the SLO
+#                                              (in the form <common:resourceFilter>....</common:resourceFilter>) 
+#                                              (default "")
+#        opt(jobFilter)                     -  *Complete* xml tag for the job filter of the SLO
+#                                              (in the form <ge_adapter:jobFilter>....</ge_adapter:jobFilter>) 
+#                                              (default "")
+#        set opt(max)                       -  value for the max attribute (default 1)
+#        set opt(averageSlotsPerHost)       -  value for the averageSlotsPerHost attribute (default 10)
+#        set opt(maxWaitTimeForJobsValue)  -  value for the maxWaitTimeForJobs element (default 2)
+#        set opt(maxWaitTimeForJobsUnit)   -  unit for the maxWaitTimeForJobs element (default minutes)
+#
+#  RESULT
+#     the xml string of the SLO
+#
+#  SEE ALSO
+#     util/create_max_pending_jobs_slo()
+#*******************************************************************************
+proc create_max_pending_jobs_slo_opt { opt } {
+
+   set opts(urgency)                  1
+   set opts(usage)                    ""
+   set opts(name)                     "MaxPendingJobsSLO"
+   set opts(resourceFilter)           ""
+   set opts(requestFilter)            ""
+   set opts(jobFilter)                ""
+   set opts(max)                      1
+   set opts(averageSlotsPerHost)      10
+   set opts(maxWaitTimeForJobsValue)  2
+   set opts(maxWaitTimeForJobsUnit)   "minutes"
+
+   get_hedeby_proc_opt_arg $opt opts 
+
+   return [create_max_pending_jobs_slo $opts(urgency) $opts(name) $opts(resourceFilter) $opts(requestFilter) \
+                                       $opts(jobFilter) $opts(max) $opts(averageSlotsPerHost) \
+                                       $opts(maxWaitTimeForJobsValue) $opts(maxWaitTimeForJobsUnit) $opts(usage)]
+
 }
 
 #****** util/hedeby_mod_setup() ************************************************
@@ -8005,13 +8168,18 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
 #  RESULT
 #     0 on success, 1 on error
 #
+#  NOTES
+#
+#  Only GE services supports the SLO update interval in the service configuration. If update_interval_unit 
+#  or update_interval_value is used for non GE services it will fail.
+#
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
 #     util/create_permanent_request_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "1"} } {
+proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit ""} {update_interval_value ""} } {
    global CHECK_DEBUG_LEVEL
    ts_log_fine "setting slos for service \"$service\" ..."
    foreach new_slo $slos {
@@ -8041,17 +8209,20 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    lappend sequence "</common:slos>\n"
    lappend sequence "[format "%c" 27]" ;# ESC
 
-
-   if { $service != "spare_pool" } {
-      # search and replace sloUpdateInterval if service is not spare_pool
+   if {$update_interval_unit != "" && $update_interval_value != "" } {
+      ts_log_fine "Setting sloUpdateInterval to '$update_interval_value' '$update_interval_unit'"
+      # search and replace sloUpdateInterval 
       lappend sequence "/sloUpdateInterval\n"
       # jump to beginning of next word, delete until '/' of tag closing '/>'
-      lappend sequence "Wd/\\/>\n"
+      lappend sequence "Wdt/"
       # insert at cursor position both parameters ...
       lappend sequence "iunit=\"$update_interval_unit\" value=\"$update_interval_value\""
       # ... and exit insert mode
       lappend sequence "[format "%c" 27]" ;# ESC
    }
+
+   #Uncomment the following line for debugging vi sequence
+   lappend sequence ":w! /tmp/hedeby_mod_config.xml\n"
 
    hedeby_mod_sequence $ispid $sequence error_text
    set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
@@ -8747,14 +8918,14 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
 #     "mod_config" until mod slos cli commands are available.
 #
 #  INPUTS
-#     method                           - "mod_config" or "mod_slos"
-#     service                          - name of service to modify
-#     slos                             - list of slos
-#                                        (created with create_???_slo() 
-#                                         procedures and added to a list)
-#     {raise_error 1}                  - if 1 report errors
-#     {update_interval_unit "minutes"} - slo update unit of service
-#     {update_interval_value "5"}      - slo update value of service
+#     method                     - "mod_config" or "mod_slos"
+#     service                    - name of service to modify
+#     slos                       - list of slos
+#                                  (created with create_???_slo() 
+#                                   procedures and added to a list)
+#     {raise_error 1}            - if 1 report errors
+#     {update_interval_unit ""}  - slo update unit of service
+#     {update_interval_value ""} - slo update value of service
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -8768,7 +8939,7 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
 #     util/create_permanent_request_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc set_service_slos { method service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "5"}} {
+proc set_service_slos { method service slos {raise_error 1} {update_interval_unit ""} {update_interval_value ""}} {
    global hedeby_config
 
    if { $method != "mod_config" && $method != "mod_slos" } {
@@ -8823,6 +8994,64 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
    }
 
    return 0
+}
+
+
+#****** util/set_service_slos_opt() ********************************************
+#  NAME
+#     set_service_slos_opt() -- Opt version of set_service_slos 
+#
+#  SYNOPSIS
+#     set_service_slos_opt { service slos {opt ""} } 
+#
+#  FUNCTION
+#
+#     Modifies the SLO setup of a service and reloads the service
+#
+#  INPUTS
+#     service  - name of the service
+#     slos     - list of slos (elements created with create_???_slo() 
+#     {opt ""} - options for the method. The following options are supported
+#
+#        opt(method)                 -  SLO modification method (currently only mod_config is supported)
+#        opt(update_interval_unit)   -  Unit for the update interval of the SLO 
+#                                       (works only for GE services, default is "")
+#        opt(update_interval_value)  -  Value for the update interval of the SLO 
+#                                        (works only for GE services, default is "")
+#        opt(requestFilter)  -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:request>....</common:request>) 
+#                               (default "")
+#        opt(resourceFilter) -  *Complete* xml tag for the request filter of the SLO
+#                               (in the form <common:resourceFilter>....</common:resourceFilter>) 
+#                               (default "")
+#        opt(raise_error)            -  if 0 no error will be raised (default is 1)
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  NOTES
+#     "mod_slos" method is not implemented
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/create_max_pending_jobs_slo()
+#     util/set_service_slos()
+#*******************************************************************************
+proc set_service_slos_opt { service slos {opt ""} } {
+
+   set opts(method)                "mod_config"
+   set opts(update_interval_unit)  ""
+   set opts(update_interval_value) "" 
+   set opts(requestFilter)         ""
+   set opts(resourceFilter)        ""
+   set opts(raise_error)           1
+
+   get_hedeby_proc_opt_arg $opt opts
+
+
+   return [set_service_slos $opts(method) $service $slos $opts(raise_error) \
+                            $opts(update_interval_unit) $opts(update_interval_value)]
 }
 
 
@@ -9592,7 +9821,11 @@ proc get_hedeby_resource_properties { resource properties {opt ""} } {
    # $table_output(additional,0) contains the resource properties
    set opts(table_output) table_output
    # try to work around issue 550 by not using -r $resource but -rf ...
-   sdmadm_command_opt "show_resource -rf 'resourceHostname=\"$resource\"' -all" opts 
+   if {[regexp "res#\[0-9\]+" $resource] == 0} {
+      sdmadm_command_opt "show_resource -rf 'resourceHostname=\"$resource\"' -all" opts 
+   } else {
+      sdmadm_command_opt "show_resource -r $resource -all" opts 
+   }
 
    # ... and save them in props array
    foreach prop_line [split $table_output(additional,0) " "] {
@@ -11222,6 +11455,7 @@ proc hedeby_add_resources_to_service { res_names target_service { opt "" } } {
             if {[llength $prop_def] != 2} {
                set msg    "Invalid resource property definition '$res_prop_def'.\n"
                append msg "Entries in res_id_array must have the form <res_name>,<prop_name>"
+               ts_log_severe $msg $opts(raise_error)
                return -1
             }
 
@@ -11373,7 +11607,7 @@ proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
 
    get_hedeby_proc_opt_arg $opt opts
 
-   if { !($opts(res_id_type) == "resource_id" || $sopts(res_id_type) == "resource")} {
+   if { !($opts(res_id_type) == "resource_id" || $opts(res_id_type) == "resource")} {
       ts_log_severe "Invalid value for opt(res_id_type) (valid values are 'resource_id' or 'resource'"
       return -1
    }
@@ -11390,7 +11624,11 @@ proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
    }
    set i 0
    foreach res $res_ids_or_names {
-      set hist($i,$res_id_type) $res 
+      if {$opts(res_id_type) == "resource_id"} {
+         set hist($i,resource_id) $res 
+      } else {
+         set hist($i,resource) $res
+      }
       set hist($i,type)         "RESOURCE_REMOVED"
       incr i
    }

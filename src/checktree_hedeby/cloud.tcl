@@ -54,6 +54,7 @@
 #           service_opts(host)          - name of the host where the service will be started (mandatory)
 #           service_opts(cloud_type)    - name of the cloud type (simhost, ec2, ...) (mandatory)
 #           service_opts(start)         - if set to true the component will be started (optional)
+#           service_opts(slos)          - string containg the xml tags for the slos of the serivce (optional)
 #           service_opts(maxCloudHostsInSystemLimit) - value for the maxCloudHostsInSystemLimit parameter in
 #                                                      the service config (optional)
 #           In addition some parameters for the specific cloud type can be contained for service_opts array
@@ -118,6 +119,20 @@ proc hedeby_add_cloud_service {service_opts {opt ""}} {
       lappend sequence ":%s/maxCloudHostsInSystemLimit=\['\"\]\[0-9\]*\['\"\]/maxCloudHostsInSystemLimit=\"$sopts(maxCloudHostsInSystemLimit)\"/\n"
    }
 
+   if {[info exists sopts(slos)]} {
+      # -----------------------------------------------------------------
+      # Define the SLOs
+      # -----------------------------------------------------------------
+      # delete <slos>...</slos>
+      lappend sequence "/<common:slos>\n"
+      lappend sequence "ma/<\\/common:slos>\n:'a,.d\n"
+      lappend sequence "i"
+      lappend sequence "<common:slos>\n"
+      lappend sequence $sopts(slos)
+      lappend sequence "\n"
+      lappend sequence "</common:slos>\n"
+   }
+
    set cloud_type_handler "hedeby_create_cloud_service_sequence_for_$sopts(cloud_type)"
 
    if {[catch { info args $cloud_type_handler }] == 0} {
@@ -130,6 +145,10 @@ proc hedeby_add_cloud_service {service_opts {opt ""}} {
    } else {
       ts_log_finer "No vi sequence for cloud type $sopts(cloud_type) defined"
    }
+
+   # for testing the vi sequence
+   # lappend sequence "[format "%c" 27]" ;# ESC
+   # lappend sequence ":w! /tmp/hedeby_add_cloud_service.xml\n"
 
    # ---------------------------------------------------------------------------
    # Start the sdmadm ags command

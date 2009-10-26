@@ -249,11 +249,11 @@ proc hedeby_move_simhost_cleanup_level {} {
       startup_hedeby
    }
 
-   # Restore the global qmaster config
-   reset_config qmaster_config
-
-   unset qmaster_config
-
+   if {[info exists qmaster_config]} {
+      # Restore the global qmaster config
+      reset_config qmaster_config
+      unset qmaster_config
+   }
    # reset cluster config nr
    set_current_cluster_config_nr $this(ccnr)
 
