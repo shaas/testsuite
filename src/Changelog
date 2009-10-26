@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-10-26-0: Bugfix:     fixed drmaaj test
+                 Review:     DG
+
 RH-2009-10-26-0: Enhancem:   Hedeby: o New use case test cloud_preheat
                                      o Opt methods for create_..._slo
                  Enhancem:   New method submit_sleeper_job in sge_procedures.tcl

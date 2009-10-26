@@ -107,10 +107,10 @@ proc drmaaj_init_level {} {
             return 0
      } 
      "101" {
-            return 0
+            return -1   ;# testing DRMAA-J 0.5 with DRMAA-C 1.0 not enabled (not compatible)
      } 
      "102" {
-            return 0
+            return -1   ;# testing DRMAA-J 1.0 with DRMAA-C 0.95 not enabled (not compatible)
      }
      "103" {
             return 0
@@ -119,10 +119,10 @@ proc drmaaj_init_level {} {
             return 0
      }
      "201" {
-            return 0
+            return -1   ;# testing DRMAA-J 0.5 with DRMAA-C 1.0 not enabled (not compatible)
      } 
      "202" {
-            return 0
+            return -1   ;# testing DRMAA-J 1.0 with DRMAA-C 0.95 not enabled (not compatible)
      }  
      "203" {
             return 0
@@ -131,10 +131,10 @@ proc drmaaj_init_level {} {
             return 0
      } 
      "301" {
-            return 0
+            return -1   ;# testing DRMAA-J 0.5 with DRMAA-C 1.0 not enabled (not compatible)
      } 
      "302" {
-            return 0
+            return -1   ;# testing DRMAA-J 1.0 with DRMAA-C 0.95 not enabled (not compatible)
      }  
      "303" {
             return 0
@@ -506,36 +506,46 @@ proc set_java_classpath_according_to_runlevel {} {
    global CHECK_ACT_LEVEL 
    global ts_config 
 
-   # add to Java classpath the Java DRMAA library
-   set classpath ""
+   # x00/x01 means jdrmaa 0.5 test
+   # x02/x03 means jdrmaa 1.0 test
    if {  $CHECK_ACT_LEVEL == "100" || 
          $CHECK_ACT_LEVEL == "101" || 
          $CHECK_ACT_LEVEL == "200" || 
          $CHECK_ACT_LEVEL == "201" || 
          $CHECK_ACT_LEVEL == "300" || 
          $CHECK_ACT_LEVEL == "301" } {
-      # use the old drmaa library out of the testsuite lib directory 
-      # (test backward compatibility)
-      if {[file exists "$ts_config(product_root)/lib/drmaa-0.5.jar"]} {
-         set classpath "$ts_config(product_root)/lib/drmaa-0.5.jar"
-      } else {
-         set classpath "$ts_config(testsuite_root_dir)/lib/drmaa-0.5.jar"
-      }
-
-      
+      set jdrmaa_test_05 true
    } else {
-      # use the current drmaa library from the product
+      set jdrmaa_test_05 false
+   }
+
+
+   # add to Java classpath the Java DRMAA library
+   set classpath ""
+   if {$jdrmaa_test_05 == true} {
+      if {$ts_config(gridengine_version) <= 60} {
+            set classpath "$ts_config(product_root)/lib/drmaa-0.5.jar"
+      } else {
+         if {[file exists "$ts_config(product_root)/lib/drmaa-0.5.jar"]} {
+            # if there is a drmaa 0.5 lib in produect root, use it
+            set classpath "$ts_config(product_root)/lib/drmaa-0.5.jar"
+         } else {
+            # use modified testsuite drmaa-0.5 jar for GE versions if no jdramaa 05 is existing
+            set classpath "$ts_config(testsuite_root_dir)/lib/drmaa-0.5.jar"
+         }
+      }
+   } else {
       set classpath "$ts_config(product_root)/lib/drmaa.jar"
    }
 
    # add the drmaa-test.jar 
-   if {  $CHECK_ACT_LEVEL == "100" || 
-         $CHECK_ACT_LEVEL == "101" || 
-         $CHECK_ACT_LEVEL == "200" || 
-         $CHECK_ACT_LEVEL == "201" || 
-         $CHECK_ACT_LEVEL == "300" || 
-         $CHECK_ACT_LEVEL == "301" } {
-     set classpath "$classpath:$ts_config(testsuite_root_dir)/lib/drmaa-0.5-test.jar"
+   if {$jdrmaa_test_05 == true} {
+      if {$ts_config(gridengine_version) <= 60} {
+         set classpath "$classpath:$ts_config(source_dir)/CLASSES/drmaa-test.jar" 
+      } else {
+         # use modified testsuite drmaa-0.5 test jar, it contains fixes for GE >= 61
+         set classpath "$classpath:$ts_config(testsuite_root_dir)/lib/drmaa-0.5-test.jar"
+      }
    } else {
      set classpath "$classpath:$ts_config(source_dir)/CLASSES/drmaa-test.jar"
    }
@@ -580,9 +590,10 @@ proc drmaaj_check { } {
    global CHECK_USER CHECK_ACT_LEVEL
    global hosts_in_runlevel
    global drmaaj_global_errors
+   global check_description
 
    # test the 32 bit lib on 64 bit virtual machine 
-   set do_an_additional_32_bit_test "true"
+   set do_an_additional_32_bit_test true
 
    # make sure that we have a drmaa.jar, drmaa-test.jar and
    # suspendable_sleeper.sh
@@ -640,7 +651,8 @@ proc drmaaj_check { } {
          
          # check if the current JVM has 32 bit and 64 bit capabilities  
          # -----------------------------------------------------------
-         if {"true" == [has_JVM_d32_d64_flag $host $java]} { 
+         set test_32bit_libs_on_64bit_jvm [has_JVM_d32_d64_flag $host $java]
+         if {$test_32bit_libs_on_64bit_jvm == true} {
 
             # check if we have to check 32 bit libs in case of 64 JVM
             if {$do_an_additional_32_bit_test == "yes"} {
@@ -659,7 +671,9 @@ proc drmaaj_check { } {
                   set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                   if {$prg_exit_state != 0} {
+                     ts_log_fine $test_output
                      append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+                     append drmaaj_global_errors "$check_description($CHECK_ACT_LEVEL)\n"
                      append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
                      append drmaaj_global_errors "command: \"$java $options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite\"\n"
                      append drmaaj_global_errors "DRMAA-J jUnit test for 32 bit lib on 64 bit host failed:\n$test_output\n\n"
@@ -686,7 +700,7 @@ proc drmaaj_check { } {
          # special case: 64 bit OS --> 32 bit JVM --> it is loading 64 bit native lib!
          # try to use 32 bit lib
          # ---------------------------------------------------------------------------
-         if {[is_64_bit_OS $binary_arch] == "true" && [is_32_bit_jvm $host $java] == "true"} {
+         if {[is_64_bit_OS $binary_arch] == true && [is_32_bit_jvm $host $java] == true} {
             ts_log_fine "SPECIAL TEST BECAUSE 64 BIT OS AND 32 BIT JVM"
 
             # try to find the path to the 32 bit lib 
@@ -694,7 +708,10 @@ proc drmaaj_check { } {
             set java_lib_path [get_java_library_path $host $binary_arch]
 
             if {$java_lib_path == "" } { 
-                ts_log_fine "Aborting the test: no native 32 bit lib found for the 32 bit JVM on a 64 bit arch" 
+                ts_log_fine "no native 32 bit lib found for the 32 bit JVM on a 64 bit arch" 
+                if {$test_32bit_libs_on_64bit_jvm == false} {
+                   ts_log_fine "cannot test host $host - no matching 32/64 bit combination of jvm and drmaa binaries found"
+                }
             } else {
                 # check the 32 bit lib 
                 set options_for_32_bit_test "$java_lib_path $options" 
@@ -704,24 +721,28 @@ proc drmaaj_check { } {
                 set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                 if {$prg_exit_state != 0} {
+                   ts_log_fine $test_output
                    append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+                   append drmaaj_global_errors "$check_description($CHECK_ACT_LEVEL)\n"
                    append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
                    append drmaaj_global_errors "command: \"$java $options_for_32_bit_test junit.textui.TestRunner DrmaaSuite\"\n"
                    append drmaaj_global_errors "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed:\n$test_output\n\n"
                 }
-             }
+            }
             continue 
          }
 
          # start JUnit DRMAA test
          # ----------------------
-         ts_log_fine "Perform as $CHECK_USER: $host $java $java_options junit.textui.TestRunner DrmaaSuite"
+         ts_log_fine "Perform as $CHECK_USER on $host: $java $java_options junit.textui.TestRunner DrmaaSuite"
          
 
          set test_output [start_remote_prog $host $CHECK_USER $java "$java_options junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
          if {$prg_exit_state != 0} {
+            ts_log_fine $test_output
             append drmaaj_global_errors "---ERROR----------------------------------------------------\n"
+            append drmaaj_global_errors "$check_description($CHECK_ACT_LEVEL)\n"
             append drmaaj_global_errors "Performed DrmaaSuite run as user $CHECK_USER on host $host (Run level: $CHECK_ACT_LEVEL)\n"
             append drmaaj_global_errors "command: \"$java $java_options junit.textui.TestRunner DrmaaSuite\"\n"
             append drmaaj_global_errors "DRMAA-J jUnit test suite failed:\n$test_output\n\n"
@@ -773,19 +794,19 @@ proc is_32_bit_jvm {host jvm} {
    if {[string first "1.4" $test_output] != -1} {
       # java -version output contains 1.4
       if {[string first "64" $test_output] != -1} {
-         return "false"
+         return false
       }
    }
 
-   # procduces errors on gally2 with jdk14
-   if {[has_JVM_d32_d64_flag $host $jvm] == "true"} {
+   # procduces errors on with jdk14
+   if {[has_JVM_d32_d64_flag $host $jvm] == true} {
       # it is likely a 64 bit JVM
       ts_log_fine "contains d32 d64 flag" 
-      return "false"
+      return false
    } else {
       # it seems to be a 32 bit JVM 
       ts_log_fine "doesn't containt d32 d64 flag"
-      return "true"
+      return true
    }
 }
 
@@ -820,27 +841,27 @@ proc is_64_bit_OS {binary_arch} {
    # check if it is a 64 bit OS
    switch -- $binary_arch {
       "sol-amd64" {
-         return "true" 
+         return true
       }
       "lx26-amd64" {
-         return "true" 
+         return true
       }
       "sol-sparc64" {
-         return "true" 
+         return true
       } 
       "lx24-amd64" {
-         return "true" 
+         return true
       }
       "lx24-ia64" {
-         return "true" 
+         return true
       }
       "hp11-64" {
-         return "true" 
+         return true
       }
    }
       
    # is not a 64 bit OS
-   return "false"
+   return false
 }
 
 
@@ -910,6 +931,7 @@ proc get_java_library_path {host binary_arch} {
    if {[file exists "$path/libdrmaa.$lib_ext"]} {
       return "-Djava.library.path=$path"
    } else {
+      ts_log_config "CONFIGURATION PROBLEM! Lib directory \"$path/libdrmaa.$lib_ext\" not found for host $host!"
       return ""
    }
 }
@@ -939,14 +961,14 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
   if {[string first $java_switch $test_output] == -1} {
       # output doesn't contain d32
       ts_log_finer "no d32 found!" 
-      return "false" 
+      return false 
   }  
 
   set java_switch_2 "d64"
   if {[string first $java_switch_2 $test_output] == -1} {
       # output doesn't contain d64 
       ts_log_finer "no d64 found!" 
-      return "false" 
+      return false
   }  
 
    # contains a -d32 switch 
@@ -962,10 +984,10 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
    if {[string first $is_not_supported_string $test_output] == -1} {
       # this Java version has a flag -d64 and it seems to be supported
       ts_log_finer "jvm does support -d64"
-      return "true"
+      return true
    } else {   
       ts_log_finer "jvm does not support -d64"
-      return "false"
+      return false
    }
 }
 
@@ -1164,7 +1186,7 @@ proc drmaaj_setup_level {} {
 
    # set new value
    set new_config(qmaster_params) "FORBID_RESCHEDULE=TRUE,FORBID_APPERROR=TRUE"
-   set new_config(delegated_file_staging) "true"
+   set new_config(delegated_file_staging) true
    set_config new_config
 
    # setup file staging scripts
