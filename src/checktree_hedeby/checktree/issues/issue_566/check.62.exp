@@ -136,7 +136,7 @@ proc hedeby_issue566_cleanup_level {} {
    if {$this(err) == "true"} {
         #we will try to stop and start again JVM
         ts_log_heading "CLEANUP 1. Stopping JVM with spare pool component"
-	rp_vm [get_service_jvm]
+	     set rp_vm [get_service_jvm]
         #shutdown of the JVM
         sdmadm_command_opt "sdj -j $rp_vm -h $this(master)"
         if {$prg_exit_state != 0} {
@@ -155,7 +155,7 @@ proc hedeby_issue566_cleanup_level {} {
         }
         ts_log_heading "CLEANUP 2. Starting JVM with spare pool component"
         #starting of the JVM
-	set opt(user) [get_hedeby_startup_user]
+	     set opt(user) [get_hedeby_startup_user]
         sdmadm_command_opt "suj -j $rp_vm -h $this(master)" opt
         if {$prg_exit_state != 0} {
             #error is already reported
@@ -214,10 +214,8 @@ proc hedeby_issue566_check {} {
 
    #add PermanentRequestSLO with urgency 10 to the spare pool component
    set permanent_request_slo [create_permanent_request_slo 10 "PermanentRequestSLO"]
-   set slos {}
-   lappend slos $permanent_request_slo
-   if {[set_service_slos "mod_config" $this(spare_pool) $slos 1 "minutes" 1] != 0} {
-      ts_log_severe "Setting slos for service \"$service\" failed!"
+   if {[set_service_slos_opt $this(spare_pool) $permanent_request_slo] != 0} {
+      ts_log_severe "Setting slos for service \"$this(spare_pool)\" failed!"
       set this(err) "true"
       return
    }

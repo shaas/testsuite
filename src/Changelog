@@ -7,6 +7,16 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+RH-2009-10-27-0: Bugfix:     Hedeby:
+                             o bug in create_max_pending_jobs_slo fixed (job filters
+                               did not work)
+                             o bug in hedeby issue 566, setup SLO for spare_pool with 
+                               update interval
+                             o cleanup of maxPendingJobs/noMatch test
+                 Enhancem.:  get_resource_info(_opt) allows filtering
+                 Belongs to: RH-2009-10-26-0
+                 Review:     TB
+
 CR-2009-10-27-0: Cleanup:    enhanced timeout allowed for deleting temporary 
                              generated files
 

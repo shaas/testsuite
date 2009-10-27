@@ -95,8 +95,17 @@ proc no_match_init_level {} {
 #     no return values
 #*******************************************************************************
 proc no_match_setup_level {} {
-    global no_match_current_cluster_config
-    set no_match_current_cluster_config [get_current_cluster_config_nr]
+   upvar #0 no_match_ctx this
+
+   get_hedeby_default_services service_names
+
+   set this(ge_adapter)      [pick_random $service_names(services)]
+   #set this(ge_adapter)     [lindex $service_names(services) 0]  
+   set this(ge_master_host)  $service_names(master_host,$this(ge_adapter))
+   set this(moveable_execds) $service_names(moveable_execds,$this(ge_adapter))
+
+   set this(org_cluster_config) [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(ge_adapter))
 }
 
 #****** slo/maxPendingJobs/noMatch/no_match_cleanup_level() *******************************
@@ -113,24 +122,21 @@ proc no_match_setup_level {} {
 #     no return values
 #*******************************************************************************
 proc no_match_cleanup_level {} {
-    global no_match_current_cluster_config
-    global ge_adapter
-    global service_names
+    upvar #0 no_match_ctx this
 
     # delete jobs first as active jobs on resource prohibit 
     # resource movement to default service
     delete_all_jobs
     wait_for_end_of_all_jobs 60
 
-
-    reset_default_slos "mod_config" $ge_adapter
-    if {[move_resources_to_default_services] != 0} {
-         reset_hedeby 1
-    }
+    reset_default_slos "mod_config" $this(ge_adapter)
+    move_resources_to_default_services
 
     enable_queue {\\*}
     #reset saved active cluster configuration nr
-    set_current_cluster_config_nr $no_match_current_cluster_config
+    set_current_cluster_config_nr $this(org_cluster_config)
+
+    unset this
 }
 
 
@@ -163,103 +169,94 @@ proc no_match_cleanup_level {} {
 #
 #*******************************************************************************
 proc no_match_check {} {
-   global hedeby_config
-   global ge_adapter
-   global admin_user
-   global service_names 
+    upvar #0 no_match_ctx this
 
-   set error_text ""
-   get_hedeby_default_services service_names
-   set ge_adapter ""
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set master_host $hedeby_config(hedeby_master_host)
-   get_current_cluster_config_array ts_config
-   set sge_root $ts_config(product_root)
-   set mov_resource ""
-
-   #get the first found ge adapter
-   foreach service $service_names(services) {
-      set ge_adapter $service
-      break
-   }
-   
-   #get the first found moveable resource for this service
-   foreach mov_exec_host $service_names(moveable_execds,$ge_adapter) {
-       set mov_resource $mov_exec_host
-   }
-   
-   #we will get the architecture of the moveable resource
-   set job_arch [host_conf_get_arch $mov_exec_host] 
-
-   #move resources to the spare_pool
-   foreach mov_exec_host $service_names(moveable_execds,$ge_adapter) {
-      set arguments "-p $pref_type -s $sys_name mvr -r $mov_exec_host -s spare_pool"
-      sdmadm_command $master_host $admin_user $arguments
-      if {$prg_exit_state != 0} {
-       append error_text "Executing command resource move failed while moving resource $moc_exec_host to spare_pool"
-      }
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Moving resource of service '$this(ge_adapter)' to spare_pool"
+   #--------------------------------------------------------------------------------
+   if {[hedeby_move_resources $this(moveable_execds) "spare_pool"] != 0} {
+      return
    }
 
-   #check if resource was moved to spare pool
-   set exp_resource_info($mov_exec_host,service) "spare_pool"
-   set exp_resource_info($mov_exec_host,flags) "{}"
-   set exp_resource_info($mov_exec_host,state) "ASSIGNED"
-   set retval [wait_for_resource_info exp_resource_info 300 1 mvr_error]
-   if {$retval != 0} {
-       append error_text "Moving resource $mov_exec_host to spare_pool service failed with following error message: $mvr_error"
-    }
-
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Setting up not MaxPendingJobsSLO with job filter for service '$this(ge_adapter)'"
+   #--------------------------------------------------------------------------------
    #prepare a job filter which will ask for a resource with given architecture
+   #we will get the architecture of the moveable resource
+   set job_arch [host_conf_get_arch [pick_random $this(moveable_execds)]] 
    set prop(arch) "{=} {$job_arch}"
-   set jobFilter [create_job_filter prop]
 
    #add MaxPendingJobs slo to the configuration of the ge adapter with the job filter for specific architecture
-   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" $jobFilter 1]
-   set fixed_usage_slo [create_fixed_usage_slo 50 "fixed_usage"]
-   set slos {}
-   lappend slos $max_pending_jobs_slo
-   lappend slos $fixed_usage_slo
-   if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
-      append error_text "Setting slos for service \"$service\" failed!"
-   }
+   set mpj_opts(jobFilter) [create_job_filter prop]
+   set mpj_opts(urgency)   65
+   set mpj_opts(max)       1
+   set mpj_opts(name)      "not_matching_mpj"
+   set slos [create_max_pending_jobs_slo_opt mpj_opts]
+   lappend slos [create_fixed_usage_slo 50 "fixed_usage"]
 
+   set opts(update_interval_unit)  "seconds"
+   set opts(update_interval_value) 10 
+   if {[set_service_slos_opt $this(ge_adapter) $slos opts] != 0} {
+      return
+   }
+   unset opts
+
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Disabling all queues in cluster '$this(ge_master_host)'"
+   #--------------------------------------------------------------------------------
    #lets disable all queues of our static ge_adapter service execd 
-   set host $service_names(master_host,$ge_adapter)
-   if {[disable_queue [get_queue_instance all.q $host]] != 0} {
-      append error_text "Disabling of queues of service $ge_adapter on resource $host failed!"
+   if {[disable_queue {\\*}] != 0} {
+      return
    }
 
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Submitting array job that do not match the job filter of MaxPendingJobsSLO"
+   #--------------------------------------------------------------------------------
    #lets submit a no matching job and we will wait for some time to see that no resource was assigned and job was not executed
-   set tries 1
-   set jobs_id {}
-   for {set i 0} {$i < $tries} {incr i} {
-      set my_outputs "-o /dev/null -e /dev/null"
-      set arguments "$my_outputs -l num_proc=9 $sge_root/examples/jobs/sleeper.sh 10"
-      lappend jobs_id [submit_job $arguments]
+   set job_name "myjob"
+   set job_id [submit_sleeper_job 600 "-t 1-10 -l num_proc=9 -N $job_name"]
+   if {$job_id < 0} {
+      return
    }
+   # qconf -tsm
+   trigger_scheduling
 
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Checking that jobs stay in pending queue"
+   #--------------------------------------------------------------------------------
    #now we will check that jobs are still pending in job queue
-   set time [expr "150 + $tries * 100"]
-   foreach job_id $jobs_id {      
-      if {[wait_for_jobstart $job_id "Sleeper" $time 0] != -1} {
-         append error_text "Jobs finished. It should not happened." 
+   for {set try 0} {$try < 5} {incr try} {
+      after 3000 
+      switch -- [is_job_running $job_id $job_name] {
+         0 {  ts_log_fine "Job '$job_id' is still pending, fine" }
+         1 {
+             ts_log_severe "Job '$job_id' is running. This should not happen"
+             return
+         }
+         -1 {
+             ts_log_severe "Job '$job_id' no longer available, it should be pending"
+             return
+         }
+         default {
+             ts_log_severe "Job '$job_id' is in unknown state, it should be pending"
+             return
+         }
       }
    }
 
-   #now we will check that no new resources were added to that service
-   set arguments "-p $pref_type -s $sys_name sr -s $ge_adapter -noheader | wc -l | sed -e \"s# *##g\""
-   set res_count [sdmadm_command $master_host $admin_user $arguments]
-   if {$prg_exit_state != 0} {
-       append error_text "Executing command show resources failed"
+   #--------------------------------------------------------------------------------
+   ts_log_heading "Checking that no new resources were added to service '$this(ge_adapter)'"
+   #--------------------------------------------------------------------------------
+   # get all resources from service $this(ge_adapter) and count them, must be
+   # exactly 1 (static qmaster)
+   set opts(res_list) res_list
+   set opts(service) $this(ge_adapter)
+   if {[get_resource_info_opt ri opts] != 0} {
+      return
    }
-   if {$res_count != 1} {
-       append error_text "Service got unexpected resource(s). Test failed"
-   }
-   
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
+   unset opts
+   if {[llength $res_list] != 1} {
+      ts_log_severe "Invalid number of resource assigned to service '$this(ge_adapter)' (got [llength $res_list], expected 1)"
+      return
    }
 }

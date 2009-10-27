@@ -3278,6 +3278,8 @@ proc parse_table_output { output array_name delimiter } {
 #                                 (default: [get_hedeby_pref_type])
 #     { cached 0 }           - if the cached parameter is not 0 call sdmdm sr -cached
 #     {ril res_id_list}      - name of tcl list where the resource ids are stored 
+#     {service ""}           - name of the service
+#     {res_filter "" }       - resource filter for sdmadm sr
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -3319,7 +3321,7 @@ proc parse_table_output { output array_name delimiter } {
 #     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""} { cached 0 } {ril res_id_list} } {
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""} { cached 0 } {ril res_id_list} {service ""} {res_filter ""} } {
    global hedeby_config
 
    # setup arguments
@@ -3370,10 +3372,21 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    if { $cached != 0 } {
       append sdmadm_command " -cached"
    }
+   if {$service != "" } {
+      append sdmadm_command " -s $service"
+   }
+   if {$res_filter != ""} {
+      append sdmadm_command " -rf '$res_filter'"
+   }
    set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0} {
       ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting\noutput:\n$output" $raise_error
       return 1
+   }
+   if {![info exists table(table_columns)]} {
+      # exit code 0 and no table output => no resources found
+      ts_log_fine $output
+      return 0
    }
 
    # we expect the following table commands for ShowResourceStateCliCommand ...
@@ -3538,33 +3551,44 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #     opt(res_list)          - variable name, see get_resource_info() (default: res_list)
 #     opt(res_list_not_uniq) - variable name, see get_resource_info() (default: res_list_not_uniq)
 #     opt(sdmadm_output)     - variable name, see get_resource_info() (default: sdmadm_output)
+#     opt(res_id_list)       - variable name, see get_resource_info() (default: res_id_list)
+#     opt(service)           - name of the service (default: "")
+#     opt(cached)            - use the -cached option? (default: 0 => don't use)
+#     opt(res_filter)        - resource filter for the sdmadm sr command (default: "")
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
 #
 #  SEE ALSO
-#     util/get_resource_info_opt()
+#     util/get_resource_info()
 #     util/get_hedeby_proc_opt_arg()
 #*******************************************************************************
 proc get_resource_info_opt { {ri res_info} {opt ""} } {
    upvar $ri u_ri
 
    # set function default optional arguments
-   set opts(res_prop) "res_prop"
-   set opts(res_list) "res_list"
+   set opts(res_prop)          "res_prop"
+   set opts(res_list)          "res_list"
    set opts(res_list_not_uniq) "res_list_not_uniq"
-   set opts(sdmadm_output) "sdmadm_output"
+   set opts(sdmadm_output)     "sdmadm_output"
+   set opts(res_id_list)       "res_id_list"
+   set opts(res_filter)        ""
+   set opts(cached)            0
+   set opts(service)           ""
+
    get_hedeby_proc_opt_arg $opt opts
 
-   upvar $opts(res_prop) u_res_prop
-   upvar $opts(res_list) u_res_list
+   upvar $opts(res_prop)          u_res_prop
+   upvar $opts(res_list)          u_res_list
    upvar $opts(res_list_not_uniq) u_res_list_not_uniq
-   upvar $opts(sdmadm_output) u_sdmadm_output
+   upvar $opts(sdmadm_output)     u_sdmadm_output
+   upvar $opts(res_id_list)       u_res_id_list
 
-   return [ get_resource_info $opts(host) $opts(user) \
+   return [get_resource_info $opts(host) $opts(user) \
                u_ri u_res_prop u_res_list u_res_list_not_uniq \
                $opts(raise_error) u_sdmadm_output \
-               $opts(system_name) $opts(pref_type) ]
+               $opts(system_name) $opts(pref_type) $opts(cached) \
+               u_res_id_list $opts(service) $opts(res_filter) ]
 }
 
 #****** util/wait_for_resource_info() ******************************************
@@ -7577,11 +7601,11 @@ proc create_max_pending_jobs_slo {{ urgency 1 } { name "MaxPendingJobsSLO" } { r
       append slo_txt $resourceFilter
    }
 
+   append slo_txt "<ge_adapter:maxWaitTimeForJobs unit=\"$maxWaitTimeForJobs_unit\" value=\"$maxWaitTimeForJobs_value\"/>"
+
    if { $jobFilter != "" } {
       append slo_txt $jobFilter
    }
-
-   append slo_txt "<ge_adapter:maxWaitTimeForJobs unit=\"$maxWaitTimeForJobs_unit\" value=\"$maxWaitTimeForJobs_value\"/>"
    
    append slo_txt "</common:slo>"
    return $slo_txt
@@ -11534,7 +11558,7 @@ proc hedeby_add_resources_to_service { res_names target_service { opt "" } } {
 #   hedeby_move_resources res#123 spare_pool opts
 #
 #*******************************************************************************
-proc hedeby_move_resources { res_ids_or_names target_service opt } {
+proc hedeby_move_resources { res_ids_or_names target_service { opt "" } } {
 
    set opts(timeout)     60          ;# timeout for the wait_for_resource_info
    set opts(final_state) "ASSIGNED"
