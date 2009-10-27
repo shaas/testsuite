@@ -6024,6 +6024,9 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
    get_current_cluster_config_array ts_config
    upvar $taskid r_task_id
 
+   if {[info exists r_task_id]} {
+      unset r_task_id
+   }
    set mytime [timestamp]
    while { $mytime == $check_timestamp } { 
       after 500
