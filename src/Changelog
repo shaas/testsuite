@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-10-27-0: Cleanup:    enhanced timeout allowed for deleting temporary 
+                             generated files
+
 CR-2009-10-26-0: Bugfix:     fixed drmaaj test
                  Review:     DG
 

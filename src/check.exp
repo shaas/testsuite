@@ -5080,8 +5080,7 @@ proc delete_temp_script_files { { config_file ""} } {
 
    # This call makes new entry in new del_file_name and deletes
    # the renamed file on the file server
-   set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $temp_del_file_name]
-
+   set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $temp_del_file_name prg_exit_state 120]
    # Now delete the temp_del_file_name localy !!!
    file delete $temp_del_file_name
 }
