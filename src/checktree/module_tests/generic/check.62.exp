@@ -42,4 +42,7 @@ if {$pos >= 0} {
 }
 lappend generic_module_tests "test_commlib_issue"
 lappend generic_module_tests "test_sge_lock_fifo"
+lappend generic_module_tests "test_sge_err"
+lappend generic_module_tests "test_sge_sl"
+lappend generic_module_tests "test_sge_tq"
 

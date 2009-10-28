@@ -196,11 +196,13 @@ proc jsv_full_all_all_correct {} {
       set fd [open $tmp_file "a+"]
       puts $fd "-jsv ${jsv_base_path}/jsvBcorrect.sh"
       close $fd
+      wait_for_remote_file $host $CHECK_USER "$tmp_file"
 
       # Add a .sge_request file in the home directory and add the -jsv switch
       set fd [open $home_file "a+"]
       puts $fd "-jsv ${jsv_base_path}/jsvCcorrect.sh"
       close $fd
+      wait_for_remote_file $host $CHECK_USER "$home_file"
 
       # Create a global sge_reqeust file and add also there the switch for the file
       set global_file $ts_config(product_root)/$ts_config(cell)/common/sge_request
@@ -213,6 +215,7 @@ proc jsv_full_all_all_correct {} {
       set fd [open $global_file "a+"]
       puts $fd "-jsv ${jsv_base_path}/jsvDcorrect.sh"
       close $fd
+      wait_for_remote_file $host $CHECK_USER "$global_file"
    }
 
    # test itself

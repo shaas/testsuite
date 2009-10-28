@@ -1083,6 +1083,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    set status_rows {}
    set status_cols {status file}
    set java_compile_host [host_conf_get_java_compile_host]
+   set spawn_list {}
    foreach host $host_list {
       # we have to make sure that the build number is compiled into 
       # the object code (therefore delete the appropriate object module).

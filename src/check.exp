@@ -1188,11 +1188,13 @@ proc query_passwd {user} {
          return ""
       }
    } else { 
-       puts "user $user's password: "
-       stty -echo
-       set passwd [wait_for_enter 1 0 1]
-       stty echo
-       return $passwd
+      puts "user $user's password: "
+     
+      stty -echo
+      set passwd [wait_for_enter 1 0 1]
+      stty echo
+
+      return $passwd
    }
 }
 

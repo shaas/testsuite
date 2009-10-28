@@ -63,6 +63,12 @@ set check_cleanup_function jsv_ge_add_cleanup
 set check_functions {}
 lappend check_functions "jsv_ge_add_a"
 lappend check_functions "jsv_ge_add_A"
+lappend check_functions "jsv_ge_add_binding_strategy"
+lappend check_functions "jsv_ge_add_binding_type"
+lappend check_functions "jsv_ge_add_binding_amount"
+lappend check_functions "jsv_ge_add_binding_socket"
+lappend check_functions "jsv_ge_add_binding_core"
+lappend check_functions "jsv_ge_add_binding_exp"
 lappend check_functions "jsv_ge_add_c_interval"
 lappend check_functions "jsv_ge_add_c_occasion"
 lappend check_functions "jsv_ge_add_ckpt"
@@ -99,8 +105,10 @@ global jsv_job_id
 global jsv_hjob_id
 global jsv_enabled 
 global jsv_base_path 
+global jsv_has_binding
 
 set jsv_enabled ""
+set jsv_has_binding ""
 
 proc jsv_ge_add_init_level {} {
    global CHECK_ACT_LEVEL
@@ -119,16 +127,17 @@ proc jsv_ge_add_setup {} {
    global jsv_enabled
    global jsv_job_id
    global jsv_hjob_id
+   global jsv_has_binding
 
    if {$ts_config(gridengine_version) < 62} {
       ts_log_config "test not working for GE < 62"
       return 99
    }
 
-
    # check if jsv is available
    if {$jsv_enabled == ""} {
       set jsv_enabled [ge_has_feature "job-submission-verify"]
+      set jsv_has_binding [ge_has_feature "core-binding"]
       if {$jsv_enabled == false} {
          ts_log_config "Cannot run this test, jsv is not available for this GE version!"
       }
@@ -277,6 +286,7 @@ proc jsv_ge_add_get_default_for_param {name} {
 proc jsv_ge_add_param_set {islist name value xml_value xml_node_name add_qsub_switch {list_op ""} {list_param ""}} {
    global ts_config
    global jsv_base_path 
+   global jsv_has_binding 
 
    # submit job and pass instructions for the JSV script
    # by using the job context.
@@ -292,7 +302,11 @@ proc jsv_ge_add_param_set {islist name value xml_value xml_node_name add_qsub_sw
 
    # parse the value from the qstat -xml output
    set tag_list_string ""
-   set xml_out [start_sge_bin qstat "-xml -j $job_id"]
+   set qstat_args "-xml"
+   if {$jsv_has_binding == true} {
+      set qstat_args "$qstat_args -cb"
+   }
+   set xml_out [start_sge_bin qstat "$qstat_args -j $job_id"]
    foreach tag $xml_node_name {
       append tag_list_string "<$tag>"
       set xml_out_next ""
@@ -346,6 +360,101 @@ proc jsv_ge_add_A {} {
 
    # delete value which was initially set
    jsv_ge_add_param_set "false" "A" "" "" "JB_account" "-A $string2"
+}
+
+proc jsv_ge_add_binding_strategy {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set strategy which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_strategy" "linear" "linear" "BN_strategy" ""
+
+      # modify strategy which was provided by submitter
+      jsv_ge_add_param_set "false" "binding_strategy" "striding" "striding" "BN_strategy" "-binding linear:1"
+
+      # delete strategy which was provided by submitter
+      jsv_ge_add_param_set "false" "binding_strategy" "" "no_job_binding" "BN_strategy" "-binding linear:1"
+   }
+}
+
+proc jsv_ge_add_binding_type {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set a type which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_type" "pe" "1" "BN_type" ""
+      jsv_ge_add_param_set "false" "binding_type" "env" "2" "BN_type" ""
+      jsv_ge_add_param_set "false" "binding_type" "set" "3" "BN_type" ""
+
+      # modify type which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_type" "pe" "1" "BN_type" "-binding set linear:1"
+
+      # deleting type which was not provided by submitter is not supported
+   }
+}
+
+proc jsv_ge_add_binding_amount {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set the amount which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_amount" "69" "69" "BN_parameter_n" ""
+
+      # modify the amount which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_amount" "96" "96" "BN_parameter_n" "-binding set linear:1"
+
+      # deleting amount is not allowed
+   }
+}
+
+proc jsv_ge_add_binding_socket {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set socket which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_socket" "123" "123" "BN_parameter_socket_offset" ""
+
+      # modify socket which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_socket" "321" "321" "BN_parameter_socket_offset" "-binding set linear:1:1:1"
+
+      # deleting socket is not allowed
+   }
+}
+
+proc jsv_ge_add_binding_core {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set a core which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_core" "345" "345" "BN_parameter_core_offset" ""
+
+      # modify a core which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_core" "543" "543" "BN_parameter_core_offset" "-binding set linear:1:1:1"
+
+      # deleting core is not allowed
+   }
+}
+
+proc jsv_ge_add_binding_exp {} {
+   global jsv_has_binding
+
+   if {$jsv_has_binding == true} {
+      # set explicit list length and elemnt after list end which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_exp_n" "1" "explicit:0,0" "BN_parameter_explicit" ""
+      jsv_ge_add_param_set "false" "binding_exp_n" "3" "explicit:0,0:0,0:0,0" "BN_parameter_explicit" ""
+      jsv_ge_add_param_set "false" "binding_exp_socket0" "77" "explicit:77,0" "BN_parameter_explicit" ""
+      jsv_ge_add_param_set "false" "binding_exp_core1" "88" "explicit:0,0:0,88" "BN_parameter_explicit" ""
+
+      # set explicit list length and elemnt after list end which was not provided by submitter
+      jsv_ge_add_param_set "false" "binding_exp_n" "1" "explicit:1,1" "BN_parameter_explicit" "-binding explicit:1,1"
+      jsv_ge_add_param_set "false" "binding_exp_n" "3" "explicit:1,1:0,0:0,0" "BN_parameter_explicit" "-binding explicit:1,1"
+      jsv_ge_add_param_set "false" "binding_exp_socket0" "77" "explicit:77,1" "BN_parameter_explicit" "-binding explicit:1,1"
+      jsv_ge_add_param_set "false" "binding_exp_core1" "88" "explicit:1,1:0,88" "BN_parameter_explicit" "-binding explicit:1,1"
+
+      # delete last element from list
+      jsv_ge_add_param_set "false" "binding_exp_n" "1" "explicit:1,1" "BN_parameter_explicit" "-binding explicit:1,1:2,2"
+      jsv_ge_add_param_set "false" "binding_exp_n" "2" "explicit:1,1:2,2" "BN_parameter_explicit" "-binding explicit:1,1:2,2:3,3"
+   }
 }
 
 proc jsv_ge_add_ckpt {} {

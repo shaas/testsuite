@@ -405,6 +405,15 @@ proc ge_has_feature {feature {quiet 0}} {
             set result true
          }
       }
+      "core-binding" {
+         get_complex complex_array
+
+         if {[info exists complex_array(m_topology)]} {
+            set result true
+         } else {
+            set result false 
+         }
+      }
       "job-submission-verify" {
          if {[get_config global_config] == 0} {
             # check if there is a jsv_url in configuration
