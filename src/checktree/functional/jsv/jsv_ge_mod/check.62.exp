@@ -95,7 +95,8 @@ lappend check_functions "jsv_ge_mod_q_soft"
 lappend check_functions "jsv_ge_mod_R"                
 lappend check_functions "jsv_ge_mod_r"                
 lappend check_functions "jsv_ge_mod_sc"
-lappend check_functions "jsv_ge_mod_S"                
+lappend check_functions "jsv_ge_mod_S"
+lappend check_functions "jsv_ge_mod_tc"
 lappend check_functions "jsv_ge_mod_v"
 lappend check_functions "jsv_ge_mod_V"
 lappend check_functions "jsv_ge_mod_wd"               
@@ -466,6 +467,10 @@ proc jsv_ge_mod_sc {} {
 
 proc jsv_ge_mod_S {} {
    jsv_ge_mod "S" "-S /bin/sh"
+}
+
+proc jsv_ge_mod_tc {} {
+   jsv_ge_mod "tc" "-tc 1"
 }
 
 proc jsv_ge_mod_v {} {
