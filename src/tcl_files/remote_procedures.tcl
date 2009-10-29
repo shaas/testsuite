@@ -1470,7 +1470,7 @@ proc open_remote_spawn_process { hostname
       if { $con_data(in_use) } {
          set found_alternative 0
          if {$CHECK_DEBUG_LEVEL != 0} {
-            set info_text "connection to host \"$con_data(hostname)\" ad user \"$con_data(user)\" is in use by script:\n"
+            set info_text "connection to host \"$con_data(hostname)\" as user \"$con_data(user)\" is in use by script:\n"
             append info_text "$con_data(command_script)\n"
             append info_text "command string: $con_data(command_name) $con_data(command_args)\n"
             ts_log_finer $info_text
