@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+DG-2009-10-30-0: Cleanup:    Fixed qstat -help test because output for core 
+                             binding changed. 
+                 Review:     CR, SH
+
 JF-2009-10-28-0: Enhancem.:  Testsuite test for RFI 6684887 jsv part
                  Review:     EB
 

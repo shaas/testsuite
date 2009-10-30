@@ -274,7 +274,12 @@ proc get_version_info { {version_information_array_name ""} } {
    }
    set rel_info(update_release) $up_rel
    set rel_info(full) $CHECK_PRODUCT_VERSION_NUMBER
-   set rel_info(detected_version) "$rel_info(major_release).$rel_info(minor_release)u$rel_info(update_release)" 
+   if { $up_rel == 0 } {
+      set rel_info(detected_version) "$rel_info(major_release).$rel_info(minor_release)" 
+   } else {
+      set rel_info(detected_version) "$rel_info(major_release).$rel_info(minor_release)u$rel_info(update_release)" 
+   }
+   
    return $CHECK_PRODUCT_VERSION_NUMBER
 }
 

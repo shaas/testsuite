@@ -364,9 +364,14 @@ proc check_core_queues {} {
 }
 
 proc qstat_help {} {
-   global CHECK_PRODUCT_VERSION_NUMBER
 
+   # this is true for < 6.2u5 
    set qstat_help_lines 41
+   
+   # in 6.2u5 there is an additional "-cb" line
+   if { [ge_has_feature "core-binding"] } {
+      set qstat_help_lines 42
+   }
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -384,8 +389,10 @@ proc qstat_help {} {
 
    set output [string trim $output]
 
-   if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
-      ts_log_severe "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
+   get_version_info versions
+   
+   if {[string first $versions(detected_version)  $output] < 0} {
+      ts_log_severe "version string ($versions(detected_version)) not found"
    } 
  
    set lines [split $output "\n"]
