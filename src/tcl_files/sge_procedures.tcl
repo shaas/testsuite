@@ -1944,7 +1944,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          set my_tight_env(JOB_ID) $master_task_id
          set my_tight_env(SGE_TASK_ID) 1
 
-         ts_log_finer "starting qrsh -inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 80 ..."
+         ts_log_finer "starting qrsh -inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 15 ..."
          set sid [open_remote_spawn_process $ts_config(master_host) $user "qrsh" "-inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 15" 0 "" my_tight_env]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -2534,7 +2534,11 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
       set joined_spawn_list {}
 
       # get host and spooldir of an execd - where to look for messages file
-      set host_list $ts_config(execd_nodes)
+      if {$host == "global"} {
+         set host_list $ts_config(execd_nodes)
+      } else {
+         set host_list $host
+      }
 
       foreach conf_host $host_list {
          # Begin watching messages file for changes,

@@ -3524,6 +3524,9 @@ proc delete_directory {path} {
 #     Each call of this procedure must follow a call of logfile_wait() in
 #     order to close the open spawn process.
 #
+#  RETURN
+#      spawn id of process (internal format, see close_spawn_process for details)
+#
 #  INPUTS
 #     hostname - host where tail should be started
 #     logfile  - full path name of (log)file

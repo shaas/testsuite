@@ -1,0 +1,314 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+#set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3170_init_level"
+
+# define tcl files which should be sourced at startup of testsuite
+set check_source_files "remote_cluster_procedures"
+
+# define test's name and run level descriptions
+set check_name            "issue_3170"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "execd cannot get rid of not existing task which results in qmaster <-> execd protocol loop"
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_3170_setup
+set check_cleanup_function issue_3170_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_3170_test"
+
+
+proc issue_3170_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+
+proc issue_3170_setup {} {
+   global CHECK_USER 
+   global test_3170_config
+   global test_3170_execd_config
+   get_current_cluster_config_array ts_config
+
+   if {[info exists test_3170_config]} {
+      unset test_3170_config
+   }
+
+   # select test host
+   set test_host [host_conf_get_suited_hosts 1]
+   set test_3170_config(host) $test_host
+
+   # add tight integration parallel environment
+   set pe(slots)              1000
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   add_pe "3170_tight" pe
+   set test_3170_config(pe_list) {}
+   lappend test_3170_config(pe_list) "3170_tight"
+
+   # create queue which uses pe 3170_tight
+   set new_queue(qtype)           "BATCH INTERACTIVE"
+   set new_queue(load_thresholds) "np_load_avg=8.00"
+   set new_queue(slots)           "100"
+   set new_queue(pe_list)         "3170_tight"
+   set new_queue(h_rt)            "0:0:30"
+   add_queue "3170_queue" $test_3170_config(host) new_queue
+   set test_3170_config(queue_list) {}
+   lappend test_3170_config(queue_list) "3170_queue"
+
+   # set execd down state
+   set test_3170_config(execd_down) false
+
+   # set load report interval for test host
+   set new_config(load_report_time) "00:00:03"
+
+   get_config test_3170_execd_config $test_3170_config(host)
+   set_config_and_propagate new_config $test_3170_config(host)
+}
+
+
+proc issue_3170_cleanup {} {
+   get_current_cluster_config_array ts_config
+   global test_3170_config 
+   global test_3170_execd_config
+
+   if {$test_3170_config(execd_down)} {
+      startup_execd $test_3170_config(host)
+   }
+
+   ts_log_fine "delete all jobs ..."
+   delete_all_jobs
+
+   ts_log_fine "wait for end of all jobs ..."
+   wait_for_end_of_all_jobs
+
+
+   ts_log_fine "removing queues ..."
+   foreach q $test_3170_config(queue_list) {
+      del_queue $q $test_3170_config(host) 0 1
+   }
+   
+   ts_log_fine "removing PEs ..."
+   foreach pe $test_3170_config(pe_list) {
+      del_pe $pe
+   }
+
+   reset_config_and_propagate test_3170_execd_config $test_3170_config(host)
+
+   # to be sure not to have further logging, restart execd
+   shutdown_system_daemon $test_3170_config(host) "execd"
+   startup_execd $test_3170_config(host)
+
+
+   unset test_3170_config   
+   unset test_3170_execd_config
+}
+
+
+proc issue_3170_test {} {
+   global CHECK_USER test_3170_config 
+   get_current_cluster_config_array ts_config
+
+   set error_text ""
+   set my_outputs "-o /dev/null -e /dev/null -N test"
+
+   set queue $test_3170_config(queue_list)
+   set pe    $test_3170_config(pe_list)
+   set host  $test_3170_config(host)
+   set user  $CHECK_USER
+
+   set spool_dir [get_execd_spool_dir $host]
+
+   set log_id [init_logfile_wait $host "$spool_dir/$host/messages"]
+   set log_sp_id [lindex $log_id 1]
+
+   # submit pe job ...
+   set arguments "$my_outputs -q $queue -pe $pe 2 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_id [submit_job $arguments]
+   wait_for_jobstart $job_id "test" 60 1 1
+
+   # submit job task ...
+   set my_tight_env(JOB_ID) $job_id
+   set my_tight_env(SGE_TASK_ID) 1
+   ts_log_finer "starting qrsh -inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 600 ..."
+   set sid [open_remote_spawn_process $ts_config(master_host) $user "qrsh" "-inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 600" 0 "" my_tight_env]
+   set sp_id [lindex $sid 1]
+   set timeout 90
+   log_user 1
+   expect {
+      -i $sp_id full_buffer {
+         append error_text "expect full_buffer error - break\n"
+      }
+      -i $sp_id timeout {
+         append error_text "got timeout error - break\n"
+      }
+      -i $sp_id eof {
+         append error_text "got eof error - break\n"
+      }
+      -i $sp_id "Here I am" {
+         ts_log_fine "remote command started"
+
+         set test_3170_config(execd_down) true
+         ts_log_fine "shutting down execd host $host ..."
+         soft_execd_shutdown $host
+
+         ts_log_fine "checking execd spool dir \"$spool_dir\""
+         set delete_dir_path "$spool_dir/$host/active_jobs/$job_id.1/1.$host"
+         if {[wait_for_remote_dir $host $user $delete_dir_path] == 0} {
+            ts_log_fine "task spool dir \"$delete_dir_path\" found on host \"$host\""
+            remote_delete_directory $host $delete_dir_path
+         } else {
+            append error_text "CANNOT find task spool dir \"$delete_dir_path\" found on host \"$host\"\n"
+         }
+         
+         # restart execd
+         if {[startup_execd $host] == 0} {
+            set test_3170_config(execd_down) false
+         }
+         exp_continue
+      }
+      -i $sp_id "assword" {
+         append error_text "unexpected password question for user $user on host $host - break\n"
+      }
+ 
+      -i $sp_id "_END_OF_FILE_" {
+         ts_log_fine "now we can check messages files ..."
+      }
+
+      -i $sp_id "*\n" {
+         set output $expect_out(buffer)
+         set output [ split $output "\n" ]
+         foreach line $output {
+            set line [string trim $line]
+            if { [string length $line] == 0 } {
+               continue
+            }
+            ts_log_fine $line
+         }
+         exp_continue
+      }
+   }
+   close_spawn_process $sid
+
+   # the time period we wait for messages
+   set now [clock seconds]
+   set start $now
+   set end [expr $now + 120]   
+
+
+   set analyse_wait_time 70
+   
+   set timeout 15
+   expect {
+      -i $log_sp_id timeout {
+         set now [clock seconds]
+         set run_time [expr $now - $start ]
+         
+         if {$run_time > $analyse_wait_time} {
+            ts_log_fine "no new messages arrived, runtime > $analyse_wait_time - don't expect any further logging - fine"
+         } else {
+            if {$now < $end} {
+               exp_continue
+            }
+         }
+      }
+      -i $log_sp_id full_buffer {
+         append error_text "log expect full_buffer error - break (please increase CHECK_EXPECT_MATCH_MAX_BUFFER)\n"
+      }
+      -i $log_sp_id eof {
+         append error_text "log expect eof error - break\n"
+      }
+      -i $log_sp_id "*\n" {
+         set now [clock seconds]
+         set log_text_output ""
+         foreach line [split $expect_out(0,string) "\n"] {
+            set line [string trim $line]
+            if {$line == ""} {
+               continue
+            }
+            set run_time [expr $now - $start ]
+            ts_log_fine "$run_time -> processing line: \"$line\""
+            append log_text_output "$line\n"
+         }
+         if {$run_time > $analyse_wait_time} {
+            append error_text "found not expected logging:\n$log_text_output\nTest failed - issue 3170 found!\n"
+         } else {
+            if {$now < $end} {
+               exp_continue
+            }
+         }
+      }
+   }
+
+   close_logfile_wait
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+
+
+
+
+
