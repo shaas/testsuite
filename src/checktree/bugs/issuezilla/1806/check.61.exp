@@ -110,7 +110,7 @@ proc issue_1806_run {} {
    
    set arguments "-l h=$exechost $ts_config(product_root)/examples/jobs/sleeper.sh 0"
 
-   ts_log_info "Submit 0 sec. sleepers on host: $exechost"
+   ts_log_fine "Submit 0 sec. sleepers on host: $exechost"
 
    for {set x 0} {$x<10} {incr x} {
       set job_id($x) [ submit_job "$arguments" ] 
