@@ -250,16 +250,12 @@ proc hedeby_create_cloud_service_sequence_for_ec2 { service_opts sequence } {
 #       return
 #    }
 #
+#  SEE ALSO
+#     util/hedeby_change_component()
 #*******************************************************************************
 proc hedeby_change_gef_action { service action_type action_content {opt ""} } {
-
    get_hedeby_proc_opt_arg $opt opts
 
-   set ispid [hedeby_mod_setup_opt "mc -c $service" error_text opts]
-   if { $error_text != "" } {
-      ts_log_severe "Could not start sdmadm mc: $error_text"
-      return -1
-   }
    ts_log_fine "Changing $action_type of service $service..."
 
    set new_action    "<cloud_adapter:$action_type>\n"
@@ -275,19 +271,38 @@ proc hedeby_change_gef_action { service action_type action_content {opt ""} } {
    lappend seq $new_action              ;# insert action
    lappend seq ".\n"                    ;# end insert mode with . line
 
-   hedeby_mod_sequence $ispid $seq error_text
-   hedeby_mod_cleanup $ispid error_text
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
-   }
+   return [hedeby_change_component $service $seq opts]
+}
 
-   # update component
-   set output [sdmadm_command_opt "uc -c $service" opts]
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
-   }
+#****** cloud/hedeby_set_maxCloudHostsInSystemLimit() *******
+#  NAME
+#     hedeby_cloud_max_hosts_set_maxCloudHostsInSystemLimit() -- 
+#                       set the maxCloudHostsInSystemLimit
+#
+#  SYNOPSIS
+#     hedeby_set_maxCloudHostsInSystemLimit { service maxCloudHostsInSystemLimit } 
+#
+#  FUNCTION
+#     Changes the configuration of $service so that maxCloudHostsInSystemLimit
+#     is set to the value of the parameter $maxCloudHostsInSystemLimit.
+#
+#  INPUTS
+#     service                    - name of the cloud service to change
+#     maxCloudHostsInSystemLimit - the max cloud hosts in system limit to set
+#                                  in the cloud service configuration
+#
+#  RESULT
+#     return value of hedeby_change_component
+#
+#  SEE ALSO
+#     util/hedeby_change_component()
+#*******************************************************************************
+proc hedeby_set_maxCloudHostsInSystemLimit { service maxCloudHostsInSystemLimit } {
 
-   # and wait for component startup
-   set exp_serv_info($service,cstate) "STARTED"
-   return [wait_for_service_info exp_serv_info 60 $opts(raise_error)]
+   ts_log_fine "Changing maxCloudHostsInSystemLimit to $maxCloudHostsInSystemLimit in service '$service'"
+
+   set sequence {}
+   lappend sequence ":%s/maxCloudHostsInSystemLimit=\['\"\]\[0-9\]*\['\"\]/maxCloudHostsInSystemLimit=\"$maxCloudHostsInSystemLimit\"/\n"
+   # lappend sequence ":w! /tmp/cloud_config.xml\n"
+   return [hedeby_change_component $service $sequence]
 }

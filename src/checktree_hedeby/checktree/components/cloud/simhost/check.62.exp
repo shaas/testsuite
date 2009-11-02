@@ -182,10 +182,8 @@ proc hedeby_cloud_simhost_cleanup_level {} {
       #---------------------------------------------------------------------
       if {[info exists this(res_ids)]} {
          set res_ids $this(res_ids)
-         set opts(res_id_type) "resource_id"
       } else {
          set  res_ids $this(res_names)
-         set opts(res_id_type) "resource"
       }
       if {[hedeby_remove_resources $res_ids opts] != 0} { 
          reset_hedeby 1

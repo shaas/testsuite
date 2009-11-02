@@ -84,7 +84,7 @@ proc ge_unassign_resources_setup {} {
    set service_name [lindex $service_names(services) 0]
    
    set this(service_name)   $service_name
-   set this(master_host)   $service_names(master_host,$service_name)
+   set this(master_host)    $service_names(master_host,$service_name)
    set this(host_name)      [lindex $service_names(moveable_execds,$service_name) 0]
    set this(cluster_nr)     $service_names(ts_cluster_nr,$service_name)
    set this(org_cluster_nr) [get_current_cluster_config_nr]
@@ -123,8 +123,8 @@ proc ge_unassign_resources_cleanup {} {
    
    set_current_cluster_config_nr $this(org_cluster_nr)
    
-   set_hedeby_default_job_suspend_policy $this(service_name)
-   reload_hedeby_component $this(service_name) [get_service_host $this(master_host)]
+   # reset job suspend policy to default values
+   set_hedeby_job_suspend_policy $this(service_name)
    unset this
 }
 
@@ -258,16 +258,14 @@ proc ge_unassign_resources_check {} {
    get_current_cluster_config_array ts_config
 
    # Reconfigure the job suspend policy of the ge service
-   set res [set_hedeby_job_suspend_policy $this(service_name) $suspend_methods $this(job_wait_time) "seconds"]
+   set opt(suspend_methods) $suspend_methods
+   set opt(job_finish_timeout_value) $this(job_wait_time)
+   set opt(job_finish_timeout_unit)  "seconds"
+   set res [set_hedeby_job_suspend_policy $this(service_name) opt]
+   unset opt
    if { $res != 0} {
       ts_log_severe "skipping test, got errors setting suspend policy!"
       return 
-   }
-   
-   # reload the service config 
-   if {[reload_hedeby_component $this(service_name) [get_service_host $this(master_host)] ] != 0} {
-      ts_log_severe "skipping test, cannot reload hedeby component!"
-      return
    }
    
    set job_id [submit_job "$job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $this(job_run_time)"]
@@ -283,9 +281,9 @@ proc ge_unassign_resources_check {} {
       return
    }
    
-   # get time on host on which the following sdmadm commands are executed to avoid problems with time differences between hosts
-   get_hedeby_proc_default_opt_args default_opts
-   set move_time [get_remote_time $default_opts(host)]
+   # get time on host on which the events are produced (GE service master host)
+   # to avoid problems with time differences between hosts
+   set move_time [get_remote_time $this(master_host)]
 
    sdmadm_command_opt "move_resource -r $this(host_name) -s spare_pool"
    if {$prg_exit_state == 0} {

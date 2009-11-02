@@ -6,6 +6,33 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-11-02-0: Enhancem.:  o added SDM test for cloud adapter:
+                               components/cloud/max_hosts_in_system_limit
+                             o new SDM helper function
+                               hedeby_change_component()
+                               hedeby_is_component_also_service()
+                             o improved hedeby_remove_resources() now
+                               autodetects resource ids or resource names and
+                               has purge option
+                             o changed set_hedeby_job_suspend_policy() to accept
+                               opt parameter and update the component. Same for
+                               set_hedeby_slos_config()
+                             o test for issue 547 uses ts_log_heading()
+                 Bugfix:     o variable name typo in get_history()
+                             o fixed timing issue in hedeby_mod_cleanup()
+                             o fixes in wait_for_notification(): hist_info
+                               returns resource_id as well
+                             o fixed opt handling in hedeby_mod_setup_opt()
+                             o fixed resource id handling in
+                               wait_for_resource_removal()
+                             o hedeby_remove_resources() uses now correct
+                               wait_for_resource_removal() instead of
+                               wait_for_notification()
+                             o fixed timestamp taken from wrong host in
+                               components/ge/unassign_resources test
+                 Review:     ??
+
 CR-2009-10-30:0: Bugfix:     o Fixed set_config_and_propagate() implementation
                                which has wait for config changes even when only
                                one execd config was modified

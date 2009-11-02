@@ -2196,7 +2196,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
 #        debug_puts "output:\n$output"
 #     }
 #     if { $error_text != "" } {
-#        ts_log_sever "Error in remove_hedeby_preferences: $error_text"
+#        ts_log_severe "Error in remove_hedeby_preferences: $error_text"
 #     }
 #
 #  SEE ALSO
@@ -4180,11 +4180,11 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       # we have an older SDM system
       if {[regexp "(\[^\\(\]+)\\((res#\[^\\)]*)\\)" $table($res_col,$line) match_str res_name res_id]} {
          set hist_info($line,resource) $res_name
-         set host_info($line,resource_id) $res_id
+         set hist_info($line,resource_id) $res_id
       } else {
          # old system => resource id = resource name
          set hist_info($line,resource) $table($res_col,$line)
-         set host_info($line,resource_id) $table($res_col,$line)
+         set hist_info($line,resource_id) $table($res_col,$line)
       }
       set hist_info($line,desc)     [lindex $table($desc_col,$line) 0]
    }
@@ -4251,6 +4251,12 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #     set start_time [expr [clock seconds] - 60]
 #     wait_for_notification $start_time  hist err_hist 60
 # 
+#  NOTES
+#     TODO There seems to be still a problem with this function. The order
+#          of events is not checked properly, and furthermore it is not
+#          guaranteed that all events actually arrive. This was noticed
+#          while waiting for RESOURCE_REMOVED events of different resources
+#          (called from hedeby_remove_resources).
 #*******************************************************************************
 proc wait_for_notification {start_time exp_history error_history  {atimeout 60} { hist_lines "" } {raise_error 1} {host ""} {user ""} } {
    
@@ -4517,15 +4523,17 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
                set prefix [format "Event %d/%d" [expr $exp_index + 1] $exp_hist(count)]
                append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
                
-               set hist_ret($exp_index,time)    $hist_info($line,time)
-               set hist_ret($exp_index,millis)  $hist_info($line,millis)
-               set hist_ret($exp_index,type)    $hist_info($line,type)
-               set hist_ret($exp_index,service) $hist_info($line,resource)
-               set hist_ret($exp_index,desc)    $hist_info($line,desc)
+               set hist_ret($exp_index,time)        $hist_info($line,time)
+               set hist_ret($exp_index,millis)      $hist_info($line,millis)
+               set hist_ret($exp_index,type)        $hist_info($line,type)
+               set hist_ret($exp_index,resource)    $hist_info($line,resource)
+               set hist_ret($exp_index,resource_id) $hist_info($line,resource_id)
+               set hist_ret($exp_index,desc)        $hist_info($line,desc)
                
                incr exp_index
                
                set hist_ret(count) $exp_index
+               incr line
                break
          } else {
             for {set err_index 0} { $err_index < $error_hist(count) } { incr err_index } {
@@ -4608,15 +4616,16 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
                      set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $exp_hist(count)]
                      append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
                      
-                     set hist_ret($exp_index,time)    $hist_info($line,time)
-                     set hist_ret($exp_index,millis)  $hist_info($line,millis)
-                     set hist_ret($exp_index,type)    $hist_info($line,type)
-                     set hist_ret($exp_index,service) $hist_info($line,resource)
-                     set hist_ret($exp_index,desc)    $hist_info($line,desc)
+                     set hist_ret($exp_index,time)        $hist_info($line,time)
+                     set hist_ret($exp_index,millis)      $hist_info($line,millis)
+                     set hist_ret($exp_index,type)        $hist_info($line,type)
+                     set hist_ret($exp_index,resource)    $hist_info($line,resource)
+                     set hist_ret($exp_index,resource_id) $hist_info($line,resource_id)
+                     set hist_ret($exp_index,desc)        $hist_info($line,desc)
                      
                      incr exp_index
                      set hist_ret(count) $exp_index
-                     continue
+                     break
                   }
                } else {
                   # The event does not match to any expected event
@@ -4653,6 +4662,8 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
       if {$exp_index >= $exp_hist(count) } {
          append msg "Got all expected notifications\n"
          ts_log_fine "$msg"
+         # ts_log_finest [format_array hist_ret]
+         # ts_log_finest [format_array hist_info]
          return 0
       } elseif {[timestamp] >= $my_timeout} {
          append msg "==> TIMEOUT(=$atimeout sec) while waiting for expected history info"
@@ -4685,11 +4696,12 @@ proc history_entry_to_str { history_info line } {
    
    upvar $history_info hist_info
 
-   return [format "%s|%s|%s|%s|%s"       \
+   return [format "%s|%s|%s|%s|%s|%s"       \
            "$hist_info($line,time)"      \
            "$hist_info($line,type)"      \
            "$hist_info($line,service)"   \
            "$hist_info($line,resource)"  \
+           "$hist_info($line,resource_id)"  \
            "$hist_info($line,desc)"]
 }
 
@@ -5768,7 +5780,7 @@ proc wait_for_resource_state { state {raise_error 1} {atimeout 60} {ares res_sta
 #             service_info(SERVICE_NAME,host)   - service host
 #             service_info(SERVICE_NAME,cstate) - service component state
 #             service_info(SERVICE_NAME,sstate) - service state
-#             service_info(SERVICE_NAME,service_list) - list of all services
+#             service_info(service_list)        - list of all services
 #
 #  EXAMPLE
 #     get_service_info sinfo
@@ -7791,7 +7803,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
 proc hedeby_mod_setup_opt { sdmadm_arguments error_log {opt ""} } {
    upvar $error_log error
 
-   get_hedeby_proc_opt_arg opt opts
+   get_hedeby_proc_opt_arg $opt opts
 
    # add preference type and system name to command line when != ""
    if { $opts(pref_type) != "" } {
@@ -7897,18 +7909,23 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       append errors "skip sending vi sequence, send ESC:q! sequence\n"
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
-      lappend sequence ":q!\n"        ;# save and quit
+      lappend sequence ":q!\n"        ;# don't save and quit
       hedeby_mod_sequence $ispid $sequence errors
       set timeout 2
    } else { 
-      after 1010 ;# TODO: be sure to wait one second so that file timestamp has changed
-                  # This might be done by have start timestamp and endtimestamp and only
-                  # wait if timestamp has not changed (too fast edit)
+      # we change the file size for sure below, so no need to wait. A file
+      # is changed for hedeby if the file size or the modification time is
+      # different.
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
-      lappend sequence "Go[format "%c" 27]" ;# Put a new line at the end, increases the 
-                                            ;# chance that the file is considered as changed
-                                            ;# (compares modification time and file size)
+      # Put 1001 new lines at the end of the file.
+      # This makes sure that the file is considered as changed (compares
+      # modification time and file size). By adding this many chars it is
+      # nearly impossible that the normal edit of the file beforehand deleted
+      # exactly as many bytes as are added. Use new lines as they are ignored
+      # both by the XML parser and the resource properties parser.
+      lappend sequence "Go[format "%c" 27]" ;# append empty line at end of file
+      lappend sequence "1000."              ;# repeat 1000 times
       lappend sequence ":wq\n"        ;# save and quit
       hedeby_mod_sequence $ispid $sequence errors
       set timeout 60
@@ -7970,164 +7987,69 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    return $output
 }
 
-#****** util/reload_hedeby_component() *****************************************
-#  NAME
-#     reload_hedeby_component() -- reload a hedeby component 
-#
-#  SYNOPSIS
-#     reload_hedeby_component { component_name host_name { host "" } 
-#     { user "" } } 
-#
-#  FUNCTION
-#    Triggers an 'sdmadm update_component' 
-#
-#  INPUTS
-#     component_name - name of the component
-#     host_name      - name of the host where the component is running 
-#     { host "" }    - host where the sdmadm is executed (if "" it will be executed
-#                      on the hedeby master host 
-#     { user "" }    - user executing the sdmadm command (if "" it will be executed
-#                      as default admin user 
-#
-#  RESULT
-#     0 -- component reloaded
-#     else -- error
-#
-#*******************************************************************************
-proc reload_hedeby_component { component_name host_name { host "" } { user "" } } {
-   
-   global hedeby_config
-   
-   set uc_cmd "-s [get_hedeby_system_name] -p [get_hedeby_pref_type] uc"
-   append uc_cmd " -c '$component_name'"
-   append uc_cmd " -h '$host_name'"
-   
-   if {$host == ""} {
-      set execute_host $hedeby_config(hedeby_master_host)
-   } else {
-      set execute_host $host
-   }
-   
-   if {$user == ""} {
-      set execute_user [get_hedeby_admin_user]
-   } else {
-      set execute_user $user
-   }
-   
-   sdmadm_command $execute_host $execute_user "$uc_cmd" 
-   if {$prg_exit_state != 0} {
-      return $prg_exit_state
-   }
-   set exp_component_info($component_name,$host_name,state) "STARTED"
-   return [wait_for_component_info exp_service_info]
-}
-
-#****** util/set_hedeby_default_job_suspend_policy() ***************************
-#  NAME
-#     set_hedeby_default_job_suspend_policy() -- set the default job suspend policy
-#                                                for a grid engine service 
-#
-#  SYNOPSIS
-#     set_hedeby_default_job_suspend_policy { service {raise_error 1} 
-#     { host "" } { user "" } } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     service         - name of the grid engine service 
-#     {raise_error 1} - raise error 
-#     { host "" }     - host where sdmadm is executed 
-#     { user "" }     - user executing sdmadm 
-#
-#  RESULT
-#     0    -- default jobs suspend policy for the service set
-#     else -- error 
-#
-#*******************************************************************************
-proc set_hedeby_default_job_suspend_policy { service {raise_error 1} { host "" } { user "" } } {
-   set default_suspend_methods { "reschedule_jobs_in_rerun_queue" "reschedule_restartable_jobs" "suspend_jobs_with_checkpoint" }
-   return [set_hedeby_job_suspend_policy $service ${default_suspend_methods} "2" "minutes" $raise_error $host $user] 
-}
-
 #****** util/set_hedeby_job_suspend_policy() ***********************************
 #  NAME
 #     set_hedeby_job_suspend_policy() -- set the job suspend policy for a grid engine service 
 #
 #  SYNOPSIS
-#     set_hedeby_job_suspend_policy { service suspend_methods 
-#     job_finish_timeout_value {job_finish_timeout_unit "seconds"} 
-#     {raise_error 1} { host "" } { user "" } } 
+#     set_hedeby_job_suspend_policy { service suspend_methods {opt ""} }
 #
 #  FUNCTION
-#     modifies the jobs suspend policy in the component configuration of a grid engine
-#     service 
+#     Modifies the jobs suspend policy in the component configuration of a grid
+#     engine service. The GE service is updated and the command waits until the
+#     service is running again.
+#
+#     If called without optional named arguments set, it resets the job suspend
+#     policy of the GE service to the default values.
 #
 #  INPUTS
-#     service                             - name of the grid engine service 
-#     suspend_methods                     - list of supported job suspend methods 
-#     job_finish_timeout_value            - timeout for waiting for job end 
-#     {job_finish_timeout_unit "seconds"} - unit if the time out 
-#     {raise_error 1}                     - raise error 
-#     { host "" }                         - host where sdmadm is executed 
-#     { user "" }                         -  user executing sdmadm  
+#     service          - name of the grid engine service 
+#     {opt ""}         - optional named arguments, see get_hedeby_proc_default_opt_args()
+#       opt(suspend_methods)          - list of supported job suspend methods
+#                                       (by default this is the GE service default setting)
+#       opt(job_finish_timeout_value) - timeout value for waiting for job end (2)
+#       opt(job_finish_timeout_unit)  - unit of the time out                  (minutes)
 #
 #  RESULT
-#     0    --  job suspend policy of the gridengine service modified 
+#     0    --  job suspend policy of the gridengine service successfully modified 
 #     else -- error
 #*******************************************************************************
-proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_value {job_finish_timeout_unit "seconds"} {raise_error 1} { host "" } { user "" } } {
-   global hedeby_config
-   
-   foreach suspend_method $suspend_methods {
+proc set_hedeby_job_suspend_policy { service {opt ""} } {
+   set opts(job_finish_timeout_value) 2
+   set opts(job_finish_timeout_unit)  "minutes" 
+   set opts(suspend_methods) { "reschedule_jobs_in_rerun_queue" "reschedule_restartable_jobs" "suspend_jobs_with_checkpoint" }
+   get_hedeby_proc_opt_arg $opt opts
+
+   # check parameters
+   foreach suspend_method $opts(suspend_methods) {
       switch -- $suspend_method {
          "reschedule_jobs_in_rerun_queue" -
          "reschedule_restartable_jobs"    -
          "suspend_jobs_with_checkpoint"   {
-            ts_log_finest "suspend_method '$suspend_method' is valid" $raise_error
+            ts_log_finest "suspend_method '$suspend_method' is valid" $opts(raise_error)
          }
          default {
-            ts_log_severe "Unknown suspend_method '$suspend_method'" $raise_error
+            ts_log_severe "Unknown suspend_method '$suspend_method'" $opts(raise_error)
          }
       }
    }
-   switch -- $job_finish_timeout_unit {
+   switch -- $opts(job_finish_timeout_unit) {
       "seconds" -
       "minutes" -
       "hours"   {
-         ts_log_finest "job_finish_timeout_unit has valid value '$job_finish_timeout_unit'" 
+         ts_log_finest "job_finish_timeout_unit has valid value '$opts(job_finish_timeout_unit)'" 
       }
       default {
-         ts_log_severe "Unknown job_finish_timeout_unit '$job_finish_timeout_unit'" $raise_error
+         ts_log_severe "Unknown job_finish_timeout_unit '$opts(job_finish_timeout_unit)'" $opts(raise_error)
          return -1
       }
    }
    
-   if {![string is digit $job_finish_timeout_value] || $job_finish_timeout_value < 0} {
-      ts_log_severe "job_finish_timeout_value must be a possitive number ($job_finish_timeout_value)" $raise_error
+   if {![string is digit $opts(job_finish_timeout_value)] || $opts(job_finish_timeout_value) < 0} {
+      ts_log_severe "job_finish_timeout_value ($opts(job_finish_timeout_value)) must be a positive number" $opts(raise_error)
       return -1
    }
    
-   set arguments "-s [get_hedeby_system_name] -p [get_hedeby_pref_type]  mc -c $service"
-
-   if {$host == ""} {
-      set execute_host $hedeby_config(hedeby_master_host)
-   } else {
-      set execute_host $host
-   }
-   
-   if {$user == ""} {
-      set execute_user [get_hedeby_admin_user]
-   } else {
-      set execute_user $user
-   }
-   set error_text ""
-   set ispid [hedeby_mod_setup $execute_host $execute_user $arguments error_text]
-
-   set sp_id [ lindex $ispid 1 ]
-   
-   set timeout 30
-    
    # remove jobSuspendPolicy section
    set sequence {}
    lappend sequence "/<ge_adapter:jobSuspendPolicy\n"
@@ -8136,87 +8058,85 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
    # insert the new jobSuspendPolicy
    lappend sequence "i"
    lappend sequence "<ge_adapter:jobSuspendPolicy suspendMethods=\""
-   foreach suspend_method $suspend_methods {
+   foreach suspend_method $opts(suspend_methods) {
       lappend sequence "$suspend_method "
    }
    lappend sequence "\">"
    lappend sequence "<ge_adapter:timeout unit=\""
-   lappend sequence $job_finish_timeout_unit
+   lappend sequence $opts(job_finish_timeout_unit)
    lappend sequence "\" value=\""
-   lappend sequence $job_finish_timeout_value
+   lappend sequence $opts(job_finish_timeout_value)
    lappend sequence "\"/>"
    lappend sequence "</ge_adapter:jobSuspendPolicy>"
    
    lappend sequence "[format "%c" 27]" ;# ESC
-   
-   hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
-   ts_log_finer "exit_status: $prg_exit_state"
-   if { $prg_exit_state == 0 } {
-      ts_log_finer "output: \n$output"
-   }
-
-   if {$error_text != ""} {
-      ts_log_severe $error_text
-      return 1
-   }
-   return 0
+   # only use the default set of optional arguments for the call to
+   # hedeby_change_component
+   copy_hedeby_proc_opt_arg opts call_opts "default"
+   return [hedeby_change_component $service $sequence call_opts]
 }
+
 #****** util/set_hedeby_slos_config() ******************************************
 #  NAME
 #     set_hedeby_slos_config() -- used to set slo config for a hedeby service
 #
 #  SYNOPSIS
-#     set_hedeby_slos_config { host exec_user service slos {raise_error 1} 
-#     {update_interval_unit "minutes"} {update_interval_value "5"} } 
+#     set_hedeby_slos_config { service slos {opt ""} }
 #
 #  FUNCTION
 #     This procedure is used to set the slo configuration for a hedeby ge service.
-#     This procedure ONLY modifies the configuration with sdmadm mc -c service.
-#     It will NOT update components and will NOT check for correctness of
-#     modification action (test with sdmadm sslo -u). 
 #     It also supports setting of "spare_pool" service.
 #
+#     By default this procedure modifies the configuration with sdmadm mc -c
+#     service, updates the component, waits until the component is STARTED
+#     again, but will NOT check for correctness of modification action (test
+#     with sdmadm sslo -u). To turn off the update functionality, set the
+#     do_update parameter to false.
+#
 #  INPUTS
-#     host                             - host where to start command
-#     exec_user                        - user who starts command
-#     service                          - service which should be modified
-#     slos                             - list with slos to set
-#                                        (created with create_???_slo() and put
-#                                         into list)
-#     {raise_error 1}                  - if 1 report errors
-#     {update_interval_unit "minutes"} - slo update interval unit of service
-#     {update_interval_value "5"}      - slo update interval value of service
+#     service    - service which should be modified
+#     slos       - list with slos to set
+#                  (created with create_???_slo() and put
+#                   into list)
+#     {opt ""}   - optional named arguments, see get_hedeby_proc_default_opt_args()
+#       opt(do_update)             if set to 1 update the component and (potentially) wait
+#                                  for given state, by default set to 1
+#       opt(do_wait_for_state)     if set to 1 wait for given state, by default set to 1
+#                                  Only relevant if do_update is 1
+#       opt(update_interval_unit)  slo update interval unit of service, by default not set on SLO
+#       opt(update_interval_value) slo update interval value of service, by default not set on SLO
 #
 #  RESULT
 #     0 on success, 1 on error
 #
 #  NOTES
 #
-#  Only GE services supports the SLO update interval in the service configuration. If update_interval_unit 
-#  or update_interval_value is used for non GE services it will fail.
+#  Only GE services support the SLO update interval in the service
+#  configuration. If update_interval_unit or update_interval_value is used for
+#  non GE services it will fail.
 #
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
 #     util/create_permanent_request_slo()
 #     util/set_hedeby_slos_config()
+#     util/hedeby_change_component()
 #*******************************************************************************
-proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit ""} {update_interval_value ""} } {
-   global CHECK_DEBUG_LEVEL
+proc set_hedeby_slos_config { service slos {opt ""} } {
+   set opts(do_update)             1
+   set opts(do_wait_for_state)     1
+   set opts(update_interval_unit)  ""
+   set opts(update_interval_value) ""
+   get_hedeby_proc_opt_arg $opt opts
+
    ts_log_fine "setting slos for service \"$service\" ..."
    foreach new_slo $slos {
       ts_log_fine "new slo: $new_slo"
    }
-   set arguments "-s [get_hedeby_system_name] mc -c $service"
 
-   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
-
-   set sp_id [ lindex $ispid 1 ]
-   
-   set timeout 30
-    
+   ##########################################################################
+   # piece together the vi sequence
    # remove slo section
    set sequence {}
    lappend sequence "/<common:slos>\n"
@@ -8233,33 +8153,27 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    lappend sequence "</common:slos>\n"
    lappend sequence "[format "%c" 27]" ;# ESC
 
-   if {$update_interval_unit != "" && $update_interval_value != "" } {
-      ts_log_fine "Setting sloUpdateInterval to '$update_interval_value' '$update_interval_unit'"
+   if {$opts(update_interval_unit) != "" && $opts(update_interval_value) != "" } {
+      ts_log_fine "Setting sloUpdateInterval to '$opts(update_interval_value)' '$opts(update_interval_unit)'"
       # search and replace sloUpdateInterval 
       lappend sequence "/sloUpdateInterval\n"
       # jump to beginning of next word, delete until '/' of tag closing '/>'
       lappend sequence "Wdt/"
       # insert at cursor position both parameters ...
-      lappend sequence "iunit=\"$update_interval_unit\" value=\"$update_interval_value\""
+      lappend sequence "iunit=\"$opts(update_interval_unit)\" value=\"$opts(update_interval_value)\""
       # ... and exit insert mode
       lappend sequence "[format "%c" 27]" ;# ESC
    }
 
    #Uncomment the following line for debugging vi sequence
-   lappend sequence ":w! /tmp/hedeby_mod_config.xml\n"
+   # lappend sequence ":w! /tmp/hedeby_mod_config.xml\n"
 
-   hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
+   ##########################################################################
+   # ... and update the service
 
-   ts_log_finer "exit_status: $prg_exit_state"
-   if { $prg_exit_state == 0 } {
-      ts_log_finer "output: \n$output"
-   }
-
-   if {$error_text != ""} {
-      return 1
-   }
-   return 0
+   # use the value of the do_update option!
+   copy_hedeby_proc_opt_arg_exclude opts call_opts "update_interval_unit update_interval_value"
+   return [hedeby_change_component $service $sequence call_opts]
 }
 
 #****** util/remove_resource_property() ******************************************
@@ -8345,27 +8259,16 @@ proc remove_resource_property { resource prop_list {opt ""} } {
 #*******************************************************************************
 proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "executor" } } {
 
-   set error_text ""
-   set ispid [hedeby_mod_setup_opt "mc -c $executor_name" error_text]
-   
    set sequence {}
    # Delete the keepFiles attribute
    lappend sequence ":%s/keepFiles=\"\[^\"\]*\"//\n"
    # Append the new keepFiles attribute directly after the executor tag
    lappend sequence ":%s/executor:executor/executor:executor keepFiles=\"$keep_files\"/\n"
-   lappend sequence ":w! /tmp/set_keep_files.xml\n"
+   # lappend sequence ":w! /tmp/set_keep_files.xml\n"
    
-   hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text]
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
-   }
-   
-   set output [sdmadm_command_opt "-d uc -c $executor_name -h $executor_host"]
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
-   }
-   return 0
+   set opt(do_wait_for_state) 0
+   set opt(update_on_host) $executor_host
+   return [hedeby_change_component $executor_name $sequence opt]
 }
 
 
@@ -8786,8 +8689,6 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc reset_default_slos { method {services "all"} {raise_error 1} } {
-   global hedeby_config
-
    ts_log_fine "Resetting default SLOs for services '$services' ..."
 
    if { $method != "mod_config" && $method != "mod_slos" } {
@@ -8797,10 +8698,7 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
 
    set error_text ""
    get_hedeby_default_services service_names
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set exec_host $hedeby_config(hedeby_master_host)
+   set call_opts(raise_error) $raise_error
 
    # Setup expected service infos (used twice in this procedure)
    set exp_serv_info(spare_pool,cstate) "STARTED"
@@ -8837,20 +8735,22 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
             ts_log_fine "skip not requested service \"$service\""
             continue
          }
-         if {[set_hedeby_slos_config $exec_host $admin_user $service $default_slo $raise_error] != 0} {
+         set call_opts(do_update) 0
+         if {[set_hedeby_slos_config $service $default_slo call_opts] != 0} {
             append error_text "setting slos for service \"$service\" failed!"
          }
+         unset call_opts(do_update)
          # setup update component command
          set host $service_names(master_host,$service)
          lappend host_list $host
          set task_info($host,expected_output) ""
-         set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name uc -c $service"
+         set task_info($host,sdmadm_command) "uc -c $service"
       }
 
       # now update the components (services)
       if {[llength $host_list] > 0} {
          ts_log_fine "updating services ..."
-         append error_text [start_parallel_sdmadm_command host_list $admin_user task_info $raise_error]
+         append error_text [start_parallel_sdmadm_command_opt host_list task_info call_opts]
       } else {
          ts_log_fine "no default services to update"
       }
@@ -8858,17 +8758,15 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
       # reset spare_pool
       if {[lsearch -exact $services "all"] >= 0 ||
           [lsearch -exact $services "spare_pool"] >= 0} {
-         ts_log_fine "reset \"spare_pool\" ..."
+         ts_log_fine "resetting \"spare_pool\" ..."
+         # set spare pool SLO and update component
+         # don't wait for service state, this is done below
          set default_spare_pool_slo [create_permanent_request_slo 1 "PermanentRequestSLO"]
-         if {[set_hedeby_slos_config $exec_host $admin_user "spare_pool" $default_spare_pool_slo $raise_error] != 0} {
+         set call_opts(do_wait_for_state) 0
+         if {[set_hedeby_slos_config "spare_pool" $default_spare_pool_slo call_opts] != 0} {
             append error_text "setting slos for service \"spare_pool\" failed!"
          }
-         ts_log_fine "update \"spare_pool\" ..."
-         set arguments "-p $pref_type -s $sys_name uc -c spare_pool"
-         set output [sdmadm_command $exec_host $admin_user $arguments prg_exit_state "" $raise_error]
-         if {$prg_exit_state != 0} {
-            append error_text "error starting sdmadm $arguments as user $admin_user on host $exec_host:\n$output"
-         }
+         unset call_opts(do_wait_for_state)
       } else {
          ts_log_fine "no reset of \"spare_pool\" requested!"
       }
@@ -8885,8 +8783,9 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
    set tnot_avail [create_bundle_string "ShowSLOCliCommand.na"]
 
    # Check that show slos report the correct values
-   set sdmadm_command_line "-p $pref_type -s $sys_name sslo -u"
-   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" $raise_error table]
+   set call_opts(table_output) table
+   set output [sdmadm_command_opt "sslo -u" call_opts]
+   unset call_opts(table_output)
    if { $prg_exit_state == 0 } {
       ts_log_fine "checking slo settings ..."
       for {set line 0} {$line < $table(table_lines)} {incr line 1} {
@@ -8972,20 +8871,16 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
    }
 
    set error_text ""
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set exec_host $hedeby_config(hedeby_master_host)
-
-   # Setup expected service infos (used twice in this procedure)
-   set exp_serv_info($service,cstate) "STARTED"
+   set call_opts(raise_error) $raise_error
+   set call_opts(update_interval_unit)  $update_interval_unit
+   set call_opts(update_interval_value) $update_interval_value
 
    # Wait for service component to be STARTED
+   set exp_serv_info($service,cstate) "STARTED"
    if {[wait_for_service_info exp_serv_info 60 $raise_error] != 0} {
       ts_log_fine "wait_for_service_info failed - skip further actions!"
       return 1
    }
-
 
    # TODO: Implement "mod_slos" if cli available
    if {$method == "mod_slos"} {
@@ -8993,27 +8888,16 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
       set method "mod_config"
    }
 
-   # Change slos by modify the component configurations and update the components after that
+   # Change slos
    if {$method == "mod_config"} {
       # set slo config
-      if {[set_hedeby_slos_config $exec_host $admin_user $service $slos $raise_error $update_interval_unit $update_interval_value] != 0} {
+      if {[set_hedeby_slos_config $service $slos call_opts] != 0} {
          append error_text "setting slos for service \"$service\" failed!"
-      }
-
-      # update service component
-      ts_log_fine "update \"$service\" ..."
-      set arguments "-p $pref_type -s $sys_name uc -c $service"
-      set output [sdmadm_command $exec_host $admin_user $arguments prg_exit_state "" $raise_error]
-      if {$prg_exit_state != 0} {
-         append error_text "error starting sdmadm $arguments as user $admin_user on host $exec_host:\n$output"
       }
    }
 
-   # Wait for all components in STARTED state
-   wait_for_service_info exp_serv_info 60 $raise_error
-
    if {$error_text != ""} {
-      ts_log_severe "$error_text" $raise_error
+      ts_log_severe "$error_text" $opts(raise_error)
       return 1
    }
 
@@ -9116,21 +9000,10 @@ proc set_execd_install_params { service my_execd_install_params } {
    
    ts_log_fine "set execd params for GE service '$service' ..."
    
-   set arguments "mc -c $service"
-   set ispid [hedeby_mod_setup_opt $arguments error_text]
-
-   if { $error_text != "" } {
-      # TODO we need a better error reporting for hedeby_mod_setup
-      ts_log_severe "'sdmadm $arguments' did not startup:\n$error_text"
-      return -1
-   }
-
    set sequence [get_hedeby_execd_install_params_sequence execd_install_params]
    
-   hedeby_mod_sequence $ispid $sequence error_text
-   hedeby_mod_cleanup $ispid error_text
-
-   return $prg_exit_state
+   set opt(do_update) 0
+   return [hedeby_change_component $service $sequence opt]
 }
 
 #****** util/get_hedeby_execd_install_params_sequence() ************************
@@ -10323,16 +10196,31 @@ proc wait_for_resource_removal { res_remove_list {opt ""} } {
    set my_endtime [timestamp]
    incr my_endtime $opts(timeout)
 
+   # set options for call to get_resource_info_opt
+   copy_hedeby_proc_opt_arg opts call_opts "default"
+   set call_opts(res_list) res_list
+   set call_opts(res_id_list) res_id_list
+   set call_opts(sdmadm_output) sdmadm_output
+
    while {1} {
-      set retval [get_resource_info $opts(host) $opts(user) resource_info resource_properties resource_list resource_ambiguous $opts(raise_error) sdmadm_output]
+      set retval [get_resource_info_opt resource_info call_opts]
       if {$retval != 0} {
-         append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
-         append error_text "expected resource info was:\n$expected_resource_info"
+         append error_text "break because get_resource_info_opt() returned \"$retval\"!\n$sdmadm_output"
          break
       }
       set not_removed ""
       foreach res $res_remove_list {
-         if {[lsearch -exact $resource_list $res] != -1} {
+         # if $res looks like a resource id, search in $res_id_list
+         # otherwise look into res_list
+         if {[regexp "^res#\[0-9\]+$" $res]} {
+            # we have a resource id
+            ts_log_finer "resource '$res' looks like a resource id" $opts(raise_error)
+            set search_list res_id_list
+         } else {
+            ts_log_finer "resource '$res' looks like a resource hostname" $opts(raise_error)
+            set search_list res_list
+         }
+         if {[lsearch -exact $search_list $res] != -1} {
             append not_removed "\"$res\" "
          }
       }
@@ -10343,8 +10231,8 @@ proc wait_for_resource_removal { res_remove_list {opt ""} } {
       } else {
          set cur_time [timestamp]
          set cur_time_left [expr ($my_endtime - $cur_time)]
-         ts_log_fine "Still waiting for specified resources to be removed ... (timeout in $cur_time_left seconds)"
-         ts_log_fine "The following resources are not yet removed: $not_removed\n"
+         ts_log_fine "Still waiting for specified resources to be removed ... (timeout in $cur_time_left seconds)" $opts(raise_error)
+         ts_log_fine "The following resources are not yet removed: $not_removed\n" $opts(raise_error)
       }
       if {[timestamp] >= $my_endtime} {
          append error_text "==> TIMEOUT(=$opts(timeout) sec) while waiting for resources to be removed!\n"
@@ -11568,7 +11456,7 @@ proc hedeby_move_resources { res_ids_or_names target_service { opt "" } } {
 
    set rarg [join $res_ids_or_names ","]
 
-   copy_hedeby_proc_opt_arg_exclude opts sdmadm_opts { "timeout" "final_state" "final_flags" }
+   copy_hedeby_proc_opt_arg opts sdmadm_opts "default"
    sdmadm_command_opt "mvr -r $rarg -s $target_service" sdmadm_opts ;# move_resource
    if {$prg_exit_state != 0} {
       return -1
@@ -11579,7 +11467,7 @@ proc hedeby_move_resources { res_ids_or_names target_service { opt "" } } {
       set ri($res,flags) $opts(final_flags)
       set ri($res,state) $opts(final_state)
    }
-   copy_hedeby_proc_opt_arg_exclude opts wait_opts { "final_state" "final_flags" }
+   copy_hedeby_proc_opt_arg opts wait_opts "default timeout"
    if {[wait_for_resource_info_opt ri wait_opts] != 0} {
        return -2
    }
@@ -11595,21 +11483,19 @@ proc hedeby_move_resources { res_ids_or_names target_service { opt "" } } {
 #
 #  FUNCTION
 #
-#    Removes a set of the resource from the SDM system. The resources can be addressed
-#    by resource name or resource id. The method block until the RESOURCE_REMOVED events
-#    are availaible in the history.
+#    Removes (or purges) a set of the resource from the SDM system. The
+#    resources can be addressed by resource name or resource id.
+#
+#    The method blocks until the resources are actually removed from the
+#    system.
 #
 #  INPUTS
 #     res_ids_or_names - list if resource ids or names
 #     {opt ""}         - options for the removal
 #
+#       opt(purge)        if 1, use purge_resource command instead of remove_resource,
+#                         by default resources are removed, not purged
 #       opt(timeout)      max. waiting time for the RESORUCE_REMOVED event
-#       opt(res_id_type)  how are the resources addressed:
-#                         "resource_id" => the resources in res_ids_or_names are
-#                                          addressed via the resource ids
-#                         "resource_names" => The resource in res_ids_or_names are
-#                                             addressed via the resource names
-#                         (default "resource_id") 
 #
 #  RESULT
 #
@@ -11617,51 +11503,34 @@ proc hedeby_move_resources { res_ids_or_names target_service { opt "" } } {
 #     else error
 #
 #  EXAMPLE
-#
-#  set opt(timeout) 60
-#  set opt(res_id_type)  "resource_names"
-#  
-#  hedeby_remove_resources { foo.bar  foo1.bar } opt
+#     # Purge the two resource foo.bar and foo1.bar from the system
+#     set opt(timeout) 20
+#     set opt(purge)   1
+#     hedeby_remove_resources { foo.bar foo1.bar } opt
 #   
 #*******************************************************************************
 proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
-
+   set opts(purge)       0
    set opts(timeout)     60
-   set opts(res_id_type) "resource_id"
-
    get_hedeby_proc_opt_arg $opt opts
 
-   if { !($opts(res_id_type) == "resource_id" || $opts(res_id_type) == "resource")} {
-      ts_log_severe "Invalid value for opt(res_id_type) (valid values are 'resource_id' or 'resource'"
-      return -1
-   }
-
-   set rarg [join $res_ids_or_names ","]
-
-   copy_hedeby_proc_opt_arg_exclude opts sdmadm_opts { "timeout" "res_id_type" }
+   copy_hedeby_proc_opt_arg opts sdmadm_opts "default"
 
    set start_time [clock seconds]
 
-   sdmadm_command_opt "rr -r $res_ids_or_names" sdmadm_opts
+   set rarg [join $res_ids_or_names ","]
+   if { $opts(purge) } {
+      sdmadm_command_opt "pr -r $rarg" sdmadm_opts ;# purge_resource
+   } else {
+      sdmadm_command_opt "rr -r $rarg" sdmadm_opts ;# remove_resource
+   }
    if { $prg_exit_state != 0 } {
       return -1
    }
-   set i 0
-   foreach res $res_ids_or_names {
-      if {$opts(res_id_type) == "resource_id"} {
-         set hist($i,resource_id) $res 
-      } else {
-         set hist($i,resource) $res
-      }
-      set hist($i,type)         "RESOURCE_REMOVED"
-      incr i
-   }
-   set hist(count) $i
-   set error_hist(count) 0
-   if {[wait_for_notification $start_time hist error_hist $opts(timeout)] != 0} {
-      return -2
-   }
-   return 0
+
+   # wait for removal
+   copy_hedeby_proc_opt_arg opts call_opts "default"
+   return [wait_for_resource_removal $res_ids_or_names call_opts]
 }
 
 
@@ -11673,12 +11542,10 @@ proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
 #     hedeby_change_sge_root_in_ge_service { new_root } 
 #
 #  FUNCTION
-#
 #     Changes the root attribute (containing the path to SGE_ROOT) in the configuration
-#     of a ge service
+#     of a ge service. Does not update the service.
 #
 #  INPUTS
-#
 #     new_root the new SGE_ROOT
 #
 #  RESULT
@@ -11689,13 +11556,6 @@ proc hedeby_remove_resources { res_ids_or_names {opt ""} } {
 #*******************************************************************************
 proc hedeby_change_sge_root_in_ge_service { ge_service new_root } {
 
-   set ispid [hedeby_mod_setup_opt "mc -c $ge_service" error_text]
-   if { $error_text != "" } {
-      ts_log_severe "Could not start sdmadm mc: $error_text"
-      return -1
-   }
-   ts_log_finer "Changing SGE_ROOT in config of $ge_service ($new_root)"
-  
    set seq {}
    lappend seq "/ge_adapter:connection\n"  ;# Search for connection tag
    lappend seq "/root=\n"                  ;# Search for root attribute
@@ -11703,7 +11563,179 @@ proc hedeby_change_sge_root_in_ge_service { ge_service new_root } {
    lappend seq "root=\"$new_root\""        ;# insert the new root attribute
    lappend seq "[format "%c" 27]"          ;# ESC  
 
-   hedeby_mod_sequence $ispid $seq error_text
-   hedeby_mod_cleanup $ispid error_text
-   return $prg_exit_state
+   set opt(do_update) 0
+   return [hedeby_change_component $ge_service $seq opt]
+}
+
+
+
+#****** util/hedeby_change_component() *****************************************
+#  NAME
+#     hedeby_change_component() -- changes and updates a service or component
+#
+#  SYNOPSIS
+#     hedeby_change_component { component sequence {opt ""} } 
+#
+#  FUNCTION
+#     This function bundles the steps necessary to change the configuration of
+#     a service, does an update component afterwards and finally waits until
+#     the service is running again.
+#
+#     If the optional named argument do_update is set to 0, then the update
+#     component and wait step is skipped.
+#
+#     If do_update is true and do_wait_for_state is 0, the update component
+#     is done but no waiting for component state is performed.
+#
+#     The waiting step always raises errors, no matter how the optional argument
+#     raise_error is set.
+#
+#  INPUTS
+#     component - name of the service or component to change
+#     sequence  - vi sequence that changes the configuration
+#     {opt ""}  - optional named arguments, see get_hedeby_proc_default_opt_args()
+#       opt(do_update)         if set to 1 update the component and
+#                              (potentially) wait for given state, by default set to 1
+#       opt(do_wait_for_state) if set to 1 wait for given state, by default set to 1
+#                              Only relevant if do_update is 1
+#       opt(component_state)   the expected component state after update, by default STARTED
+#       opt(service_state)     the expected service state after update, by default RUNNING,
+#                              only relevant if the component is a service.
+#       opt(update_on_host)    if set, the sdmadm uc will use the -h switch, by default not set
+#
+#  RESULT
+#     0 on success, else error
+#
+#  SEE ALSO
+#     util/hedeby_mod_setup()
+#     util/hedeby_mod_sequence()
+#     util/hedeby_mod_cleanup()
+#     util/hedeby_is_component_also_service()
+#*******************************************************************************
+proc hedeby_change_component { component sequence {opt ""} } {
+   set opts(do_update)         1
+   set opts(do_wait_for_state) 1
+   set opts(component_state)   "STARTED"
+   set opts(service_state)     "RUNNING"
+   set opts(update_on_host)    ""
+   get_hedeby_proc_opt_arg $opt opts
+
+   # for all called commands, just use the default option keys
+   copy_hedeby_proc_opt_arg opts sdmadm_opts "default"
+
+   ts_log_fine "Changing configuration of component '$component' ..."
+
+   set ispid [hedeby_mod_setup_opt "mc -c $component" error_text sdmadm_opts]
+   if { $error_text != "" } {
+      ts_log_severe "Could not start sdmadm mc: $error_text" $opts(raise_error)
+      return -1
+   }
+
+   hedeby_mod_sequence $ispid $sequence error_text
+   hedeby_mod_cleanup  $ispid error_text prg_exit_state $opts(raise_error)
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+
+   if { ! $opts(do_update) } {
+      # don't do the update and waiting step
+      return 0
+   }
+
+   set is_service [hedeby_is_component_also_service $component]
+   if { $is_service } {
+      # the component is a service
+      if { $opts(update_on_host) != "" } {
+         set msg    "hedeby_change_component:\n"
+         append msg "Named optional parameter update_on_host is set to '$opts(update_on_host)'. This does not make sense for service '$component'."
+         ts_log_severe $msg $opts(raise_error)
+         return -2
+      }
+   } else {
+      # the component is no service
+      if { $opts(service_state) != "RUNNING" } {
+         set msg    "hedeby_change_component:\n"
+         append msg "Named optional parameter service_state is set to '$opts(service_state)'. This does not make sense for component '$component'."
+         ts_log_severe $msg $opts(raise_error)
+         return -3
+      }
+   }
+
+   # update component
+   if { $opts(update_on_host) != "" } {
+      sdmadm_command_opt "uc -c $component -h $opts(update_on_host)" sdmadm_opts
+   } else {
+      sdmadm_command_opt "uc -c $component" sdmadm_opts
+   }
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+
+   if { ! $opts(do_wait_for_state) } {
+      # don't do the waiting step
+      return 0
+   }
+
+   # and wait for given state
+   if { $is_service } {
+      set exp_serv_info($component,cstate) $opts(component_state)
+      set exp_serv_info($component,sstate) $opts(service_state)
+      # always raise error at wait_command
+      return [wait_for_service_info exp_serv_info 60 1]
+   } else {
+      # for a component we need the host
+      if { $opts(update_on_host) == "" } {
+         set msg    "hedeby_change_component:\n"
+         append msg "Cannot wait for component state without info about the host. Set update_on_host parameter."
+         ts_log_severe $msg $opts(raise_error)
+      }
+      set exp_comp_info($component,$opts(update_on_host),state) $opts(component_state)
+      # always raise error at wait_command
+      set sdmadm_opts(raise_error) 1
+      return [wait_for_component_info_opt exp_comp_info sdmadm_opts]
+   }
+}
+
+#****** util/hedeby_is_component_also_service() ********************************
+#  NAME
+#     hedeby_is_component_also_service() -- checks if component is also a service
+#
+#  SYNOPSIS
+#     hedeby_is_component_also_service { component } 
+#
+#  FUNCTION
+#     This functions checks if the given component is also registered as a
+#     service in the SDM system. Components like ca, resource_provider or
+#     executor return false.
+#
+#     The sdmadm show_services command is called to get a list of SDM services
+#     to compare to. Therefore, this does NOT work if the service is not or has
+#     never been started.
+#
+#  INPUTS
+#     component - the name of the component to check
+#
+#  RESULT
+#     1 - if component is also a service
+#     0 - otherwise
+#
+#  EXAMPLE
+#     if { [hedeby_is_component_also_service $component] } {
+#        # do service stuff
+#     } else {
+#        # do component stuff
+#     }
+#
+#  SEE ALSO
+#     util/get_service_info
+#*******************************************************************************
+proc hedeby_is_component_also_service { component } {
+   get_service_info "" "" sinfo
+
+   if { [lsearch -exact $sinfo(service_list) $component] >= 0 } {
+      # component found in services
+      return 1
+   } else {
+      return 0
+   }
 }

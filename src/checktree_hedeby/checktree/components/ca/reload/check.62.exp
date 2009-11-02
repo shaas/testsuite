@@ -85,8 +85,6 @@ set check_cleanup_function "hedeby_ca_reload_cleanup"
 set check_functions            ""
 lappend check_functions "hedeby_ca_reload_check"
 
-global hedeby_ca_reload_ctx
-
 # ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
 
 
@@ -158,17 +156,25 @@ proc hedeby_ca_reload_check {} {
    
    set sge_root $ts_config(product_root)
    
-   ts_log_fine "Peform ca_reload test"
-   
+   #-------------------------------------------------------------------------
+   ts_log_heading "Performing ca reload with ca_script set to '/bin/false'"
    # set the path to the sge_ca script to /bin/false
-   # => Component will go into STOPPED state because juti.jar can not be found
-   if {[hedeby_ca_reload_set_ca_script "/bin/false" "STOPPED"] != 0} {
+   # => Component will *stay* in STARTED state but the update_component command
+   # will return a failure. It is detected already in the synchronous part of
+   # the reload that juti.jar can not be found
+   set expected_update_rc 2
+   if {[hedeby_ca_reload_set_ca_script "/bin/false" "STARTED" $expected_update_rc] != 0} {
+      ts_log_severe "Unexpected behaviour when setting ca_script to /bin/false"
       set this(do_reset) "true"
    }      
 
+   #-------------------------------------------------------------------------
+   ts_log_heading "Performing ca reload with ca_script set to '${sge_root}/util/sgeCA/sge_ca'"
    # set the correct path to the sge_ca script
    # => Component will go into STARTED state
-   if { [hedeby_ca_reload_set_ca_script "${sge_root}/util/sgeCA/sge_ca" "STARTED"] != 0 } {
+   set expected_update_rc 0
+   if { [hedeby_ca_reload_set_ca_script "${sge_root}/util/sgeCA/sge_ca" "STARTED" $expected_update_rc] != 0 } {
+      ts_log_severe "Unexpected behaviour when setting ca_script to default value"
       set this(do_reset) "true"
    }
 }
@@ -184,38 +190,38 @@ proc hedeby_ca_reload_check {} {
 #  FUNCTION
 #
 #  INPUTS
-#    admin_user -- the new value for the attribute adminUser 
+#    ca_script                -- path to the ca script
+#    expected_component_state -- expected state of the component
+#    expected_update_rc       -- expected return code of the sdmadm update_component command
 #
 #  RESULT
-#    0 --  Success
-#      else error, error message has been reported with ts_log function
+#    0 -- Success
+#    else error, error message has been reported with ts_log function
 #
 #***************************************************************************************************
-proc hedeby_ca_reload_set_ca_script { ca_script expected_component_state } {
-
+proc hedeby_ca_reload_set_ca_script { ca_script expected_component_state expected_update_rc } {
    global hedeby_config
-
    set host $hedeby_config(hedeby_master_host)
 
-   set error_text ""
-   set ispid [hedeby_mod_setup_opt "mc -c ca" error_text]
-   
    set sequence {}
    lappend sequence "[format "%c" 27]" ;# ESC
    lappend sequence ":%s#<security:sgeCaScript>.*</security:sgeCaScript>#<security:sgeCaScript>$ca_script</security:sgeCaScript>#\n"
    
-   hedeby_mod_sequence $ispid $sequence error_text
-   hedeby_mod_cleanup $ispid error_text
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
+   set opt(do_update) 0
+   if { [hedeby_change_component "ca" $sequence opt] != 0 } {
+      return -1
    }
-   
-   set opt(raise_error) 0
+   unset opt
+
+   set opt(raise_error) 1
+   if { $expected_update_rc != 0 } {
+      # we expect an error
+      set opt(raise_error) 0
+   }
    sdmadm_command_opt "uc -c ca -h $host" opt
-   if { $prg_exit_state != 0 } {
+   if { $prg_exit_state != $expected_update_rc } {
       return $prg_exit_state
    }
    set exp_comp_info(ca,$host,state) $expected_component_state
    return [wait_for_component_info exp_comp_info 30]
 }
-

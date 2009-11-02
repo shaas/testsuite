@@ -153,15 +153,11 @@ proc hedeby_issue_632_cleanup_level {} {
    } 
 
    if { [lsearch $ctx(cleanup_actions) "reset_ge_config"] >= 0 } {
-      if { [set_hedeby_default_job_suspend_policy $ctx(ge_service)] != 0} {
+      # reset job suspend policy to default values
+      if { [set_hedeby_job_suspend_policy $ctx(ge_service)] != 0} {
          ts_log_fine "Problem during cleanup while resetting ge_config => reset_hedeby"
          set doReset 1
       }
-      if { [reload_hedeby_component $ctx(ge_service) $ctx(ge_host)] != 0} {
-         ts_log_fine "Problem during cleanup while reloading component '$ctx(ge_service)' => reset_hedeby"
-         set doReset 1
-      }
-      
    } 
 
    if { [lsearch $ctx(cleanup_actions) "move_resource_back"] >= 0 } {
@@ -265,17 +261,15 @@ proc hedeby_issue_632_check {} {
    # timeout set to 0, ge service gives up trying to remove
    # at once and does not prolong the test unnecessarily for 2 minutes
 
-   # Reconfigure the job suspend policy of the ge service and reload the component
-   set job_wait_time 0
-   set suspend_methods {} ; # irrelevant for this test
-   if { [set_hedeby_job_suspend_policy $ctx(ge_service) $suspend_methods $job_wait_time "seconds"] != 0} {
+   # Reconfigure the job suspend policy of the ge service (and reload the component)
+   set opt(suspend_methods) {} ; # irrelevant for this test
+   set opt(job_finish_timeout_value) 0
+   set opt(job_finish_timeout_unit)  "seconds"
+   if { [set_hedeby_job_suspend_policy $ctx(ge_service) opt] != 0} {
       ts_log_severe "Step 3: Failed to modify job suspend policy on service '$ctx(ge_service)'!"
       return 
    }
-   if {[reload_hedeby_component $ctx(ge_service) $ctx(ge_host)] != 0} {
-      ts_log_severe "Step 3: Failed to reload component '$ctx(ge_service)' on host '$ctx(ge_host)'"
-      return
-   }
+   unset opt
    lappend ctx(cleanup_actions) "reset_ge_config"
 
 

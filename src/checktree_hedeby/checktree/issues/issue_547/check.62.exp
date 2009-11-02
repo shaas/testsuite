@@ -202,7 +202,7 @@ proc hedeby_issue547_check {} {
    ##########################################################################
    # 1) parameter -f should always accept '-' as a filename meaning to read
    #    from STDIN
-   ts_log_fine "Step 1: Checking read from stdin via -f"
+   ts_log_heading "Step 1: Checking read from stdin via -f"
 
    # ... set an additional property
    set def_props(my_property) "my_value"
@@ -246,7 +246,7 @@ proc hedeby_issue547_check {} {
 
    ############################################################################
    # 2) Given an empty file, both should exit with a reasonable error message
-   ts_log_fine "Step 2: Checking read from empty file"
+   ts_log_heading "Step 2: Checking read from empty file"
 
    set err_msg [create_bundle_string "AbstractResourceCliCommand.ex.noResFound"]
    unset opt
@@ -277,7 +277,7 @@ proc hedeby_issue547_check {} {
    ############################################################################
    # 3) Both commands should accept a file with only one line
    #    'resourceHostname=hostname'
-   ts_log_fine "Step 3: Checking minimal resource file"
+   ts_log_heading "Step 3: Checking minimal resource file"
 
    # ... check mod_resource command
    unset opt
@@ -306,7 +306,7 @@ proc hedeby_issue547_check {} {
    #    should always contain a line 'static=true/false'.
    #    The usage of a -rf filter here tries to work around issue 550: the
    #    show_resource command does not do any host name resolving.
-   ts_log_fine "Step 4: Checking left out mandatory property"
+   ts_log_heading "Step 4: Checking left out mandatory property"
 
    # ... set resource to static
    unset opt

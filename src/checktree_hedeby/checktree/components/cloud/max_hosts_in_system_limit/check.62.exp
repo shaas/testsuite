@@ -1,0 +1,514 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_cloud_max_hosts"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests the maxCloudHostsInSystemLimit parameter of the cloud service"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_cloud_max_hosts_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function   "hedeby_cloud_max_hosts_setup_level"
+set check_cleanup_level_function "hedeby_cloud_max_hosts_cleanup_level"
+
+lappend check_functions "hedeby_cloud_max_hosts_check"
+
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_init_level() ************************
+#  NAME
+#     hedeby_cloud_max_hosts_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_init_level {} {
+  global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+       0       { return 0 }
+       default { return -1 }
+   }
+}
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_setup_level() *********************************
+#  NAME
+#     hedeby_cloud_max_hosts_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_setup_level { } 
+#
+#  FUNCTION
+#     Set up hedeby_cloud_max_hosts_ctx variable.
+#
+#     The test is using 10 simhost resources sim1, ..., sim10
+#
+#     This test is not supported with Hedeby version < 1.0u5
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_setup_level {} {
+
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "This test work only with bound/unbound resource.\nHedeby [hedeby_get_version] does not support bound/unbound resources"
+      return 99
+   }
+
+   upvar #0 hedeby_cloud_max_hosts_ctx this
+   global hedeby_config
+
+   set this(service)         "simcloud_max"
+   set this(service_host)    $hedeby_config(hedeby_master_host)
+   set this(cleanup_actions) ""
+   set this(res_count)       10
+
+   set this(res_names) {}
+   for {set i 1} {$i <= $this(res_count)} {incr i 1} {
+      lappend this(res_names) "sim$i"
+   }
+
+   return
+}
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_cleanup_level() *******************************
+#  NAME
+#     hedeby_cloud_max_hosts_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_cleanup_level { } 
+#
+#  FUNCTION
+#
+#
+#     Removes the cloud resources from the system
+#     Removes the cloud service from the system
+#
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_cleanup_level {} {
+   upvar #0 hedeby_cloud_max_hosts_ctx this
+
+   if {[lsearch $this(cleanup_actions) "remove_resources"] >= 0} {
+      # we are purging resources here, so we can quickly get rid of all
+      # simhosts without moving them back to the cloud service first
+
+      #---------------------------------------------------------------------
+      ts_log_heading "Purging cloud resources from system"
+      #---------------------------------------------------------------------
+
+      if {[info exists this(res_ids)]} {
+         set res_ids $this(res_ids)
+      } else {
+         set res_ids $this(res_names)
+      }
+
+      # but we have first have to wait until all resources are assigned
+      foreach res $res_ids {
+         set eri($res,state) "ASSIGNED"
+      }
+      wait_for_resource_info eri
+      unset eri
+
+      set opts(purge) 1
+      if {[hedeby_remove_resources $res_ids opts] != 0} { 
+         reset_hedeby 1
+         unset this
+         return
+      }
+   }
+
+   if {[lsearch $this(cleanup_actions) "remove_service"] >= 0} {
+      #---------------------------------------------------------------------
+      ts_log_heading "Removing cloud service '$this(service)' from system"
+      #---------------------------------------------------------------------
+      if {[hedeby_remove_service $this(service) $this(service_host)] != 0} {
+         reset_hedeby 1
+         unset this
+         return
+      }
+   }
+
+   unset this
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_check *****************************
+#  NAME
+#     hedeby_cloud_max_hosts_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_check{ } 
+#
+#  FUNCTION
+#
+#    This test performs the following steps:
+#
+#       o Add simhost cloud service '$this(service)' to system with maxCloudHostsInSystemLimit = 5
+#       o Add 10 virtual resources to cloud service '$this(service)' (sim1...sim10)
+#       o Move all cloud resources to spare_pool
+#       o Check that only 5 cloud resources arrive at spare_pool
+#
+#       o Set maxCloudHostsInSystemLimit = 7
+#       o Move all cloud resources to spare_pool
+#       o Check that spare pool now has 7 cloud resources
+#
+#       o Set maxCloudHostsInSystemLimit = 3
+#       o Try again moving all cloud resources to spare_pool
+#       o Check that spare pool still has 7 cloud resources
+#       o Move all cloud resources back to cloud service
+#       o Move all cloud resources to spare_pool
+#       o Check that spare pool now has 3 cloud resources
+#
+#       o Set maxCloudHostsInSystemLimit = 0
+#       o Move all cloud resources back to cloud service
+#       o Move all cloud resources to spare_pool
+#       o Check that spare pool now has 0 cloud resources
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_check {} {   
+   upvar #0 hedeby_cloud_max_hosts_ctx this
+
+   #---------------------------------------------------------------------
+   set maxCloudHostsInSystemLimit 5
+   ts_log_heading "Adding simhost cloud service '$this(service)' to system, maxCloudHostsInSystemLimit = $maxCloudHostsInSystemLimit"
+   #---------------------------------------------------------------------
+   set sopts(cloud_type)   "simhost"
+   set sopts(service_name) $this(service)
+   set sopts(host)         $this(service_host)
+   set sopts(start)        "true"
+   set sopts(maxCloudHostsInSystemLimit) $maxCloudHostsInSystemLimit
+
+   if {[hedeby_add_cloud_service sopts] != 0} {
+      return
+   }
+   unset sopts
+   lappend this(cleanup_actions) "remove_service"
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Adding $this(res_count) virtual resources to cloud service '$this(service)'"
+   #---------------------------------------------------------------------
+   set opts(res_id_array) res_id_array
+   set opts(timeout)      30
+
+   if {[hedeby_add_resources_to_service $this(res_names) $this(service) opts] != 0} {
+      return
+   }
+   lappend this(cleanup_actions) "remove_resources"
+   set this(res_ids) {}
+   foreach res $this(res_names) {
+      lappend this(res_ids) $res_id_array($res)
+   }
+   ts_log_fine "Using cloud hosts with resource ids: $this(res_ids)"
+   unset res_id_array
+   unset opts
+
+   #---------------------------------------------------------------------
+   # maxCloudHostsInSystemLimit is 5, so we expect 10-5=5 errors
+   set expected_err_cnt 5
+   if { [hedeby_cloud_max_hosts_move_cloud_resources $this(res_ids) still_at_cloud $maxCloudHostsInSystemLimit $expected_err_cnt] != 0} {
+      return
+   }
+   if { [hedeby_cloud_max_hosts_check_resource_distribution 5 5] != 0 } {
+      return
+   }
+
+
+   #---------------------------------------------------------------------
+   set maxCloudHostsInSystemLimit 7
+   if { [hedeby_set_maxCloudHostsInSystemLimit $this(service) $maxCloudHostsInSystemLimit] != 0 } {
+      return
+   }
+   # two more of the 5 remaining cloud resources can be moved to spare pool
+   # => 3 errors
+   set expected_err_cnt 3
+   set res_list $still_at_cloud
+   if { [hedeby_cloud_max_hosts_move_cloud_resources $res_list still_at_cloud $maxCloudHostsInSystemLimit $expected_err_cnt] != 0} {
+      return
+   }
+   if { [hedeby_cloud_max_hosts_check_resource_distribution 3 7] != 0 } {
+      return
+   }
+
+   #---------------------------------------------------------------------
+   set maxCloudHostsInSystemLimit 3
+   if { [hedeby_set_maxCloudHostsInSystemLimit $this(service) $maxCloudHostsInSystemLimit] != 0 } {
+      return
+   }
+   # none of the 3 remaining resources at cloud service can be moved => 3 errors
+   set expected_err_cnt 3
+   set res_list $still_at_cloud
+   if { [hedeby_cloud_max_hosts_move_cloud_resources $res_list still_at_cloud $maxCloudHostsInSystemLimit $expected_err_cnt] != 0} {
+      return
+   }
+   if { [hedeby_cloud_max_hosts_check_resource_distribution 3 7] != 0 } {
+      return
+   }
+   # move all resources back to cloud service
+   if { [hedeby_cloud_max_hosts_move_cloud_resources_back $still_at_cloud] != 0 } {
+      return
+   }
+   # now only three resource moves should succeed => 7 errors
+   set expected_err_cnt 7
+   if { [hedeby_cloud_max_hosts_move_cloud_resources $this(res_ids) still_at_cloud $maxCloudHostsInSystemLimit $expected_err_cnt] != 0} {
+      return
+   }
+   if { [hedeby_cloud_max_hosts_check_resource_distribution 7 3] != 0 } {
+      return
+   }
+
+   #---------------------------------------------------------------------
+   set maxCloudHostsInSystemLimit 0
+   if { [hedeby_set_maxCloudHostsInSystemLimit $this(service) $maxCloudHostsInSystemLimit] != 0 } {
+      return
+   }
+   # move all resources back to cloud service
+   if { [hedeby_cloud_max_hosts_move_cloud_resources_back $still_at_cloud] != 0 } {
+      return
+   }
+   # now none of the moves should succeed
+   set expected_err_cnt 10
+   if { [hedeby_cloud_max_hosts_move_cloud_resources $this(res_ids) still_at_cloud $maxCloudHostsInSystemLimit $expected_err_cnt] != 0} {
+      return
+   }
+   if { [hedeby_cloud_max_hosts_check_resource_distribution 10 0] != 0 } {
+      return
+   }
+}
+
+
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_move_cloud_resources() *****************
+#  NAME
+#     hedeby_cloud_max_hosts_move_cloud_resources() --
+#          triggers moving of cloud resources to spare pool, expecting errors
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_move_cloud_resources { 
+#         res_list res_not_moved maxCloudHostsInSystemLimit exp_err_cnt } 
+#
+#  FUNCTION
+#     Helper function that triggers the moving of the resources given in
+#     res_list to the spare pool.  It is expected that this sdmadm mvr command
+#     produces $exp_err_cnt errors, meaning that many resources do NOT move. A
+#     list of resources that are not moved are returned in the res_not_moved
+#     parameter.
+#
+#     This routine does NOT wait until the resources are assigned at the spare
+#     pool, it only triggers the move and examines the (error) output of sdmadm
+#     mvr.
+#
+#  INPUTS
+#     res_list                   - list of cloud resource ids to move to the spare pool
+#     res_not_moved              - return value, contains list of resource ids
+#                                  that could NOT be moved and remain at the
+#                                  cloud service
+#     maxCloudHostsInSystemLimit - current maxCloudHostsInSystemLimit, used for
+#                                  construction of sdmadm mvr error message
+#     exp_err_cnt                - expected number of errors (no. resources
+#                                  that cannot be moved)
+#
+#  RESULT
+#     0 if the move produced the expected number of errors,
+#     else error
+#
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_move_cloud_resources { res_list res_not_moved maxCloudHostsInSystemLimit exp_err_cnt } {
+   upvar $res_not_moved not_moved_res
+   set not_moved_res {}
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Moving all cloud resources to spare_pool, expecting $exp_err_cnt errors"
+   #---------------------------------------------------------------------
+
+   # expect error
+   set sdmadm_opts(raise_error) 0
+   set sdmadm_opts(table_output) tout
+   set rarg [join $res_list ","]
+   set output [sdmadm_command_opt "mvr -r $rarg -s spare_pool" sdmadm_opts] ;# move_resource
+   if { $prg_exit_state != 2 } {
+      ts_log_severe "Unexpected exit state ($prg_exit_state) of sdmadm while moving cloud resources to spare pool, output=\n$output"
+      return -1
+   }
+
+   # make sure that we get $exp_err_cnt error lines
+   set params(0) $maxCloudHostsInSystemLimit
+   set expected_error_message [create_bundle_string "CloudResourceAdapterStore.maxReached" params]
+   ts_log_finer "Expecting $exp_err_cnt times this error message: $expected_error_message"
+   unset params
+   set err_cnt 0
+   for {set i 0} {$i < $tout(table_lines)} {incr i} {
+      if { $tout(message,$i) == "{$expected_error_message}" } {
+         incr err_cnt
+         lappend not_moved_res $tout(resource,$i)
+      }
+   }
+   if { $err_cnt != $exp_err_cnt } {
+      ts_log_severe "Got unexpected number of errors ($err_cnt) from sdmadm mvr command, expected $exp_err_cnt! sdmadm output:\n$output" 
+      return -1
+   }
+   return 0
+}
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_check_resource_distribution() **********
+#  NAME
+#     hedeby_cloud_max_hosts_check_resource_distribution() --
+#               checks that correct no. resources is at services
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_check_resource_distribution { 
+#            cnt_cloud cnt_spare_pool } 
+#
+#  FUNCTION
+#     Helper function that checks that $cnt_cloud resources are at the cloud
+#     service and $cnt_spare_pool resources are at the spare pool.
+#
+#     Before checking this resource distribution, the functions waits until all
+#     cloud resources are ASSIGNED.
+#
+#  INPUTS
+#     cnt_cloud      - expected number of cloud resources at cloud service
+#     cnt_spare_pool - expected number of cloud resources at spare pool
+#
+#  RESULT
+#     0 if distribution is OK, else error
+#
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_check_resource_distribution { cnt_cloud cnt_spare_pool } {
+   upvar #0 hedeby_cloud_max_hosts_ctx this
+
+   ts_log_heading "Checking that there are $cnt_cloud resources at cloud service $this(service) and $cnt_spare_pool at spare pool"
+
+   # wait until all cloud resources are assigned, we don't care at which service
+   foreach res $this(res_ids) {
+      set eri($res,state) "ASSIGNED"
+   }
+   set opts(res_info) res_info
+   if { [wait_for_resource_info_opt eri opts] != 0 } {
+      ts_log_severe "hedeby_cloud_max_hosts_check_resource_distribution: not all resources are ASSIGNED."
+      return -1
+   }
+
+   # init array explicitly to avoid info exists tests
+   set resources_of_service($this(service)) {}
+   set resources_of_service(spare_pool)     {}
+   foreach res $this(res_ids) {
+      set service $res_info($res,service)
+      lappend resources_of_service($service) $res
+   }
+   set cnt [llength $resources_of_service($this(service))]
+   if { $cnt_cloud != $cnt } {
+      ts_log_severe "Expected $cnt_cloud resources at cloud service but there are $cnt: $resources_of_service($this(service))"
+      return -1
+   }
+   set cnt [llength $resources_of_service(spare_pool)]
+   if { $cnt_spare_pool != $cnt } {
+      ts_log_severe "Expected $cnt_spare_pool resources at spare pool but there are $cnt: $resources_of_service(spare_pool)"
+      return -1
+   }
+   return 0
+}
+
+#****** cloud_max_hosts/hedeby_cloud_max_hosts_move_cloud_resources_back() ************
+#  NAME
+#     hedeby_cloud_max_hosts_move_cloud_resources_back() --
+#           move all cloud resources back to cloud service
+#
+#  SYNOPSIS
+#     hedeby_cloud_max_hosts_move_cloud_resources_back { still_at_cloud } 
+#
+#  FUNCTION
+#     Helper function that moves all cloud resources ($this(res_ids)) back to
+#     the cloud service and waits until they arrived there. Does not move the
+#     resources with ids given in still_at_cloud parameter.
+#
+#  INPUTS
+#     still_at_cloud - list of resource ids that are already at the cloud
+#                      service and thus will not be moved
+#
+#  RESULT
+#     0 on Success, else error
+#
+#*******************************************************************************
+proc hedeby_cloud_max_hosts_move_cloud_resources_back { still_at_cloud } {
+   upvar #0 hedeby_cloud_max_hosts_ctx this
+
+   #---------------------------------------------------------------------
+   ts_log_heading "Moving all cloud resources back to cloud service $this(service)"
+   #---------------------------------------------------------------------
+   # don't move the host that are already at the cloud service
+   set res_list $this(res_ids)
+   foreach res $still_at_cloud {
+      set res_list [remove_from_list $res_list $res]
+   }
+   set opts(final_flags) "U"
+   return [hedeby_move_resources $res_list $this(service) opts]
+}
