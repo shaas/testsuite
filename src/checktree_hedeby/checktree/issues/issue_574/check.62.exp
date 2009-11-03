@@ -47,6 +47,9 @@ set check_init_level_procedure "hedeby_issue574_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
+# this test does NOT depend on hedeby_install
+#set check_needs                "hedeby_install"                  
+
 set check_setup_level_function "hedeby_issue574_setup_level"
 set check_cleanup_level_function "hedeby_issue574_cleanup_level"
 

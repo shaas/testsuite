@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+TB-2009-11-03-0: Bugfix:     o added dependency on hedeby_install for issue
+                               tests: 554, 582
+                 Review:     RH
+
 TB-2009-11-02-0: Enhancem.:  o added SDM test for cloud adapter:
                                components/cloud/max_hosts_in_system_limit
                              o new SDM helper function
@@ -31,7 +35,7 @@ TB-2009-11-02-0: Enhancem.:  o added SDM test for cloud adapter:
                                wait_for_notification()
                              o fixed timestamp taken from wrong host in
                                components/ge/unassign_resources test
-                 Review:     ??
+                 Review:     RH
 
 CR-2009-10-30:0: Bugfix:     o Fixed set_config_and_propagate() implementation
                                which has wait for config changes even when only

@@ -43,7 +43,7 @@ set check_root_access_needs    "yes"
 set check_name                 "hedeby_issue_554"
 set check_category             "COMPATIBILITY SYSTEM VERIFIED"
 set check_description(0)       "Tests the stoping services with -fr flag"
-#set check_needs                "hedeby_install"                  
+set check_needs                "hedeby_install"                  
 set check_init_level_procedure "hedeby_issue554_init_level"
 set check_functions            {}   
 set check_highest_level        0
