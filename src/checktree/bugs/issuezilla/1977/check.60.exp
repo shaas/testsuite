@@ -103,7 +103,8 @@ proc issue_1977_setup {} {
 
 proc issue_1977_cleanup  {} {
    global ts_config
-   global consumable_complex_backup test_host
+   global consumable_complex_backup
+   global test_host
 
    # modify complex values of test_host
    set host_config(complex_values) "none"
@@ -114,7 +115,7 @@ proc issue_1977_cleanup  {} {
    mod_queue "all.q" "" queue_settings
 
    # restore complex
-   set_complex consumable_complex_backup
+   reset_complex consumable_complex_backup
 }
 
 proc issue_1977 {} {

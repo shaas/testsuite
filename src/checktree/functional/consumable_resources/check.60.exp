@@ -243,7 +243,7 @@ proc consumable_resources_cleanup {} {
 
    # restore complex
    ts_log_fine "restoring complex settings ..."
-   set_complex consumable_complex_backup
+   reset_complex consumable_complex_backup
 
    # we changed the schedd config - reset to defaults
    reset_schedd_config

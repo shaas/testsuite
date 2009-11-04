@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-11-04-0: Cleanup:    o fixed complex reset handling in various tests
+                 Enhancem.:  o new procedure reset_complex()
+                 Review:     SH
+
 TB-2009-11-03-0: Bugfix:     o added dependency on hedeby_install for issue
                                tests: 554, 582
                  Review:     RH

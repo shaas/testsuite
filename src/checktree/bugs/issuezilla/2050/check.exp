@@ -86,6 +86,10 @@ proc issue_2050_init_level {} {
 proc issue_2050_setup  {} {
    global test_host
    global test_queue act_time 
+   global issue_2050_complex_backup
+
+   get_complex issue_2050_complex_backup
+
    set test_host [host_conf_get_suited_hosts]
 
    #define variable based on current time to create unique file/queue names
@@ -99,10 +103,16 @@ proc issue_2050_setup  {} {
 }
 
 proc issue_2050_cleanup  {} {
-   global test_queue test_host
+   global test_queue
+   global test_host
+   global issue_2050_complex_backup
 
    # cleanup cluster
    del_queue $test_queue $test_host 0 1
+
+   # reset complex
+   reset_complex issue_2050_complex_backup
+   unset issue_2050_complex_backup
 }
 
 # This is a test to check if objects, after being referenced in a queue are

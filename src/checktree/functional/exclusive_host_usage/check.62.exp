@@ -87,6 +87,7 @@ proc exclusive_host_usage_init_level {} {
 proc exclusive_host_usage_setup {} {
    global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
    global exclusive_hosts
+   global exclusive_host_usage_complex_backup
 
    if {![ge_has_feature "exclusive-host-usage"]} {
       ts_log_config "need \"exclusive-host-usage\" feature for this test"
@@ -98,6 +99,7 @@ proc exclusive_host_usage_setup {} {
       return 99
    }
 
+   get_complex exclusive_host_usage_complex_backup
 
    # need 1 test hosts
    set exclusive_hosts [host_conf_get_suited_hosts 2]
@@ -146,6 +148,7 @@ proc exclusive_host_usage_setup {} {
 
 proc exclusive_host_usage_cleanup {} {
    global ts_config
+   global exclusive_host_usage_complex_backup
    global exclusive_hosts
 
    delete_all_jobs
@@ -170,9 +173,8 @@ proc exclusive_host_usage_cleanup {} {
    set_exechost host_config [lindex $exclusive_hosts 1]
 
    # remove exclusive complex
-   set tmp_complex(exclusive) ""
-   set tmp_complex(jexclusive) ""
-   set_complex tmp_complex
+   reset_complex exclusive_host_usage_complex_backup
+   unset exclusive_host_usage_complex_backup
 
    # unset our test's global variables
    foreach var "exclusive_hosts" {

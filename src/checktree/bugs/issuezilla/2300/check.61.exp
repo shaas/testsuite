@@ -83,9 +83,12 @@ proc issue_2300_init_level {} {
 proc issue_2300_setup {} {
    global ts_config
    global global_host_backup queue_backup
+   global issue_2300_complex_backup
 
    # backup the queue settings
    get_queue "all.q" queue_backup
+
+   get_complex issue_2300_complex_backup
 
    # create complexes F001...F010
    for {set i 1} {$i <= 10} {incr i} {
@@ -140,6 +143,7 @@ proc issue_2300_setup {} {
 proc issue_2300_cleanup {} {
    global ts_config
    global global_host_backup queue_backup
+   global issue_2300_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -166,12 +170,8 @@ proc issue_2300_cleanup {} {
    # restore global host
    set_exechost global_host_backup
 
-   # restore complex
-   for {set i 1} {$i <= 10} {incr i} {
-      set name [format "F%03d" $i]
-      set test_complex($name) ""
-   }
-   set_complex test_complex
+   reset_complex issue_2300_complex_backup
+   unset issue_2300_complex_backup
 }
 
 

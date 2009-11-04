@@ -87,7 +87,9 @@ proc urgency_calculation_setup {  } {
    global urgency_queue_name urgency_job_name urgency_pe_name 
    global urgency_org_slots_complex
    global ts_config
+   global urgency_calculation_complex_backup
    
+   get_complex urgency_calculation_complex_backup
    set urgency_job_name   "urgjob"
    set urgency_pe_name    "urgpe"
    
@@ -98,7 +100,7 @@ proc urgency_calculation_setup {  } {
    set schedd_conf(weight_urgency)       "1.000000"
    set schedd_conf(weight_priority)      "0.000000"
    
-   set result [set_schedd_config schedconf]
+   set result [set_schedd_config schedd_conf]
    if {$result != 0} {
       ts_log_severe "setup of scheduler failed"
       return -1
@@ -153,6 +155,7 @@ proc urgency_calculation_setup {  } {
 proc urgency_calculation_cleanup {} {
    global ts_config
    global urgency_queue_name urgency_org_slots_complex urgency_pe_name
+   global urgency_calculation_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -179,12 +182,8 @@ proc urgency_calculation_cleanup {} {
    }
 
    # Reset slots complex    
-   set tmp_complex(slots) $urgency_org_slots_complex
-   set tmp_complex(dummy) ""
-   set result [set_complex tmp_complex]
-   if {$result < -4} {
-      ts_log_severe "reset of slots complex failed ($result)"
-   }
+   reset_complex  urgency_calculation_complex_backup
+   unset urgency_calculation_complex_backup
 }
 
 

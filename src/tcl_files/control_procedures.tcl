@@ -61,10 +61,16 @@ proc dump_array_to_tmpfile { change_array } {
    if [info exists chgar] {
       set ignored 0
       foreach elem [array names chgar] {
+         if {$elem == ""} {
+            ts_log_fine "ignore empty elem"
+            continue
+         }
          set value $chgar($elem)
          if {$value != ""} {
+            ts_log_finer "set \"$elem\" to \"$value\""
             puts $file "$elem $value"
          } else {
+            ts_log_fine "skip array name \"$elem\""
             incr ignored
          }
       }

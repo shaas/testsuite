@@ -80,9 +80,10 @@ proc issue_2345_setup {} {
    global ts_config
    global consumable_complex_backup  
 
+   get_complex consumable_complex_backup
+
    # create test complex
    set test_complex(F001) "F001 INT  <= YES YES 0 0"
-
    set_complex test_complex
    
    
@@ -117,8 +118,8 @@ proc issue_2345_cleanup {} {
 
    del_queue "A.q" "" 1 1
 
-   set tmp_complex(F001) ""
-   set_complex tmp_complex
+   reset_complex consumable_complex_backup
+   unset consumable_complex_backup
 }
 
 #***********************************************************

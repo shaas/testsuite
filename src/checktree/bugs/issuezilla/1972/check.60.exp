@@ -86,7 +86,10 @@ proc issue_1972_init_level {} {
 
 proc issue_1972_setup {} {
    global ts_config
+   global issue_1972_complex_backup
 
+ 
+   get_complex issue_1972_complex_backup
    ts_log_fine "...adding idle complex"
    set host_complex(idle) "idle BOOL == FORCED NO FALSE 0"
    set_complex host_complex 
@@ -94,12 +97,13 @@ proc issue_1972_setup {} {
 
 proc issue_1972_cleanup {} {
    global ts_config
+   global issue_1972_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs
-   ts_log_fine "...deleting idle complex"
-   set host_complex(idle) ""
-   set_complex host_complex 
+
+   reset_complex issue_1972_complex_backup
+   unset issue_1972_complex_backup
 }
 
 

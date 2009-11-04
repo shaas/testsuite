@@ -79,8 +79,11 @@ proc issue_2896_init_level  {} {
 proc issue_2896_setup {} {
    global ts_config
    global global_host_backup
+   global issue_2896_complex_backup
 
    ts_log_fine "issue_2896_setup" 
+
+   get_complex issue_2896_complex_backup
 
    # setup queues A and B each with one slot on a single host
    set queue_conf(slots)            "1"
@@ -115,11 +118,12 @@ proc issue_2896_setup {} {
 proc issue_2896_cleanup {  } {
    global global_host_backup
    global ts_config
+   global issue_2896_complex_backup
 
    # restore global host and revert F001 complex definition
    set_exechost global_host_backup
-   set tmp_complex(F001)   ""
-   set_complex tmp_complex
+   reset_complex issue_2896_complex_backup
+   unset issue_2896_complex_backup
 
    # reset the scheduler configuration
    reset_schedd_config

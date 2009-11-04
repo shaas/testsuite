@@ -35,19 +35,44 @@
 # The current implemtation using aattr/dattr is destroying the default 
 # settings in all.q
 
+#****** sge_procedures.60/get_complex() ****************************************
+#  NAME
+#     get_complex() -- get defined complex values
+#
+#  SYNOPSIS
+#     get_complex { change_array } 
+#
+#  FUNCTION
+#     returns the output of qconf -sc in a tcl array. The array index id is the
+#     complex name. The value is the complex line
+#
+#  INPUTS
+#     change_array - tcl name of array variable
+#
+#  RESULT
+#     1 on error, 0 on success
+#
+#*******************************************************************************
 proc get_complex { change_array } {
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
+  if {[info exists chgar]} {
+     unset chgar
+  }
+
   set result [start_sge_bin "qconf" "-sc"]
   if {$prg_exit_state != 0} {
      ts_log_severe "qconf -sc failed:\n$result"
-     return
+     return 1
   } 
 
   # split each line as listelement
   set help [split $result "\n"]
   foreach elem $help {
+     if {$elem == ""} {
+        continue
+     }
      set id [lindex $elem 0]
      if { [ string first "#" $id ]  != 0 } {
         set value [lrange $elem 1 end]
@@ -56,6 +81,7 @@ proc get_complex { change_array } {
         }
      }
   }
+  return 0
 }
 
 #****** sge_procedures.60/set_complex() **********************************
@@ -74,9 +100,12 @@ proc get_complex { change_array } {
 #     complex will be deleted
 #
 #  INPUTS
-#     change_array - array with the complex definitions
-#     raise_error  - if unset the error is expected
-#     fast_add     - add from file
+#     change_array    - array with the complex definitions
+#     {raise_error 1} - if unset the error is expected
+#     {fast_add 1}    - add from file
+#     {do_reset 0}    - if 1: set the config to the values in the change_array
+#                       (This means also to delete values which are not
+#                        in change_array)
 #
 #  RETURN:
 #
@@ -100,21 +129,39 @@ proc get_complex { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc set_complex {change_array {raise_error 1} {fast_add 1}} {
+proc set_complex {change_array {raise_error 1} {fast_add 1} {do_reset 0} } {
    global CHECK_USER
    global env
    get_current_cluster_config_array ts_config
-   upvar $change_array chgar
+   upvar $change_array chgar_orig
+
+   # copy the change_array, we don't want to modify the original
+   foreach elem [array names chgar_orig] {
+      set chgar($elem) $chgar_orig($elem)
+   }
+
+
+   # get current config
+   set config_return [get_complex current_values]
+
+   if { $do_reset != 0 && $config_return == 0 } {
+      # Any elem in current_values which should not be in new config
+      # have to be defined in new config as parameter with empty string
+      foreach elem [array names current_values] {
+         if {![info exists chgar($elem)]} {
+            ts_log_fine "removing complex \"$elem\""
+            set chgar($elem) ""
+         }
+      }
+   }
+
    set values [array names chgar]
-
-   get_complex old_values
-
    if {$fast_add} {
       foreach elem $values {
-         set old_values($elem) "$chgar($elem)"
+         set current_values($elem) "$chgar($elem)"
       }
 
-      set tmpfile [dump_array_to_tmpfile old_values]
+      set tmpfile [dump_array_to_tmpfile current_values]
       set result [start_sge_bin "qconf" "-Mc $tmpfile"]
       ts_log_fine "output of qconf -Mc $tmpfile:\n$result"
 
@@ -137,10 +184,10 @@ proc set_complex {change_array {raise_error 1} {fast_add 1}} {
       foreach elem $values {
          # this will quote any / to \/  (for vi - search and replace)
          set newVal $chgar($elem)
-         if {[info exists old_values($elem)]} {
+         if {[info exists current_values($elem)]} {
             # if old and new config have the same value, create no vi command,
             # if they differ, add vi command to ...
-            if { [compare_complex $old_values($elem) $newVal] != 0 } {
+            if { [compare_complex $current_values($elem) $newVal] != 0 } {
                if {$newVal == ""} {
                   # ... delete config entry (replace by comment)
                   lappend vi_commands ":%s/^$elem .*$/#/\n"
@@ -183,6 +230,33 @@ proc set_complex {change_array {raise_error 1} {fast_add 1}} {
    return $result
 }
 
+#****** sge_procedures/reset_complex() ******************************************
+#  NAME
+#     reset_complex() -- reset complex configuration to specified complex config
+#
+#  SYNOPSIS
+#     reset_complex { change_array {raise_error 1} {fast_add 1} } 
+#
+#  FUNCTION
+#     This procedure sets the specified complexuration values and removes 
+#     values which are additional set from the current complex. The resulting
+#     complex will reflect the set values in the specified array.
+#     
+#  INPUTS
+#     change_array    - values to set
+#     {raise_error 1} - if 0: Do not report errors
+#     {fast_add 1}    - if 1: Add from file
+#
+#  RESULT
+#     return value of set_complex()
+#
+#  SEE ALSO
+#     sge_procedures/set_complex()
+#*******************************************************************************
+proc reset_complex {change_array {raise_error 1} {fast_add 1} } {
+   upvar $change_array ch_array
+   return [set_complex ch_array $raise_error $fast_add 1]
+}
 
 
 #****** sge_procedures.60/switch_to_admin_user_system() ************************

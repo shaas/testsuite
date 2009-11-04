@@ -132,6 +132,7 @@ proc qconf_setup {} {
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_project qconf_sched_config qconf_userlist 
    global backup_allhosts
    global queue_names CHECK_JGDI_ENABLED
+   global qconf_setup_complex_backup
 
    if {[llength $ts_config(execd_nodes)] < 2} {
       ts_log_config "need at least 2 execd hosts for this check"
@@ -141,6 +142,8 @@ proc qconf_setup {} {
       ts_log_config "source directory is set to \"none\" - cannot run test"
       return 99
    }
+
+   get_complex qconf_setup_complex_backup
 
    #Check we are running at least 6.2 for JGDI
    if {$CHECK_JGDI_ENABLED} {
@@ -204,6 +207,7 @@ proc qconf_cleanup {} {
    global ts_config
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_sched_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER qconf_prj_setup
+   global qconf_setup_complex_backup
 
    ts_log_fine "cleanup ..."
 
@@ -276,6 +280,9 @@ proc qconf_cleanup {} {
          }
       }
    }
+
+   reset_complex qconf_setup_complex_backup
+   unset qconf_setup_complex_backup
 }
 
 proc qconf_auser {} {

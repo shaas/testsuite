@@ -80,12 +80,14 @@ proc issue_2254_init_level {} {
 proc issue_2254_setup {} {
    global ts_config
    global test_host
+   global issue_2254_complex_backup
+
+   get_complex issue_2254_complex_backup
 
    set test_host [host_conf_get_suited_hosts]
 
    # create test complex
    set test_complex(F001) "F001 INT  <= YES YES 0 0"
-
    set_complex test_complex
    
    # 3a. setup pe intelmpi
@@ -133,7 +135,8 @@ proc issue_2254_setup {} {
 proc issue_2254_cleanup  {} {
    global ts_config
    global test_host
-   
+   global issue_2254_complex_backup
+
    del_pe "intelpvm"
    del_pe "intelmpi"
 
@@ -147,8 +150,8 @@ proc issue_2254_cleanup  {} {
        }
    }
 
-   set tmp_complex(F001) ""
-   set_complex tmp_complex
+   reset_complex issue_2254_complex_backup
+   unset issue_2254_complex_backup
    
    # Modify the scheduler back  fast
    set mysched_config(params) "none"

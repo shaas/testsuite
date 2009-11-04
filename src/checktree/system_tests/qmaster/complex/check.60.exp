@@ -159,12 +159,13 @@ proc complex_setup {} {
    global complex_host
    global complex_global_host_backup complex_host_backup
    global complex_global_config_backup
-  
+   global complex_complex_backup
 
    get_config complex_global_config_backup
    set complex_host [host_conf_get_suited_hosts]
    ts_log_fine "using test host $complex_host"
 
+   get_complex complex_complex_backup
    # create new complex attributes
    #           name            short  type    op.   requ.  cons. default  urgency
    set complex(test_integer)  "ti     INT       <=    YES    YES   1        0"
@@ -212,6 +213,7 @@ proc complex_cleanup {} {
    global ts_config
    global complex_host complex_global_host_backup complex_host_backup
    global complex_global_config_backup
+   global complex_complex_backup
 
    # cleanup
    delete_all_jobs
@@ -226,16 +228,8 @@ proc complex_cleanup {} {
    del_queue "complex" $complex_host  0 1
 
    # delete our test complex attributes
-   set complex(test_integer)  ""
-   set complex(test_double)   ""
-   set complex(test_time)     ""
-   set complex(test_memory)   ""
-   set complex(test_bool)     ""
-   set complex(test_string)   ""
-   set complex(test_cstring)  ""
-   set complex(test_restring) ""
-   set complex(test_hostname) ""
-   set_complex complex
+   reset_complex complex_complex_backup
+   unset complex_complex_backup
 
    # we changed the schedd config - reset to defaults
    reset_schedd_config

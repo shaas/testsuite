@@ -104,7 +104,9 @@ proc scheduler_advance_reservation_setup {} {
    global complex_queue_name
    global global_consumable host_consumable
    global host_complex queue_complex 
+   global scheduler_advance_reservation_complex_backup
 
+   get_complex scheduler_advance_reservation_complex_backup
    set test_host [host_conf_get_suited_hosts]
    set queue_name "ar_schedd_queue"
    set complex_queue_name "ar_schedd_complex_queue"
@@ -157,6 +159,7 @@ proc scheduler_advance_reservation_cleanup {} {
    global complex_queue_name
    global global_consumable host_consumable
    global host_complex queue_complex
+   global scheduler_advance_reservation_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -174,11 +177,8 @@ proc scheduler_advance_reservation_cleanup {} {
    del_pe "ar_pe"
 
    # delete our test complex attributes
-   set complex($global_consumable)  ""
-   set complex($host_consumable)   ""
-   set complex($host_complex)  ""
-   set complex($queue_complex)  ""
-   set_complex complex
+   reset_complex scheduler_advance_reservation_complex_backup
+   unset scheduler_advance_reservation_complex_backup
 
    # remove resource quota
    del_rqs "ar_schedd_test" "" "" 0

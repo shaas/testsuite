@@ -399,6 +399,9 @@ proc get_schedd_config { change_array {on_host ""} {as_user ""} {raise_error 1} 
   set help [split $result "\n"]
 
   foreach elem $help {
+     if {$elem == ""} {
+        continue
+     }
      set id [lindex $elem 0]
      set value [lrange $elem 1 end]
      set chgar($id) $value

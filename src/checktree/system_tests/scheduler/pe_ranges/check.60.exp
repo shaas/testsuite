@@ -97,7 +97,9 @@ proc pe_ranges_setup_level {} {
 proc pe_ranges_setup {} {
    global ts_config
    global pe_ranges_test_hosts
+   global pe_ranges_complex_backup
 
+   get_complex pe_ranges_complex_backup
    set pe_ranges_test_hosts {}
    set execd_count 0
    foreach host $ts_config(execd_nodes) {
@@ -131,6 +133,8 @@ proc pe_ranges_setup {} {
 proc pe_ranges_cleanup {} {
    global ts_config
    global pe_ranges_test_hosts
+   global pe_ranges_complex_backup
+
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -158,6 +162,8 @@ proc pe_ranges_cleanup {} {
          }
       }
    }
+   reset_complex pe_ranges_complex_backup
+   unset pe_ranges_complex_backup
 }
 
 proc pe_ranges_submit_pejobs_and_wait { job_arguments job_count job_count_max run_job_count } {

@@ -87,6 +87,9 @@ proc issue_3068_setup {} {
    global queue_name
    global target_system
    global CHECK_OUTPUT
+   global issue_3068_complex_backup
+
+   get_complex issue_3068_complex_backup
    #
    # Create parallel environment.
    #
@@ -133,6 +136,7 @@ proc issue_3068_check {} {
    global ts_config
    global test_pe
    global target_system
+   global issue_3068_complex_backup
    #
    # Setup consumable h_vmem.
    #
@@ -221,6 +225,7 @@ proc issue_3068_cleanup  {} {
    global ts_config
    global queue_name
    global test_pe
+   global issue_3068_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs 100
@@ -228,4 +233,6 @@ proc issue_3068_cleanup  {} {
    del_queue $queue_name $ts_config(master_host) 1
    del_pe $test_pe
 
+   reset_complex issue_3068_complex_backup
+   unset issue_3068_complex_backup
 }

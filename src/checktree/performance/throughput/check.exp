@@ -394,6 +394,7 @@ proc throughput_setup {} {
    global global_job_run_time                  ;# job sleep parameter
    global host_list submit_hosts qstat_hosts
    global queue_list
+   global throughput_complex_backup
 
 # we can only run with more than one host
    if {[llength $ts_config(execd_nodes)] < 2} {
@@ -405,6 +406,8 @@ proc throughput_setup {} {
       ts_log_config "source directory is set to \"none\" - cannot run test"
       return 99
    }
+
+   get_complex throughput_complex_backup
 
    # global settings
    set nr_slots                              5   ;# nr of slots on each queue
@@ -486,6 +489,7 @@ proc throughput_setup {} {
 
 proc throughput_cleanup {} {
    global nr_queues host_list
+   global throughput_complex_backup
 
    # enable all default queues
    enable_queue "all.q"
@@ -498,6 +502,9 @@ proc throughput_cleanup {} {
    }
 
    del_queue "interactive" "@allhosts" 1 1
+
+   reset_complex throughput_complex_backup
+   unset throughput_complex_backup
 }
 
 proc throughput_setup_level {} {

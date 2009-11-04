@@ -86,6 +86,7 @@ proc per_job_consumables_init_level {} {
 proc per_job_consumables_setup {} {
    global job_consumables_hosts 
    global job_args ar_args
+   global per_job_consumables_complex_backup
    
    set job_consumables_hosts [host_conf_get_suited_hosts 3]
 
@@ -103,7 +104,7 @@ proc per_job_consumables_setup {} {
    set qname "per_job_consumables.q"
    add_queue $qname $job_consumables_hosts queue_settings
 
-
+   get_complex per_job_consumables_complex_backup
    set test1_complex(jobs) "j INT <= YES JOB 0 1000"
    set_complex test1_complex
 
@@ -120,6 +121,7 @@ proc per_job_consumables_setup {} {
 
 proc per_job_consumables_cleanup {} {
    global job_consumables_hosts
+   global per_job_consumables_complex_backup
  
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -137,8 +139,8 @@ proc per_job_consumables_cleanup {} {
       }
    }
 
-   set test1_complex(jobs) ""
-   set_complex test1_complex
+   reset_complex per_job_consumables_complex_backup 
+   unset per_job_consumables_complex_backup
 
    enable_queue "all.q"
 

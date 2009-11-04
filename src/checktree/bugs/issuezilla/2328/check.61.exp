@@ -77,7 +77,9 @@ proc issue_2328_init_level {} {
 
 proc issue_2328_setup {} {
    global ts_config max_queue_count 
+   global issue_2328_complex_backup
 
+   get_complex issue_2328_complex_backup
    # 1. Setup the complex FOO1-F0010
    set tmp_complex(F001) "F001 INT  <= YES YES 0 0"
    set tmp_complex(F002) "F002 INT  <= YES YES 0 0"
@@ -145,6 +147,7 @@ proc issue_2328_setup {} {
 
 proc issue_2328_cleanup {} {
    global ts_config max_queue_count
+   global issue_2328_complex_backup
 
    delete_all_jobs 0
    wait_for_end_of_all_jobs
@@ -165,19 +168,10 @@ proc issue_2328_cleanup {} {
    set my_cluster_conf(complex_values) "NONE"
    set_exechost my_cluster_conf "global"
    
-   # Remove the complex variables
-   set tmp_complex(F001) ""
-   set tmp_complex(F002) ""
-   set tmp_complex(F003) ""
-   set tmp_complex(F004) ""
-   set tmp_complex(F005) ""
-   set tmp_complex(F006) ""
-   set tmp_complex(F007) ""
-   set tmp_complex(F008) ""
-   set tmp_complex(F009) ""
-   set tmp_complex(F0010) ""
-   set_complex tmp_complex
-   
+   # reset the complex variables
+   reset_complex issue_2328_complex_backup
+   unset issue_2328_complex_backup
+
    # Reset the scheduler configuration
    reset_schedd_config
 }

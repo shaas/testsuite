@@ -138,6 +138,10 @@ proc get_complex { change_array complex_list } {
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
+  if {[info exists chgar]} {
+     unset chgar
+  }
+
   set result [start_sge_bin "qconf" "-sc $complex_list"]
   if {$prg_exit_state != 0} {
      ts_log_severe "qconf -sc $complex_list failed:\n$result"

@@ -115,6 +115,7 @@ proc reporting_setup  {} {
    global reporting_old_config reporting_old_exechost
    global reporting_file reporting_acct_file reporting_test_host
    global reporting_old_config_test_host
+   global reporting_complex_backup
 
    # delete any jobs that might be in the system
    delete_all_jobs
@@ -126,6 +127,7 @@ proc reporting_setup  {} {
    get_config reporting_old_config
    get_exechost reporting_old_exechost $reporting_test_host
    get_config reporting_old_config_test_host $reporting_test_host
+   get_complex reporting_complex_backup
 
    # enable immediate scheduling
    set schedd_conf(flush_submit_sec) 1
@@ -171,6 +173,7 @@ proc reporting_cleanup {} {
    global reporting_old_config reporting_old_exechost
    global reporting_file reporting_acct_file reporting_test_host 
    global reporting_old_config_test_host
+   global reporting_complex_backup
 
    # restore old config
    reset_config reporting_old_config
@@ -187,10 +190,8 @@ proc reporting_cleanup {} {
    del_hostgroup "@reporting"
 
    # delete consumable
-   set complex(F001) ""
-   set complex(F002) ""
-   set complex(F003) ""
-   set_complex complex
+   reset_complex reporting_complex_backup
+   unset reporting_complex_backup
 
    # delete the reporting file
    file delete -force $reporting_file

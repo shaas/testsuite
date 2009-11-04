@@ -87,6 +87,10 @@ proc qquota_init_level {} {
 
 proc qquota_setup {} {
    global ts_config complex_global_host_backup
+   global qquota_complex_backup
+
+
+   get_complex qquota_complex_backup
 
    set rqs_name1 "qquota_test1"
    set rqs_name2 "qquota_test2"
@@ -123,6 +127,7 @@ proc qquota_setup {} {
 
 proc qquota_cleanup {} {
    global ts_config complex_global_host_backup
+   global qquota_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
@@ -131,9 +136,8 @@ proc qquota_cleanup {} {
    set_exechost complex_global_host_backup "global"
 
    # delete our test complex attributes
-   set complex(test_time)     ""
-   set complex(test_memory)   ""
-   set_complex complex
+   reset_complex qquota_complex_backup
+   unset qquota_complex_backup
 
    if {[get_rqs_list rqs_names "" "" 0] == 0} {
       foreach elem $rqs_names {

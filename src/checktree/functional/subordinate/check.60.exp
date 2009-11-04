@@ -174,7 +174,8 @@ proc subordinate_cleanup {} {
    del_queue $qname $subordinate_test_hosts  0 1
 
    # restore complex
-   set_complex consumable_complex_backup
+   reset_complex consumable_complex_backup
+   unset consumable_complex_backup
 
    # we changed the schedd config - reset to defaults
    reset_schedd_config

@@ -108,6 +108,7 @@ proc advance_reservation_setup {} {
    global cal_name1 cal_name2
    global userset_name1 userset_name2
    global ar_name1 ar_name2
+   global advance_reservation_complex_backup
 
    set pe_name1 "pe_with_conflict"
    set pe_name2 "pe_without_conflict"
@@ -125,6 +126,7 @@ proc advance_reservation_setup {} {
    set complex_name2 "complex_without_conflict"
    set gr_cplx "graphics"
 
+   get_complex advance_reservation_complex_backup
    get_schedd_config schedd_conf
    set test_host [host_conf_get_suited_hosts]
 
@@ -160,6 +162,7 @@ proc advance_reservation_cleanup {} {
    global complex_name1 complex_name2
    global test_host
    global schedd_conf
+   global advance_reservation_complex_backup
 
    mod_schedd_config schedd_conf
 
@@ -186,10 +189,8 @@ proc advance_reservation_cleanup {} {
    set host_config(complex_values) "NONE"
    set_exechost host_config $test_host
 
-   set complex_config($complex_name1)  ""
-   set complex_config($complex_name2)  ""
-   set complex_config($gr_cplx)  ""
-   set_complex complex_config 0
+   reset_complex advance_reservation_complex_backup
+   unset advance_reservation_complex_backup
 }
 
 

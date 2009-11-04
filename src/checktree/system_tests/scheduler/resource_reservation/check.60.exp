@@ -112,6 +112,7 @@ proc resource_reservation_setup {} {
    global rr_host
    global ts_config
    global binary_path
+   global resource_reservation_complex_backup
 
    ts_log_fine "resource_reservation_setup" 
 
@@ -120,6 +121,7 @@ proc resource_reservation_setup {} {
       return 99
    }
 
+   get_complex resource_reservation_complex_backup
 
    set rr_queue_name               "rr_queue.q"
    set rr_cal_queue_name           "rr_cal_queue.q"
@@ -398,6 +400,7 @@ proc resource_reservation_cleanup {  } {
    global rr_h_vmem_complex
    global ts_config
    global rr_host
+   global resource_reservation_complex_backup
 
    # reset the scheduler configuration
    reset_schedd_config
@@ -411,14 +414,8 @@ proc resource_reservation_cleanup {  } {
    set_exechost my_host_config $rr_host
  
    # remove complex attributes
-   set tmp_complex(license)   ""
-   set tmp_complex(license2)  ""
-   set tmp_complex(h_vmem)   $rr_h_vmem_complex
-   set tmp_complex(myslots)   ""
-   if {[ge_has_feature "job-consumable"]} {
-      set tmp_complex(jobs)   ""
-   }
-   ts_log_fine "result from set_comples: [set_complex tmp_complex]"
+   reset_complex resource_reservation_complex_backup
+   unset resource_reservation_complex_backup
 
    # enable queues
     set queue_list {}

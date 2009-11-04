@@ -86,9 +86,6 @@ proc issue_2145_setup {} {
    global complex_backup
 
    # backup complex
-   if {[info exists complex_backup]} {
-      unset complex_backup
-   }
    get_complex complex_backup
 }
 
@@ -97,7 +94,8 @@ proc issue_2145_cleanup {} {
    global complex_backup
 
    # reset complex configuration
-   set_complex complex_backup
+   reset_complex complex_backup
+   unset complex_backup
 }
 
 

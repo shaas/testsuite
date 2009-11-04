@@ -81,10 +81,12 @@ proc issue_2396_init_level {} {
 proc issue_2396_setup {} {
    global ts_config
    global issue_2396_host
+   global issue_2396_complex_backup
 
    # test host for issue_2396_host_down
    set issue_2396_host [host_conf_get_suited_hosts]
 
+   get_complex issue_2396_complex_backup
    # create a consumable
    set complex(F001) "F001 INT <= YES YES 0 0"
    set_complex complex
@@ -102,6 +104,7 @@ proc issue_2396_setup {} {
 proc issue_2396_cleanup {} {
    global ts_config
    global issue_2396_host
+   global issue_2396_complex_backup
 
    # cleanup jobs
    delete_all_jobs
@@ -114,9 +117,8 @@ proc issue_2396_cleanup {} {
    # delete rqs
    del_rqs "issue_2396_rqs"
 
-   # delete consumable
-   set complex(F001) ""
-   set_complex complex
+   reset_complex issue_2396_complex_backup
+   unset issue_2396_complex_backup
 
    # unset our test's global variables
    foreach var "issue_2396_host" {
