@@ -512,14 +512,11 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          # IZ 2174 has been set to WILL NOT FIX
-         if {[ge_has_feature "new-interactive-job-support"]} {
-            ts_log_severe "test for issue 2174 (empty file with execution permisson) found"
-         } else {
-            set log_text "Testing job $job with $daemon = \"$path\" failed\n"
-            append log_text "issue 2174 issue found for $daemon configuration\n"
-            append log_text "This issue is still remaining (see issue 2174), but not fixed"
-            ts_log_info $log_text
-         }
+         # This part will never be fixed
+         set log_text "Testing job $job with $daemon = \"$path\" failed\n"
+         append log_text "issue 2174 issue found for $daemon configuration\n"
+         append log_text "This issue is still remaining (see issue 2174), but not fixed"
+         ts_log_fine $log_text
       } else {
          ts_log_fine "Test 5 for \"$job\" passed"
       }

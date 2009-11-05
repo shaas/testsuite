@@ -7,6 +7,12 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-11-05-0: Enhancem.:  o set_config_and_propagate should wait till the 
+                               global configs are also propagate to the client
+                 Bugfix:     o fixed 1914 issue test
+                 Belongs to: CR-2009-11-05-0
+                 Review:     CR
+
 CR-2009-11-05-0: Bugfix:     o fixed 1914 issue test
                              o fixed set_config_and_propagate() 
                  Cleanup:    o a few smaller cleanups
