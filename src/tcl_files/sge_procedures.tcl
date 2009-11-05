@@ -2467,8 +2467,7 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1} {do_reset
       set output [start_vi_edit qconf $qconf_cmd $vi_commands messages $ts_config(master_host) $CHECK_USER]
    }
 
-   set result [handle_sge_errors "set_config" "qconf $qconf_cmd" \
-                                    [string trim $output] messages $raise_error]
+   set result [handle_sge_errors "set_config" "qconf $qconf_cmd" [string trim $output] messages $raise_error]
    if {$result < 0}  {
       ts_log_severe "could not add or modify configuration for host $host ($result)" $raise_error
    }
@@ -2584,11 +2583,12 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
 
       # Make configuration change
       set result [set_config my_config $host 0 1 $do_reset]
-      if {$result != 0 && $result != -3 && $result != -5}  {
+      if {$result < 0 && $result != -3 && $result != -5}  {
          #Exit when this failed, otherwise we might get stuck
          foreach spawn_id $joined_spawn_list {
            close_spawn_process $sp_tail_id_map($spawn_id)
          }
+         ts_log_severe "there was a problem when setting the config! Result was $result"
          return
       }
 

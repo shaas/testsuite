@@ -491,7 +491,7 @@ proc setup_conf {} {
     set params(xprojects) "none"
   }
 
-  set result [ set_config params ] 
+  set_config params
 
   # for sgeee systems on irix: set execd params to
   # PTF_MIN_PRIORITY=40,PTF_MAX_PRIORITY=20,SET_LIB_PATH=true
@@ -857,7 +857,7 @@ proc setup_mytestproject {} {
   }
 
   # setup project "mytestproject"
-  set result [add_project "mytestproject"]
+  return [add_project "mytestproject"]
 }
 
 

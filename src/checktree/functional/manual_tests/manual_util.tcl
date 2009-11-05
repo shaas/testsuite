@@ -1468,12 +1468,12 @@ proc sge_jsv {report_var} {
 
    ts_log_fine "Test server JSV functionality"
    set jsv_conf(jsv_url) $jsv_bin
-   set result [set_config jsv_conf]
+   set_config jsv_conf
 
    set job_id [submit_job "-b y sleep 1" 0]
    # revert jsv setup
    set jsv_conf(jsv_url) none
-   set result [set_config jsv_conf]
+   set_config jsv_conf
 
    if {$job_id == -38} {
       test_report report $curr_task_nr $id result [get_result_ok]

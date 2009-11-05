@@ -899,14 +899,14 @@ proc test_report {report_array curr_task_nr task_test_id type value} {
    if {[info exists report]} {
       set task_nr task_$curr_task_nr
       switch -- $type {
-         value {
+         "value" {
             if {[info exists report($task_nr,$task_test_id,$type)]} {
                append report($task_nr,$task_test_id,$type) "\n$value"
             } else {
                set report($task_nr,$task_test_id,$type) $value
             }
          }
-         result {
+         "result" {
             if {[check_is_interactive]} {
                if {"$value" == "[get_result_failed]"} {
                   set name [get_test_name report $task_nr $task_test_id]

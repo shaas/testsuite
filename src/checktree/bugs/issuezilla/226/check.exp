@@ -93,7 +93,7 @@ proc issue_226_check {} {
    # value below 100 should be rejected
    set my_cluster_conf(gid_range) "99"
    set ret [set_config my_cluster_conf "global" 0 0]
-   if {$ret == 0} {
+   if {$ret >= 0} {
       ts_log_severe "gid_range of 99 should have got rejected"
    }
 }

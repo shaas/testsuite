@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-11-05-0: Bugfix:     o fixed 1914 issue test
+                             o fixed set_config_and_propagate() 
+                 Cleanup:    o a few smaller cleanups
+                 Review:     SH
+
 CR-2009-11-04-0: Cleanup:    o fixed complex reset handling in various tests
                  Enhancem.:  o new procedure reset_complex()
                  Review:     SH

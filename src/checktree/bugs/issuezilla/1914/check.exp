@@ -196,20 +196,24 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   set done 1
                }
                -i $sp_id "*rlogin_daemon \"$test_path\" is not executable*" {
+                  ts_log_fine "rlogin_daemon not executable message found"
                   set daemon_error 1 
 
                }
                -i $sp_id "*rlogin_daemon \"$test_path\" is not an absolute path*" {
+                  ts_log_fine "rlogin_daemon not an absolute path message found"
                   set daemon_error 1
 
                }
                -i $sp_id "*rlogin_daemon \"$test_path\" can't be read*" {
+                  ts_log_fine "rlogin_daemon can't be read found"
                   set daemon_error 1
 
                }
                #when rlogin_daemon set to "none" >> "none" is treated as some keyword and it should be a CR is created
                #once the bug is fixed this condition should be removed and the test is ok
                -i $sp_id "*rlogin_daemon \"$ts_config(product_root)/utilbin/*/rlogind\" can't be read*" {
+                  ts_log_fine "rlogin_daemon can't be read found (2)"
                   set daemon_error 1
                }
 
@@ -297,6 +301,10 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   }
                   ts_log_fine "deleting job with id $job_id, because we don't know user password ..."
                   delete_job $job_id
+                  # leave loop - job successfully started
+                  # If we do not leave the while loop immediately it might happen that
+                  # a "closed by foreign host will be catched and a deamon_error is set
+                  set done 1
                }
                
                -i $sp_id "X${host}X" {
@@ -312,12 +320,15 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   ts_send $sp_id "echo X`hostname`X\n" $host 1
                }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
+                  ts_log_fine "got not executable error"
                   set daemon_error 1
                }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not an absolute path*" {
+                  ts_log_fine "got not an absolute path error"
                   set daemon_error 1
                }
                -i $sp_id "*qlogin_daemon \"$test_path\" can't be read*" {
+                  ts_log_fine "got can't be read error"
                   set daemon_error 1
                }
                -i $sp_id "*closed by foreign host*" {
@@ -371,31 +382,52 @@ proc issue_1914_check_host_state {host} {
    after 2000
 
    get_queue_list queues
+   set error_states_found 0
    foreach queue $queues {
       set queue_state [get_queue_state [get_queue_instance $queue $host]]
-      if {[string compare $queue_state "E"] != 0} {
-         if {[string compare $queue_state ""] == 0} {
-            if {$state == 1} {
-               return 2 
-            }
-         } else {
-            return 2
-         }
-      } else {
-         set state 1
+      ts_log_fine "queue $queue on host $host has state \"$queue_state\""
+      if {[string match "*E*" $queue_state]} {
+         incr error_states_found 1
       }
    }
-   return $state 
+
+   if {$error_states_found == 0} {
+      ts_log_fine "no queue of test host $host is in error state"
+      return 0
+   }
+   if {$error_states_found == 2} {
+      ts_log_fine "all queues of test host $host are in error state"
+      return 1
+   }
+
+   ts_log_severe "not all expected queues are in error state on host $host!"
+   return 2 
 }
 
 #return 1 if test passed, 0 if failed 
 proc issue_1914_test_submit {job host path error_test} {
    global ts_user_config
    set res [issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path]
-   if {$res == [issue_1914_check_host_state $host] && $res == $error_test} {
-      return 1
+   if {$res == 0} {
+      ts_log_fine "job submit was ok"
+   } else {
+      ts_log_fine "job submit was not ok"
    }
-   return 0
+   ts_log_fine "res is set to $res"   
+
+   set host_state [issue_1914_check_host_state $host]
+   ts_log_fine "all host queues in error state = $host_state"
+
+   ts_log_fine "error expected = $error_test"
+
+   if {$res == $host_state && $res == $error_test} {
+      ts_log_fine "test passed"
+      set return_value 1
+   } else {
+      ts_log_fine "test failed"
+      set return_value 0
+   }
+   return $return_value
 } 
 
 proc issue_1914_test {} {
@@ -480,8 +512,14 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          # IZ 2174 has been set to WILL NOT FIX
-         ts_log_fine "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
-         issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
+         if {[ge_has_feature "new-interactive-job-support"]} {
+            ts_log_severe "test for issue 2174 (empty file with execution permisson) found"
+         } else {
+            set log_text "Testing job $job with $daemon = \"$path\" failed\n"
+            append log_text "issue 2174 issue found for $daemon configuration\n"
+            append log_text "This issue is still remaining (see issue 2174), but not fixed"
+            ts_log_info $log_text
+         }
       } else {
          ts_log_fine "Test 5 for \"$job\" passed"
       }
@@ -494,7 +532,7 @@ proc issue_1914_test {} {
       
       #start the test with correct daemon configuration 
       set error 0
-      set_config_and_propagate backup_config $test_host 1
+      reset_config_and_propagate backup_config $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          ts_log_severe "Testing job $job with default configuration failed,
          issue 1914 fix didn't work for correct configuration"
