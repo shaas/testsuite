@@ -9494,3 +9494,52 @@ proc is_bdb_server_running {hostname} {
    }
    return false
 }
+
+#****** sge_procedures/get_pid_for_job() ***************************************
+#  NAME
+#     get_pid_for_job() -- returns the pid of a running job
+#
+#  SYNOPSIS
+#     get_pid_for_job {job_id}
+#
+#  FUNCTION
+#     Given the $job_id, returns the pid related to this job.
+#
+#  INPUTS
+#     job_id                      - job id
+#
+#  RESULT
+#     0 -  if no job was found based on job_id
+#     pid - the corresponding pid based on the given job_id
+#
+#  NOTE
+#
+#  SEE ALSO
+#     
+#*******************************************************************************
+proc get_pid_for_job {job_id} {
+   global ts_config CHECK_USER
+
+   set ret [get_extended_job_info $job_id job_info]
+   if {$ret == 0} {
+      return 0
+   }
+
+   set host [lindex [split $job_info(queue) "@"] 1]
+
+   set spool_dir [get_execd_spool_dir $host]
+   
+   # build name of pid file
+   set pidfile "$spool_dir/$host/active_jobs/$job_id.1/job_pid"
+   
+   # read pid from pidfile on execution host
+   set real_pid [start_remote_prog $host $CHECK_USER "cat" "$pidfile"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "can't read $pidfile on host $host: $real_pid"
+      set real_pid ""
+   }
+   set real_pid [string trim $real_pid]
+    
+   return $real_pid
+
+}

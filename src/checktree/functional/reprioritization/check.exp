@@ -1,0 +1,397 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+global test_host
+
+#set check_need_running_system "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "reprioritization_init_level"
+
+# define test's name and run level descriptions
+set check_name            "reprioritization"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "automated reprioritization test"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function reprioritization_setup
+set check_cleanup_function reprioritization_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "reprioritization_sched_conf"
+lappend check_functions "reprioritization_priority"
+lappend check_functions "dynamic_reprioritization"
+
+proc reprioritization_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc reprioritization_setup {} {
+   global ts_config test_host
+   
+   set found 0
+   foreach host $ts_config(execd_nodes) {
+      set num_proc [get_numb_proc $host]
+      if {$num_proc == "1"} {
+         ts_log_fine "using host $host for test"
+         set test_host $host
+         set found 1
+         break
+      }
+   }
+   if {$found == 0} {
+      ts_log_severe "No host found with only 1 processor. Please re-configure the testsuite setup"
+   }
+   set test_host "ents"
+
+   # we want to modify the global config - make a backup
+   get_config reprioritization_backup $test_host
+
+   #set the load_report_time for this test
+   set my_config(load_report_time) "0:0:10"
+   set_config_and_propagate my_config $test_host
+
+   #modify test_host to have 4 slots
+   set result_mattr [start_sge_bin "qconf" "-mattr queue slots 4 all.q@$test_host"]
+   ts_log_fine "result $result_mattr"
+
+}
+
+proc reprioritization_cleanup {} {
+   global ts_config test_host
+   global reprioritization_backup
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_project "rep_prj1"
+   del_project "rep_prj2"
+
+   # restore config
+   reset_schedd_config
+   set_config_and_propagate reprioritization_backup $test_host
+
+   # unset our test's global variables
+   foreach var "reprioritization_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc reprioritization_sched_conf {} {
+   global ts_config CHECK_USER test_host
+
+   # disable the reprioritize_interval in scheduler configuration
+   set mysched_config(reprioritize_interval) "0:0:0"
+   set result1 [mod_schedd_config mysched_config]
+
+   # check if qconf -sconf shows reprioritize 0
+   get_schedd_config s_config
+   if {[string compare $s_config(reprioritize_interval) "0:0:0"] != 0} {
+      ts_log_severe "qconf -sconf reports different value than expected 0. Value is $s_config(reprioritize_interval)\n"
+   } else {
+      ts_log_fine "modification of reprioritize_interval successful"
+   }
+
+   # Enable the reprioritize_interval in scheduler configuration
+   set mysched_config(reprioritize_interval) "0:1:0"
+   set result1 [mod_schedd_config mysched_config]
+
+   # check if qconf -sconf shows reprioritize 0
+   get_schedd_config s_config
+   if {[string compare $s_config(reprioritize_interval) "0:1:0"] != 0} {
+      ts_log_severe "qconf -sconf reports different value than expected 1. Value is $s_config(reprioritize_interval)\n"
+   } else {
+      ts_log_fine "modification of reprioritize_interval successful"
+   }
+
+   # Modification of reprioritize_interval is working, now disable it
+   set mysched_config(reprioritize_interval) "0:0:0"
+   set result1 [mod_schedd_config mysched_config]
+}
+
+proc reprioritization_priority {} {
+   global ts_config CHECK_USER test_host
+
+   # Now modify queue all.q and set priority to 15
+   set my_queue(priority)  "15"
+   ts_log_fine "Modifying priority for all.q ...\n"
+   set result [mod_queue "all.q" "" my_queue]
+
+   #submit a worker job and wait for it to run
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host $ts_config(product_root)/examples/jobs/worker.sh" 
+   set job_id(0) [submit_job $jobargs 1 30 "" $CHECK_USER]
+   set job_id(1) [submit_job $jobargs 1 30 "" $CHECK_USER]
+   set job_id(2) [submit_job $jobargs 1 30 "" $CHECK_USER]
+   set job_id(3) [submit_job $jobargs 1 30 "" $CHECK_USER]
+
+   set back [wait_for_jobstart $job_id(0) "worker" 30]
+   set back [wait_for_jobstart $job_id(1) "worker" 30]
+   set back [wait_for_jobstart $job_id(2) "worker" 30]
+   set back [wait_for_jobstart $job_id(3) "worker" 30]
+
+   set pid_list ""
+   for {set i 0} {$i < 4} {incr i} {
+      lappend pid_list "$job_id($i),[get_pid_for_job $job_id($i)]"
+   }
+   
+   foreach elem $pid_list {
+      set job_pid [lindex [split $elem ","] 1]
+      get_ps_info $job_pid $test_host
+      parray ps_info
+      if {$ps_info($job_pid,nice) != 15} {
+         ts_log_fine "nice value of job [lindex [split $elem ","] 0] is incorrect. Expected value 0, actual value is $ps_info($job_pid,nice)\n"
+      } else {
+         ts_log_fine "nice value correct" 
+      }
+   }
+
+   #re-enable reprioritize_interval and wait for over 1 minute
+   set mysched_config(reprioritize_interval) "0:1:0"
+   set result1 [mod_schedd_config mysched_config]
+   sleep 65
+
+   set nice_level 0
+
+   # the nice level of the jobs should now be varrying.
+   foreach job_pid $pid_list {
+      set job_pid [lindex [split $job_pid ","] 1]
+      get_ps_info $job_pid $test_host
+      if {$ps_info($job_pid,nice) == 15} {
+            incr nice_level 1
+         }
+   }
+
+   if {$nice_level == 4} {
+      ts_log_severe "nice value of jobs should be varrying, however all jobs still have a nice level of 15\n"
+   } else {
+      ts_log_fine "nice values correct" 
+   }
+
+   # Reset queue priority to 0
+   set my_queue(priority)  "0"
+   set result [mod_queue "all.q" "" my_queue]
+
+   #clean up jobs
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+}
+
+proc dynamic_reprioritization {} {
+   global ts_config CHECK_USER test_host
+   
+   set failed 0
+
+   #create two projects with 10 and 20 functional shares respectively
+   set prj_array(fshare) "10"
+   add_project "rep_prj1" prj_array
+   set prj_array(fshare) "20"
+   add_project "rep_prj2" prj_array
+
+   #modify the weight_tickets_functional value to 1000 in the scheduler configuration
+   set mysched_config(weight_tickets_functional) "1000"
+   set result1 [mod_schedd_config mysched_config]
+  
+   #as per the test description submit 1 job in prj1, 1 job in prj2 and two jobs without a project
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj1 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(0) [submit_job $jobargs]
+
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(1) [submit_job $jobargs]
+
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(2) [submit_job $jobargs]
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(3) [submit_job $jobargs]
+
+   #wait until all jobs are running and sleep for 30 seconds for them to get some usage 
+   set back [wait_for_jobstart $job_id(0) "worker" 30]
+   set back [wait_for_jobstart $job_id(1) "worker" 30]
+   set back [wait_for_jobstart $job_id(2) "worker" 30]
+   set back [wait_for_jobstart $job_id(3) "worker" 30]
+   sleep 100
+
+   set pid_list ""
+   for {set i 0} {$i < 4} {incr i} {
+      lappend pid_list "$job_id($i),[get_pid_for_job $job_id($i)]"
+   }
+
+   # check to make sure that the nice level is 0
+   foreach elem $pid_list {
+      set job_pid [lindex [split $elem ","] 1]
+      get_ps_info $job_pid $test_host
+      ts_log_fine "nice value of job [lindex [split $elem ","] 0] is $ps_info($job_pid,nice)"
+      
+   }
+
+   # get extended job info for the 4 jobs
+   get_extended_job_info $job_id(0) job_info0
+   get_extended_job_info $job_id(1) job_info1
+   get_extended_job_info $job_id(2) job_info2
+   get_extended_job_info $job_id(3) job_info3
+
+   #test the usage ratio of the jobs
+   if {[string compare $job_info0(ftckt) "333"] != 0} {
+      ts_log_severe "usgage of job $job_id(0) is different than expected. Expected value is 333, actual value is $job_info0(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info1(ftckt) "666"] != 0} {
+      ts_log_severe "usgage of job $job_id(1) is different than expected. Expected value is 666, actual value is $job_info1(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info2(ftckt) "0"] != 0} {
+      ts_log_severe "usgage of job $job_id(2) is different than expected. Expected value is 0, actual value $job_info2(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info3(ftckt) "0"] != 0} {
+      ts_log_severe "usgage of job $job_id(3) is different than expected. Expected value is 0, actual value is $job_info3(ftckt)\n"
+      set failed 1
+   }
+   
+   ts_log_fine "CPU usage j1 = $job_info0(cpu), j2 = $job_info1(cpu), j3 = $job_info2(cpu), j4 = $job_info3(cpu)"
+
+   # job usage of job 3 should be less than that of jobs 1 and 2
+   if {$job_info2(cpu) >= $job_info0(cpu) || $job_info2(cpu) >= $job_info1(cpu)} {
+      ts_log_severe "usgage of job $job_id(2) should be less than that of jobs $job_id(0) and $job_id(1)\n"
+   }
+
+   # job usage of job 4 should be less than that of jobs 1 and 2
+   if {$job_info3(cpu) >= $job_info0(cpu) || $job_info2(cpu) >= $job_info1(cpu)} {
+      ts_log_severe "usgage of job $job_id(3) should be less than that of jobs $job_id(0) and $job_id(1)\n"
+   }
+
+   if {$failed != 1} {
+      ts_log_fine "first phase of dynamic reprioritization completed successfuly"
+   }
+   
+   #prepare for seconf phase
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   #during second phase submit 3 jobs in prj2 and 1 job in prj1
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(0) [submit_job $jobargs]
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(1) [submit_job $jobargs]
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(2) [submit_job $jobargs]
+   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj1 -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set job_id(3) [submit_job $jobargs]
+
+   #wait for jobs to be running and sleep 30 for usage
+   set back [wait_for_jobstart $job_id(0) "worker" 30]
+   set back [wait_for_jobstart $job_id(1) "worker" 30]
+   set back [wait_for_jobstart $job_id(2) "worker" 30]
+   set back [wait_for_jobstart $job_id(3) "worker" 30]
+   sleep 100
+
+   # retreive the pids for the running jobs and create a list (job_id,job_pid)
+   set pid_list ""
+   for {set i 0} {$i < 4} {incr i} {
+      lappend pid_list "$job_id($i),[get_pid_for_job $job_id($i)]"
+   }
+
+   # check the nice levels
+   foreach elem $pid_list {
+      # split the elem to get the pid
+      set job_pid [lindex [split $elem ","] 1]
+      get_ps_info $job_pid $test_host
+      ts_log_fine "nice value of job [lindex [split $elem ","] 0] is $ps_info($job_pid,nice)"
+      
+   }
+
+   # get extended job info for the 4 jobs
+   get_extended_job_info $job_id(0) job_info0
+   get_extended_job_info $job_id(1) job_info1
+   get_extended_job_info $job_id(2) job_info2
+   get_extended_job_info $job_id(3) job_info3
+     
+   #test the usage ratio of the jobs
+   if {[string compare $job_info0(ftckt) "222"] != 0} {
+      ts_log_severe "usgage of job $job_id(0) is different than expected. Expected value is 222, actual value is $job_info0(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info1(ftckt) "222"] != 0} {
+      ts_log_severe "usgage of job $job_id(1) is different than expected. Expected value is 222, actual value is $job_info1(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info2(ftckt) "222"] != 0} {
+      ts_log_severe "usgage of job $job_id(2) is different than expected. Expected value is 222, actual value is $job_info2(ftckt)\n"
+      set failed 1
+   }
+   if {[string compare $job_info3(ftckt) "333"] != 0} {
+      ts_log_severe "usgage of job $job_id(3) is different than expected. Expected value is 333, actual value is $job_info3(ftckt)\n"
+      set failed 1
+   }
+   
+   ts_log_fine "CPU usage j1 = $job_info0(cpu), j2 = $job_info1(cpu), j3 = $job_info2(cpu), j4 = $job_info3(cpu)"
+
+   # job usage of jobs 1, 2 and 3  should be less than that of job 4
+   if {$job_info0(cpu) >= $job_info3(cpu) || $job_info1(cpu) >= $job_info3(cpu) || $job_info2(cpu) >= $job_info3(cpu)} {
+      ts_log_severe "usgage of jobs $job_id(0), $job_id(1) and $job_id(2) should be less than that of job $job_id(3)\n"
+   }
+
+   if {$failed != 1} {
+      ts_log_fine "second phase of dynamic reprioritization completed successfuly"
+   }
+   
+}
