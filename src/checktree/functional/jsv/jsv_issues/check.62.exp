@@ -68,6 +68,7 @@ lappend check_functions "jsv_issues_q_soft_selection"
 lappend check_functions "jsv_issues_q_hard_selection"
 lappend check_functions "jsv_issues_cmdargs"
 lappend check_functions "jsv_issues_iz3088"
+lappend check_functions "jsv_A_comma_list"
 
 # global variables for this test. all of them are initiaized in the setup procedure
 global jsv_org_global_conf
@@ -486,4 +487,37 @@ proc jsv_issues_iz3088 {} {
    } else {
       ts_log_fine "Expected message matches to received qsub message: $qsub_out, case passed"
    }
+}
+
+# CR 6883285: JSV.pm does not recognize -A option when used with qsub
+proc jsv_A_comma_list {} {
+   global CHECK_USER
+   global ts_config
+
+   # submit a job with -A option and only one item. Expect the job to run.
+   set qsub_args "-N jsvTest -jsv $ts_config(product_root)/util/resources/jsv/jsv.pl -A \"test\" $ts_config(product_root)/examples/jobs/sleeper.sh"
+   set qsub_host $ts_config(master_host)
+   set job_id [submit_job $qsub_args]
+   
+   set ret [wait_for_jobstart $job_id "jsvTest" 30]
+
+   if {$ret != 0} {
+      ts_log_severe "jsv_A_comma_list test failed. job should have run successfully"
+   } else {
+      ts_log_fine "jsv_A_comma_list test: First case passed"
+   }
+
+   # submit a job with -A option and comma separated list. Expect the job to run.
+   set qsub_args "-N jsvTest -jsv $ts_config(product_root)/util/resources/jsv/jsv.pl -A \"test,test\" $ts_config(product_root)/examples/jobs/sleeper.sh"
+   set job_id [submit_job $qsub_args]
+   
+   set ret [wait_for_jobstart $job_id "jsvTest" 30]
+
+   if {$ret != 0} {
+      ts_log_severe "jsv_A_comma_list test failed. job should have run successfully"
+   } else {
+      ts_log_fine "jsv_A_comma_list test: Second case passed"
+   }
+
+   delete_all_jobs
 }

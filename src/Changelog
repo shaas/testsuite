@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+MP-2009-11-06-0: Enhancem.:  o jsv.pm does not recognize -A option when used 
+                               with qsub, test added for IZ 3151
+                 Review:     CR
+
 RH-2009-11-06-0: Enhancem.:  Hedeby: 
                              o wait_for_notification enhanced, fixed and
                                cleaned it supports now different modes (ingore
