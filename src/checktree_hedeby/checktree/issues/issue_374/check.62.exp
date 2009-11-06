@@ -186,7 +186,7 @@ proc hedeby_issue_374_check {} {
       set hist(count) 1
       set err_hist(count) 0 
 
-      wait_for_notification $remove_time hist err_hist 60
+      wait_for_notification $remove_time hist err_hist
 
       unset hist
       unset err_hist

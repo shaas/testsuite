@@ -3805,7 +3805,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
       }
 
       after [expr $sleep_time * 1000]
-   }
+   }  ;# end of while{1}
 
    if {$error_text != "" } {
       append error_text_up $error_text
@@ -4053,24 +4053,21 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
 #
 #  INPUTS
 #    filter_args --  filter arguments like -sd or -ed
-#    raise_error --  if set to true errors will be reported
-#    ev          --  upvar where the error messages can be stored
-#    host        --  The host where the command should be executed
-#    user        --  user who executes the command
-#    hi          --  upvar - the history will be stored in this array
-#                     The 
+#    hist_info   --  array where the found history is stored 
+#    opt         --  Default options
+#
 #  RESULT
 #    0  -- Success, the history is store in the hi array in the following form:
-#           hi(lines)   - contains the number of lines
-#           hi(<line index>,time)        -  timestamp of the row as string
-#           hi(<line index>,millis)      -  timestamp of the rows in millis
-#                                           if the content of the time column can
-#                                           not be parsed the value is set to -1
-#           hi(<line index>,type)        -  type if the notification
-#           hi(<line index>,service)     -  name of the service
-#           hi(<line index>,resource)    -  the resource name
-#           hi(<line index>,resource_id) -  the id of the resource
-#           hi(<line index>,desc)        -  description (annotation)
+#           hist_info(lines)   - contains the number of lines
+#           hist_info(<line index>,time)        -  timestamp of the row as string
+#           hist_info(<line index>,millis)      -  timestamp of the rows in millis
+#                                                  if the content of the time column can
+#                                                  not be parsed the value is set to -1
+#           hist_info(<line index>,type)        -  type if the notification
+#           hist_info(<line index>,service)     -  name of the service
+#           hist_info(<line index>,resource)    -  the resource name
+#           hist_info(<line index>,resource_id) -  the id of the resource
+#           hist_info(<line index>,desc)        -  description (annotation)
 #    else -- error
 #  EXAMPLE
 #
@@ -4080,31 +4077,14 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
 #  }
 #
 #*******************************************************************************
-proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var } {host ""} {user ""} } {
-   global hedeby_config
-   
-   upvar $hi hist_info
-   upvar $ev error_text
-   
-   if {$host == ""} {
-      set execute_host $hedeby_config(hedeby_master_host)
-   } else {
-      set execute_host $host
-   }
-   
-   if {$user == ""} {
-      set execute_user [get_hedeby_admin_user]
-   } else {
-      set execute_user $user
-   }
+proc get_history { filter_args hist_info_array {opt ""} } {
 
-   if {![info exists error_text]} {
-      set error_text ""
-   }
-   
-   set cmd_args "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist $filter_args"
-   
-   set output [sdmadm_command $execute_host $execute_user $cmd_args prg_exit_state "" $raise_error table]
+   get_hedeby_proc_opt_arg $opt opts
+
+   upvar $hist_info_array hist_info
+ 
+   set opts(table_output) table 
+   sdmadm_command_opt "shist $filter_args" opts
    if { $prg_exit_state != 0 } {
       ts_log_severe "exit state of sdmadm $cmd_args was $prg_exit_state - aborting" $raise_error
       return 1
@@ -4150,24 +4130,24 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       set time_str [lindex $table($time_col,$line) 0]
       set time_str_len [string length $time_str]
       if {$time_str_len < 21 || $time_str_len > 23} {
-         ts_log_warning "Could not parse time_str \"$time_str\" from history (invalid string length $time_str_len)"
-         set millis -1
+         ts_log_severe "Could not parse time_str \"$time_str\" from history (invalid string length $time_str_len)" $opts(raise_error)
+         return 1
       } else {
          set clock_str [string range $time_str 0 18]
          set ms_str   [string range $time_str 20 $time_str_len]
          set seconds 0
          set catch_ret [catch {clock scan $clock_str} seconds]
          if {$catch_ret != 0} {
-            ts_log_warning "Could not parse time_str \"$time_str\" from history (clock_str=\"$clock_str\")"
-            set millis -1
+            ts_log_severe "Could not parse time_str \"$time_str\" from history (clock_str=\"$clock_str\")" $opts(raise_error)
+            return 1
          } elseif {[string is digit $ms_str]} {
             # explicitly cast the $seconds to wide (=at least 64bit) so that
             # millis is also at least a 64bit integer => otherwise there would
             # be a int overflow with 32 bit TCL binaries
             set millis [expr wide($seconds) * 1000 + $ms_str]
          } else {
-            ts_log_warning "Could not parse time_str \"$time_str\" from history (invalid ms_str \"$ms_str\")"
-            set millis -1
+            ts_log_severe "Could not parse time_str \"$time_str\" from history (invalid ms_str \"$ms_str\")" $opts(raise_error)
+            return 1
          }
       }
       set hist_info($line,time)     [lindex $table($time_col,$line) 0]
@@ -4217,22 +4197,27 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #
 #     error_history   - array with the unexpected events (has the same form as the 
 #                       exp_history 
-#     {atimeout 60}   - timeout in seconds
-#     {hist_lines}    - if this parameter is not "". The found history lines will be returned
-#                       into this array. The array will have the following elements
+#     opt             - opt array. The following options are supported:
 #
-#        hist_lines(count)               -- number of found lines
-#        hist_lines(<index>,time)        -- timestamp of the history line
-#        hist_lines(<index>,type)        -- the type of the notification
-#        hist_lines(<index>,resource)    -- the resource
-#        hist_lines(<index>,resource_id) -- the resource id
-#        hist_lines(<index>,service)     -- the service
-#        hist_lines(<index>,desc)        -- the description of the notification
-#
-#     {raise_error 1} - raise error 
-#     {host ""}       - host where the sdmadm command will be executed 
-#     {user ""}       - user executing the sdmadm command 
-#
+#          opt(timeout)  - max waiting time for the expected events (in seconds, default 60s)
+#          opt(hist_ret) - upvar where the found history events will be stored in the form
+#                 hist_ret(count)               -- number of found lines
+#                 hist_ret(<index>,time)        -- timestamp of the history line
+#                 hist_ret(<index>,type)        -- the type of the notification
+#                 hist_ret(<index>,resource)    -- the resource
+#                 hist_ret(<index>,resource_id) -- the resource id
+#                 hist_ret(<index>,service)     -- the service
+#                 hist_ret(<index>,desc)        -- the description of the notification
+#          opt(ensure_correct_event_order)   -- If set to 1 ensure that the events are received in
+#                                               exactly the same order as specified in exp_history
+#                                               If set to 0 the events can be received in a arbitrary 
+#                                               order (default is 1)
+#          opt(ignore_unexpected_events)     -- If set to 1 unexpected events (not defined in exp_history
+#                                               and error_history) are siliently ignored
+#                                               If set to 0 an error will be reported once a unpexpected
+#                                               has been found between the events defined in exp_history
+#                                               (default is 1)
+#                                               
 #  RESULT
 #     0    --   all expected events received
 #     else --   error 
@@ -4252,126 +4237,355 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #     wait_for_notification $start_time  hist err_hist 60
 # 
 #  NOTES
-#     TODO There seems to be still a problem with this function. The order
-#          of events is not checked properly, and furthermore it is not
-#          guaranteed that all events actually arrive. This was noticed
-#          while waiting for RESOURCE_REMOVED events of different resources
-#          (called from hedeby_remove_resources).
+#
 #*******************************************************************************
-proc wait_for_notification {start_time exp_history error_history  {atimeout 60} { hist_lines "" } {raise_error 1} {host ""} {user ""} } {
+proc wait_for_notification {start_time exp_history error_history  {opt ""} } {
    
-   global hedeby_config
-   # setup arguments
+   set opts(timeout)                     60
+   set opts(hist_ret)                    ""
+   set opts(ensure_correct_event_order)  1
+   set opts(ignore_unexpected_events)    1
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   if {$opts(hist_ret) != ""} {
+      upvar $opts(hist_ret) hist_ret
+   } 
+
    upvar $exp_history     exp_hist
    upvar $error_history   error_hist
-   
-   if {$hist_lines != ""} {
-      upvar $hist_lines hist_ret
-   }
-   
-   if {$host == ""} {
-      set execute_host $hedeby_config(hedeby_master_host)
-   } else {
-      set execute_host $host
-   }
-   if {$user == ""} {
-      set execute_user [get_hedeby_admin_user]
-   } else {
-      set execute_user $user
-   }
-  
-   set allowed_vals { "type" "resource"  "resource_id" "service" } 
 
-   foreach val $allowed_vals {
-      set max($val) 8
+   private_wait_for_notification_setup exp_hist error_hist this
+
+   set cmd_args [private_wait_for_notification_build_args $start_time exp_hist error_hist this]
+   ts_log_fine "Searching in history ($cmd_args)"
+   
+   set my_timeout [timestamp]
+   incr my_timeout $opts(timeout)
+
+
+   set error_event_index_list {}
+   for {set i 0} {$i < $error_hist(count)} {incr i} {
+      lappend error_event_index_list $i
    }
 
+
+
+   set this(report_cols) { "time" }
+
+   foreach val $this(existing_vals) {
+       lappend this(report_cols) $val
+   }
+
+   # Setup the options for the get_history call
+   copy_hedeby_proc_opt_arg opts history_opts "defaults" 
+
+   while {1} {
+
+      unset -nocomplain hist_info
+    
+      if {[get_history $cmd_args hist_info history_opts] != 0} {
+         return -1
+      }
+
+      # The missing_event_list contains the index of any event that have not been found
+      # in the history. If an event is found the index is removed from the list
+      # If the list is empty all expected events has been found
+      set missing_event_index_list {}
+      for {set i 0} {$i < $exp_hist(count)} {incr i} {
+         lappend missing_event_index_list $i
+      }
+
+      set this(report_rows) {}
+      unset -nocomplain report_data
+      set this(report_data) report_data
+      set found_error 0
+      unset -nocomplain hist_ret
+      set hist_ret(count) 0
+      
+   
+      for {set line 0} {$line < $hist_info(lines) && $found_error == 0 && [llength $missing_event_index_list] > 0} {incr line} {
+         # search the event at line line of hist_info in exp_hist. Only the events that
+         # are also defined in the missing_event_index_list are considered
+         set index [private_wait_for_notification_search_event hist_info $line exp_hist this $missing_event_index_list]
+
+         if {$index < 0} {
+            # We did not find the event from hist_info($line) in the exp_hist
+            # (considering the missing_event_index_list)
+            if {[llength $missing_event_index_list] == $exp_hist(count)} {
+               # We still have not found any event from the expected event block
+               # Check only that the event does not match an event from error_hist
+               set mode "look_for_error_event"
+            } else {
+               # The expected event block began. We found already an event
+               # If ignore_unexpected_events is not set produce an error
+               if {$opts(ignore_unexpected_events) == 0} {
+                  set mode "unexpected_event"
+               } else { ;# Ignore unexpected event, may be it is in the error history
+                  set mode "look_for_error_event"
+               }
+            }
+         } else {
+             # Found the event hist_info($line) in exp_hist (considering the missing_event_index_list)
+             if {$opts(ensure_correct_event_order)} {
+               if {[lindex $missing_event_index_list 0] == $index} {
+                  set mode "found_event"
+               } elseif { [llength $missing_event_index_list] == $exp_hist(count)} {
+                  # We still have not found any event from the expected event block
+                  # Check only that the event does not match an event from error_hist
+                  set mode "look_for_error_event"
+               } else {
+                  # The ensure_correct_event_order is set, but the event is not the first in
+                  # the missing_event_index_list
+                  # => report missing events
+                  set mode "missing_events"
+               }
+             } else {
+               # The ensure_correct_event_order is not set, we accept the event no matter in
+               # what order it arrived
+               set mode "found_event"
+               set missing_event_index_list [remove_from_list $missing_event_index_list $index]
+               set found_exp_event 1
+             }
+         }
+         # Depending on the value of mode we perform different
+         # actions
+         switch -- $mode {
+            "unexpected_event" {
+               private_wait_for_notification_report "Unexpected event" this hist_info $line 
+               set found_error 1 
+            }
+            "look_for_error_event" {
+                set err_index [private_wait_for_notification_search_event hist_info $line \
+                               error_hist this $error_event_index_list]
+                if {$err_index >= 0} {
+                  private_wait_for_notification_report "Event from error_history" this hist_info $line 
+                  set found_error 1
+                }
+            }
+            "found_event" {
+               set i $hist_ret(count) 
+ 
+               set hist_ret($i,time)        $hist_info($line,time)
+               set hist_ret($i,millis)      $hist_info($line,millis)
+               set hist_ret($i,type)        $hist_info($line,type)
+               set hist_ret($i,resource)    $hist_info($line,resource)
+               set hist_ret($i,resource_id) $hist_info($line,resource_id)
+               set hist_ret($i,desc)        $hist_info($line,desc)
+               incr hist_ret(count)
+               set missing_event_index_list [remove_from_list $missing_event_index_list $index]
+               private_wait_for_notification_report [format "Found %d/%d" [expr $i + 1] $exp_hist(count)] \
+                                                    this hist_info $line 
+               set found_error 0
+            }
+            "missing_events" {
+               set line_msg ""
+               foreach i $missing_event_index_list {
+                  if {$i >= $index} {
+                     break
+                  }
+                  set found_error 1
+                  private_wait_for_notification_report [format "Missing %d/%d" [expr $i + 1] $exp_hist(count)] \
+                                                       this exp_hist $i 
+               }
+               set i $hist_ret(count) 
+               private_wait_for_notification_report [format "Found %d/%d" [expr $i + 1] $exp_hist(count)] \
+                                                    this hist_info $line 
+            }
+            "duplicate_event" {
+               private_wait_for_notification_report "Duplicate Event" this hist_info $line 
+               set found_error 1
+            }
+            default {
+               private_wait_for_notification_report "Internal Error: Invalid mode '$mode'" this hist_info $line 
+               set found_error 1
+            }
+         }
+      } ; # end of for
+      set msg [print_xy_array $this(report_cols) $this(report_rows) report_data]
+      if {$found_error} {
+         ts_log_severe $msg $opts(raise_error)
+         return -1
+      } 
+      ts_log_fine $msg
+      if {[llength $missing_event_index_list] == 0} {
+         ts_log_fine "Found all expected events in the history"
+         return 0
+      }
+      if {[timestamp] >= $my_timeout} {
+         ts_log_severe "==> TIMEOUT(=$opts(timeout) sec) while waiting for expected history info" $opts(raise_error)
+         return -1
+      }
+      after 3000
+   }
+   return 0
+}
+
+#****** util/private_wait_for_notification_report() ****************************
+#  NAME
+#     private_wait_for_notification_report() -- Add a report line to the report
+#
+#  SYNOPSIS
+#     private_wait_for_notification_report { message ctx hi line } 
+#
+#  FUNCTION
+#
+#      This method add a report line to the context of a wait_for_notification
+#      call
+#
+#  INPUTS
+#     row_id - row identifier 
+#     ctx    - The context of the wait_for_notification call
+#              
+#     hi     - the array containing the history 
+#     line   - the line index in hi
+#
+#  RESULT
+#     Nothing
+#
+#  NOTES
+#
+#     This method is an internal method. It should only be used by wait_for_notification
+#
+#  SEE ALSO
+#     util/wait_for_notification
+#*******************************************************************************
+proc private_wait_for_notification_report { row_id ctx hi line } {
+
+   upvar $ctx                this
+   upvar $this(report_data)  data
+   upvar $hi                 hist_info
+
+   lappend this(report_rows) $row_id
+
+   foreach val $this(report_cols) {
+       set str ""
+       if {[info exists hist_info($line,$val)]} {
+          set str $hist_info($line,$val)
+       }
+       set data($val,$row_id) $str
+   }
+}
+
+#****** util/private_wait_for_notification_setup() ******************************
+#  NAME
+#     private_wait_for_notification_setup() -- set up the context for a 
+#                                           wait_for_notification method
+#
+#  SYNOPSIS
+#     private_wait_for_notification_setup { a_exp_hist a_error_hist a_ctx }
+#
+#  FUNCTION
+#
+#     This method sets up the context for a wait_for_notification method. In addition
+#     it prints out tables containing the expected and error history
+#
+#  INPUTS
+#     a_exp_hist   - the expected history array
+#     a_error_hist - the error history array
+#     ctx          - the context for the wait_for_notification call
+#                    This method adds the following values to the context
+#
+#          ctx(allowed_vals)   - list of allowed values for exp_hist and error_hist
+#          ctx(existing_vals) - list of defined values from exp_hist and error_hist
+#
+#  RESULT
+#
+#     No result
+#
+#  NOTES
+#
+#     This method is an internal method. It should only be used by wait_for_notification
+#
+#  SEE ALSO
+#     util/wait_for_notification()
+#*******************************************************************************
+proc private_wait_for_notification_setup { a_exp_hist a_error_hist a_ctx } {
+
+   upvar $a_exp_hist exp_hist
+   upvar $a_error_hist error_hist
+   upvar $a_ctx this
+
+   set this(allowed_vals) { "type" "resource"  "resource_id" "service" } 
    set level [info level]
 
+   # search for existing values in exp_hist and error_hist
    foreach a_hist { exp_hist error_hist } {
-      upvar #$level $a_hist hist
+      upvar 0 $a_hist hist
       for {set i 0} {$i < $hist(count)} {incr i} {
-         foreach val $allowed_vals {
+         foreach val $this(allowed_vals) {
             if {[info exists hist($i,$val)]} {
-               set exp_exists($val) 1
-               set len [string length hist($i,$val)]
-               if {$max($val) < $len } {
-                  set max($val) $len
-               }
+               set existing_vals($val) 1
             }
          }
       }
    }
+   set this(existing_vals) [array names existing_vals]
+ 
+   ts_log_fine "Waiting for the following events in history"
+   set this(report_rows) {}
+   set this(report_cols) $this(existing_vals)
+   set this(report_data) report_data
 
-   set header_message(exp_hist) "Waiting for the following events in history\n"
-   set header_message(error_hist) "Will terminate on the following events:\n"
-   set header ""
-   set first 1 
-   set len 0
-   foreach val [array names exp_exists] {
-      if {$first} {
-         set first 0
-      } else {
-         append header "|"
-      }
-      append header [format "%-$max($val)s" $val]
-      incr len [expr $max($val) + 2]
+   for {set i 0} {$i < $exp_hist(count)} {incr i} {
+      private_wait_for_notification_report [expr $i + 1] this exp_hist $i 
    }
-   append header "\n"
+   ts_log_fine [print_xy_array $this(report_cols) $this(report_rows) report_data]
 
-   set delimiter ""
-   for {set i 0} {$i < $len} {incr i} {
-      append delimiter "-"
-   }
-   append delimiter "\n"
+   if {$error_hist(count) > 0} {
+      unset -nocomplain report_data
+      set this(report_rows) {}
+      ts_log_fine "Will terminate on the following events:"
 
-   set message ""
-
-   foreach a_hist {exp_hist error_hist} {
-      upvar #$level $a_hist hist
-
-      if {$hist(count) > 0} {
-         append message $header_message($a_hist)
-         append message $header
-         append message $delimiter
-
-         for {set i 0} {$i < $hist(count)} {incr i} {
-            set first 1
-            foreach val [array names exp_exists] {
-               if {$first} {
-                  set first 0
-               } else {
-                  append message "|"
-               }
-               set tmp_val ""
-               if {[info exists hist($i,$val)]} {
-                  set tmp_val $hist($i,$val)
-               }
-               append message [format "%-$max($val)s" $tmp_val]
-            }
-            append message "\n"
-         }
+      for {set i 0} {$i < $error_hist(count)} {incr i} {
+         private_wait_for_notification_report  [expr $i + 1] this error_hist $i 
       }
-    }
+      ts_log_fine [print_xy_array $this(report_cols) $this(report_rows) report_data]
+   }
+}
 
-   ts_log_fine $message
+#****** util/private_wait_for_notification_build_args() ************************
+#  NAME
+#     private_wait_for_notification_build_args() -- build the filter arguments 
+#                                 for the sdmadm shist call of wait_for_notification
+ 
+#
+#  SYNOPSIS
+#     private_wait_for_notification_build_args { start_time a_exp_hist 
+#     a_error_hist a_ctx } 
+#
+#  FUNCTION
+#
+#     This method builds out of the exp_hist and error_hist array the arguments
+#     for the sdmadm shist command
+#
+#  INPUTS
+#     start_time   - start time for filtering (in seconds since 01.01.1970)
+#     a_exp_hist   - the array containing the expected history (see wait_for_notification)
+#     a_error_hist - the array defining the error history (see wait_for_notification)
+#     a_ctx        - the context of the wait_for_notification call 
+#
+#  RESULT
+#
+#     the argument for the sdmadm shist command
+#
+#  SEE ALSO
+#     util/wait_for_notification
+#*******************************************************************************
+proc private_wait_for_notification_build_args { start_time a_exp_hist a_error_hist a_ctx } {
 
-   set my_timeout [timestamp]
-   incr my_timeout $atimeout
+   upvar $a_exp_hist exp_hist
+   upvar $a_error_hist error_hist
+   upvar $a_ctx this
 
-   # set expected results info
-   set expexted_hist_info ""
-   set exp_values [array names exp_hist]
-   set filter_args ""
-   
-   foreach val $allowed_vals {
+   foreach val $this(allowed_vals) {
       set filter_values($val) {}
    }
 
    foreach a_hist {exp_hist error_hist} {
-      upvar #$level $a_hist hist
+      upvar 0 $a_hist hist
       for {set i 0} {$i < $hist(count)} {incr i} {
-         foreach val [array names exp_exists] { 
+         foreach val $this(existing_vals) { 
              if {[info exists hist($i,$val)]} {
                 if {[lsearch $filter_values($val) $hist($i,$val)] < 0} {
                    lappend filter_values($val) $hist($i,$val)
@@ -4380,7 +4594,6 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          }
       }
    }
-   # Build the filter
    set filter_args ""
    
    if {[llength $filter_values(resource)] > 0} {
@@ -4475,235 +4688,82 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
    # format of -sd is : yyyy/MM/dd HH:mm:ss"
    set ts_str [clock format $start_time -format "%Y/%m/%d %H:%M:%S"] 
    set cmd_args "-sd '$ts_str' $filter_args"
-   ts_log_fine "Searching in history ($cmd_args)"
-   
-   set values { "resource" "service" "type" }
-   
-   set already_found_event_index 0
-   while {1} {
-      
-      set msg "$header\n"
-      if {[info exists hist_info]} {
-         unset hist_info
-      }
-      
-      set retval [get_history $cmd_args hist_info $raise_error error_var $host $user  ]
-      if {$retval != 0} {
-         return -1
-      }
 
-      set exp_index 0
-      set err_index 0
-      
-      set line 0
-      
-      # --------------------------------------------------------------------------------------------
-      # Search for the first matching event
-      # --------------------------------------------------------------------------------------------
-      while { $line < $hist_info(lines) } {
-         set evt_matches 1
-         foreach val $values {
-            if {[info exists exp_hist($exp_index,$val)]} {
-               set exp_value $exp_hist($exp_index,$val)
-               if {[info exists hist_info($line,$val)]} {
-                  set hist_value $hist_info($line,$val)
-               } else {
-                  set hist_value ""
-               }
-               if {$exp_value != $hist_value
-                  && !(($exp_value == "SERVICE_UKNOWN" && $hist_value == "SERVICE_UNKNOWN")
-                  || ($exp_value == "SERVICE_UNKNOWN" && $hist_value == "SERVICE_UKNOWN")) } {
-                  ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $exp_index ($val must be '$exp_value'"
-                  set evt_matches 0
-                  break
-               }
-            }
-         }
-         if {$evt_matches} {
-               set prefix [format "Event %d/%d" [expr $exp_index + 1] $exp_hist(count)]
-               append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
-               
-               set hist_ret($exp_index,time)        $hist_info($line,time)
-               set hist_ret($exp_index,millis)      $hist_info($line,millis)
-               set hist_ret($exp_index,type)        $hist_info($line,type)
-               set hist_ret($exp_index,resource)    $hist_info($line,resource)
-               set hist_ret($exp_index,resource_id) $hist_info($line,resource_id)
-               set hist_ret($exp_index,desc)        $hist_info($line,desc)
-               
-               incr exp_index
-               
-               set hist_ret(count) $exp_index
-               incr line
-               break
-         } else {
-            for {set err_index 0} { $err_index < $error_hist(count) } { incr err_index } {
-               set evt_matches 1
-               foreach val $values {
-                  if {[info exists error_hist($err_index,$val)]} {
-                     set exp_value $error_hist($err_index,$val)
-                     if {[info exists hist_info($line,$val)]} {
-                        set hist_value $hist_info($line,$val)
-                     } else {
-                        set hist_value ""
-                     }
-                     if {$exp_value != $hist_value} {
-                        set evt_matches 0
-                        break
-                     }
-                  }
-               }
-               if {$evt_matches} {
-                  append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
-                  ts_log_severe "$msg" $raise_error
-                  return -1
-               }
-            }
-         }
-         incr line
-      }
-      
-      if {$exp_index == 1} {
-         # -----------------------------------------------------------------------------------------
-         # We have found the first expected event
-         # Check that the other events follows subsequently
-         # -----------------------------------------------------------------------------------------
-         while { $line < $hist_info(lines) } {
-            for {set tmp_exp_index $exp_index} {$tmp_exp_index < $exp_hist(count)} {incr tmp_exp_index} {
-               set evt_matches 1
-               foreach val $values {
-                  if {[info exists exp_hist($tmp_exp_index,$val)]} {
-                     set exp_value $exp_hist($tmp_exp_index,$val)
-                     if {[info exists hist_info($line,$val)]} {
-                        set hist_value $hist_info($line,$val)
-                     } else {
-                        set hist_value ""
-                     }
-                     if {$exp_value != $hist_value
-                        && !(($exp_value == "SERVICE_UKNOWN" && $hist_value == "SERVICE_UNKNOWN")
-                        || ($exp_value == "SERVICE_UNKNOWN" && $hist_value == "SERVICE_UKNOWN")) } {
-                        ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $tmp_exp_index ($val must be '$exp_value'"
-                        set evt_matches 0
-                        break
-                     }
-                  }
-               }
-               if {$evt_matches} {
-                  if {$tmp_exp_index > $exp_index} {
-                     # It seems that we have missed an event
-                     # => Produces an error
-                     for {set missing_index $exp_index} {$missing_index < $tmp_exp_index} {incr missing_index} {
-                        set prefix [format "Missing %d/%d" [expr $missing_index + 1]  $hist_info(lines)]
-                        set suffix ""
-                        foreach val $values {
-                           if {[info exists exp_hist($missing_index,$val)]} {
-                              if {$first} {
-                                 set first 0
-                              } else {
-                                 append suffix "|"
-                              }
-                              append suffix "$exp_hist($missing_index,$val)"
-                           }
-                        }
-                        append msg [format "%12s: %s\n" $prefix $suffix]
-                     }
-                     set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $exp_hist(count)]
-                     append msg [format "%-15s: %s\n" $prefix [history_entry_to_str hist_info $line]]
-                     ts_log_severe $msg $raise_error
-                     return -1
-                  } else {
-                     # We found the next expected event
-                     # => Store it in the hist_ret array and continue
-                     set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $exp_hist(count)]
-                     append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
-                     
-                     set hist_ret($exp_index,time)        $hist_info($line,time)
-                     set hist_ret($exp_index,millis)      $hist_info($line,millis)
-                     set hist_ret($exp_index,type)        $hist_info($line,type)
-                     set hist_ret($exp_index,resource)    $hist_info($line,resource)
-                     set hist_ret($exp_index,resource_id) $hist_info($line,resource_id)
-                     set hist_ret($exp_index,desc)        $hist_info($line,desc)
-                     
-                     incr exp_index
-                     set hist_ret(count) $exp_index
-                     break
-                  }
-               } else {
-                  # The event does not match to any expected event
-                  # May be it is an error event
-                  for {set err_index 0} { $err_index < $error_hist(count) } { incr err_index } {
-                     set evt_matches 1
-                     foreach val $values {
-                        if {[info exists error_hist($err_index,$val)]} {
-                           set exp_value $error_hist($err_index,$val)
-                           if {[info exists hist_info($line,$val)]} {
-                              set hist_value $hist_info($line,$val)
-                           } else {
-                              set hist_value ""
-                           }
-                           if {$exp_value != $hist_value} {
-                              set evt_matches 0
-                              break
-                           }
-                        }
-                     }
-                     if {$evt_matches} {
-                        # It is an error event => report the error and stop working
-                        append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
-                        ts_log_severe "$msg" $raise_error
-                        return -1
-                     }
-                  }
-               }
-            }
-            incr line
-         }
-      }
-      
-      if {$exp_index >= $exp_hist(count) } {
-         append msg "Got all expected notifications\n"
-         ts_log_fine "$msg"
-         # ts_log_finest [format_array hist_ret]
-         # ts_log_finest [format_array hist_info]
-         return 0
-      } elseif {[timestamp] >= $my_timeout} {
-         append msg "==> TIMEOUT(=$atimeout sec) while waiting for expected history info"
-         ts_log_severe "$msg" $raise_error
-         return -1
-      }
-      after 3000
-   }
-
+   return $cmd_args
 }
 
-#****** util/history_entry_to_str() ********************************************
+#****** util/private_wait_for_notification_search_event() **********************
 #  NAME
-#     history_entry_to_str() -- convert an entry of an history row into a string 
+#     private_wait_for_notification_search_event() -- Search a history event 
 #
 #  SYNOPSIS
-#     history_entry_to_str { history_info line } 
+#     private_wait_for_notification_search_event { a_hist_info line a_exp_hist 
+#     a_ctx accepted_event_index_list } 
 #
 #  FUNCTION
 #
+#     This method search the history event a_hist_info($line,...) in a_exp_hist
+#
 #  INPUTS
-#     history_info - the array with the history info 
-#     line         - line index of the row of the history info 
+#     a_hist_info               - array contains the result of get_history
+#     line                      - index of the line in a_hist_info
+#     a_exp_hist                - array with the expected history entries
+#     a_ctx                     - the context of the wait_for_notification call
+#     accepted_event_index_list - the event index list is used to search over
+#                                 a_exp_hist
 #
 #  RESULT
-#     the string representation of the history line 
 #
+#     >= 0    index of the event in a_exp_host
+#     else    event not found
+#
+#  NOTES
+#
+#     This method is a private method. It should only be called from wait_for_notification.
+#
+#  SEE ALSO
+#     util/wait_for_notification
 #*******************************************************************************
-proc history_entry_to_str { history_info line } {
-   
-   upvar $history_info hist_info
+proc private_wait_for_notification_search_event { a_hist_info line a_exp_hist a_ctx accepted_event_index_list} {
 
-   return [format "%s|%s|%s|%s|%s|%s"       \
-           "$hist_info($line,time)"      \
-           "$hist_info($line,type)"      \
-           "$hist_info($line,service)"   \
-           "$hist_info($line,resource)"  \
-           "$hist_info($line,resource_id)"  \
-           "$hist_info($line,desc)"]
+   upvar $a_hist_info hist_info
+   upvar $a_exp_hist  exp_hist
+   upvar $a_ctx       this
+
+   set msg "Searching for events in $a_hist_info\[[join $accepted_event_index_list ","]\] ------ \n"
+   set ret -1
+   foreach i $accepted_event_index_list {
+      set event_matches 1
+      foreach val $this(existing_vals) {
+         if {[info exists exp_hist($i,$val)]} {
+            set exp_value $exp_hist($i,$val)
+            if {[info exists hist_info($line,$val)]} {
+               set hist_value $hist_info($line,$val)
+            } else {
+               set hist_value ""
+            }
+            append msg "$i:$val: exp('$exp_value') == hist('$hist_value')? "
+            if {$exp_value != $hist_value
+               && !(($exp_value == "SERVICE_UKNOWN" && $hist_value == "SERVICE_UNKNOWN")
+               || ($exp_value == "SERVICE_UNKNOWN" && $hist_value == "SERVICE_UKNOWN")) } {
+               append msg " false\n"
+               set event_matches 0
+               break
+            }
+            append msg "true\n"
+         }
+      }
+      if {$event_matches == 1} {
+         set ret $i
+         break
+      }
+   }
+   ts_log_finest $msg
+   ts_log_finest "ret=$ret"
+   return $ret
 }
+
+
 
 #****** util/wait_for_component_info() *******************************************
 #  NAME

@@ -332,7 +332,7 @@ proc ge_unassign_resources_check {} {
             return
          }
       }
-      wait_for_notification $move_time hist err_hist 60
+      wait_for_notification $move_time hist err_hist 
    }
    # delete job and wait for end
    delete_job $job_id 1 0 0

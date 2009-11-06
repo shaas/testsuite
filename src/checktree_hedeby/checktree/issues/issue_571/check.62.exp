@@ -413,7 +413,8 @@ proc hedeby_issue571_check {} {
    # It should be OK if give the system 2 * $sleep_time + 20 seconds
    # As it may happen that we start observing the system just after a RESOURCE_ADD event occured
    # the wait_for_notification command may have to wait another full cycle ==> double the timeout!
-   set wait_timeout [expr (2 * $sleep_time + 20) * 2]
+   set wait_opts(timeout) [expr (2 * $sleep_time + 20) * 2]
+   set wait_opts(hist_ret) found_history
    
    # search in the history for the assignment process of the moveable resource
    for {set i 0} {$i < $cycle_count} {incr i} {
@@ -422,7 +423,7 @@ proc hedeby_issue571_check {} {
       # Step 5.1: Search in the history for the RESOURCE_ADD, RESOURCE_ADDED, RESOURCE_REMOVE, 
       #           RESOURCE_REMOVED event
       # --------------------------------------------------------------------------------------------
-      if {[wait_for_notification $start_time exp_hist error_hist $wait_timeout found_history] != 0} {
+      if {[wait_for_notification $start_time exp_hist error_hist wait_opts] != 0} {
          return
       }
       

@@ -178,11 +178,11 @@ proc ge_adapter_restart_test_check {} {
          set hist(count) 4
          set err_hist(count) 0
 
-         set res [wait_for_notification $start_time hist err_hist 60]
+         set res [wait_for_notification $start_time hist err_hist]
          unset hist err_hist
      
          if {$res != 0} {
-            append error_text "Its seems that we did not get all notifications for service '$service_names(service,$host)' running in '$host'\n"
+            append error_text "It seems that we did not get all notifications for service '$service_names(service,$host)' running in '$host'\n"
          }
       }
       if {$error_text != ""} {
