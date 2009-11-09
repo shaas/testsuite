@@ -7,6 +7,13 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-11-09:0: Cleanup:    o removed additional waiting in 
+                               set_config_and_propagate()
+                             o removed empty lines in get_standard_job_info()
+                 Bugfix:     o fixed issue 1914 test for >= GE 62
+                 Belongs to: CR-2009-11-05-0
+                 Review:     SH
+
 MP-2009-11-06-0: Enhancem.:  o jsv.pm does not recognize -A option when used 
                                with qsub, test added for IZ 3151
                  Review:     CR

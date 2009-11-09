@@ -2686,8 +2686,7 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
                exp_continue
             } else {
                ts_log_fine "all configuration changed!"
-               # We've to wait here till all global configurations are propagated to the host
-               after 2000
+               # Once all deamons have logged their new config the config is valid !!!
             }
          }
       }
@@ -5494,7 +5493,12 @@ proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
   # split each line as listelement
    set back ""
    set help [split $result "\n"]
-   foreach line $help { 
+   foreach hline $help {
+      # ingore empty lines
+      set line [string trim $hline]
+      if {$line == ""} {
+         continue
+      }
       if {[lindex $line 0] == $jobid} {
          lappend back $line
          continue

@@ -117,8 +117,8 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
    #cleaning up queues before submit test
    delete_all_jobs
    trigger_scheduling 
-   set daemon_error 0
-   set error 0
+   set daemon_failure 0
+   set submit_error 1
    set job_id 0
    set remote_host_arg "-l h=$host"
    
@@ -127,246 +127,215 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
    ts_log_fine "submitting job type \"$job_type\" ..."
    switch -exact $job_type {
 
-      "qrsh" { 
-         ts_log_fine "starting qrsh $remote_host_arg as user $user on host $submit_host ..."
+      "qrsh" {
+         ts_log_fine "TS: starting qrsh $remote_host_arg as user $user on host $submit_host ..."
          set sid [open_remote_spawn_process $submit_host $user "qrsh" "$remote_host_arg"]
+         log_user 1
          set sp_id [lindex $sid 1]
-         set timeout 1
-         set error 1 
-         set max_timeouts 60
-         set done 0
-         while {!$done} {
-            expect {
-               -i $sp_id "_start_mark_*\n" {
-                  ts_log_fine "got start mark ..."
-               }
- 
-               -i $sp_id full_buffer {
-                  ts_log_severe "expect full_buffer error"
-                  set done 1
-               }
-               -i $sp_id timeout {
-                  incr max_timeouts -1
-
-                  if { $job_id == 0 } {
-                     set job_list [get_standard_job_info 0 0 1]
-                     foreach job $job_list {
-                        ts_log_fine $job
-                        if { [lindex $job 2] == "QRLOGIN" && [lindex $job 3] == $user && [lindex $job 4] == "r"  } {
-
-                                          ts_log_fine "qrlogin job id is [lindex $job 0]"
-                           set job_id [lindex $job 0]
-                        }
+         set timeout 2
+         set max_timeouts 30
+         expect {
+            -i $sp_id full_buffer {
+               ts_log_severe "expect full_buffer error"
+            }
+            -i $sp_id timeout {
+               incr max_timeouts -1
+               if { $job_id == 0 } {
+                  set job_list [get_standard_job_info 0 0 1]
+                  foreach job $job_list {
+                     ts_log_fine "TS: checking line \"$job\" ..."
+                     if { [lindex $job 2] == "QRLOGIN" && [lindex $job 3] == $user && [lindex $job 4] == "r"  } {
+                        ts_log_fine "TS: qrlogin job id is [lindex $job 0]"
+                        set job_id [lindex $job 0]
                      }
-                  } else {
-                     ts_send $sp_id "\n$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $host
                   }
-
-                  if { $max_timeouts <= 0 } {
-                     # ts_log_severe "got 15 timeout errors - break"
-                     set done 1
-                  }
+               } else {
+                  ts_log_fine "TS: starting shell_output check script ..."
+                  ts_send $sp_id "\n$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $host
                }
-               -i $sp_id "ts_shell_response*\n" {
-                  ts_log_fine "found matching shell response text! Sending exit ..."
-                  ts_send $sp_id "exit\n" $host
-                  set error 0
-
+               log_user 1
+               if { $max_timeouts > 0 } {
+                  # ts_log_severe "got 15 timeout errors - break"
+                  exp_continue
                }
-
-               -i $sp_id eof {
-                  ts_log_severe "got eof"
-                  set done 1
-               }
-               -i $sp_id "_start_mark_" {
-                  ts_log_fine "remote command started"
-                  set done 0
-               }
-               -i $sp_id "_exit_status_" {
-                  ts_log_fine "remote command terminated"
-                  set done 1
-               }
+            }
+            -i $sp_id -- "ts_shell_response*\n" {
+               ts_log_fine "TS: got shell response output from check script! Checkin for correct hostname ..."
+               ts_send $sp_id "echo X`hostname`X\n" $host
+               exp_continue
+            }
+            -i $sp_id -- "X${host}*X" {
+               ts_log_fine "TS: got correct shell hostname output! Sending exit command ..."
+               ts_send $sp_id "exit\n"
+               set submit_error 0
+               exp_continue
+            }
+            -i $sp_id eof {
+               ts_log_severe "got eof"
+            }
+            -i $sp_id -- "_exit_status_" {
+               ts_log_fine "TS: remote command terminated"
+            }
+            -i $sp_id -- "Protocol error" {
                #detects issue 2174 
-               -i $sp_id "Protocol error*" {
-                  set error 1
-                  ts_log_fine "Received protocol error from qrsh"
-               }
-               -i $sp_id "assword" {
-                  ts_log_severe "unexpected password question for user $user on host $host"
-                  set done 1
-               }
-               -i $sp_id "*rlogin_daemon \"$test_path\" is not executable*" {
-                  ts_log_fine "rlogin_daemon not executable message found"
-                  set daemon_error 1 
-
-               }
-               -i $sp_id "*rlogin_daemon \"$test_path\" is not an absolute path*" {
-                  ts_log_fine "rlogin_daemon not an absolute path message found"
-                  set daemon_error 1
-
-               }
-               -i $sp_id "*rlogin_daemon \"$test_path\" can't be read*" {
-                  ts_log_fine "rlogin_daemon can't be read found"
-                  set daemon_error 1
-
-               }
-               #when rlogin_daemon set to "none" >> "none" is treated as some keyword and it should be a CR is created
-               #once the bug is fixed this condition should be removed and the test is ok
-               -i $sp_id "*rlogin_daemon \"$ts_config(product_root)/utilbin/*/rlogind\" can't be read*" {
-                  ts_log_fine "rlogin_daemon can't be read found (2)"
-                  set daemon_error 1
-               }
-
-               -i $sp_id "*\n" {
-                  set output $expect_out(buffer)
-                  set output [ split $output "\n" ]
-                  foreach line $output {
-                     set line [string trim $line]
-                     if { [string length $line] == 0 } {
-                        continue
-                     }
+               set submit_error 1
+               ts_log_fine "TS: Received protocol error from qrsh"
+               exp_continue
+            }
+            -i $sp_id -- "assword" {
+               ts_log_severe "unexpected password question for user $user on host $host"
+            }
+            -i $sp_id -- "rlogin_daemon \"$test_path\" is not executable" {
+               ts_log_fine "TS: rlogin_daemon not executable message found"
+               set daemon_failure 1 
+               exp_continue
+            }
+            -i $sp_id -- "rlogin_daemon \"$test_path\" is not an absolute path" {
+               ts_log_fine "TS: rlogin_daemon not an absolute path message found"
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "rlogin_daemon \"$test_path\" can't be read" {
+               ts_log_fine "TS: rlogin_daemon can't be read found"
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "*\n" {
+               set output [split $expect_out(buffer) "\r\n"]
+               foreach line $output { 
+                  set pr_line [string trim $line]
+                  if {$pr_line != ""} {
                      ts_log_fine $line
                   }
                }
-               -i $sp_id default {
-                                    }
+               exp_continue
             }
          }
          close_spawn_process $sid
       }
-       "qlogin" {
-         ts_log_fine "starting qlogin $remote_host_arg ..."
+      "qlogin" {
+         ts_log_fine "TS: starting qlogin $remote_host_arg ..."
          set sid [open_remote_spawn_process $submit_host $user "qlogin" "$remote_host_arg"]
+         log_user 1
          set sp_id [lindex $sid 1]
-         set timeout 1
-         set max_timeouts 15
-         set done 0
+         set timeout 2
+         set max_timeouts 30
          # usually we'll get a login question,
          # on Solaris, we get the password question,
          # if not some error occured
-         set error 1
-         while {!$done} {
-            expect {
-               -i $sp_id full_buffer {
-                  ts_log_severe "expect full_buffer error"
-                  set done 1
-               }
-               -i $sp_id timeout {
-                  incr max_timeouts -1
-                  if {$job_id == 0} {
-                     set job_list [get_standard_job_info 0 0 1]
-                     foreach job $job_list {
-                        ts_log_fine $job
-                        if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           ts_log_fine "qlogin job id is [lindex $job 0]"
-                           set job_id [lindex $job 0]
-                        }
+         expect {
+            -i $sp_id full_buffer {
+               ts_log_severe "expect full_buffer error"
+            }
+            -i $sp_id eof {
+               ts_log_severe "got eof"
+            }
+            -i $sp_id timeout {
+               incr max_timeouts -1
+               if {$job_id == 0} {
+                  set job_list [get_standard_job_info 0 0 1]
+                  foreach job $job_list {
+                     ts_log_fine "TS: checking line \"$job\" ..."
+                     if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
+                        ts_log_fine "TS: qlogin job id is [lindex $job 0]"
+                        set job_id [lindex $job 0]
                      }
                   }
+               } else {
+                  ts_log_fine "TS: starting shell_output check script ..."
+                  ts_send $sp_id "\n$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n"
+               }
+               log_user 1
+               if {$max_timeouts > 0} {
+                  # ts_log_severe "got 15 timeout errors - break"
+                  exp_continue
+               }
+            }
+            -i $sp_id -- "ts_shell_response*\n" {
+               ts_log_fine "TS: got shell response output from check script! Checkin for correct hostname ..."
+               ts_send $sp_id "echo X`hostname`X\n" $host
+               exp_continue
+            }
+            -i $sp_id -- "X${host}*X" {
+               ts_log_fine "TS: got correct shell hostname output! Sending exit command ..."
+               ts_send $sp_id "exit\n"
+               set submit_error 0
+               exp_continue
+            }
+            -i $sp_id -- "_exit_status_" {
+               ts_log_fine "TS: remote command terminated"
+            }
+            -i $sp_id -- "login:" {
+               ts_log_fine "TS: got login, sending user name ..."
+               ts_send $sp_id "$user\n" $host 1
+               exp_continue
+            }
 
-                  if {$max_timeouts <= 0} {
-                     # ts_log_severe "got 15 timeout errors - break"
-                     set done 1
-                  }
-               }
-               -i $sp_id eof {
-                  ts_log_severe "got eof"
-                  set done 1
-               }
-               -i $sp_id "_start_mark_" {
-                  ts_log_fine "remote command started"
-                  set done 0
-               }
-               -i $sp_id "_exit_status_" {
-                  ts_log_fine "remote command terminated"
-                  set done 1
-               }
-
-               -i $sp_id "login:" {
-                  ts_send $sp_id "$user\n" $host 1
-               }
-
-               -i $sp_id "assword" {
-                  ts_log_fine "got password question for user $user on host $host"
-                  set error 0 
-                  if { $job_id == 0 } {
-                     set job_list [get_standard_job_info 0 0 1]
-                     foreach job $job_list {
-                        ts_log_fine $job
-                        if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           ts_log_fine "qlogin job id is [lindex $job 0]"
-                           set job_id [lindex $job 0]
-                        }
+            -i $sp_id -- "assword" {
+               ts_log_fine "TS: got password question for user $user on host $host"
+               set submit_error 0 
+               if { $job_id == 0 } {
+                  set job_list [get_standard_job_info 0 0 1]
+                  foreach job $job_list {
+                     ts_log_fine $job
+                     if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
+                        ts_log_fine "qlogin job id is [lindex $job 0]"
+                        set job_id [lindex $job 0]
                      }
                   }
-                  ts_log_fine "deleting job with id $job_id, because we don't know user password ..."
-                  delete_job $job_id
-                  # leave loop - job successfully started
-                  # If we do not leave the while loop immediately it might happen that
-                  # a "closed by foreign host will be catched and a deamon_error is set
-                  set done 1
                }
-               
-               -i $sp_id "X${host}X" {
-                  ts_log_fine "found matching shell response text! Sending exit ..."
-                  ts_send $sp_id "exit\n" $host
-                  set error 0
-               }
-               
-               -i $sp_id "waiting for interactive job to be scheduled*" {                  
-               }
-               
-               -i $sp_id -re $CHECK_SHELL_PROMPT {
-                  ts_send $sp_id "echo X`hostname`X\n" $host 1
-               }
-               -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
-                  ts_log_fine "got not executable error"
-                  set daemon_error 1
-               }
-               -i $sp_id "*qlogin_daemon \"$test_path\" is not an absolute path*" {
-                  ts_log_fine "got not an absolute path error"
-                  set daemon_error 1
-               }
-               -i $sp_id "*qlogin_daemon \"$test_path\" can't be read*" {
-                  ts_log_fine "got can't be read error"
-                  set daemon_error 1
-               }
-               -i $sp_id "*closed by foreign host*" {
-                  ts_log_fine "telnet connection was \"closed by foreign host\""
-                  set daemon_error 1
-               }
- 
+               ts_log_fine "TS: deleting job with id $job_id, because we don't know user password ..."
+               delete_job $job_id
+               # leave loop - job successfully started
+               # If we do not leave the while loop immediately it might happen that
+               # a "closed by foreign host will be catched and a deamon_error is set
+            }
 
-               -i $sp_id "*\n" {
-                  set output $expect_out(buffer)
-                  set output [split $output "\n"]
-                  foreach line $output {
-                     set line [string trim $line]
-                     if { [string length $line] == 0 } {
-                        continue
-                     }
+            -i $sp_id -- "qlogin_daemon \"$test_path\" is not executable" {
+               ts_log_fine "TS: got not executable error"
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "qlogin_daemon \"$test_path\" is not an absolute path" {
+               ts_log_fine "TS: got not an absolute path error"
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "qlogin_daemon \"$test_path\" can't be read" {
+               ts_log_fine "TS: got can't be read error"
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "closed by foreign host" {
+               ts_log_fine "TS: telnet connection was \"closed by foreign host\""
+               set daemon_failure 1
+               exp_continue
+            }
+            -i $sp_id -- "*\n" {
+               set output [split $expect_out(buffer) "\r\n"]
+               foreach line $output {
+                  set pr_line [string trim $line]
+                  if {$pr_line != ""} {
                      ts_log_fine $line
                   }
                }
-               -i $sp_id default {
-               }
+               exp_continue
             }
          }
          close_spawn_process $sid
       }
    }
    # check if error message was received 
-   if {$daemon_error == 1} {
-      ts_log_fine "received error message about daemon configuration from \"$job_type\""
+   if {$daemon_failure == 1} {
+      ts_log_fine "TS: received error message about daemon configuration from \"$job_type\""
       return 1
    }
 
    # error occurs also with wrong binary defined - issue 2174
-   if {$error == 1} {
-      ts_log_fine "didn't get password question for qlogin or error occured for qrsh - unsupported error occured"
+   if {$submit_error == 1} {
+      ts_log_fine "TS: error occured when submitting \"$job_type\" job - please check the output!"
       return 1
    }
-
    return 0
 }
 
