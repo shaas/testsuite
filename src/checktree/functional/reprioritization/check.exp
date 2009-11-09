@@ -98,7 +98,6 @@ proc reprioritization_setup {} {
    if {$found == 0} {
       ts_log_severe "No host found with only 1 processor. Please re-configure the testsuite setup"
    }
-   set test_host "ents"
 
    # we want to modify the global config - make a backup
    get_config reprioritization_backup $test_host

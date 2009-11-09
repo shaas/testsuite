@@ -7,7 +7,12 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
-CR-2009-11-09:0: Cleanup:    o removed additional waiting in 
+CR-2009-11-09-1: Bugfix:     fixed get_ps_info()
+                             fixed repriorization test
+                 Belongs to: MP-2009-11-05-0
+                 Review:     EB
+
+CR-2009-11-09-0: Cleanup:    o removed additional waiting in 
                                set_config_and_propagate()
                              o removed empty lines in get_standard_job_info()
                  Bugfix:     o fixed issue 1914 test for >= GE 62

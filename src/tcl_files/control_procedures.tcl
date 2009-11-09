@@ -1523,12 +1523,16 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
    
    #puts "arch on host $host is $host_arch"
    
+   # ATTENTION: command_pos (args column) must be the last column !!!
+   # Testsuite needs at least 61 chars from that collum to detect the product root PATH
+   # NOTE: On some archs the last column is not truncated, on some archs it is, so please be patient !
+
    switch -glob -- $host_arch {
       "sol*" - 
       "usol-*" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"args=_____args\" -o \"nice=_____nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args _____nice"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"nice=_____nice\" -o \"args=_____args\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____nice _____args"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1537,14 +1541,14 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9
+         set nice_pos    8
       }
     
       "darwi*" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"command=_____args\" -o \"nice=_____nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args _____nice"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"nice=_____nice\" -o \"command=_____args\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____nice _____args"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1553,8 +1557,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9
+         set nice_pos    8
       }
 
       "fbsd*" {
@@ -1570,6 +1574,7 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set vsz_pos     6
          set time_pos    7
          set command_pos 8
+         set nice_pos   -1
       }
  
       "osf4" -
@@ -1586,13 +1591,14 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set vsz_pos     6
          set time_pos    7
          set command_pos 8
+         set nice_pos    -1
       }
 
       "irix6" -
       "irix65" { 
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid,pgid,ppid,uid=LONGUID,state,stime,vsz,time,args,nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "  PID  PGID  PPID LONGUID S    STIME {VSZ   }        TIME COMMAND           NICE"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid,pgid,ppid,uid=LONGUID,state,stime,vsz,time,nice,args\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "  PID  PGID  PPID LONGUID S    STIME {VSZ   }        TIME NICE COMMAND           "
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1608,8 +1614,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
       "aix43" -
       "aix51" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time args nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "  PID BIG_AIX_PGID BIG_AIX_PPID BIG_AIX_UID AIXSTATE  STARTED BIG_AIX_VSZ        TIME COMMAND NICE"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time nice args\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "  PID BIG_AIX_PGID BIG_AIX_PPID BIG_AIX_UID AIXSTATE  STARTED BIG_AIX_VSZ        TIME NICE COMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1618,8 +1624,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9
+         set nice_pos    8
       }
       
       "aix42"   {
@@ -1636,7 +1642,7 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set vsz_pos     6
          set time_pos    7
          set command_pos 8
-      
+         set nice_pos    -1
       }
 
       "hp10" {
@@ -1652,14 +1658,15 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set vsz_pos     -1
          set time_pos    13
          set command_pos 14
+         set nice_pos    -1
       }
 
       "hp11" -
       "hp11-64" {
          set myenvironment(COLUMNS) "500"
          set myenvironment(UNIX95)  ""
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state stime vsz time args nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "  PID        GID  PPID        UID S    STIME     VSZ     TIME COMMAND NICE"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state stime vsz time nice args\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "  PID        GID  PPID        UID S    STIME     VSZ     TIME NICE COMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1668,16 +1675,16 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9 
+         set nice_pos    8
       }
      
       "glinux" -
       "lx2?-*" - 
       "ulx24-*" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time args=COMMANDCOMMANDCOM nice\"" prg_exit_state 60 0 "" myenvironment]
-         set index_names "  PID  PGID  PPID BIGGERUID S STIME   VSZ     TIME COMMANDCOMMANDCOM NI"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time nice args=COMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "  PID  PGID  PPID BIGGERUID S STIME   VSZ     TIME NI COMMANDCOMMANDCOMMANDCOMMANDCOMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1686,8 +1693,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9
+         set nice_pos    8
       }
 
       "alinux" -
@@ -1708,6 +1715,7 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
             set vsz_pos     -1
             set time_pos    8
             set command_pos 9
+            set nice_pos    -1
          } 
          if { $additional_run == 1 } {
             # this is the first ps without any size position
@@ -1724,13 +1732,14 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
             set vsz_pos     4
             set time_pos    9
             set command_pos 10
+            set nice_pos    -1
          } 
       }
 
       "win32-x86" {
          set myenvironment(COLUMS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,pgid,ppid,user,state,stime,vsz,time,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\",nice" prg_exit_state 60 0 "" myenvironment]
-         set index_names "   PID   PGID   PPID       USER STATE       STIME    VSZ     TIME COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND NICE"
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,pgid,ppid,user,state,stime,vsz,time,nice,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 "" myenvironment 1 0]
+         set index_names "   PID   PGID   PPID       USER STATE       STIME    VSZ     TIME NICE COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1739,8 +1748,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9
+         set nice_pos    8
       }
 
       "nbsd-*" {
@@ -1755,12 +1764,13 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set vsz_pos     6
          set time_pos    7
          set command_pos 8
+         set nice_pos    -1
       }
 	
       default {
          set result "unknown architecture"
          set prg_exit_state 1
-         set index_names "  PID   GID  PPID   UID S    STIME  VSZ        TIME COMMAND NICE"
+         set index_names "  PID   GID  PPID   UID S    STIME  VSZ        TIME NICE COMMAND"
          set pid_pos     0
          set gid_pos     1
          set ppid_pos    2
@@ -1769,8 +1779,8 @@ proc get_ps_info { { pid 0 } { host "master"} { info_array ps_info } {additional
          set stime_pos   5
          set vsz_pos     6
          set time_pos    7
-         set command_pos 8
-         set nice_pos    9
+         set command_pos 9 
+         set nice_pos    8
       }
    }
 

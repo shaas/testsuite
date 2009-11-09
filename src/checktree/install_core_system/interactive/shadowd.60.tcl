@@ -376,12 +376,14 @@ proc install_shadowd {} {
       incr my_timeout 60
       set is_running 0
       while {[timestamp] < $my_timeout} {
-         if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
-            ts_log_fine "waiting for running shadowd on host $shadow_host ..."
+         set running_deamons [is_daemon_running $shadow_host "sge_shadowd"]
+         if {$running_deamons != 1} {
+            ts_log_fine "waiting for running shadowd on host $shadow_host (reported daemons=$running_deamons) ..."
          } else {
             set is_running 1
             break
          }
+         after 1000
       }
       if {$is_running == 0} {
          ts_log_severe "shadowd on host $shadow_host is not running"
