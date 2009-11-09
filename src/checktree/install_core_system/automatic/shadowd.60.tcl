@@ -161,10 +161,11 @@ proc install_shadowd {} {
          while {[timestamp] < $my_timeout} {
             set is_running [is_daemon_running $shadow_host "sge_shadowd"]
             if {$is_running != 1} {
-               ts_log_fine "waiting for running shadowd on host $shadow_host ..."
+               ts_log_fine "waiting for running shadowd on host $shadow_host (running=$is_running)..."
             } else {
                break
             }
+            after 1000
          }
          if { $is_running == 1 } {
             lappend CORE_INSTALLED $shadow_host
