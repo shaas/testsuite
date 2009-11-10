@@ -224,8 +224,8 @@ proc general_ssos_test {} {
 
       set job_list {}
 
-      ssos_test_suspension_in_deepest_queue $host $job_list
-      ssos_test_unsuspend_on_manual_suspend $host $job_list
+      ssos_test_suspension_in_deepest_queue $host "job_list"
+      ssos_test_unsuspend_on_manual_suspend $host "job_list"
       ssos_test_sequence_number_obeyance $host
 
       unset job_list
@@ -264,7 +264,6 @@ proc ssos_test_suspension_in_deepest_queue {host djob_list} {
    set arguments "$my_fix_settings -q G.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set g_job [submit_job $arguments]
    # wait for job start on D.q, G.q and 2 x J.q 
-   set job_list {}
    lappend job_list $d_job
    lappend job_list $g_job
    lappend job_list $first_j_job
