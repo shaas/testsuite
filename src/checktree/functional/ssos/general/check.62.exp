@@ -31,7 +31,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
 # define global variable in this namespace
 global check_name 
 global check_category 
@@ -53,18 +52,18 @@ set check_init_level_procedure "general_ssos_init_level"
 set check_source_files "remote_cluster_procedures"
 
 # define test's name and run level descriptions
-set check_name            "general_ssos"
-set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0
-set check_description(0)  "General Slotwise Suspend on Subordinate test"
-
+set check_name             "general_ssos"
+set check_category         "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level    100 
+set check_description(0)   "General Slotwise Suspend on Subordinate test"
+set check_description(100) "General Slotwise Suspend on Subordinate test on all architectures"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function general_ssos_setup
-set check_cleanup_function general_ssos_cleanup
+set check_setup_level_function "general_ssos_level_setup"
+set check_cleanup_level_function "general_ssos_level_cleanup"
 
 # define test's procedure order
 set check_functions {}
@@ -78,13 +77,17 @@ proc general_ssos_init_level {} {
       0 {
          return 0
       }
+      100 {
+         return 0
+      }
    }
    return -1  ;# no other level
 }
 
 
-proc general_ssos_setup {} {
+proc general_ssos_level_setup {} {
    global CHECK_USER CHECK_HAVE_TDOM
+   global CHECK_ACT_LEVEL
    global ssos_config
    get_current_cluster_config_array ts_config
 
@@ -97,83 +100,94 @@ proc general_ssos_setup {} {
       ts_log_config "The tDOM TCL package is not installed!\nWe cannot run the qstat -xml tests!"
    }
 
-
+   # define a subordination tree that looks like this:
+   #               A.q
+   #              /   \
+   #            B.q   C.q
+   #           /   \     \
+   #         D.q   E.q   F.q
+   #        /               \
+   #      G.q               H.q
+   #     /                     \
+   #   I.q                     J.q
+   # 
+   # J.q must be created first, because it is referenced in H.q and must already
+   # exist when H.q is created, and so on
    set ssos_config(queue_list) {}
-   lappend ssos_config(queue_list) "A.q"
-   lappend ssos_config(queue_list) "B.q"
-   lappend ssos_config(queue_list) "C.q"
-   lappend ssos_config(queue_list) "D.q"
-   lappend ssos_config(queue_list) "E.q"
-   lappend ssos_config(queue_list) "F.q"
-   lappend ssos_config(queue_list) "G.q"
-   lappend ssos_config(queue_list) "H.q"
-   lappend ssos_config(queue_list) "I.q"
    lappend ssos_config(queue_list) "J.q"
+   lappend ssos_config(queue_list) "I.q"
+   lappend ssos_config(queue_list) "H.q"
+   lappend ssos_config(queue_list) "G.q"
+   lappend ssos_config(queue_list) "F.q"
+   lappend ssos_config(queue_list) "E.q"
+   lappend ssos_config(queue_list) "D.q"
+   lappend ssos_config(queue_list) "C.q"
+   lappend ssos_config(queue_list) "B.q"
+   lappend ssos_config(queue_list) "A.q"
 
    # generate test queues
    set change_array(slots) 4
    set host_list $ts_config(execd_nodes)
-   set host_index -1
-   foreach queue $ssos_config(queue_list) {
-      incr host_index 1
-      if {$host_index >= [llength $host_list]} {
-         set host_index 0
+   switch -exact $CHECK_ACT_LEVEL {
+      0 {
+         set host_array_size 1
+         set host_list [lindex $host_list 0]
       }
+      100 {
+         set host_array_size [llength $host_list]
+      }
+   }
+   foreach queue $ssos_config(queue_list) {
       switch -exact $queue {
          "A.q" {
-            set change_array(subordinate_list) "slots=4(B:2,C:3)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(B.q:2,C.q:3)"
          }
          "B.q" {
-            set change_array(subordinate_list) "slots=4(D:1,E)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(D.q:1,E.q)"
          }
          "C.q" {
-            set change_array(subordinate_list) "slots=4(F)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(F.q)"
          }
          "D.q" {
-            set change_array(subordinate_list) "slots=4(G)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(G.q)"
          }
          "F.q" {
-            set change_array(subordinate_list) "slots=4(H)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(H.q)"
          }
          "G.q" {
-            set change_array(subordinate_list) "slots=4(I)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(I.q)"
          }
          "H.q" {
-            set change_array(subordinate_list) "slots=4(J)"
-            set change_array(subordinate_list) "NONE"
-            ts_log_fine "TODO: please correct this setting"
+            set change_array(subordinate_list) "slots=4(J.q)"
          }
-
          default {
             set change_array(subordinate_list) "NONE"
          }
       }
       ts_log_fine "queue \"$queue\" has subordinate_list set to \"$change_array(subordinate_list)\""
-      set host [lindex $host_list $host_index]
-      set ssos_config($queue,host) $host
-      add_queue $queue $host change_array
+
+      set ssos_config($queue,host) $host_list
+      set ret [add_queue $queue $host_list change_array]
+      if {$ret < 0} {
+         ts_log_warning "Error adding queue $queue"
+         return
+      }
    }
 }
 
 
-proc general_ssos_cleanup {} {
+proc general_ssos_level_cleanup {} {
    get_current_cluster_config_array ts_config
    global ssos_config 
 
    delete_all_jobs
    wait_for_end_of_all_jobs
+
+   # Queues must be deleted from A.q to J.q, because J.q is referenced in H.q,
+   # H.q is referenced in F.q and so on. Only A.q is not referenced anywhere
+   # and can therefore be deleted immediately. Then B.q and C.q can be deleted,
+   # and so on.
+   set ssos_config(queue_list) [lsort -increasing $ssos_config(queue_list)]
   
    foreach queue $ssos_config(queue_list) {
       del_queue $queue "" 1 1 
@@ -184,74 +198,103 @@ proc general_ssos_cleanup {} {
 
 
 proc general_ssos_test {} {
-   global CHECK_USER ssos_config CHECK_HAVE_TDOM
+   global CHECK_USER
+   global CHECK_ACT_LEVEL
+   global my_fix_settings
 
    get_current_cluster_config_array ts_config
 
    set user $CHECK_USER
- 
    set error_text ""
-
-   #
-   # test 1
-   #
-
-
-   # submit job to D.q, G.q and 2 jobs to J.q
    set my_fix_settings "-o /dev/null -e /dev/null -N test"
 
+   set host_list $ts_config(execd_nodes)
+   switch -exact $CHECK_ACT_LEVEL {
+      0 {
+         set host_array_size 1
+      }
+      100 {
+         set host_array_size [llength $host_list]
+      }
+   }
+   for {set host_index 0} {$host_index < $host_array_size} {incr host_index} {
+      set host [lindex $host_list $host_index]
+      ts_log_fine ""
+      ts_log_fine "Testing on host $host"
+
+      set job_list {}
+
+      ssos_test_suspension_in_deepest_queue $host $job_list
+      ssos_test_unsuspend_on_manual_suspend $host $job_list
+      ssos_test_sequence_number_obeyance $host
+
+      unset job_list
+   }
+}
+
+proc ssos_test_suspension_in_deepest_queue {host djob_list} {
+   upvar $djob_list job_list
+   global CHECK_USER ssos_config CHECK_HAVE_TDOM
+   global my_fix_settings
+   get_current_cluster_config_array ts_config
+   set error_text ""
+   #
+   # Test 1
+   # Check if the youngest task in the deepest queue gets suspended
+   # when more than 4 tasks are running in the tree.
+   #
+   # submit job to D.q, G.q and 2 jobs to J.q
+
+   ts_log_fine ""
+   ts_log_fine "Scenario 1"
+   ts_log_fine "Submitting four jobs, two to J.q, one to D.q and one to G.q"
    # submit first job to "J.q"
-   set arguments "$my_fix_settings -q J.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_fix_settings -q J.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set first_j_job [submit_job $arguments]
 
    # submit second job to "J.q"
-   set arguments "$my_fix_settings -q J.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_fix_settings -q J.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set second_j_job [submit_job $arguments]
 
    # submit job to "D.q"
-   set arguments "$my_fix_settings -q D.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_fix_settings -q D.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set d_job [submit_job $arguments]
 
    # submit job to "G.q"
-   set arguments "$my_fix_settings -q G.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_fix_settings -q G.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set g_job [submit_job $arguments]
-
- 
-
    # wait for job start on D.q, G.q and 2 x J.q 
-   set start_job_list {}
-   lappend start_job_list $d_job
-   lappend start_job_list $g_job
-   lappend start_job_list $first_j_job
-   lappend start_job_list $second_j_job
-   foreach job $start_job_list {
+   set job_list {}
+   lappend job_list $d_job
+   lappend job_list $g_job
+   lappend job_list $first_j_job
+   lappend job_list $second_j_job
+   foreach job $job_list {
       wait_for_jobstart $job "test" 60 1 1
    }
 
-   # Now submit job to B.q
-   set arguments "$my_fix_settings -q B.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   # There are 4 tasks running, now submit a job to B.q
+   ts_log_fine "Submitting a job to B.q, exceeding the threshold of 4 defined in A.q"
+   set arguments "$my_fix_settings -q B.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set b_job [submit_job $arguments]
    wait_for_jobstart $b_job "test" 60 1 1
 
    # Job at B.q should be running
    get_job_state $b_job 0 task_info
-#   ts_log_fine [format_array task_info]
    if {$task_info(0,state) != "r"} {
       append error_text "Job $b_job (B.q job) not in running state! State is \"$task_info(0,state)\"\n"
    }
+   lappend job_list $b_job
 
    # last job in J.q should be Suspended, the others should be "r"
-   set jobs_list {} 
-   lappend jobs_list $d_job
-   lappend jobs_list $g_job
-   lappend jobs_list $first_j_job
-   lappend jobs_list $second_j_job
-   lappend jobs_list $b_job
-   foreach job $jobs_list {
+   ts_log_fine "Expecting to see the second job in J.q in state \"S\", all others in state \"r\""
+   foreach job $job_list {
       get_job_state $job 0 task_info
-      if {$job == $first_j_job} {
+      if {$job == $second_j_job} {
          if {$task_info(0,state) != "S"} {
-            append error_text "Job $job (first J.q job) not in suspend state! State is \"$task_info(0,state)\"\n"
+            append error_text "Job $second_j_job (second J.q job) not in suspend state! State is \"$task_info(0,state)\"\n"
+         } else {
+            ts_log_fine "Second job of J.q is in expected state \"S\"."
          }
       } else {
          if {$task_info(0,state) != "r"} {
@@ -259,10 +302,13 @@ proc general_ssos_test {} {
          }
       }
    }
+   if {$error_text == ""} {
+      ts_log_fine "All other jobs are in expected state \"r\"."
+   }
 
    # check queue states
    foreach queue $ssos_config(queue_list) {
-      set queueState [get_queue_state "$queue@$ssos_config($queue,host)"]
+      set queueState [get_queue_state "$queue@$host"]
       if {$queueState != ""} {
          append error_text "queue \"$queue\" reports state \"$queueState\" which is not expected!\n"
       }
@@ -270,64 +316,76 @@ proc general_ssos_test {} {
 
 
    if {$error_text != ""} {
-      ts_log_fine "Scenario 1:\n$error_text"
-# TODO: enable error reporting and return, remove ts_log_fine
-#      ts_log_severe "Scenario 1:\n$error_text"
-#      return
+      ts_log_severe "Scenario 1:\n$error_text"
+      return
+   } else {
+      ts_log_fine "Scenario 1 successfully completed!"
    }
    set error_text ""
+}
 
+proc ssos_test_unsuspend_on_manual_suspend {host djob_list} {
+   upvar $djob_list job_list
+   global CHECK_USER ssos_config CHECK_HAVE_TDOM
+   global my_fix_settings
+   set error_text ""
    #
-   # test #2 
+   # Test #2 
+   # Check if the task in J.q that is suspended by slotwise subordination gets
+   # unsuspended when the job in queue D.q gets manually suspended, because the
+   # number of running tasks in the subordination tree drops to 4 or lower.
    #
- 
+
+   # "parse" job_list into single jobs
+   set d_job        [lindex $job_list 0]
+   set g_job        [lindex $job_list 1]
+   set first_j_job  [lindex $job_list 2]
+   set second_j_job [lindex $job_list 3]
+   set b_job        [lindex $job_list 4]
+
+   # suspend the queue D.q to suspend the job running in it
+   ts_log_fine ""
+   ts_log_fine "Scenario 2"
+   ts_log_fine "Suspending queue D.q and with it the job running in D.q to check if"
+   ts_log_fine "the still suspended job in J.q gets unsuspended when just 4 tasks"
+   ts_log_fine "are still running in the subordination tree."
    set queue "D.q"
    suspend_queue $queue
-   set queueState [get_queue_state "$queue@$ssos_config($queue,host)"]
-   if {$queueState != "S"} {
-      append error_text "queue \"$queue\" reports state \"$queueState\" which should be suspend on subordinate \"S\"!\n"
+   set queueState [get_queue_state "$queue@$host"]
+   if {$queueState != "s"} {
+      append error_text "queue \"$queue\" reports state \"$queueState\" which should be suspended \"s\"!\n"
    }
    
-   # job on D.q should be in state "S"
+   # job on D.q should be in state "s"
    get_job_state $d_job 0 task_info
    if {$task_info(0,state) != "S"} {
       append error_text "Job $d_job (D.q job) not in suspend state! State is \"$task_info(0,state)\"\n"
    }
 
-   set jobs_list {} 
-   lappend jobs_list $g_job
-   lappend jobs_list $first_j_job
-   lappend jobs_list $second_j_job
-   lappend jobs_list $b_job
-   foreach job $jobs_list {
+   foreach job $job_list {
       get_job_state $job 0 task_info
-      if {$task_info(0,state) != "r"} {
+      if {$job != $d_job && $task_info(0,state) != "r"} {
          append error_text "Job $job not in running state! State is \"$task_info(0,state)\"\n"
       }
    }
+   ts_log_fine "Job $second_j_job in queue J.q is in expected state \"r\"."
+   ts_log_fine "Now unsuspending queue D.q, the second job (job $second_j_job) in J.q"
+   ts_log_fine "should become suspended again."
 
    unsuspend_queue $queue
-   # TODO: Do we need some waiting time here ???
 
-   # Job at B.q should be running
-   get_job_state $b_job 0 task_info
-#   ts_log_fine [format_array task_info]
+   # Job at D.q should be running
+   get_job_state $d_job 0 task_info
    if {$task_info(0,state) != "r"} {
-      append error_text "Job $b_job (B.q job) not in running state! State is \"$task_info(0,state)\"\n"
+      append error_text "Job $d_job (D.q job) not in running state! State is \"$task_info(0,state)\"\n"
    }
 
    # last job in J.q should be Suspended, the others should be "r"
-   set jobs_list {} 
-   lappend jobs_list $d_job
-   lappend jobs_list $g_job
-   lappend jobs_list $first_j_job
-   lappend jobs_list $second_j_job
-   lappend jobs_list $b_job
-   foreach job $jobs_list {
+   foreach job $job_list {
       get_job_state $job 0 task_info
-      if {$job == $first_j_job} {
+      if {$job == $second_j_job} {
          if {$task_info(0,state) != "S"} {
-            append error_text "Job $job (first J.q job) not in suspend state! State is \"$task_info(0,state)\"\n"
+            append error_text "Job $second_j_job (first J.q job) not in suspend state! State is \"$task_info(0,state)\"\n"
          }
       } else {
          if {$task_info(0,state) != "r"} {
@@ -335,10 +393,13 @@ proc general_ssos_test {} {
          }
       }
    }
+   if {$error_text == ""} {
+      ts_log_fine "Job $job in queue J.q is in expected state \"S\"."
+   }
 
    # check queue states
    foreach queue $ssos_config(queue_list) {
-      set queueState [get_queue_state "$queue@$ssos_config($queue,host)"]
+      set queueState [get_queue_state "$queue@$host"]
       if {$queueState != ""} {
          append error_text "queue \"$queue\" reports state \"$queueState\" which is not expected!\n"
       }
@@ -346,54 +407,68 @@ proc general_ssos_test {} {
 
 
    if {$error_text != ""} {
-      ts_log_fine "Scenario 2:\n$error_text"
-# TODO: enable error reporting and return, remove ts_log_fine
-#      ts_log_severe "Scenario 2:\n$error_text"
-#      return
+      ts_log_severe "Scenario 2:\n$error_text"
+      return
+   } else {
+      ts_log_fine "Scenario 2 successfully completed!"
    }
    set error_text ""
+}
 
-
+proc ssos_test_sequence_number_obeyance {host} {
+   global CHECK_USER ssos_config CHECK_HAVE_TDOM
+   global my_fix_settings
+   get_current_cluster_config_array ts_config
+   set error_text ""
    #
-   # test 3
+   # Test 3
+   # Check if the sequence number is obeyed between subordinated queues of the
+   # same depth in the subordinate tree.
    #
    delete_all_jobs
    wait_for_end_of_all_jobs
 
+   ts_log_fine ""
+   ts_log_fine "Scenario 3"
+   ts_log_fine "Check if the sequence number is obeyed between subordinated queues"
+   ts_log_fine "of the same depth in the tree."
    # check queue states
    foreach queue $ssos_config(queue_list) {
-      set queueState [get_queue_state "$queue@$ssos_config($queue,host)"]
+      set queueState [get_queue_state "$queue@$host"]
       if {$queueState != ""} {
          append error_text "queue \"$queue\" reports state \"$queueState\" which is not expected!\n"
       }
    }
-   
-   # Now submit 2 jobs to B.q
-   set arguments "$my_fix_settings -q B.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
-   set b_job_1 [submit_job $arguments]
-   set b_job_2 [submit_job $arguments]
-   wait_for_jobstart $b_job_1 "test" 60 1 1
-   wait_for_jobstart $b_job_2 "test" 60 1 1
-
-   after 5000 ;# b and c jobs must have different start times
-      
+  
    # Now submit 2 jobs to C.q
-   set arguments "$my_fix_settings -q C.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   ts_log_fine "Submitting two jobs to C.q"
+   set arguments "$my_fix_settings -q C.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set c_job_1 [submit_job $arguments]
    set c_job_2 [submit_job $arguments]
-   wait_for_jobstart $b_job_1 "test" 60 1 1
-   wait_for_jobstart $b_job_2 "test" 60 1 1
+   wait_for_jobstart $c_job_1 "test" 999 1 1
+   wait_for_jobstart $c_job_2 "test" 999 1 1
+
+   # Now submit 2 jobs to B.q
+   ts_log_fine "Submitting two jobs to B.q. These jobs have a shorter run time than the jobs in C.q"
+   set arguments "$my_fix_settings -q B.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set b_job_1 [submit_job $arguments]
+   set b_job_2 [submit_job $arguments]
+   wait_for_jobstart $b_job_1 "test" 999 1 1
+   wait_for_jobstart $b_job_2 "test" 999 1 1
 
    # now submit job to A.q
-   set arguments "$my_fix_settings -q A.q $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   ts_log_fine "Submitting a job to A.q, exceeding the threshold of 4"
+   set arguments "$my_fix_settings -q A.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    set a_job [submit_job $arguments]
-   wait_for_jobstart $a_job "test" 60 1 1
+   wait_for_jobstart $a_job "test" 999 1 1
    
    # now check that c_job_1 is in state "S", all others must be in state "r"
+   ts_log_fine "Expecting the younger job in C.q to be suspended, even if it's older than the"
+   ts_log_fine "jobs in B.q, because C.q has the lower sequence number."
    set r_job_list {}
    lappend r_job_list $b_job_1
    lappend r_job_list $b_job_2
-   lappend r_job_list $c_job_2
+   lappend r_job_list $c_job_1
    lappend r_job_list $a_job
    foreach job $r_job_list {
       get_job_state $job 0 task_info
@@ -401,38 +476,33 @@ proc general_ssos_test {} {
          append error_text "Job $job not in running state! State is \"$task_info(0,state)\"\n"
       }
    }
-   get_job_state $c_job_1 0 task_info
+   get_job_state $c_job_2 0 task_info
    if {$task_info(0,state) != "S"} {
-      append error_text "Job $c_job_1 not in suspend state! State is \"$task_info(0,state)\"\n"
+      append error_text "Job $c_job_2 not in suspend state! State is \"$task_info(0,state)\"\n"
+   }
+   if {$error_text == ""} {
+      ts_log_fine "All jobs are in the expected states."
    }
 
    # check queue states
    foreach queue $ssos_config(queue_list) {
-      set queueState [get_queue_state "$queue@$ssos_config($queue,host)"]
+      set queueState [get_queue_state "$queue@$host"]
       if {$queueState != ""} {
          append error_text "queue \"$queue\" reports state \"$queueState\" which is not expected!\n"
       }
    }
 
-
    # TODO: check qstat -xml
    if {$CHECK_HAVE_TDOM} {
       qstat_xml_parse qstat_xml_output ""
-      ts_log_fine [format_array qstat_xml_output]
-
+      # ts_log_fine [format_array qstat_xml_output]
    }
 
    if {$error_text != ""} {
-      ts_log_fine "Scenario 3:\n$error_text"
-# TODO: enable error reporting and return, remove ts_log_fine
-#      ts_log_severe "Scenario 3:\n$error_text"
-#      return
+      ts_log_severe "Scenario 3:\n$error_text"
+      return
+   } else {
+      ts_log_fine "Scenario 3 successfully completed"
    }
    set error_text ""
 }
-
-
-
-
-
-
