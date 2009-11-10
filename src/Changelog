@@ -8,9 +8,8 @@
 -----------------+-----------+--------------------------------------------------
 
 HP-2009-11-10-0: Enhancem.:  o added runlevel 100 test to slotwise suspend on
-                               subordinate test that tests on all
-										 architectures
-					  Review:     CR
+                               subordinate test that tests on all architectures
+                 Review:     CR
 
 CR-2009-11-09-1: Bugfix:     fixed get_ps_info()
                              fixed repriorization test
