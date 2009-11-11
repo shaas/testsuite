@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-11-11-0: Bugfix:     increased timeout for verify complile clean in TS
+                 Review:     SH
+
 EB-2009-11-11-0: Bugfix:     fixed failing qstat tests that might occur when the
                              master machine is slow
                  Review:     JG

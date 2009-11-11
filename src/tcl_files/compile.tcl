@@ -492,7 +492,7 @@ proc wait_for_NFS_after_compile_clean { host_list a_report } {
  
       ts_log_fine "wait path: $ts_config(source_dir)/$build_dir_name"
       set my_timeout [timestamp]
-      incr my_timeout 10
+      incr my_timeout 65
       set was_error 1
       while { [timestamp] < $my_timeout } {
          analyze_directory_structure $host $CHECK_USER $wait_path "" files ""
