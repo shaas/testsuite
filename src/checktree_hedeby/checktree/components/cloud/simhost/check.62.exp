@@ -245,6 +245,10 @@ proc hedeby_cloud_simhost_check {} {
    set sopts(host)         $this(service_host)
    set sopts(start)        "true"
    set sopts(maxCloudHostsInSystemLimit) $this(res_count)
+   # Per default the Cloud Service Adapter has a permanent request SLO with urgency 2
+   # For this test we do not need such a SLO, use a fixed usage SLO to avoid that
+   # spare_pool requests the cloud resources
+   set sopts(slos)  [create_fixed_usage_slo 1]
 
    if {[hedeby_add_cloud_service sopts] != 0} {
       return

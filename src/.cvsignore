@@ -1,5 +1,8 @@
-testsuite_trash
+*.sav
 .testsuite_delete
+testsuite_trash
 results
 *.sav.*
-*.sav
+.testsuite_delete.my_testsuite
+.testsuite_delete.my_testsuite_3
+.testsuite_delete.my_testsuite_2

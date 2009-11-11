@@ -6,6 +6,15 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+RH-2009-11-11-0: Bugfix:     Hedeby
+                               o build_testsuite.properies sets now 
+                                 hedeby-upgrade.dir
+                               o max_hosts_in_system_limit and cloud/simhost
+                                 sets up cloud service with fixed_usage SLO
+                                 (instead of perm_req)
+                 Review:     TB
+
 CR-2009-11-11-0: Bugfix:     increased timeout for verify complile clean in TS
                  Review:     SH
 
