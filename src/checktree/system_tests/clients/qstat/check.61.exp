@@ -403,11 +403,11 @@ proc test_qstat_j_xml {} {
                }
             }
          }
-         if { $diff < 0.9 } {
+         if { $diff < 0.80 } {
             append found_error "diff value $diff does not match from plain and xml for $elem.\n"
             append found_error "xml output: [string trim $xml($elem)] plain output: [string trim $plain($elem)]\n\n"
          }
-         if { $diff > 1.1 } {
+         if { $diff > 1.20 } {
             append found_error "diff value $diff does not match from plain and xml for $elem.\n"
             append found_error "xml output: [string trim $xml($elem)] plain output: [string trim $plain($elem)]\n\n"
          }

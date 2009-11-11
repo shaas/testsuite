@@ -113,7 +113,8 @@ proc issue_2418_test {} {
    set qrsh_submithost [host_conf_get_suited_hosts]
    set arch [resolve_arch $qrsh_submithost]
    set host [lindex $ts_config(execd_nodes) 0]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/print_pid_and_exec.sh" "$ts_config(product_root)/bin/$arch/qrsh -verbose -now no -q all.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   set cmdline "$ts_config(product_root)/bin/$arch/qrsh -verbose -now no -q all.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh"
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/print_pid_and_exec.sh" "$cmdline"]
    set sp_id [lindex $qrsh_id 1]
 
    # wait for the job to be submitted, parse qrsh pid and job id

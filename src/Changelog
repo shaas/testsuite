@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+EB-2009-11-11-0: Bugfix:     fixed failing qstat tests that might occur when the
+                             master machine is slow
+                 Review:     JG
 
 HP-2009-11-10-0: Enhancem.:  o added runlevel 100 test to slotwise suspend on
                                subordinate test that tests on all architectures
