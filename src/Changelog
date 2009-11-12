@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+AP-2009-11-12-0: Bugfix:     manual tests adjustment.
+                 Review:     LP
+
 RH-2009-11-11-0: Bugfix:     Hedeby
                                o build_testsuite.properies sets now 
                                  hedeby-upgrade.dir

@@ -654,13 +654,14 @@ proc sge_qstat {report_var} {
    ts_log_fine "Call qstat -f"
    set result [start_sge_bin "qstat" "-f" $host $CHECK_USER]
    test_report report $curr_task_nr $id value $result
-   if {$prg_exit_state == 0} {
-      test_report report $curr_task_nr $id result [get_result_ok]
-      return true
-   } else {
+   if {$prg_exit_state != 0 || $result == ""} {
       test_report report $curr_task_nr $id result [get_result_failed]
       return false
+   } else {
+      test_report report $curr_task_nr $id result [get_result_ok]
+      return true
    }
+
 }
 
 #****** manual_util/sge_job_deletion() *****************************************
@@ -1037,14 +1038,17 @@ proc sge_qrsh_hostname {report_var} {
    }
 
    if {$ts_config(gridengine_version) <= 61 && $host_arch == "win32-x86" } {
-      set user "root"
-   } else {
-      set user $CHECK_USER
+      test_report report $curr_task_nr $id result [get_result_skipped]
+      return true
    }
 
-   set result [start_sge_bin qrsh hostname $host $user]
+   set result [start_sge_bin qrsh hostname $host $CHECK_USER]
    set result [string trim $result]
    test_report report $curr_task_nr $id value [string trim $result]
+   if {[string first "error" $result] >= 0} {
+      test_report report $curr_task_nr $id result [get_result_failed]
+      return false
+   }
    if {[qrsh_output_contains $result $host]} {
       test_report report $curr_task_nr $id result [get_result_ok]
       return true
@@ -1078,7 +1082,7 @@ proc sge_qrsh_hostname {report_var} {
 #
 #*******************************************************************************
 proc sge_qlogin {report_var} {
-   global CHECK_USER
+   global CHECK_USER ts_config
    upvar $report_var report
 
    set id [register_test qlogin report curr_task_nr]
@@ -1087,6 +1091,14 @@ proc sge_qlogin {report_var} {
    set user $CHECK_USER
 
    ts_log_fine "Test qlogin"
+   if { $ts_config(gridengine_version) <= 61} {
+      switch -glob [resolve_arch $host] {
+         hp11* {
+            test_report report $curr_task_nr $id result [get_result_skipped]
+            return true
+         }
+      }
+   }
    set job_id [submit_wait_type_job qlogin $host $user]
    if {$job_id > 0} {
       test_report report $curr_task_nr $id result [get_result_ok]
