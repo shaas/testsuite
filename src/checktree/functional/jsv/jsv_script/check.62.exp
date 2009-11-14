@@ -95,14 +95,14 @@ global jsv_enabled
 set jsv_enabled ""
 
 # -------- local test procedures: initialization------------------------------
-proc jsv_script_get_script_file {shell_basename extension} {
+proc jsv_script_get_script_file {shell_basename basename extension} {
    global ts_config
    global CHECK_USER
 
    set jsv_base_path "$ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_script"
    set tmp_file [get_tmp_file_name $ts_config(master_host) "jsv_script" $extension]
    set shell_path [get_binary_path $ts_config(master_host) $shell_basename]
-   read_file $jsv_base_path/jsv.$extension script_file_contend
+   read_file $jsv_base_path/$basename.$extension script_file_contend
    set script_file_contend(1) "#!$shell_path"
    save_file $tmp_file script_file_contend
    start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "chmod" "0755 $tmp_file"
@@ -149,13 +149,23 @@ proc jsv_script_setup {} {
    set jsv_enter_list {}
    set jsv_enter2_list {}
 
-   # 3 seconds should be enough to get a response from JSV scripts.
+   # 4 seconds should be enough to get a response from JSV scripts.
    # if we find a host where this is to small we might increase it.
    # in general we should keep this timeout small so that the tests
    # do not take to long
    set jsv_expect_timeout 4
-   #set jsv_base_path "$ts_config(product_root)/util/resources/jsv"
    set jsv_base_path "$ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_script"
+
+   # create a Java JSV script that uses the jjsv.sh from the GE distribution 
+   # to start our own test code contained in the set of build class files in 
+   # CLASSES directory
+   set jjsv_filename [get_tmp_file_name $ts_config(master_host) "jjsv" "sh"]
+   set jjsv_dist_script "$ts_config(product_root)/util/resources/jsv/jjsv.sh"
+   set jjsv_classpath "-cp $ts_config(source_dir)/CLASSES/jjsv/test/classes"
+   set jjsv_class "com.sun.grid.jsv.ts.JsvScriptTest"
+   create_shell_script $jjsv_filename $ts_config(master_host) "exec" "$jjsv_dist_script $jjsv_classpath $jjsv_class" "" "" "/bin/sh" 0 1 1 1
+
+   puts "$jjsv_filename"
 
    # TODO: Use correct path in test script !!!
    # How to do:
@@ -166,24 +176,32 @@ proc jsv_script_setup {} {
 
    # scripts to be tested for each run and corresponding names for messages
    if {1} {
-      lappend jsv_script_list [jsv_script_get_script_file "sh" "sh"]
-      lappend jsv_name_list "bourne shell"
+      lappend jsv_script_list [jsv_script_get_script_file "sh" "jsv" "sh"]
+      lappend jsv_name_list "Bourne Shell JSV"
       lappend jsv_enter_list "\r\n"
       lappend jsv_enter2_list "\r\n"
    }
 
    # test TCL JSV template
    if {1} {
-      lappend jsv_script_list [jsv_script_get_script_file "tclsh" "tcl"] 
-      lappend jsv_name_list "TCL"
+      lappend jsv_script_list [jsv_script_get_script_file "tclsh" "jsv" "tcl"] 
+      lappend jsv_name_list "TclJSV"
       lappend jsv_enter_list "\r\n"
       lappend jsv_enter2_list "\r\r\n"
    }
 
    # test Perl JSV template
    if {1} {
-      lappend jsv_script_list [jsv_script_get_script_file "perl" "pl"] 
-      lappend jsv_name_list "Perl"
+      lappend jsv_script_list [jsv_script_get_script_file "perl" "jsv" "pl"] 
+      lappend jsv_name_list "PerlJSV"
+      lappend jsv_enter_list "\r\n"
+      lappend jsv_enter2_list "\r\n"
+   }
+
+   # test Java JSV template
+   if {1} {
+      lappend jsv_script_list $jjsv_filename 
+      lappend jsv_name_list "JavaJSV"
       lappend jsv_enter_list "\r\n"
       lappend jsv_enter2_list "\r\n"
    }
@@ -737,10 +755,11 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
                lappend sequence_list 3
             }
             -i $spawn_id -re "^$jsv_enter" {
-               # simply ignor empty lines.
+               # simply ignore empty lines.
                exp_continue 
             }
             -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter2" {
+               # optional: local echo of send commands will not appear with Java JSV 
                lappend sequence_list 7
                exp_continue 
             }
@@ -769,9 +788,11 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
                exp_continue
             }
          }
-         set expected_sequence_list [list 0 10 11 6 7 9 1]
-         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
-            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         set expected_sequence_list0 [list 0 10 11 6 7 9 1]
+         set expected_sequence_list1 [list 0 10 11 6 9 1]
+         if {[string compare "$expected_sequence_list0" "$sequence_list"] != 0 
+             && [string compare "$expected_sequence_list1" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list0 or $expected_sequence_list1"
          }
          incr i
       }
@@ -848,6 +869,10 @@ proc jsv_script_start_begin_param_correct_quit {} {
                exp_continue 
             }
             -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter2" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM l_hard b,a=true$jsv_enter2" {
                lappend sequence_list 7
                exp_continue 
             }
@@ -958,14 +983,17 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
                exp_continue 
             }
             -i $spawn_id -re "^PARAM ac a=2,b=2$jsv_enter2" {
+               # optional step in case of Java JSV
                lappend sequence_list 7
                exp_continue 
             } 
             -i $spawn_id -re "^PARAM ac b=2,a=2$jsv_enter2" {
+               # optional step in case of Java JSV
                lappend sequence_list 7
                exp_continue 
             }
             -i $spawn_id -re "^PARAM ac a=2$jsv_enter2" {
+               # optional step in case of Java JSV
                lappend sequence_list 8
                exp_continue 
             }
@@ -1002,9 +1030,11 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
                exp_continue
             }
          }
-         set expected_sequence_list [list 0 12 13 6 7 8 9 11 1]
-         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
-            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         set expected_sequence_list0 [list 0 12 13 6 7 8 9 11 1]
+         set expected_sequence_list1 [list 0 12 13 6 9 11 1]
+         if {[string compare "$expected_sequence_list0" "$sequence_list"] != 0 &&
+             [string compare "$expected_sequence_list1" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list0 or $expected_sequence_list1"
          }
          incr i
       }
@@ -1188,12 +1218,18 @@ proc jsv_script_start_begin_env_reveice_mod {} {
                exp_continue 
             }
             -i $spawn_id -re "^RESULT STATE ACCEPT \(.*\)$jsv_enter2" {
-               #ts_log_info "Reject message is \"$expect_out(1,string)\""
+               # ts_log_info "Reject message is \"$expect_out(1,string)\""
                ts_send $spawn_id "QUIT\n"
                lappend sequence_list 4 
                exp_continue 
             }
             -i $spawn_id -re "^ENV MOD ENV_RESULT TRUE$jsv_enter2" {
+               lappend sequence_list 5 
+               exp_continue 
+            }
+            -i $spawn_id -re "^ENV ADD ENV_RESULT TRUE$jsv_enter2" {
+               # Java JSV recognizes that ENV MOD is ENV ADD because variable did not exist
+               # Therfore this can be handled as 5
                lappend sequence_list 5 
                exp_continue 
             }

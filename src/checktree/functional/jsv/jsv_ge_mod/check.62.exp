@@ -65,6 +65,7 @@ set check_cleanup_function jsv_ge_mod_cleanup
 set check_functions {}
 lappend check_functions "jsv_ge_mod_a"                
 lappend check_functions "jsv_ge_mod_ac"
+lappend check_functions "jsv_ge_mod_binding"
 lappend check_functions "jsv_ge_mod_A"               
 lappend check_functions "jsv_ge_mod_c"               
 lappend check_functions "jsv_ge_mod_ckpt"             
@@ -334,6 +335,10 @@ proc jsv_ge_mod_a {} {
 
 proc jsv_ge_mod_ac {} {
    jsv_ge_mod "ac" "-ac a=1"
+}
+
+proc jsv_ge_mod_binding {} {
+   jsv_ge_mod "binding" "-binding linear:1"
 }
 
 proc jsv_ge_mod_A {} {

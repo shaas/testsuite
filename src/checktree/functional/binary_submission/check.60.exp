@@ -233,7 +233,7 @@ proc binary_submission_check {} {
 
    set sleep_t 15
    set start_scenario 1
-   set end_scenario 99 
+   set end_scenario 99
    set job_id "-1"
 
    # interate through all scenarios
@@ -266,6 +266,7 @@ proc binary_submission_check {} {
          set data(replacement,0) "$ts_config(product_root)/examples/jobs/"
          create_path_aliasing_file $sge_aliases data 1
          set cwd_parameter "-cwd"
+         wait_for_remote_file $ts_config(master_host) $CHECK_USER $sge_aliases
       } else {
          set cwd_parameter ""
       }
@@ -311,7 +312,7 @@ proc binary_submission_check {} {
       #
       # try to submit job
       #
-      set output "bablick"
+      set output ""
       if {$sub_cmd == 0} {
          set job_id [submit_job $qsub_arguments 0]
       } elseif {$sub_cmd == 1} {
@@ -348,7 +349,7 @@ proc binary_submission_check {} {
          }
       } elseif {$sub_cmd == 1} {
          if {$result != 0 && $s_error == 0} {
-            ts_log_severe "unable to start job in scenario $scenario"
+            ts_log_severe "unable to start job in scenario $scenario. Command exited with following outout: $output"
             return
          } elseif {$result == 0 && $s_error == 1} {
             ts_log_severe "Submitted job which should be rej. in scenario $scenario"

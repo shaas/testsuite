@@ -2547,7 +2547,7 @@ proc set_config_and_propagate {config {host global} {do_reset 0}} {
          ts_log_fine "starting tail -1f $messages_name on host $conf_host ..."
          set tail_id [open_remote_spawn_process $conf_host $CHECK_USER [get_binary_path $conf_host "tail"] "-1f $messages_name"]
          set sp_id [lindex $tail_id 1]
-         set timeout 30
+         set timeout 40
          expect {
             -i $sp_id full_buffer {
                ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"

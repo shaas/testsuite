@@ -4173,7 +4173,7 @@ proc run_tests {path runcompleted} {
          set_root_passwd
       }
    }
-
+   
    # now run the checks
    set stop 0
    set pass_no 1
