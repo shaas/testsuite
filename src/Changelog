@@ -6,6 +6,12 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+EB-2009-11-18-0: Cleanup:    o review of EB-2009-11-14-0
+                             o function in cluster_procedures.tcl failed because
+                               current directory (./) is not part of my PATH
+                               therefore I added ./ to the command name 
+                 Review:     CR
+
 MD-2009-11-18-0: Enhancem.:  o added issue test for IZ 3271
                  Review:     HP
 
@@ -21,7 +27,7 @@ EB-2009-11-14-0: Bugfix:     o fixed parsing function of qstat -F to handle
                                set_config_and_propagate that regularely 
                                caused trouble in TS test when the run
                                on multiple virtual hosts on one physical host
-                 Review:     TBD
+                 Review:     CR 
 
 AP-2009-11-12-0: Bugfix:     manual tests adjustment.
                  Review:     LP

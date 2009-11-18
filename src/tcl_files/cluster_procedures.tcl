@@ -402,7 +402,7 @@ proc backup_remote_cluster_config {filename dir} {
       return -1
    }
 
-   set cmd "save_sge_config.sh"
+   set cmd "./save_sge_config.sh"
    set curr_dir "$ts_config(product_root)/util/upgrade_modules"
 
    set hostname $add_config(master_host)
