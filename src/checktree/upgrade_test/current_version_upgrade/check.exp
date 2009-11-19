@@ -223,6 +223,13 @@ proc current_version_upgrade_setup {} {
          set current_version_test_var(test_modes) $last_run(1)
          set current_version_test_var(test_features) $last_run(2)
          set current_version_test_var(test_spoolings) $last_run(3)
+#############################################################################
+#         This is for debugging, choose a test scenario manually
+#############################################################################
+#         set current_version_test_var(test_modes) "standard"
+#         set current_version_test_var(test_features) "ijs"
+#         set current_version_test_var(test_spoolings) "classic_NFS" 
+#############################################################################
       }
       200 {
          # all modes enabled
@@ -440,7 +447,7 @@ proc current_version_upgrade_cleanup {} {
 
    foreach bdb_server $current_version_test_var(started_bdb_servers) {
       ts_log_fine "shutdown started bdb rpc server on host $bdb_server ..."
-      shutdown_bdb_rpc $bdb_server 1
+      shutdown_bdb_rpc $bdb_server
    }
 
 
@@ -831,14 +838,14 @@ proc current_version_upgrade_test {} {
 
                   # Startup remote testsuite (temporary TS) to install the cluster (use operate_add_cluster())
                   # filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} {ignore_spool_switches 0} {additional_switches ""}
-                  set ret_val [operate_add_cluster $cloned_config_file "install" 120 "" rpc_retval 1 $additional_switches]
+                  set ret_val [operate_add_cluster $cloned_config_file "install" 180 "" rpc_retval 1 $additional_switches]
                   if {$ret_val != 0} {
                      ts_log_severe "error installing sge version which should be upgraded! Test abort!\nTest log:\n$test_log\n"
                      return
                   }
 
                   # Startup remote testsuite prepare some additional setup before upgrading the cluster
-                  set ret_val [operate_add_cluster $cloned_config_file "execute_func" 120 "cur_version_upgrade_test_create_additional_settings" rpc_retval 1 $additional_switches]
+                  set ret_val [operate_add_cluster $cloned_config_file "execute_func" 180 "cur_version_upgrade_test_create_additional_settings" rpc_retval 1 $additional_switches]
                   if {$ret_val != 0} {
                      ts_log_severe "error preparing additional settings for sge version which should be upgraded! Test abort!\nTest log:\n$test_log\n"
                      return
@@ -878,7 +885,7 @@ proc current_version_upgrade_test {} {
 
 
                   # Shutdown the cluster
-                  set ret_val [operate_add_cluster $cloned_config_file "kill" 120 "" rpc_retval 1 $additional_switches] 
+                  set ret_val [operate_add_cluster $cloned_config_file "kill" 180 "" rpc_retval 1 $additional_switches] 
                   if {$ret_val != 0} {
                      ts_log_severe "error shutting down sge version which should be upgraded! Test abort!\nTest log:\n$test_log\n"
                      return
@@ -947,13 +954,13 @@ proc current_version_upgrade_test {} {
 
                   # Startup remote testsuite and check correct installation
                   set verify_parameters "$add_settings_result(job_id) $cur_version(detected_version) $original_configuration_file $rotate_install_mode $rotate_features_setup $rotate_spooling_method"
-                  set ret_val [operate_add_cluster $after_update_config_file "execute_func" 120 "cur_version_upgrade_test_verify_additional_settings $verify_parameters" rpc_retval 1 $additional_switches]
+                  set ret_val [operate_add_cluster $after_update_config_file "execute_func" 180 "cur_version_upgrade_test_verify_additional_settings $verify_parameters" rpc_retval 1 $additional_switches]
                   if {$ret_val != 0} {
                      current_version_upgrade_log test_log "   ERRORS!\n$rpc_retval"
                   }
 
                   # Shutdown the system
-                  set ret_val [operate_add_cluster $after_update_config_file "kill" 120 "" rpc_retval 1 $additional_switches]
+                  set ret_val [operate_add_cluster $after_update_config_file "kill" 180 "" rpc_retval 1 $additional_switches]
                   if {$ret_val != 0} {
                      current_version_upgrade_log test_log "   Problem with shutdown of cluster"
                      ts_log_severe "Problem shutting down cluster after upgrading!\nTest abort!\nTest log:\n$test_log\n"
@@ -1137,6 +1144,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
    # java
    set JMX_ENABLE_JMX               [translate_macro DISTINST_ENABLE_JMX "*" ]
    set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
+   set JMX_JAVA_HOME_OR_NONE        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JAVA_HOME_OR_NONE] "*" ]
    set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS "*"]
    set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
    set JMX_SSL_QUESTION             [translate_macro DISTINST_JMX_SSL]
@@ -1163,9 +1171,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
    set return_value 0
    set timeout 60
    set old_log_user [log_user]
-   if {$do_log_output} {
-      log_user 1
-   }
+   log_user 1
    set script_exit_0_found 0
    set install_output ""
    expect {
@@ -1203,7 +1209,12 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          ts_log_severe "missing binary error"
          set return_value 1
       }
-
+      -i $sp_id -- "CRITICAL*\n" {
+         append install_output $expect_out(buffer)
+         ts_log_severe "found critical error: \"$expect_out(buffer)\"" 
+         log_user 1
+         exp_continue
+      }
       -i $sp_id -- "xit." {
          ts_log_severe "installation failed"
          set return_value 1
@@ -1218,9 +1229,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id " "
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1235,9 +1244,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id " "
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1249,9 +1256,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1263,9 +1268,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1277,9 +1280,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1291,9 +1292,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1305,9 +1304,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "${bckp_dir}\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1319,9 +1316,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1344,9 +1339,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1358,9 +1351,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ts_config(cell)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1372,9 +1363,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1386,9 +1375,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1400,9 +1387,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ts_config(commd_port)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1415,9 +1400,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$execd_port\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1429,9 +1412,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1450,9 +1431,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1464,9 +1443,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1478,9 +1455,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1494,9 +1469,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ts_config(cluster_name)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1513,9 +1486,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1528,9 +1499,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1542,9 +1511,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1561,9 +1528,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$input\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1576,9 +1541,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$input\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1590,10 +1553,8 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
           }
           ts_send $sp_id "\n"
           append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
-         exp_continue
+          log_user 1
+          exp_continue
       }
 
       -i $sp_id -- $DO_NOT_VERIFY_FILE_PERMISSIONS {
@@ -1604,9 +1565,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
           }
           ts_send $sp_id "\n"
           append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       } 
 
@@ -1620,9 +1579,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$spooling_method\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1640,9 +1597,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id $input
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1655,9 +1610,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "$ts_config(bdb_server)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1669,9 +1622,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1684,9 +1635,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1705,17 +1654,10 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-
             ts_send $sp_id "\n"
-
-            if {$do_log_output} {
-               log_user 1
-            }
-            append install_output $expect_out(buffer)
-         if {$do_log_output} {
             log_user 1
-         }
-         exp_continue
+            append install_output $expect_out(buffer)
+            exp_continue
          }
       }
 
@@ -1729,9 +1671,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$spooldir\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1753,9 +1693,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
             ts_send $sp_id "$spooldir\n"
          }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1778,9 +1716,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$my_answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1794,9 +1730,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "${myrange}\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1808,9 +1742,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1836,9 +1768,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
            ts_send $sp_id "\n"
          }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1864,9 +1794,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
            ts_send $sp_id "\n"
          }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1893,9 +1821,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
            ts_send $sp_id "\n"
          }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
        }
 
@@ -1922,9 +1848,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
            ts_send $sp_id "\n"
          }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1941,9 +1865,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$admin_mail\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1960,9 +1882,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$admin_mail\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1975,9 +1895,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -1989,9 +1907,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2004,9 +1920,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2019,9 +1933,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
 
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2033,9 +1945,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2054,9 +1964,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2068,9 +1976,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_YES\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2082,9 +1988,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_log_config "We received a failure during copy of certificates. This appears, when the\nrcp/scp command fails!"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2096,9 +2000,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_log_config "We received a rsh/ssh failure. This error happends, if the rsh/ssh connection\nto any execution host was not possible, due to the missing permissions for user\nroot to connect via rsh/ssh without entering a password. This warning shows,\nthat the tested error handling code is working. To prevent this warning make\nsure the you qmaster host allows rsh/ssh connction for root without asking for\na password." 
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
       
@@ -2115,9 +2017,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$my_answer\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2129,19 +2029,36 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
             ts_log_severe "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
             set return_value 1
          } else {
-            ts_log_fine "\n -->testsuite: sending java_home >$java_home<"
+            ts_log_fine "\n -->testsuite: sending java_home (1) >$java_home<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "$java_home\n"
             append install_output $expect_out(buffer)
-         if {$do_log_output} {
             log_user 1
-         }
-         exp_continue
+            exp_continue
          }
       }
+  
+      -i $sp_id $JMX_JAVA_HOME_OR_NONE {
+         # For the JMX MBean Server we need java 1.5+
+         set java_home [get_java_home_for_host $ts_config(master_host) "1.5+"]
+         if {$java_home == ""} {
+            ts_log_severe "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+            set return_value 1
+         } else {
+            ts_log_fine "\n -->testsuite: sending java_home (2) >$java_home<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$java_home\n"
+            append install_output $expect_out(buffer)
+            log_user 1
+            exp_continue
+         }
+      }        
 
       -i $sp_id -- $JMX_ADD_JVM_ARGS {
          ts_log_fine "\n -->testsuite: sending additional_jvm_args (defaults)"
@@ -2151,9 +2068,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2166,9 +2081,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ts_config(jmx_port)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2186,9 +2099,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "${enable_jmx_ssl}\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2206,9 +2117,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "${enable_jmx_ssl_client}\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2220,9 +2129,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2234,9 +2141,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ts_config(jmx_ssl_keystore_pw)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2250,13 +2155,8 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          ts_send $sp_id "$ANSWER_YES\n"
 
          # Workaround (the sge_ca script will disable output to stdout somehow)
-         if {$do_log_output} {
-            log_user 1
-         }
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2268,9 +2168,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2283,9 +2181,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2297,9 +2193,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$ANSWER_NO\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2311,9 +2205,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "DE\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2325,9 +2217,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "Bavaria\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2339,9 +2229,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "Regensburg\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2353,9 +2241,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "Sun Microsystems\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2367,9 +2253,7 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "Testsystem at qmaster port $ts_config(commd_port)\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
@@ -2386,18 +2270,14 @@ proc current_version_upgrade_perform_update { bckp_dir ts_config_array new_ijs} 
          }
          ts_send $sp_id "$CA_admin_mail\n"
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }
 
       -i $sp_id -- "_exit_status_:(0)" {
          set script_exit_0_found 1
          append install_output $expect_out(buffer)
-         if {$do_log_output} {
-            log_user 1
-         }
+         log_user 1
          exp_continue
       }       
 
@@ -2515,7 +2395,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(A)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2524,7 +2404,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(B)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2533,7 +2413,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(C)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2542,7 +2422,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ts_config(product_root) "(D)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2551,7 +2431,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ts_config(cell) "(E)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2560,7 +2440,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ts_config(cluster_name) "(F)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2569,7 +2449,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_YES "(G)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2579,7 +2459,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_NO "(H)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2589,7 +2469,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_YES "(I)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2598,7 +2478,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ts_config(bdb_server) "(J)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       } 
@@ -2607,7 +2487,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_YES "(K)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2617,7 +2497,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $spooldir "(L)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2626,7 +2506,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_YES "(M)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2635,7 +2515,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(N)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2644,7 +2524,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(O)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2653,7 +2533,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_NO "(P)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2663,7 +2543,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_NO "(Q)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2672,7 +2552,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id $ANSWER_NO "(R)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2681,7 +2561,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(S)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2690,7 +2570,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          current_version_upgrade_install_send_answer $sp_id "" "(T)" $do_log_output
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }
@@ -2699,7 +2579,7 @@ proc current_version_upgrade_install_rpc_bdb { ts_config_array } {
          set script_exit_0_found 1
          append install_output $expect_out(buffer)
          if {$do_log_output} {
-            log_user 1
+         log_user 1
          }
          exp_continue
       }   
