@@ -1,11 +1,15 @@
 ################################################################################
 # This is the Changelog for testsuite source code changes.                     #
 # Possible keywords: "Bugfix", "Belongs to", "Review", "Enhancem.",            #
-#                    "Merged from", "Cleanup", "Issue"                         #
+#                    "Merged from", "Cleanup", "Issue", "Adjustment"           #
 ################################################################################
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+CR-2009-11-20-1: Adjustment: corrected path to drmaa-test.jar which has changed
+                             for GE 62u5
+                 Review:     DG
 
 SH-2009-11-20-0: Enhancem.:  added issue test for IZ 3179
                  Review:     DG

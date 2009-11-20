@@ -541,13 +541,13 @@ proc set_java_classpath_according_to_runlevel {} {
    # add the drmaa-test.jar 
    if {$jdrmaa_test_05 == true} {
       if {$ts_config(gridengine_version) <= 60} {
-         set classpath "$classpath:$ts_config(source_dir)/CLASSES/drmaa-test.jar" 
+         set classpath "$classpath:[get_drmaa_test_jar]" 
       } else {
          # use modified testsuite drmaa-0.5 test jar, it contains fixes for GE >= 61
          set classpath "$classpath:$ts_config(testsuite_root_dir)/lib/drmaa-0.5-test.jar"
       }
    } else {
-     set classpath "$classpath:$ts_config(source_dir)/CLASSES/drmaa-test.jar"
+     set classpath "$classpath:[get_drmaa_test_jar]"
    }
    # add junit.jar: for every version the same path  
    set classpath "$classpath:$ts_config(testsuite_root_dir)/lib/junit.jar"
@@ -599,7 +599,7 @@ proc drmaaj_check { } {
    # suspendable_sleeper.sh
    set needed_files ""
    lappend needed_files $ts_config(product_root)/lib/drmaa.jar
-   lappend needed_files $ts_config(source_dir)/CLASSES/drmaa-test.jar
+   lappend needed_files [get_drmaa_test_jar]
    lappend needed_files $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
    set missing_files ""
 
@@ -610,7 +610,7 @@ proc drmaaj_check { } {
    }
 
    if {$missing_files != ""} {
-      ts_log_config "The following necessary files are missing: [string trim $missing_files]"
+      ts_log_severe "The following necessary files are missing: [string trim $missing_files]"
       return
    }
 
@@ -751,6 +751,27 @@ proc drmaaj_check { } {
       # go through all Java versions
    } 
    # repeat: check all hosts from hostlist 
+}
+
+proc get_drmaa_test_jar {} {
+   global ts_config
+   global CHECK_USER
+
+   set return_path ""
+   set path $ts_config(source_dir)/CLASSES/drmaa-test.jar
+   if {[is_remote_file $ts_config(master_host) $CHECK_USER $path]} {
+      set return_path $path
+   } else {
+      set path $ts_config(source_dir)/CLASSES/jdrmaa/drmaa-test.jar
+      if {[is_remote_file $ts_config(master_host) $CHECK_USER $path]} {
+         set return_path $path
+      }
+   }
+   if {$return_path == ""} {
+      ts_log_severe "cannot find path to drmaa-test.jar"
+   }
+   ts_log_fine "using trmaa-test.jar file $return_path"
+   return $return_path
 }
 
 
