@@ -9089,6 +9089,7 @@ proc get_detached_settings {{output_var result} {on_host ""} {as_user ""} {raise
 #
 #  INPUTS
 #     evc_name       - name of event client, e.g. "qsub"
+#                      (Its allowed to use reg expr. match synatx)
 #     {to_go_away 0} - default 0: return when client is connected
 #                      if 1: return when client is NOT connected
 #
@@ -9106,7 +9107,7 @@ proc wait_for_event_client { evc_name {to_go_away 0}} {
             set event_client [string trim [lindex $elem 1]]
             if {$event_client != "" && $event_client != "NAME"} {
                ts_log_fine "check event client \"$event_client\""
-               if {$event_client == $evc_name} {
+               if {[string match "$evc_name" $event_client]} {
                   incr found_event_client 1
                }
             }

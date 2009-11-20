@@ -6,6 +6,13 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+CR-2009-11-20-0: Bugfix:     o Fixed qsub test to support code changes for
+                               delayed reporting period of execds
+                             o Enhanced wait_for_event_client() to allow reg.
+                               expressions.
+                 Review:     DG
+
 LP-2009-11-20-0: Bugfix:     Fixed dbwriter/reporting install issue
                  Enhancem.:  Improved error logging
                  Review:     AP

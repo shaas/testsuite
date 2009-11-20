@@ -286,6 +286,9 @@ proc check_sync_failover {} {
    set text [translate_macro MSG_JAPI_QMASTER_DOWN]
    set text2 [translate_macro MSG_JAPI_RECONNECTED]
    shutdown_master_and_scheduler $ts_config(master_host) $spool_dir 
+   set timeout 660  ;# reconnect time might take some time 
+   # (TODO: reconfigure delayed job reporting time for execd somehow to speedup this test)
+   ts_log_fine "now waiting for qsub -sync job finished (this might take up to 10 minutes)"
    expect {
       -i $sp_id timeout {
          append error_text "Timeout in \"qconf -km after qsub -sync y\" test\n"
@@ -305,14 +308,18 @@ proc check_sync_failover {} {
          exp_continue
       }
       # Reconnected to qmaster 
-      $text2 {
+      -i $sp_id -- $text2 {
          ts_log_fine "Qsub output: Reconnected to qmaster."
          set recon 1
+         exp_continue
+      }
+      -i $sp_id -- "*_END_OF_FILE_" {
+         ts_log_fine "$expect_out(buffer)"
+         ts_log_fine "qsub -sync job finished"
       }
    }
-
    close_spawn_process $id 
-
+ 
    if {$output != 1} {
       append error_text "\"qconf -km after qsub -sync y\" FAILED due to an unexpected output\n"
       set error 1 
@@ -330,6 +337,7 @@ proc check_sync_failover {} {
    # qconf -kec after qsub -sync y
    set id [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 120"]
    set sp_id [lindex $id 1]
+   set timeout 120
    expect {
       -i $sp_id timeout {
          append error_text "Timeout in \"Qmaster down after qsub -sync y\" test\n"
@@ -371,6 +379,7 @@ proc check_sync_failover {} {
       }
       "_END_OF_FILE_" {
          set found_eof 1
+         ts_log_fine "found end of file of qsub -sync script"
       }
    }
    close_spawn_process $id 
@@ -400,13 +409,15 @@ proc check_sync_failover {} {
       set error 1
    }
    startup_qmaster 0
-   wait_for_event_client "schedd"
+   wait_for_event_client "sched*"
 
    # Qmaster down after qsub -sync y 
    ts_log_fine "Qmaster down after qsub -sync y test"
 
    del_event_client_list "all" ""
    wait_for_event_client "qsub" 1
+
+   wait_for_end_of_all_jobs 660  ;# qsub -sync jobs have delayed job reporting
 
    set id [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$arch/qsub" "-sync y $ts_config(product_root)/examples/jobs/sleeper.sh 120"]
    set sp_id [lindex $id 1]
@@ -473,7 +484,7 @@ proc check_sync_failover {} {
    close_spawn_process $id 
 
    delete_all_jobs
-   wait_for_end_of_all_jobs
+   wait_for_end_of_all_jobs 660   ;# qsub -sync jobs have delayed report time
    wait_for_event_client "qsub" 1
 
 
