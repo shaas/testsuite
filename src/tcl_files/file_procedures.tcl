@@ -1065,7 +1065,7 @@ proc read_file {filename array_name {wait_timeout 0}} {
 
    if {[file isfile $filename] != 1} {
       set data(0) 0
-      ts_log_finest "read_file - returning empty file data structure, no such file"
+      ts_log_finest "read_file - returning empty file data structure, no such file $filename"
       return
    }
    set file [open $filename "r"]

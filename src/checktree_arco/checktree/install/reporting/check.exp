@@ -87,8 +87,12 @@ proc arco_reporting_install {} {
       set args "$jdbc_driver_path $ts_config(product_root)/reporting/WEB-INF/lib"
       start_remote_prog "$arco_config(dbwriter_host)" $CHECK_USER "cp" "$args"
       if {$prg_exit_state != 0} {
-         ts_log_severe "copy jdbc driver failed"
-         return -1
+         set fs_server [fs_config_get_filesystem_server $ts_config(product_root)]
+         start_remote_prog $fs_server "root" "cp" $args
+         if {$prg_exit_state != 0} {
+            ts_log_severe "copy jdbc driver failed"
+            return -1
+         }
       }
    }
    
