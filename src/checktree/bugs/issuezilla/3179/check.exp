@@ -1,0 +1,278 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+#****** bugs/issuezilla/3179 *********************************************
+#
+#  NAME
+#     function -- test if qacct and qstat output are same on pe-jobs
+#
+#  FUNCTION
+#     This test monitors and checks the job usage reported by qstat -j  
+#     and qacct -j (cpu).
+#
+#     The following submit commands are used:
+#     - qsub
+#
+#***************************************************************************
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+global ts_config
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3179_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_3179"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   102
+set check_description(0)  "check cpu-usage of pe-jobs via qstat an qacct"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function "issue_3179_setup"
+set check_cleanup_function "issue_3179_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_3179_usage"
+
+proc issue_3179_init_level {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_3179_setup {} {
+   global ts_config
+   global saved_config
+   global pe_job_script
+
+   set pe_job_script "$ts_config(checktree_root_dir)/functional/usage/issue_3179.sh"
+   # backup old config
+   get_config saved_config
+
+   # set scheduler flushing params
+   set my_schedd_conf(flush_submit_sec) "1"
+   set_schedd_config my_schedd_conf 
+
+   # set global config params
+   set new_config(load_report_time) "0:0:5"
+   set_config_and_propagate new_config
+
+   # create parallel environments
+   set pe(slots)              5
+   set pe(user_lists)         none
+   set pe(xuser_lists)        none
+   set pe(start_proc_args)    none
+   set pe(stop_proc_args)     none
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   set pe(accounting_summary) "TRUE"
+   add_pe tight pe
+
+   set queue_conf(load_thresholds) "np_load_avg=11"
+   set queue_conf(pe_list)         "tight"
+   set queue_conf(slots)           5
+
+   # set memory limits
+   set queue_conf(h_vmem) "500M"
+   add_queue "usage.q" "@allhosts" queue_conf
+}
+
+proc issue_3179_cleanup {} {
+   global ts_config
+   global saved_config
+   global CHECK_USER
+   global pe_job_script
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # reset config
+   reset_config_and_propagate saved_config
+
+   reset_schedd_config
+   
+   del_queue usage.q "" 0 1
+
+   # remove pe's
+   del_pe tight
+
+   # remove pe_job_script
+   delete_remote_file $ts_config(master_host) $CHECK_USER $pe_job_script 
+}
+
+# -------- local test procedures: utilities --------------------------
+
+#****** check/create_pe_job_script() *******************************************
+#  NAME
+#     create_pe_job_script() -- creates a pe-job script 
+#
+#  SYNOPSIS
+#     create_pe_job_script { host slots } 
+#
+#  FUNCTION
+#     This function creates a pe job script similar to the one mentioned in 
+#     issuezilla 3179.
+#
+#  INPUTS
+#     host  - The host in which the script shold run afterwarts 
+#     slots - The number of different execds which should be used for qrsh calls
+#*******************************************************************************
+proc create_pe_job_script { host slots } {
+   global pe_job_script
+   global CHECK_USER
+   global ts_config
+
+   delete_remote_file $host $CHECK_USER $pe_job_script 
+   set clean_slots $slots
+
+   set exec_daemons [get_all_execd_hosts]   
+
+   set script_path [get_binary_path $host "sh"]
+   start_remote_prog $host $CHECK_USER "echo" "\"#!$script_path\" > $pe_job_script"
+   start_remote_prog $host $CHECK_USER "echo" "\"#$ -S $script_path\" >> $pe_job_script"
+   start_remote_prog $host $CHECK_USER "echo" "\". $ts_config(product_root)/$ts_config(cell)/common/settings.sh\" >> $pe_job_script"
+   foreach execd $exec_daemons {
+      if { $slots == 0 } {
+         break
+      }
+      start_remote_prog $host $CHECK_USER "echo" "\"qrsh -inherit $execd $ts_config(product_root)/examples/jobs/worker.sh &\" >> $pe_job_script"
+      set slots [expr $slots - 1]
+   }
+   start_remote_prog $host $CHECK_USER "echo" "\"sleep 150\" >> $pe_job_script"
+   start_remote_prog $host $CHECK_USER "chmod" "755 $pe_job_script"
+   wait_for_remote_file $host $CHECK_USER $pe_job_script
+
+   set output [start_remote_prog $host $CHECK_USER "cat" "$pe_job_script"]
+   ts_log_fine $output
+}
+
+# -------- local test procedures: tests ------------------------------
+
+#****** check/issue_3179_usage() ***********************************************
+#  NAME
+#     issue_3179_usage() -- test for issuezilla entry 3179 
+#
+#  SYNOPSIS
+#     issue_3179_usage { } 
+#
+#  FUNCTION
+#     This test starts an pe job and monitors the job usage of it via qstat -j.
+#     Afterwards the usage will be compared with the qacct -j output.
+#
+#*******************************************************************************
+proc issue_3179_usage {} {
+   global ts_config
+   global submit_command usage_master_hosts
+   global saved_config
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global pe_job_script
+    
+   set slots 0
+   set exec_daemons [get_all_execd_hosts]
+   
+   # find out how much different execds we have
+   foreach execd $exec_daemons {
+      incr slots 
+   }
+
+   set qstat_info 0
+
+   set master_host [host_conf_get_suited_hosts]
+   create_pe_job_script $master_host $slots
+
+   # submit created pe job
+   set id [submit_job "-pe tight $slots -N usage $pe_job_script" 1 60 $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "" 1] 
+   if { $id < 1 } {
+      ts_log_severe "could not start pe job"
+   }
+
+   wait_for_job_state $id "r" 60
+
+   # get qstat -j info every 2 seconds and save the result
+   while { [get_qstat_j_info $id qstat_j_info] == 1 } {
+      set found 0
+      # shortly after the job finished  the usage line disappears in the qstat output
+      # we have to check if it is still there otherwise we can break the loop
+      foreach key [array names qstat_j_info] {
+         if {[string compare [lindex $key 0] "usage"] == 0} {
+            set found 1
+         }
+      }
+      if { $found == 0 } {
+         break
+      }
+      set qstat_info [split $qstat_j_info(usage    1) ","]
+      set value_list [split [lindex $qstat_info 0] "="]
+      set qstat_info [parse_cpu_time [lindex $value_list 1]]
+      ts_log_fine "Job: $id with cpu usage: $qstat_info"
+      after 2000   
+   }
+   wait_for_job_end $id 
+   # allow not more then 10% difference
+   set qstat_info_limit [expr $qstat_info * 1.1]
+   get_qacct $id qacct_info
+   set qacct_cpu  $qacct_info(cpu)
+   
+   # compare the qstat output with the one of qacct
+   if { $qacct_info(cpu) < $qstat_info } {
+      ts_log_severe "qacct-output $qacct_info(cpu) is smaller then qstat online usage (cpu) $qstat_info"
+   } elseif { $qacct_info(cpu) > $qstat_info_limit } {
+      ts_log_severe "qacct-output $qacct_info(cpu) is >10% bigger then qstat online usage (cpu) $qstat_info"
+   } else {
+      ts_log_fine "CPU usage of job $id: qacct: $qacct_info(cpu) qstat: $qstat_info"   
+   }
+
+}

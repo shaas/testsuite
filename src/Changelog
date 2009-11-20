@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-11-20-0: Enhancem.:  added issue test for IZ 3179
+                 Review:     DG
+
 CR-2009-11-20-0: Bugfix:     o Fixed qsub test to support code changes for
                                delayed reporting period of execds
                              o Enhanced wait_for_event_client() to allow reg.
