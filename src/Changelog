@@ -7,6 +7,10 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+HP-2009-11-20-1: Bugfix:     Fixed qconf test with certain vi versions
+                             - Changed vi commands to insert new complexes
+                 Review:     CR
+
 CR-2009-11-20-1: Adjustment: corrected path to drmaa-test.jar which has changed
                              for GE 62u5
                  Review:     DG

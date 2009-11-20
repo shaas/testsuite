@@ -685,7 +685,7 @@ proc qconf_backslash_comma_output_check {} {
       set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $name "complex entry"]
       # add by handling vi
       set vi_commands ""
-      lappend vi_commands "O$name cv$count RESTRING == YES NO NONE 0[format "%c" 27]"
+      lappend vi_commands "1Gi$name cv$count RESTRING == YES NO NONE 0\n[format "%c" 27]"
       set master_arch [resolve_arch $ts_config(master_host)]
       handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $ADDED
       lappend names $name
