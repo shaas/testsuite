@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+HP-2009-11-22-0: Bugfix:     o Fixed issue_3179 test for more than 5 exec hosts
+                             o Improved performance of issue_3179 test
+                 Review:     MD
 
 HP-2009-11-20-1: Bugfix:     Fixed qconf test with certain vi versions
                              - Changed vi commands to insert new complexes

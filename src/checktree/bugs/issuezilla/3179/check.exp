@@ -110,7 +110,7 @@ proc issue_3179_setup {} {
    set_config_and_propagate new_config
 
    # create parallel environments
-   set pe(slots)              5
+   set pe(slots)              [llength [get_all_execd_hosts]]
    set pe(user_lists)         none
    set pe(xuser_lists)        none
    set pe(start_proc_args)    none
@@ -220,16 +220,10 @@ proc issue_3179_usage {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global pe_job_script
     
-   set slots 0
-   set exec_daemons [get_all_execd_hosts]
-   
-   # find out how much different execds we have
-   foreach execd $exec_daemons {
-      incr slots 
-   }
-
    set qstat_info 0
 
+   # submit one task to each exec host
+   set slots [llength [get_all_execd_hosts]]
    set master_host [host_conf_get_suited_hosts]
    create_pe_job_script $master_host $slots
 
