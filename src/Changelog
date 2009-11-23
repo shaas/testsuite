@@ -6,6 +6,10 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-11-23-0: Adjustment: o fixed shadowd_migrate test to support delayed 
+                               reporting period of execds for qsub -sync jobs
+                 Review:     SH
+
 HP-2009-11-22-0: Bugfix:     o Fixed issue_3179 test for more than 5 exec hosts
                              o Improved performance of issue_3179 test
                  Review:     MD
@@ -21,9 +25,9 @@ CR-2009-11-20-1: Adjustment: corrected path to drmaa-test.jar which has changed
 SH-2009-11-20-0: Enhancem.:  added issue test for IZ 3179
                  Review:     DG
 
-CR-2009-11-20-0: Bugfix:     o Fixed qsub test to support code changes for
+CR-2009-11-20-0: Adjustment: o Fixed qsub test to support code changes for
                                delayed reporting period of execds
-                             o Enhanced wait_for_event_client() to allow reg.
+                 Adjustment: o Enhanced wait_for_event_client() to allow reg.
                                expressions.
                  Review:     DG
 

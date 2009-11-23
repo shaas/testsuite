@@ -117,6 +117,8 @@ proc shadowd_migrate_setup  {} {
 
 proc shadowd_migrate_cleanup  {} {
    global ts_config
+   delete_all_jobs
+   wait_for_end_of_all_jobs 640
 }
 
 
@@ -387,7 +389,9 @@ proc shadowd_migrate_test {} {
 
          # This is for issue #3096 ( qsub -sync job ...)
          ts_log_fine "checking qsub -sync to terminate ..."
-         wait_for_end_of_all_jobs 140
+         # with delayed job reporting this will take at least 600 seconds
+         wait_for_end_of_all_jobs 640
+
          set timeout 90
          expect {
             -i $qsub_sync_spawn_id eof {
@@ -589,7 +593,9 @@ proc shadowd_migrate_test {} {
          
          # This is for issue #3096 ( qsub -sync job ...)
          ts_log_fine "checking qsub -sync to be reconnected to qmaster ..."
-         set timeout 200
+         # with delayed job reporting it will take up to 600 seconds until -sync client
+         # terminates
+         set timeout 660
          set is_reconnected 0
          expect {
             -i $qsub_sync_spawn_id eof {
