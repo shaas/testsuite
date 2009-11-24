@@ -6,6 +6,9 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-11-24-0: Enhancem.:  new test for issue 3185
+                 Review:     SH
+
 CR-2009-11-23-0: Adjustment: o fixed shadowd_migrate test to support delayed 
                                reporting period of execds for qsub -sync jobs
                  Review:     SH
