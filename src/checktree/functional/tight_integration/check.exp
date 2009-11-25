@@ -425,7 +425,7 @@ proc tight_integration_check_messages {mode1 mode2 scenario {expect_error 0}} {
       }
       ts_log_fine "tight integration check produced error messages and/or warnings"
    } else {
-      ts_log_fine "tight integration check produced no execd errors or warnings"
+      ts_log_fine "tight integration check produced no unexpected errors or warnings"
    }
 }
 
