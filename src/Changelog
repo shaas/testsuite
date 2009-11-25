@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-11-25-1: Bugfix:     tight_integration test reported error for qmaster 
+                             message logging for killed tightly parallel task
+                             in master_killed scenario which is not an error.
+                 Review:     DG
+
 TB-2009-11-25-0: Enhancem.:  o enhanced SDM components/executor/reload test
                                for issue 694
                              o enhanced create_bundle_string function to work

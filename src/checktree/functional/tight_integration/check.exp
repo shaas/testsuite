@@ -305,10 +305,13 @@ proc tight_integration_check_messages {mode1 mode2 scenario {expect_error 0}} {
          #
          # We need to blank out qmaster messages that originate from fault injection.
          # There is one check per fault injections scenario.
+         # 
+         # MSG_JOB_JOBTASKFAILED_S (tightly integrated parallel task*failed - killing job)
          #
          if {$scenario == "master_killed" && \
-               ([string match "*master task of job*" $message] == 1 || \
-                [string match "*died through signal KILL*" $message] == 1)} {
+               ([string match "*master task of job*" $message] == 1       || \
+                [string match "*died through signal KILL*" $message] == 1 ||  \
+                [string match "*tightly integrated parallel task*failed - killing job*" $message] == 1) } {
             set skip_message 1
          } elseif {($scenario == "wallclock_test" || \
                     $scenario == "slave_killed" ) && \
@@ -521,12 +524,12 @@ proc tight_integration_iz_1916 {} {
    set exit_now 0
 
    if {$CHECK_ACT_LEVEL != 0} {
-      ts_log_config "rescheduling not supported for qrsh"
+      ts_log_info "rescheduling not supported for qrsh"
       return
    }
 
    if {$ts_config(gridengine_version) == 53} {
-      ts_log_config "iz 1916 does not run in 5.3 systems"
+      ts_log_info "iz 1916 does not run in 5.3 systems"
       return
    }
 
