@@ -220,7 +220,6 @@ proc tight_integration_cleanup {} {
 # -------- local test procedures: initialization------------------------------
 
 proc tight_integration_parse_execd_messages {mode} {
-   global TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
    global tight_master_node
@@ -285,7 +284,6 @@ proc tight_integration_parse_execd_messages {mode} {
 
 
 proc tight_integration_check_messages {mode1 mode2 scenario {expect_error 0}} {
-   global TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
 
@@ -683,7 +681,7 @@ proc tight_integration_iz_575 {} {
    set sp_id [lindex $id 1]
    close_spawn_process $id
 
-   wait_for_jobend $jobid tightf 60 0 1
+   wait_for_jobend $jobid tightf 120 0 1
 
    # reset queue runtime limit
    set queue_conf(h_rt) "INFINITY"
@@ -772,7 +770,7 @@ proc tight_integration_master_killed {} {
    set sp_id [lindex $id 1]
    close_spawn_process $id
 
-   wait_for_jobend $jobid tightf 60 0 1
+   wait_for_jobend $jobid tightf 120 0 1
    #
    # Check for new warning/error messages and write out.
    #
@@ -804,6 +802,8 @@ proc tight_integration_slave_killed {} {
    set failures ""
    set ok_text ""
    while {[llength $hosts_to_check] > 0} {
+      set current_test_host [lindex $hosts_to_check 0]
+      ts_log_fine "\nTesting task killing on host $current_test_host"
       set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
       set started 0
@@ -824,6 +824,7 @@ proc tight_integration_slave_killed {} {
          set success 1
          # wait for job to be running
          wait_for_job_state $jobid "r" 120
+         ts_log_fine "all jobs started and are running - FINE"
 
          for {set i 0} {$i < [llength $ts_config(execd_nodes)]} {incr i 1} {
             ts_log_fine "task host $i: $info($i,host)"
@@ -843,7 +844,10 @@ proc tight_integration_slave_killed {} {
          set output [start_remote_prog $info($kill_task_nr,host) $CHECK_USER kill "-9 -$info($kill_task_nr,pid)"]
          ts_log_fine "kill as $CHECK_USER kill -9 -$info($kill_task_nr,pid)\n$output"
          if {![tight_integration_wait_for_delete_state $jobid 60]} {
+            append failures "did not see job $jobid in delete state!\n"
             set success 0
+         } else {
+            ts_log_fine "job $jobid is in delete state as expected - FINE"
          }
       } else {
          append failures "not all jobs seems to have started\n"
@@ -852,13 +856,15 @@ proc tight_integration_slave_killed {} {
       set sp_id [lindex $id 1]
       close_spawn_process $id
 
+      ts_log_fine "spawn id is now closed!"
       if {$success == 0} {
          append failures "failed slave task does not cause the job to be deleted when task was killed on host $info($kill_task_nr,host)\n"
          delete_job $jobid
       } else {
          append ok_text "successfully tested \"tight_integration_slave_killed\" on host $info($kill_task_nr,host)\n"
       }
-      wait_for_jobend $jobid tightf 60 0 1
+      wait_for_jobend $jobid tightf 120 0 1
+      ts_log_fine "=> list of hosts still to check: \"$hosts_to_check\"\n"
    }
    if {$failures != ""} {
       ts_log_severe "failures:\n$failures\ntest was ok for:\n$ok_text"
@@ -886,7 +892,8 @@ proc tight_integration_massive {} {
    # Cluster big enough?
    # We'll run the test anyways.
    if {$total_slots < $TIGHT_INTEGRATION_MASSIVE_SLOTS} {
-      ts_log_config "cannot start massive parallel job with $TIGHT_INTEGRATION_MASSIVE_SLOTS slots, using the maximum size provided by the cluster: $total_slots"
+      # TODO (CR): Why not simply add more slots to the queues?
+      ts_log_info "cannot start massive parallel job with $TIGHT_INTEGRATION_MASSIVE_SLOTS slots, using the maximum size provided by the cluster: $total_slots"
    }
 
    ts_log_fine "running parallel job with $total_slots slots"
@@ -920,7 +927,7 @@ proc tight_integration_massive {} {
 proc tight_integration_massive_nfs_tmpdir {} {
    global ts_config
    global CHECK_USER
-   global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
+   global TIGHT_INTEGRATION_MASSIVE_DURATION
    global submit_command tight_masterq tight_master_node
    ts_log_fine "tight_integration: massive parallel test with tmpdir on NFS"
 
@@ -1031,7 +1038,7 @@ proc tight_integration_acct {job_id num_tasks} {
 
 proc tight_integration_massive_short {} {
    global ts_config
-   global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
+   global TIGHT_INTEGRATION_MASSIVE_DURATION
    global submit_command tight_masterq tight_master_node
 
    ts_log_fine "tight_integration: massive parallel test with short tasks"

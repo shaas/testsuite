@@ -100,7 +100,7 @@ proc tight_integration_monitor {id master_node started_var finished_var jobid_va
    set timeout 180
 
    set unexpected_output ""
-   
+
    expect_user {
       -i $sp_id timeout {
          ts_log_severe "timeout waiting for tasks output (tight integration)"
@@ -153,7 +153,7 @@ proc tight_integration_monitor {id master_node started_var finished_var jobid_va
                      set ret "master submitted"
                   }
                   "master task exiting*" {
-                     ts_log_fine "job $jobid exited"
+                     ts_log_fine "job $jobid exited (master task finished)"
                      set ret "master finished"
                   }
                   "NSLOTS ??? NHOSTS ??? NQUEUES*" {

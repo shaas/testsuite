@@ -44,9 +44,12 @@ echo "master task submitted all sub tasks"
 # we do multiple wait calls, as wait gets interrupted
 # when signals are received, even when they are trapped
 # see tight_integration check, tight_integration_notify
-wait
-wait
-wait
+# We do a double wait for each started pe task to be sure
+# not to finish master task before all tasks have finished
+for host in $HOSTSLOTS; do
+   wait
+   wait
+done
 
 if [ "$sleep_after" != "" ]; then
    echo "sleeping $sleep_after seconds ..."
