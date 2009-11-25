@@ -6,6 +6,14 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+
+TB-2009-11-25-0: Enhancem.:  o enhanced SDM components/executor/reload test
+                               for issue 694
+                             o enhanced create_bundle_string function to work
+                               with parameters with formatting info (like
+                               {0,number,integer}) in bundle strings
+                 Review:     RH
+
 CR-2009-11-25-0: Bugfix:     Fixed problems in master task job for tight
                              integration tests. The master task not always 
                              finished after the slave tasks have finished.

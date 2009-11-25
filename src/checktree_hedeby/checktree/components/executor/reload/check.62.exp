@@ -88,11 +88,6 @@ lappend check_functions "executor_reload_check"
 
 # ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
 
-# name of the host where the executor runs
-global executor_reload_host
-
-set executor_reload_host ""
-
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 # (the init level procedure defines which runlevels are supported)
@@ -119,14 +114,15 @@ proc executor_reload_init_level {} {
 #    executor_reload_setup { } 
 #
 #  FUNCTION
-#     Searchs the first running executor of the hedeby system
-#     and store the host of the executor in the global 
-#     variable executor_reload_host
+#     Randomly choose a host that is in spare pool for executor reload, store in
+#     test context this(host).
+#
+#     This test is skipped for USER preferences or if the lib/sdm-test.jar is
+#     not present.
 #
 #*******************************************************************************
 proc executor_reload_setup {} {
    global hedeby_config
-   global executor_reload_host
    global check_name
 
    upvar #0 executor_reload_ctx this
@@ -139,9 +135,12 @@ proc executor_reload_setup {} {
             doesn't contain sdm-test.jar file in ./lib directory"
       return 99
    }
+   # skip if user mode (can't switch user for sdmadm exe)
+   if { [get_hedeby_pref_type] == "user" } {
+      ts_log_config "Skipping test $check_name: Can't run with user preferences."
+      return 99
+   }
 
-
-   ts_log_fine "doing setup"
    set this(host)  [pick_random [get_all_spare_pool_resources]]
 }
 
@@ -160,8 +159,7 @@ proc executor_reload_setup {} {
 proc executor_reload_cleanup {} {
    upvar #0 executor_reload_ctx this
   
-   ts_log_fine "doing cleanup ..."
-   hedeby_executor_set_keep_files $this(host) false
+   hedeby_executor_set_keep_files $this(host) "false"
 
    unset this
 }
@@ -177,105 +175,262 @@ proc executor_reload_cleanup {} {
 #
 #  FUNCTION
 #
-#  This test checks reconfiguring the executor component. It detail
-#  it performs the following steps:
+#  This test checks reconfiguring the executor component.
+#  It performs the following steps on $this(host):
 #
-#  - Choose any running executor and set the keep files flag in the configuration
-#  - reload the executor
-#  - execute a shell script over the executor
-#  - check thate the files are available in the spool dir of the executor
-#  - reset the keep files flag
-#  - reload the executor
-#  - execute the script again
-#  - check the the scripts has disappeared 
+#  o Set the keep files flag of the executor, reload and cleanup temp dir
+#  o successfully execute a shell command over the executor
+#  o check that one dir in executor temp dir is available
+#  o successfully execute a shell command over the executor as sgetest1 user
+#  o successfully execute a script command over the executor
+#  o successfully execute a script command over the executor as sgetest1 user
+#  o check that 4 directories are available in executor temp dir
+#  o reset the keep files flag, reload and cleanup temp dir
+#  o successfully execute a shell command again
+#  o successfully execute a script command again
+#  o check that no temp dirs are kept
 #
 #*******************************************************************************
 proc executor_reload_check {} {
    upvar #0 executor_reload_ctx this
-   global CHECK_USER
 
-   set sdmadm_command_line "exe -h $this(host) -e \"pwd\""
+   # get the location of the test script file for this test
+   global ts_config ts_user_config
+   set script_file_name "executor_reload_test.sh"
+   set script_file "$ts_config(testsuite_root_dir)/checktree_hedeby/scripts/$script_file_name"
+   set test_user   "$ts_user_config(first_foreign_user)" ; # sgetest1
+
+   set shell_command_args  "-e pwd"
+   set script_command_args "-script '$script_file'"
+   set as_other_user       "-u $test_user"
 
    #---------------------------------------------------------------------------
-   ts_log_heading "Setting keepFiles flag on executor at host '$this(host)'"
-   #---------------------------------------------------------------------------
- 
-   # set the keep files flag of the executor to true
-   if { [hedeby_executor_set_keep_files $this(host) true] != 0 } {
-      # error message has already been reported
-      return 1
-   }
-   
-   # Cleanup the executors spool directory
-   if { [hedeby_executor_cleanup $this(host)] != 0 } {
-      # error message has already been reported
+   if { [executor_reload_set_keep_files_and_cleanup "true"] != 0 } {
       return 1
    }
    
    #---------------------------------------------------------------------------
    ts_log_heading "Executing pwd command on executor on host '$this(host)'"
    #---------------------------------------------------------------------------
-   set output [sdmadm_command_opt "exe -h $this(host) -e pwd"]
-   if { $prg_exit_state != 0 } {
+   if { [executor_reload_exe $shell_command_args] != 0 } {
       return 1
    }
 
    #---------------------------------------------------------------------------
-   ts_log_heading "Checking that files in the tmp directory of the executor exists"
+   ts_log_heading "Checking that there is one directory in the tmp directory of the executor"
    #---------------------------------------------------------------------------
-   set local_spool_dir [get_hedeby_local_spool_dir $this(host)]
-   set output [start_remote_prog $this(host) $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "Can not execute a command on executor on host $this(host)\nOutput is \n$output"
-   } else { 
-      set output [string trim $output]
-      if { $output == "0" } {
-         set error_text "It seems that settings keepFiles flag to true for executor on host $this(host) has no effect\n"
-         append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
-         ts_log_severe $error_text
+   if { [executor_reload_count_executor_temp_dirs] != 1 } {
+         ts_log_severe "Expected 1 directory in executor tmp dir on '$this(host)', but found [executor_reload_count_executor_temp_dirs] directories."
+         return 1
+   }
+
+   #---------------------------------------------------------------------------
+   ts_log_heading "Executing pwd command on executor on host '$this(host)' as user '$test_user'"
+   #---------------------------------------------------------------------------
+   if { [executor_reload_exe "$shell_command_args $as_other_user"] != 0 } {
+      return 1
+   }
+
+   #---------------------------------------------------------------------------
+   ts_log_heading "Executing script file '$script_file' on executor on host '$this(host)'"
+   #---------------------------------------------------------------------------
+   if { [executor_reload_exe $script_command_args output] != 0 } {
+      return 1
+   }
+   # ... and check output (ls -l)
+   if { [regexp -line ".*$script_file_name" $output match] == 0 } {
+      # no match,  can't find ls -l output
+      ts_log_severe "No 'ls -l' output found while executing script file '$script_file'\noutput=$output"
+      return 1
+   } else {
+      set exp_file_permissions "-rwxr--r--"
+      if { [string match "$exp_file_permissions*" [string trim $match]] == 0 } {
+         # no match, wrong file permissions
+         ts_log_severe "Wrong file permissions found in 'ls -l' output: expected '$exp_file_permissions' not found in '$match'"
+         return 1
+      }
+   }
+
+   #---------------------------------------------------------------------------
+   ts_log_heading "Executing script file '$script_file' on executor on host '$this(host)' as user '$test_user'"
+   #---------------------------------------------------------------------------
+   if { [executor_reload_exe "$script_command_args $as_other_user" output] != 0 } {
+      return 1
+   }
+   # ... and check output (id output, ls -l)
+   if { [regexp "uid=\[0-9\]+\\($test_user\\)" $output] == 0 } {
+      # no match, wrong user
+      ts_log_severe "Script file '$script_file' did not execute with user '$test_user': sdmadm exe -h $this(host) $script_command_args $as_other_user produced output:\n$output"
+      return 1
+   }
+   if { [regexp -line ".*$script_file_name" $output match] == 0 } {
+      # no match,  can't find ls -l output
+      ts_log_severe "No 'ls -l' output found while executing script file '$script_file'\noutput=$output"
+      return 1
+   } else {
+      set exp_file_permissions "-rwxr--r--"
+      if { [string match "$exp_file_permissions*" [string trim $match]] == 0 } {
+         # no match, wrong file permissions
+         ts_log_severe "Wrong file permissions found in 'ls -l' output: expected '$exp_file_permissions' not found in '$match'"
+         return 1
       }
    }
    
    #---------------------------------------------------------------------------
-   ts_log_heading "Clearing keepFiles flag on executor at host '$this(host)'"
+   ts_log_heading "Checking that there are 4 directories in the tmp directory of the executor"
    #---------------------------------------------------------------------------
-   # set the keep files flag of the executor to false
-   if { [hedeby_executor_set_keep_files $this(host) false] != 0 } {
-      # error message has already been reported
-      return 1
+   if { [executor_reload_count_executor_temp_dirs] != 4 } {
+         ts_log_severe "Expected 4 directories in executor tmp dir on '$this(host)', but found [executor_reload_count_executor_temp_dirs] directories."
+         return 1
    }
-   
-   # Cleanup the executors spool directory
-   if { [hedeby_executor_cleanup $this(host)] != 0 } {
-      # error message has already been reported
+
+   #---------------------------------------------------------------------------
+   if { [executor_reload_set_keep_files_and_cleanup "false"] != 0 } {
       return 1
    }
    
    #---------------------------------------------------------------------------
    ts_log_heading "Executing pwd command on executor on host '$this(host)'"
    #---------------------------------------------------------------------------
-   set output [sdmadm_command_opt "exe -h $this(host) -e pwd"]
-   if { $prg_exit_state != 0 } {
+   if { [executor_reload_exe $shell_command_args] != 0 } {
       return 1
    }
    
    #---------------------------------------------------------------------------
-   ts_log_heading "Checking that no files in the tmp directory of the executor exists"
+   ts_log_heading "Checking that there are no files in the tmp directory of the executor"
    #---------------------------------------------------------------------------
-   set local_spool_dir [get_hedeby_local_spool_dir $this(host)]
-   set output [start_remote_prog $this(host) $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "Can not execute a command on executor on host $this(host)\nOutput is \n$output"
-   } else { 
-      set output [string trim $output]
-      if { $output != "0" } {
-         set error_text "It seems that settings keepFiles flag to false for executor on host $this(host) has no effect\n"
-         append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
-         ts_log_severe $error_text
-      }
+   if { [executor_reload_count_executor_temp_dirs] != 0 } {
+         ts_log_severe "Expected no directory in executor tmp dir on '$this(host)', but found [executor_reload_count_executor_temp_dirs] directories."
+         return 1
    }
-   
 }
 
+
+#****** check/executor_reload_set_keep_files_and_cleanup() **************************************************
+#  NAME
+#    executor_reload_set_keep_files_and_cleanup() -- set keepFiles flag and cleanup the temp directory of an executor
+#
+#  SYNOPSIS
+#    executor_reload_set_keep_files_and_cleanup { keep_files } 
+#
+#  FUNCTION
+#     This function sets the keepFiles flag to $keep_files in the executor
+#     configuration of $this(host) and calls "sdmadm exe -e cleanup" to clean
+#     up the temp directory of the executor on $this(host).
+#
+#     Needs access to the exe command and thus lib/sdm-test.jar
+#
+#  INPUTS
+#    keep_files -- the value to set for keepFiles in executor config on $this(host)
+#                  true or false
+#
+#  RESULT
+#     0 on success, else error
+#
+#  SEE ALSO
+#     util/hedeby_executor_set_keep_files()
+#*******************************************************************************
+proc executor_reload_set_keep_files_and_cleanup { keep_files } {
+   upvar #0 executor_reload_ctx this
+
+   ts_log_heading "Setting keepFiles='$keep_files' and doing executor dir cleanup on executor at host '$this(host)'"
+ 
+   # set the keep files flag of the executor
+   if { [hedeby_executor_set_keep_files $this(host) $keep_files] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # Cleanup the executors spool directory
+   sdmadm_command_opt "exe -h $this(host) -e cleanup"
+   return $prg_exit_state
+}
+
+
+#****** check/executor_reload_count_executor_temp_dirs() ********************
+#  NAME
+#     executor_reload_count_executor_temp_dirs() -- count the number of
+#                                  temporary directories created by executor
+#
+#  SYNOPSIS
+#     executor_reload_count_executor_temp_dirs { } 
+#
+#  FUNCTION
+#     Returns the number of files/directories in the executor temporary
+#     directory on $this(host).
+#
+#  RESULT
+#     The number of directories or -1 in case of an error.
+#
+#*******************************************************************************
+proc executor_reload_count_executor_temp_dirs { } {
+   upvar #0 executor_reload_ctx this
+   global CHECK_USER
+
+   set local_spool_dir [get_hedeby_local_spool_dir $this(host)]
+   set output [start_remote_prog $this(host) $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Can not execute a command on executor on host $this(host)\nOutput is \n$output"
+      return -1
+   } else { 
+      set count [string trim $output]
+      return $count
+   }
+}
+
+#****** check/executor_reload_exe() *****************************************
+#  NAME
+#     executor_reload_exe() -- executes an 'sdmadm exe' command and checks return values
+#
+#  SYNOPSIS
+#     executor_reload_exe { add_args {output_var ""} } 
+#
+#  FUNCTION
+#     Execute on host $this(host) an 'sdmadm exe' command with the additional arguments.
+#
+#     Checks also that the exit code of the executed script or command is 0.
+#
+#     Can return the output of the sdmadm 
+#
+#  INPUTS
+#     add_args        - additional arguments to the exe command, like
+#                       "-e shell_command" or "-script shell_script"
+#     {output_var ""} - Returns the output of sdmadm command in this variable
+#
+#  RESULT
+#     0 on successful execution, 1 on error
+#     Returns the output of the sdmadm command if parameter output_var is set
+#*******************************************************************************
+proc executor_reload_exe { add_args {output_var ""} } {
+   upvar #0 executor_reload_ctx this
+
+   set output [sdmadm_command_opt "exe -h $this(host) $add_args"]
+   if { $prg_exit_state != 0 } {
+      return 1
+   }
+
+   # check output for 0 exit code
+   #   this exit_code_pattern works as the bundle string does not contain any
+   #   meta characters that are interpreted by TCL regular expressions
+   set exit_code_pattern [create_bundle_string "result.exitValue" dummy "(\[0-9\]+)" ]
+   if { [regexp $exit_code_pattern $output whole_match exit_code] == 0 } {
+      # no match
+      ts_log_severe "No exit code (pattern=$exit_code_pattern) found in exe command output:\n$output"
+      return 1
+   }
+
+   if { $exit_code != 0 } {
+      # non zero exit code from executed command
+      ts_log_severe "The exit code of 'exe $add_args' was not 0 but $exit_code."
+      return 1
+   }
+
+   if { $output_var != "" } {
+      upvar $output_var output_upvar
+      set output_upvar $output
+   }
+
+   return 0
+}
 
 

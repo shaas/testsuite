@@ -892,34 +892,38 @@ proc exists_bundle_string { id } {
 #*******************************************************************************
 proc create_bundle_string { id {params_array "params"} {default_param ""} } {
    upvar $params_array params
+
+   # A parameter in a bundle string looks like this: {\d+(,\w+)*}
+   # where \d+ matches the parameter index (starting at 0)
+   set param_regex {\{([0-9]+)(,[^\}]+)?\}}
+
    # get bundle string
    set bundle_string [get_bundle_string $id]
+   ts_log_finer "bundle string for id $id='$bundle_string'"
+
+   # handle case of $default_param set
+   if { $default_param != "" } {
+      set result_string [regsub -all $param_regex $bundle_string $default_param]
+      ts_log_finer "result string for id $id='$result_string'"
+      return $result_string
+   }
+
    set result_string $bundle_string
-
-   # ts_log_fine "bundle string: \"$result_string\""
-   # get number of params in bundle string
-   set i 0
-   while { [string match "*{$i}*" $bundle_string] } {
-      incr i 1
-   }
-   # ts_log_fine "bundle string has $i parameter"
-   for { set x 0 } { $x < $i } { incr x 1 } {
-      set par_start [string first "{$x}" $result_string]
-      set par_end $par_start
-      incr par_end 2
-
-      if { $default_param != "" } {
-         set param_string $default_param
-      } elseif { [info exists params($x)] } {
-         set param_string $params($x)
+   while { [regexp $param_regex $result_string dummy i] == 1 } {
+      # now i contains the number of the {i} pattern
+      #   => determine replacement string
+      if { [info exists params($i)] } {
+         set replace_str $params($i)
       } else {
-         add_proc_error "create_bundle_string" -1 "parameter $x is missing in params array"
-         set param_string "{$x}"
+         ts_log_severe "No entry for parameter $i in params_array: bundle string=$bundle_string"
+         set replace_str "{$i}"
       }
-      set result_string [string replace $result_string $par_start $par_end $param_string]
-      #ts_log_fine "result $x: \"$result_string\""
+
+      # get the position of the match and replace it
+      set result_string [regsub $param_regex $result_string $replace_str]
+      ts_log_finer "new result string iteration=$result_string"
    }
-   # ts_log_fine "output string: \"$result_string\""
+   ts_log_finer "result string for id $id='$result_string'"
    return $result_string
 }
 
@@ -8332,32 +8336,6 @@ proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "
 }
 
 
-#****** check/hedeby_executor_cleanup() **************************************************
-#  NAME
-#    hedeby_executor_cleanup() -- cleanup the temp directory of an executor
-#
-#  SYNOPSIS
-#    hedeby_executor_cleanup { executor_host { executor_name "executor" } } 
-#
-#  FUNCTION
-#     This method calls "sdmadm exe cleanup" to clean up the temp directory of an executor.
-#
-#  INPUTS
-#    executor_host --  the host where the executor runs
-#    executor_name --  name of the executor (optional, default is "executor")
-#
-#  RESULT
-#     0  exit code of the "sdmadm exe cleanup" command 
-#
-#*******************************************************************************
-proc hedeby_executor_cleanup { executor_host { executor_name "executor" } } {
-   set output [sdmadm_command_opt "exe -h $executor_host -e cleanup"]
-   if { $prg_exit_state != 0 } {
-      return $prg_exit_state
-   }
-   return 0
-}
-
 #****** util/compare_resource_infos() ******************************************
 #  NAME
 #     compare_resource_infos() -- compare two resource infos
@@ -8761,8 +8739,8 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
    set call_opts(raise_error) $raise_error
 
    # Setup expected service infos (used twice in this procedure)
-   set exp_serv_info(spare_pool,cstate) "STARTED"
    if {$services == "all"} {
+      set exp_serv_info(spare_pool,cstate) "STARTED"
       foreach service $service_names(services) {
          set exp_serv_info($service,cstate) "STARTED"
       }
@@ -8864,8 +8842,7 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
             ts_log_fine "skip resource name \"$tnot_avail\""
             continue
          }
-         set out_res [resolve_host $out_res]
-         ts_log_fine "service \"$out_ser\" has slo \"$out_slo\" defined for resource \"$out_res\" with a usage of \"$out_usa\" - fine"
+         ts_log_fine "service \"$out_ser\" has slo \"$out_slo\" defined for resource \"$out_res\" with a usage of \"$out_usa\""
          if {$out_usa != $expected_usage} {
             append error_text "Defined usage of service \"$out_ser\" resource \"$out_res\" is set to \"$out_usa\", should be \"$expected_usage\"\n"
          }
