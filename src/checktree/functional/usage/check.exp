@@ -261,8 +261,9 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
 
    set sp_id [lindex $id 1]
    set timeout $my_timeout
-   
-   expect_user {
+ 
+#   log_user 1  
+   expect {
       -i $sp_id timeout {
          if {$timeout_error} {
             ts_log_severe "timeout waiting for tasks output (usage)"
@@ -277,71 +278,72 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
       }
       -i $sp_id eof {
          set ret "eof"
+         ts_log_fine "got eof"
       }
       # workaround for a feature lacking in expect:
       # We have to parse complete lines.
       # expect_user ensures only that expect will parse input up to a newline,
       # but there seems to be no way to tell expect we want to examine each
       # individual line.
-      -i $sp_id "?*\n" {
-         #ts_log_fine "entered default branch, data: $expect_out(0,string)"
+      -i $sp_id -- "*\n" {
          foreach line [string trim [split $expect_out(0,string) "\n"]] {
             set line [string trim $line]
-            if {[string length $line] > 0} {
-               #ts_log_fine "processing line: $line"
-               switch -glob -- $line {
-                  "starting with method *" {
-                     incr started
-                     ts_log_fine "usage script started"
-                     set ret "task started"
-                  }
-                  "petask ??? with pid ???????? started on host*" {
-                     set task [lindex $line 1]
-                     lappend info(tasks) $task
-                     set info($task,pid) [lindex $line 4]
-                     set info($task,host) [lindex $line 8]
-                     incr started
-                     ts_log_fine "task $task started, total started: $started"
-                     set ret "task started"
-                  }
-                  "petask ??? with pid ???????? finished*" {
-                     set task [lindex $line 1]
-                     incr finished
-                     ts_log_fine "task $task finished, total finished: $finished"
-                     set ret "task finished"
-                  }
-                  "master task started with job id ?????? and pid*" {
-                     set jobid [lindex $line 6]
-                     lappend info(tasks) master
-                     set info(master,pid) [lindex $line 9]
-                     set info(master,host) $master_host
-                     ts_log_fine "job $jobid started"
-                     set ret "master started"
-                  }
-                  "master task submitted all sub tasks*" {
-                     ts_log_fine "master task submitted all tasks"
-                     set ret "master submitted"
-                  }
-                  "master task exiting*" {
-                     ts_log_fine "job $jobid exited"
-                     set ret "master finished"
-                  }
-                  "NSLOTS ??? NHOSTS ??? NQUEUES*" {
-                     set ret "task running"
-                  }
-                  "_start_mark_:(*)*" {
-                     ts_log_fine "got start mark from remote prog shell script"
-                  }
-                  "_exit_status_:(*)*" {
-                     ts_log_fine "got exit status from remote prog shell script"
-                  }
-                  "script done.*" {
-                     ts_log_fine "got \"script done.\" from remote prog shell script"
-                  }
+            if {$line == ""} {
+               continue
+            }
+            ts_log_fine "processing line: $line"
+            switch -glob -- $line {
+               "starting with method *" {
+                  incr started
+                  ts_log_fine "usage script started"
+                  set ret "task started"
+               }
+               "petask ??? with pid ???????? started on host*" {
+                  set task [lindex $line 1]
+                  lappend info(tasks) $task
+                  set info($task,pid) [lindex $line 4]
+                  set info($task,host) [lindex $line 8]
+                  incr started
+                  ts_log_fine "task $task started, total started: $started"
+                  set ret "task started"
+               }
+               "petask ??? with pid ???????? finished*" {
+                  set task [lindex $line 1]
+                  incr finished
+                  ts_log_fine "task $task finished, total finished: $finished"
+                  set ret "task finished"
+               }
+               "master task started with job id ?????? and pid*" {
+                  set jobid [lindex $line 6]
+                  lappend info(tasks) master
+                  set info(master,pid) [lindex $line 9]
+                  set info(master,host) $master_host
+                  ts_log_fine "job $jobid started"
+                  set ret "master started"
+               }
+               "master task submitted all sub tasks*" {
+                  ts_log_fine "master task submitted all tasks"
+                  set ret "master submitted"
+               }
+               "master task exiting*" {
+                  ts_log_fine "job $jobid exited"
+                  set ret "master finished"
+               }
+               "NSLOTS ??? NHOSTS ??? NQUEUES*" {
+                  set ret "task running"
+               }
+               "_start_mark_:(*)*" {
+                  ts_log_fine "got start mark from remote prog shell script"
+               }
+               "_exit_status_:(*)*" {
+                  ts_log_fine "got exit status from remote prog shell script"
+               }
+               "script done.*" {
+                  ts_log_fine "got \"script done.\" from remote prog shell script"
+               }
 
-                  default {
-                     ts_log_fine "skipping unexpected job output $line"
-                  }
+               default {
+                  ts_log_fine "skipping unexpected job output $line"
                }
             }
          }
@@ -464,29 +466,34 @@ proc max {a b} {
 
 proc usage_monitor_check {id test_name slots acct_slots wallclock} {
    global CHECK_ACT_LEVEL
+   global ts_config
    set started 0
    set finished 0
    set jobid 0
    set job_finished 0
    set my_timeout 180
    set timeout_error 1
-   if [info exists qstat_j_info] {
-      unset qstat_j_info
-   }
    set online_info(cpu) 0
    set online_info(mem) 0
    set online_info(maxvmem) 0
    set now [clock seconds]
    set end [expr $now + 300]
+   set do_qstat 1
    while {$job_finished == 0 && $now < $end} {
       set job_state [usage_monitor_job $id started finished jobid info $my_timeout $timeout_error]
       set job_finished [usage_job_finished $job_state]
-
-      if {$started > 0 && $job_finished == 0} {
+      if {$started > 0 && $job_finished == 0 && $jobid != 0} {
+         if {$do_qstat == 1} {
+            if {$ts_config(gridengine_version) >= 62} {
+               set foutput [start_sge_bin "qstat" "-f -u \"*\" -g t"]
+               ts_log_fine "qstat -f output:\n$foutput"
+            }
+            set do_qstat 0
+         }
          set my_timeout 1
          set timeout_error 0
          if {![get_qstat_j_info $jobid]} {
-            ts_log_severe "job terminated abnormally"
+            ts_log_severe "job terminated abnormally (1)"
             set job_finished 1
          } else {
             # get online usage
@@ -514,16 +521,42 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
       } else {
          ts_log_fine "job state: $job_state"
       }
-
       set now [clock seconds]
    }
 
+   set sp_id [lindex $id 1]
+   set timeout 5
+#   log_user 1  
+   expect {
+      -i $sp_id timeout {
+         ts_log_fine "got final timeout"
+      }
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id eof {
+         ts_log_fine "got eof"
+      }
+      -i $sp_id "_END_OF_FILE_*\n" {
+         ts_log_fine "last line of output parsed!"
+      }
+      -i $sp_id -- "*\n" {
+         foreach line [string trim [split $expect_out(0,string) "\n"]] {
+            set line [string trim $line]
+            if {$line == ""} {
+               continue
+            }
+            ts_log_fine "processing line: $line"
+         }
+         exp_continue
+      }
+   }
    close_spawn_process $id
 
    if {$timeout_error} {
       ts_log_severe "job didn't run as expected"
       delete_all_jobs
-   } else {   
+   } else {
       wait_for_jobend $jobid usage 60 0 1
 
       # now wait for some time - accounting file might not be flushed yet
@@ -531,7 +564,7 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
 
       set online_info(maxvmem) [transform_unit $online_info(maxvmem)]
       if {!$job_finished} {
-         ts_log_severe "job terminated abnormally"
+         ts_log_severe "job terminated abnormally (2)"
       } else {
          if {[string compare $test_name "usage_tight"] == 0 && $CHECK_ACT_LEVEL != 2} {
             set online_info(maxvmem) [expr $online_info(maxvmem) / $slots]
@@ -553,8 +586,9 @@ proc usage_single {} {
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
+   wait_for_end_of_all_jobs
    foreach master_host $usage_master_hosts {
-      ts_log_fine "usage: single cpu job submitted with $submit_command to run on host $master_host"
+      ts_log_fine "usage test: single cpu job submitted with $submit_command to run on host $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
@@ -582,7 +616,8 @@ proc usage_tight {} {
          set sleep_after 20
       }
    }
-
+  
+   wait_for_end_of_all_jobs
    foreach master_host $usage_master_hosts {
       ts_log_fine "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
 
@@ -612,9 +647,11 @@ proc usage_loose {pe expected_slots acct_slots} {
 }
 
 proc usage_loose1 {} {
+   wait_for_end_of_all_jobs
    usage_loose loose1 5 1
 }
 
 proc usage_loose2 {} {
+   wait_for_end_of_all_jobs
    usage_loose loose2 4 1
 }

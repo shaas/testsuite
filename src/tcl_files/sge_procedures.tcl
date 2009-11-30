@@ -5686,6 +5686,7 @@ proc get_qstat_j_info {jobid {my_variable qstat_j_info}} {
 #      }
       return 1
    }
+   ts_log_fine "qstat -j $jobid exit value not 0!\nOutput:\n$result"
    return 0
 }
 
@@ -8427,10 +8428,12 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
          set sid [init_logfile_wait $tail_host $job_output_file]
          # submit job
          submit_job "-o $job_output_file -j y $options $script $job_args" 1 60
+         start_sge_bin "qconf" "-tsm"
+         ts_log_fine "triggered scheduler run"
       }
 
       qrsh {
-         ts_log_fine "submitting job using qrsh, reading from stdout/stderr"
+         ts_log_fine "submitting job as user \"$user\" using qrsh, reading from stdout/stderr"
 #         set command "-c \\\"$ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/qrsh -noshell $options $script $job_args\\\""
          set command "$ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/qrsh"
          set cmd_args "-noshell $options $script $job_args"
@@ -8438,40 +8441,31 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
 #set cmd_args "-la"
          set sid [open_remote_spawn_process $ts_config(master_host) $user "$command" "$cmd_args"]
          set sp_id [lindex $sid 1]
-         set done 0
-         while {!$done} {
-            set timeout 60
-            expect {
-               -i $sp_id full_buffer {
-                  ts_log_severe "expect full_buffer error"
-                  set done 1
-               }
-               -i $sp_id timeout {
-                  ts_log_severe "timeout"
-                  set done 1
-               }
-               -i $sp_id eof {
-                  ts_log_severe "got eof"
-                  set done 1
-               }
-               -i $sp_id "_start_mark_*\n" {
-                  ts_log_finest "remote command started"
-                  set done 1
-               }
-               -i $sp_id default {
-                  
-               }
+#         log_user 1
+         set timeout 60
+         expect {
+            -i $sp_id full_buffer {
+               ts_log_severe "expect full_buffer error"
+            }
+            -i $sp_id timeout {
+               ts_log_severe "timeout"
+            }
+            -i $sp_id eof {
+               ts_log_severe "got eof"
+            }
+            -i $sp_id -- "_start_mark_:(0)" {
+               ts_log_fine "remote command started"
             }
          }
+         start_sge_bin "qconf" "-tsm"
+         ts_log_fine "triggered scheduler run"
       }
-
       default {
          set sid ""
          ts_log_severe "unknown submit method $submit_method"
       }
    }
-
-   ts_log_finer "submitted job, sid = $sid"
+   ts_log_fine "==>submitted job, sid = $sid"
    return $sid
 }
 
