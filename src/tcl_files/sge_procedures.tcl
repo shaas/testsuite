@@ -5649,7 +5649,7 @@ proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_grou
 #  SEE ALSO
 #     parser/parse_qstat_j()
 #*******************************************************************************
-proc get_qstat_j_info {jobid {my_variable qstat_j_info}} {
+proc get_qstat_j_info {jobid {my_variable qstat_j_info} {add_switch ""}} {
    get_current_cluster_config_array ts_config
    upvar $my_variable jobinfo
 
@@ -5657,7 +5657,7 @@ proc get_qstat_j_info {jobid {my_variable qstat_j_info}} {
       unset jobinfo
    }
 
-   set result [start_sge_bin "qstat" "-j $jobid"]
+   set result [start_sge_bin "qstat" "$add_switch -j $jobid"]
    if { $prg_exit_state == 0 } {
       set result "$result\n"
       set my_result ""

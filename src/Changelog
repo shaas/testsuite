@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+DG-2009-12-01-0: Cleanup:    Added additional parameter to get_qstat_j_info
+                 Review:     CR
+
 CR-2009-11-30-0: Bugfix:     usage test: fixed job output parsing problem which
                                leads to lost job output messages.
                  Review:     SH
