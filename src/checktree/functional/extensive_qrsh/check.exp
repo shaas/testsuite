@@ -1,0 +1,220 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+# define a level initialization procedure:
+set check_init_level_procedure "extensive_qrsh_init_level"
+
+# define tcl files which should be sourced at startup of testsuite
+set check_source_files "remote_cluster_procedures"
+
+# define test's name and run level descriptions
+set check_name            "extensive_qrsh"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "test parallel qrsh calls from a parent script (with qconf -tsm calls)"
+set check_description(1)  "test parallel qrsh calls from a parent script"
+
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_level_function extensive_qrsh_setup
+set check_cleanup_level_function extensive_qrsh_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "extensive_qrsh_test"
+
+
+proc extensive_qrsh_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+      1 {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+
+proc extensive_qrsh_setup {} {
+   global CHECK_USER 
+}
+
+
+proc extensive_qrsh_cleanup {} {
+   get_current_cluster_config_array ts_config
+   delete_all_jobs
+   wait_for_end_of_all_jobs 180
+}
+
+
+proc extensive_qrsh_test {} {
+   global CHECK_USER 
+   global CHECK_ACT_LEVEL
+   get_current_cluster_config_array ts_config
+
+   set error_text ""
+   set user  $CHECK_USER
+
+   set test_script "$ts_config(testsuite_root_dir)/scripts/qrsh_test.sh"
+   set qrsh_count 15
+   set joined_spawn_list {}
+
+   set qrsh_host_list $ts_config(execd_hosts)
+   set target_host_list $ts_config(execd_hosts)
+
+   foreach qrsh_host $qrsh_host_list {
+      foreach target_host $target_host_list {
+         set is_host_ok($qrsh_host,$target_host) 0
+      }
+   }
+   ts_log_fine "INFO: This test now starts [expr ([llength $qrsh_host_list] * [llength $target_host_list] * $qrsh_count ) ] qrsh processes."
+
+   # start parallel qrsh calls from each host to all other hosts using the script qrsh_test.sh
+   foreach qrsh_host $qrsh_host_list {
+      foreach target_host $target_host_list {
+         ts_log_fine "starting \"$test_script $target_host $qrsh_count\" on host \"$qrsh_host\" ..."
+         set sid [open_remote_spawn_process $qrsh_host $user $test_script "$target_host $qrsh_count"]
+         set sp_id [lindex $sid 1]
+         lappend joined_spawn_list $sp_id
+         set host_spawn_map($sp_id) $qrsh_host
+         set sp_id_map($sp_id) $sid
+         set target_spawn_map($sp_id) $target_host
+      }
+   }
+
+   # The following expect loop is parsing the output of all qrsh calls in parallel
+   # If not all qrsh_test.sh (which itself starts $qrsh_count qrsh calls) return within
+   # a timeout of 120 seconds the test will fail.
+   # NOTE: The timeout of 120 seconds is valid for any output coming in!
+
+   set timeout 120
+   set line_count 0
+   expect {
+      -i $joined_spawn_list full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $joined_spawn_list timeout {
+         ts_log_fine "testsuite timeout reached! Analyse ..."
+         set problem_hosts {}
+         foreach qrsh_host $qrsh_host_list {
+            foreach target_host $target_host_list {
+               if {$is_host_ok($qrsh_host,$target_host) == 0} {
+                  append error_text "Not all $qrsh_count \"qrsh -l h=$target_host hostname\" started on host \"$qrsh_host\" did return\n"
+                  if {[lsearch -exact $problem_hosts $qrsh_host] == -1} {
+                     lappend problem_hosts $qrsh_host
+                  }
+               }
+            }
+         }
+         append error_text "Testsuite detected following problem hosts: \"$problem_hosts\"\n"
+         append error_text "qstat -f:\n"
+         append error_text [start_sge_bin qstat "-f"]
+         append error_text "\n"
+      }
+      -i $joined_spawn_list "*\n" {
+         set spawn_id $expect_out(spawn_id)
+         set qrsh_host    $host_spawn_map($spawn_id)
+         set target_host  $target_spawn_map($spawn_id)
+         set buffer [string trim $expect_out(0,string)]
+         set splitline [split $buffer "\n"]
+         incr line_count 1
+         foreach line $splitline {
+            incr line_count 1
+            if {[string match "*qrsh_test.sh script exits now*" $line]} {
+               ts_log_fine "$qrsh_host: qrsh_test.sh script to target host \"$target_host\" finished - ok!" 
+               set is_host_ok($qrsh_host,$target_host) 1
+            }
+         }
+         
+
+         set wait_host_list {}
+         foreach qrsh_host $qrsh_host_list {
+            foreach target_host $target_host_list {
+               if {$is_host_ok($qrsh_host,$target_host) == 0} {
+                  lappend wait_host_list "qrsh from ${qrsh_host} to ${target_host}"
+               }
+            }
+         }
+         set wait_host_count [llength $wait_host_list]
+         if {$wait_host_count > 0} {
+            if {$wait_host_count > 5} {
+               ts_log_fine "still waiting for $wait_host_count hosts (parsed lines=$line_count) ..."
+            } else {
+               ts_log_fine "still waiting for qrsh calls (parsed lines=$line_count):"
+               foreach line $wait_host_list {
+                  ts_log_fine $line
+               }
+            }
+            if {$CHECK_ACT_LEVEL == 0} {
+               ts_log_fine "do tsm: [start_sge_bin "qconf" "-tsm"]"
+            }
+            exp_continue
+         } else {
+            ts_log_fine "all qrsh_test.sh scripts have terminated!"
+         }
+      }
+   }
+   foreach spawn_id $joined_spawn_list {
+      close_spawn_process $sp_id_map($spawn_id)
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+
+
+
+
+

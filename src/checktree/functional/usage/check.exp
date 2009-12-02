@@ -266,7 +266,7 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
    expect {
       -i $sp_id timeout {
          if {$timeout_error} {
-            ts_log_severe "timeout waiting for tasks output (usage)"
+            ts_log_severe "timeout waiting for tasks output (usage) (timeout=$my_timeout)"
             set ret "timeout"
          } else {
             set ret "task running"
@@ -481,6 +481,7 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
    set do_qstat 1
    while {$job_finished == 0 && $now < $end} {
       set job_state [usage_monitor_job $id started finished jobid info $my_timeout $timeout_error]
+      ts_log_fine "job state: $job_state"
       set job_finished [usage_job_finished $job_state]
       if {$started > 0 && $job_finished == 0 && $jobid != 0} {
          if {$do_qstat == 1} {
@@ -518,8 +519,6 @@ proc usage_monitor_check {id test_name slots acct_slots wallclock} {
             }
             ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem), maxvmem: $online_info(maxvmem)"
          }
-      } else {
-         ts_log_fine "job state: $job_state"
       }
       set now [clock seconds]
    }
