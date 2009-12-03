@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-12-03-1: Cleanup:    increased performance of complex test
+                 Review:     HP
+
 DG-2009-12-03-0: Enhancem.:  Core binding functional test added.
                  Review:     JG
 

@@ -340,7 +340,7 @@ proc complex_loadsensor_test {} {
     
       foreach elem $job_ids {
          if {$elem >= 0} {
-            wait_for_jobstart $elem "Sleeper" 60
+            wait_for_jobstart $elem "Sleeper" 60 1 1
          }
       }
       foreach elem $job_ids {
@@ -425,8 +425,7 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
       # submit errors are handled in submit_job, but don't continue, if submission failed
       if {$job_id > 0} {
          # job should start within some seconds - wait 10 seconds
-         set ret [wait_for_jobstart $job_id "Sleeper" 10 0]
-
+         set ret [wait_for_jobstart $job_id "Sleeper" 10 0 1]
          # test case: job should not be scheduled
          if {$pending} {
             if {$ret == 0} {
