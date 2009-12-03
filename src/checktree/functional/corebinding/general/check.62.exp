@@ -1,0 +1,1443 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name
+global check_category
+global check_description
+global check_needs
+global check_functions
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+# set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure   "core_binding_basic_init_level"
+
+# define test's name and run level descriptions
+set check_root_access_needs      "yes"        
+set check_name                   "core_binding_basic"
+set check_category               "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level          0
+set check_description(0)         "test core binding related functionality"
+
+# define test's dependencies
+set check_needs                  "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function         "core_binding_basic_setup"
+set check_cleanup_function       "core_binding_basic_cleanup"
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions          "core_binding_basic"
+
+proc core_binding_basic_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
+}
+
+
+proc core_binding_basic_setup {} {
+   global ts_config
+   global corebinding_general_backup
+   global hostlist
+
+   # check if version is correct (62u5 and higher)
+   if {[ge_has_feature "core-binding"] == false} {
+      ts_log_config "Core binding can be checked only with 62u5 and higher"
+      return 99
+   }
+
+   # get list of supported hosts
+   set hostlist [get_test_host_list]
+
+   # check if there are some supported hosts there
+   if {[llength $hostlist] <= 0} {
+      ts_log_config "No core binding host configured as execd!"
+      return 99
+   }
+
+   # backup config
+   get_config corebinding_general_backup
+
+   # create queue
+   add_queue "bq" $hostlist
+
+   # set execd parameter ENABLE_BINDING=true 
+   set my_execd_params "ENABLE_BINDING=true"
+
+   get_config act_configuration
+   if {[string compare "none" $act_configuration(execd_params)] != 0} {
+      append my_execd_params ",$act_configuration(execd_params)"
+   }
+
+   set myconfig(execd_params) "$my_execd_params"
+   
+   ts_log_fine "setting execd_param to \"$my_execd_params\" ..."
+
+   # change it 
+   set_config_and_propagate myconfig
+}
+
+proc core_binding_basic_cleanup {} {
+   global ts_config
+   global corebinding_general_backup
+   global hostlist
+
+   ts_log_fine "cleanup ..."
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # delete binding.q
+   ts_log_fine "delete queue ..."
+   del_queue "bq" $hostlist 0 1
+
+   # disable corebinding 
+   reset_config_and_propagate corebinding_general_backup
+
+   unset hostlist
+   unset corebinding_general_backup
+}
+
+
+# -------- local test procedures -----------------------------------------------
+
+#****** check.62/core_binding_basic() ******************************************
+#  NAME
+#     core_binding_basic() -- Main core binding test routine 
+#
+#  SYNOPSIS
+#     core_binding_basic { } 
+#
+#  FUNCTION
+#     Calls several tests with the amount of hosts depending on runlevel. 
+#
+#*******************************************************************************
+proc core_binding_basic {} {
+   global CHECK_ACT_LEVEL
+   global hostlist
+
+   ts_log_fine "test host list: $hostlist"
+
+   set runs 0 
+
+   foreach host $hostlist {
+      
+      ts_log_fine "-----------------------------"
+      ts_log_fine "----> do stress testing <----"
+      ts_log_fine "-----------------------------"
+      
+      do_stress_testing $host
+
+      ts_log_fine "---------------------------------------"
+      ts_log_fine "----> do oversubscription testing <----"
+      ts_log_fine "---------------------------------------"
+      
+      test_oversubscription $host
+
+      ts_log_fine "-----------------------------"
+      ts_log_fine "---> do positive testing <---"
+      ts_log_fine "-----------------------------"
+      
+      core_binding_basic_set $host 
+
+      incr runs
+
+      if {$CHECK_ACT_LEVEL == 0} {
+         # we need to test just one host
+         break
+      }
+   }
+
+}
+
+#****** check.62/get_test_host_list() ******************************************
+#  NAME
+#     get_test_host_list() -- Creates a shuffled list with core binding supporting hosts. 
+#
+#  SYNOPSIS
+#     get_test_host_list { } 
+#
+#  FUNCTION
+#     Adds each execution host which supports core binding into a list and 
+#     shuffles the list. 
+#
+#  RESULT
+#     List of supported hosts in an random order. 
+#
+#*******************************************************************************
+proc get_test_host_list {} {
+   
+   # the host list returned
+   set host_list [list]
+
+   # get all execution daemons
+   get_exechost_list exec_hosts   
+
+   foreach host $exec_hosts {
+      ts_log_fine "checking host $host..."
+      if { [is_known_host $host] == 1 } {
+         lappend host_list $host
+      }
+   }
+
+   # in runlevel 0 we just need one, this is chosen randomly 
+   # therfore we shuffle the list with an random sort
+   return [lsort -command bogus $host_list]
+}
+
+# randomly give output -1 0 or 1 (for sorting the list randomly -> shuffle :)
+proc bogus {a b} {
+   return [expr int(rand()*3)-1]
+}
+
+#****** check.62/test_oversubscription() ***************************************
+#  NAME
+#     test_oversubscription() -- Test to bind more cores than available on host. 
+#
+#  SYNOPSIS
+#     test_oversubscription { lhost } 
+#
+#  FUNCTION
+#     This test checks if jobs are running on an execution host when no more cores
+#     are free in order to satisfy the request (but enough slots are still available). 
+#
+#  INPUTS
+#     lhost - Host to check oversubscription on. 
+#
+#*******************************************************************************
+proc test_oversubscription { lhost } {
+   global CHECK_USER   
+
+   # do request more cores than allowed 
+   set aoc [get_amount_of_cores $lhost]
+   set max_amount [expr $aoc * 2]
+   set threads_per_core [get_threads_per_core $lhost]
+
+   set output [start_remote_prog $lhost $CHECK_USER "qconf" "-mattr queue slots $max_amount bq@$lhost"]
+
+   # -----------------------------
+   # check linear oversubscription
+   # -----------------------------
+
+   for {set amount 2} {$amount < $max_amount} {incr amount 2} {
+      # increase the submitted job counter
+      set jobid [submit_linear $lhost 2 ""]
+      if { $amount <= $aoc } {
+         # the binding must be successful
+         check_binding $lhost $jobid 2 $threads_per_core 0 "no" "set"
+         check_qstat_reporting $lhost $jobid "linear" 2 $threads_per_core 0 "no" "set"
+      } else {
+         # no binding is done 
+         check_qstat_reporting $lhost $jobid "NONE" 2 $threads_per_core 0 "no" "set"
+      }
+
+   }
+
+   # clean up 
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # -------------------------------
+   # check striding oversubscription
+   # -------------------------------
+
+   for {set amount 0} {$amount < $max_amount} { } {
+      # increase the submitted job counter
+      incr amount 2
+      set jobid [submit_striding $lhost 2  2 "set"]
+      if { $amount <= $aoc } {
+         # the binding must be successful
+         check_binding $lhost $jobid 2 $threads_per_core 2 "no" "set"
+         check_qstat_reporting $lhost $jobid "striding" 2 $threads_per_core 2 "no" "set"
+      } else {
+         # no binding is done 
+         check_qstat_reporting $lhost $jobid "NONE" 2 $threads_per_core 2 "no" "set"
+      }
+
+   }
+
+   # TODO
+   # check explicict obversubscription
+
+   # clean up 
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+} 
+
+#****** check.62/core_binding_basic_set() **************************************
+#  NAME
+#     core_binding_basic_set() -- Positive tests of core binding feature. 
+#
+#  SYNOPSIS
+#     core_binding_basic_set { } 
+#
+#  FUNCTION
+#     Performs positive tests of the core binding feature. 
+#
+#*******************************************************************************
+proc core_binding_basic_set { lhost } {
+   global CHECK_USER
+
+   # we need the max amount of cores
+   set max_amount [get_amount_of_cores $lhost]
+
+   # in order to check on how many virtual processors
+   # the job has to be bound we need to take the amount
+   # of threads per core into account (because when bound
+   # to one core it could be bound to more hardware threads)
+   set threads_per_core [get_threads_per_core $lhost]
+
+   set cores_per_socket [get_cores_per_socket $lhost]
+
+   set sockets [expr $max_amount / $cores_per_socket]
+
+   # set slots to the amount of cores can be bound
+   set output [start_remote_prog $lhost $CHECK_USER "qconf" "-mattr queue slots $max_amount bq@$lhost"]
+
+   # ---------------------
+   # test "linear" binding 
+   # ---------------------
+   set max_amount1 0
+
+   set amount 1
+   while { $amount <= $max_amount } {   
+      # test "linear"
+      set jobid [submit_linear $lhost $amount ""]
+      check_binding $lhost $jobid $amount $threads_per_core 0 "no" "set"
+      check_qstat_reporting $lhost $jobid "linear" $amount $threads_per_core 0 "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      # test "set linear"
+      set jobid [submit_linear $lhost $amount "set"]
+      check_binding $lhost $jobid $amount $threads_per_core 0 "no" "set"
+      check_qstat_reporting $lhost $jobid "linear" $amount $threads_per_core 0 "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      # test "linear pe"
+      set jobid [submit_linear $lhost $amount "pe"]
+      check_binding $lhost $jobid $amount 1 0 "no" "pe"
+      check_qstat_reporting $lhost $jobid "linear" $amount $threads_per_core 0 "no" "pe"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+   
+      # test "linear env"
+      set jobid [submit_linear $lhost $amount "env"]
+      check_binding $lhost $jobid $amount $threads_per_core 0 "no" "env"
+      check_qstat_reporting $lhost $jobid "linear" $amount $threads_per_core 0 "no" "env"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      incr amount
+   }
+
+   # -----------------------
+   # test "striding" binding
+   # -----------------------
+
+   set amount 1 
+   set stepsize 1
+
+   while { $amount <= $max_amount } { 
+      # test "set striding"
+      set jobid [submit_striding $lhost $amount $stepsize "set"] 
+      check_binding $lhost $jobid $amount $threads_per_core $stepsize "no" "set" 
+      check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+     
+      # test "striding" (which is equal to "set striding")
+      set jobid [submit_striding $lhost $amount $stepsize ""] 
+      check_binding $lhost $jobid $amount $threads_per_core $stepsize "no" "set" 
+      check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      # test "pe striding"
+      set jobid [submit_striding $lhost $amount $stepsize "pe"] 
+      check_binding $lhost $jobid $amount 1 $stepsize "no" "pe"
+      check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "pe"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+      
+      # test "env striding"
+      set jobid [submit_striding $lhost $amount $stepsize "env"] 
+      check_binding $lhost $jobid $amount $threads_per_core $stepsize  "no" "env"
+      check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "env"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+            
+      # check also stepsize two, three, ..
+      set stepsize 2
+      while { $amount <= [expr $max_amount / $stepsize] }  {
+         # test with different step size
+
+         # test "set striding"
+         set jobid [submit_striding $lhost $amount $stepsize "set"] 
+         check_binding $lhost $jobid $amount $threads_per_core $stepsize  
+         check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "set"
+         delete_all_jobs
+         wait_for_end_of_all_jobs
+
+         # test "striding" (which is equal to "set striding")
+         set jobid [submit_striding $lhost $amount $stepsize ""] 
+         check_binding $lhost $jobid $amount $threads_per_core $stepsize  
+         check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "set"
+         delete_all_jobs
+         wait_for_end_of_all_jobs
+
+         # test "pe striding"
+         set jobid [submit_striding $lhost $amount $stepsize "pe"] 
+         check_binding $lhost $jobid $amount 1 $stepsize "no" "pe"
+         check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "pe"
+         delete_all_jobs
+         wait_for_end_of_all_jobs
+         
+         # test "env striding"
+         set jobid [submit_striding $lhost $amount $stepsize "env"] 
+         check_binding $lhost $jobid $amount $threads_per_core $stepsize  "no" "env"
+         check_qstat_reporting $lhost $jobid "striding" $amount $threads_per_core $stepsize "no" "env"
+         delete_all_jobs
+         wait_for_end_of_all_jobs
+
+         # restore step size 
+         incr stepsize
+      }
+
+      # reset step size
+      set stepsize 1  
+
+      incr amount
+   }
+
+   # ---------------
+   # test "explicit"
+   # ---------------
+
+   set amount 1
+   set sockets 2
+
+   set explicit_string ""
+
+   while { $amount <= $max_amount } {
+      # set socket to place on
+      # TODO works only on max. 2 socket machine
+      if { $amount <= $cores_per_socket } {
+         set socket_no 0
+      } else {
+         set socket_no 1
+      }
+      # set core to place on (cores per socket is 2)
+      set core_no [expr [expr $amount - 1] % $cores_per_socket]
+      
+      if { $amount > 1 } {
+         append explicit_string ":"
+      }
+      
+      append explicit_string "$socket_no,$core_no"
+
+      ts_log_fine "explicit request is: $explicit_string"
+     
+      # test "set explicit"
+      set jobid [submit_explicit $lhost $explicit_string "set"]
+      check_binding $lhost $jobid $amount $threads_per_core 
+      check_qstat_reporting $lhost $jobid "explicit" $amount $threads_per_core $stepsize "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      # test "explicit"
+      set jobid [submit_explicit $lhost $explicit_string ""]
+      check_binding $lhost $jobid $amount $threads_per_core 
+      check_qstat_reporting $lhost $jobid "explicit" $amount $threads_per_core $stepsize "no" "set"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+     
+      # test "pe explicit" -> the amount is in the pe always like requested
+      # because they are logical processor ids (socket core pairs)
+      set jobid [submit_explicit $lhost $explicit_string "pe"]
+      check_binding $lhost $jobid $amount 1 0 "no" "pe"
+      check_qstat_reporting $lhost $jobid "explicit" $amount $threads_per_core $stepsize "no" "pe"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      # test "env explicit" 
+      set jobid [submit_explicit $lhost $explicit_string "env"]
+      check_binding $lhost $jobid $amount $threads_per_core 0 "no" "env"
+      check_qstat_reporting $lhost $jobid "explicit" $amount $threads_per_core $stepsize "no" "env"
+      delete_all_jobs
+      wait_for_end_of_all_jobs
+
+      incr amount
+   }
+
+}
+
+
+#****** check.62/do_stress_testing() *******************************************
+#  NAME
+#     do_stress_testing() -- Submit a bunch of jobs with binding. 
+#
+#  SYNOPSIS
+#     do_stress_testing { lhost } 
+#
+#  FUNCTION
+#     Submits a bunch of jobs with binding and checks for the later ones 
+#     if the binding was correct. 
+#
+#  INPUTS
+#     lhost - Execution host on which the jobs have to run 
+#
+#*******************************************************************************
+proc do_stress_testing { lhost } {
+   global CHECK_USER
+
+   # submit one job after another 
+   
+   # we need the max amount of cores
+   set max_amount [get_amount_of_cores $lhost]
+
+   # in order to check on how many virtual processors
+   # the job has to be bound we need to take the amount
+   # of threads per core into account (because when bound
+   # to one core it could be bound to more hardware threads)
+   set threads_per_core [get_threads_per_core $lhost]
+   set cores_per_socket [get_cores_per_socket $lhost]
+   set sockets [expr $max_amount / $cores_per_socket]
+
+   # set slots to the amount of cores can be bound
+   set output [start_remote_prog $lhost $CHECK_USER "qconf" "-mattr queue slots $max_amount bq@$lhost"]
+
+   # wait until the change is done
+   # ts_log_fine "waiting...till slots are propagated"
+   # after 15000
+   
+   # submit a bunch of jobs 
+
+   # just submit several jobs
+   # this will take about 60 seconds
+   for {set i 0} {$i < [expr $max_amount * 3]} {incr i} {
+      set jobid [submit_linear_short $lhost 1 ""]
+   }
+
+   # wait until all are through because otherwise we'll get a 
+   # timeout waiting for the pid file when check_binding
+   wait_for_jobstart $jobid "leep" 120
+   wait_for_jobend $jobid "leep" 120
+
+   # submit jobs one after another and check the binding and reporting immediately
+   for {set i 0} {$i < [expr $max_amount * 3]} {incr i} {
+      set jobid [submit_linear_short $lhost 1 ""]
+      check_binding $lhost $jobid 1 $threads_per_core 0 "no" "set"
+      check_qstat_reporting $lhost $jobid "linear" 1 $threads_per_core 0 "no" "set"
+      ts_log_fine "checked $jobid on host $lhost"
+   }
+  
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+# -----------------------------------------------------------------------------
+#                              HOST CONFIG FUNCTIONS 
+# -----------------------------------------------------------------------------
+
+#****** check.62/is_known_host() ***********************************************
+#  NAME
+#     is_known_host() -- Checks if the given host is supported. 
+#
+#  SYNOPSIS
+#     is_known_host { host } 
+#
+#  FUNCTION
+#     Checks if host is supported and archtectural details are known. 
+#
+#  INPUTS
+#     host - Host to be checked if it is supported. 
+#
+#  RESULT
+#     Returns 1 in case the host is supported and the configuration is ok, 
+#     otherwise 0. 
+#
+#*******************************************************************************
+proc is_known_host { host } {
+   # check if host supports core binding
+   set output [start_sge_utilbin "loadcheck" "-cb | grep Topology" $host]
+   ts_log_fine "loadcheck says: $output"
+
+   if { $output == "" } {
+      return 0
+   }
+   
+   # "Topology:                       SCCSCC"
+   set topology [split $output ":"] 
+   if { [llength $topology] != 2 } {
+      return 0
+   }
+
+   ts_log_fine "host $host has architecture [get_architecture $host]"
+   ts_log_fine "host $host has cores [get_amount_of_cores $host]"
+   ts_log_fine "host $host has threads per core [get_threads_per_core $host]"
+   ts_log_fine "host $host has core per socket [get_cores_per_socket $host]"  
+
+   # do test only linux hosts because of race conditions
+   if { [get_architecture $host] != "linux" } {
+      return 0
+   }
+
+   return 1 
+}
+
+#****** check.62/get_architecture() ********************************************
+#  NAME
+#     get_architecture() -- Returns for a supported host the OS name. 
+#
+#  SYNOPSIS
+#     get_architecture { host } 
+#
+#  FUNCTION
+#     Checks for a supported host if the architecture is Linux 
+#     or Solaris. It must be one of these because only these two 
+#     OS's are supported. 
+#
+#  INPUTS
+#     host - Supported hostname to check architecture 
+#
+#  RESULT
+#     A string which contains either "linux" or "solaris" 
+#
+#*******************************************************************************
+proc get_architecture { host } {
+   # resolve_arch 
+   set arch [resolve_arch $host] 
+
+   ts_log_fine "ARCH of supported host is: $arch"
+
+   if {[string first "lx" $arch] != -1} {
+      return "linux"
+   }
+      
+   return "solaris"
+}
+
+#****** check.62/get_amount_of_cores() *****************************************
+#  NAME
+#     get_amount_of_cores() -- Returns the amount of usable cores for corebinding. 
+#
+#  SYNOPSIS
+#     get_amount_of_cores { host } 
+#
+#  FUNCTION
+#     Checks for a given supported host the total amount of cores that can be used
+#     for core binding. This is on Solaris one less than the total amount of cores 
+#     on the system because for the processor sets one core must be remain unused. 
+#
+#  INPUTS
+#     host - The name of the supported host. 
+#
+#  RESULT
+#     The total amount of cores which can be used for core binding. 
+#
+#*******************************************************************************
+proc get_amount_of_cores { host } {
+
+   set output [start_sge_utilbin "loadcheck" "-cb | grep Topology" $host]
+
+   ts_log_fine "get_amount_of_core loadcheck says: $output"
+
+   set topology [split $output ":"] 
+
+   if { [llength $topology] != 2 } {
+      ts_log_config "host $host has following strange loadcheck -cb | grep cores output: $output"
+      return 0
+   }
+
+   set cores [string trim [lindex $topology 1]]
+
+   # count the C's
+   set length [string length $cores]
+   set amount 0
+   for {set i [string first "C" $cores]} {$i < $length} {incr i} {
+      set c [string index $cores $i]
+      # when finding a core 
+      if {$c == "C"} {
+         incr amount
+      } 
+   }
+   
+   # because when it is a Solaris host we need to decrement the amount 
+   # because of Solaris Processor Sets feature (needs a free remaining core)
+   if { [get_architecture $host] == "solaris" } {
+      incr amount -1      
+   }
+ 
+   return $amount 
+}
+
+#****** check.62/get_threads_per_core() ****************************************
+#  NAME
+#     get_threads_per_core() -- Returns the amount of threads per core for supoorted hosts. 
+#
+#  SYNOPSIS
+#     get_threads_per_core { host } 
+#
+#  FUNCTION
+#     Returns the amount of threads per core for an supported host. The amount 
+#     is calculated from the amount of T's for the first core in the topology 
+#     string. 
+#
+#  INPUTS
+#     host - Supported host. 
+#
+#  RESULT
+#     Amount of hardware thread support for a given supported host. 
+#
+#*******************************************************************************
+proc get_threads_per_core { host } {
+
+   # check if host supports core binding
+   set output [start_sge_utilbin "loadcheck" "-cb | grep Topology" $host]
+
+   if { $output == "" } {
+      return 0
+   }
+   
+   # "Topology:                       SCCSCC"
+   set topology [split $output ":"]
+   if { [llength $topology] != 2 } {
+      ts_log_config "host $host has no topology string"
+      return 0
+   }
+   
+   set tstr [lindex $topology 1]
+ 
+   if { [string first "T" $tstr] == -1 } {
+      ts_log_fine "host $host has 1 thread per core"
+      return 1
+   }
+
+   set pos [string first "T" $tstr]
+
+   set length [string length $tstr]
+   set amount 0
+   for {set i $pos} {$i < $length} {incr i} {
+      set c [string index $tstr $i]
+      if {$c == "T"} {
+         incr amount
+      } else {
+         break
+      }
+   }
+
+   return $amount
+}
+
+#****** check.62/get_cores_per_socket() ****************************************
+#  NAME
+#     get_cores_per_socket() -- Returns the amount of cores per socket. 
+#
+#  SYNOPSIS
+#     get_cores_per_socket { host } 
+#
+#  FUNCTION
+#     Returns the amount of cores per socket a supported host does have. 
+#
+#  INPUTS
+#     host - Hostname of the supported host. 
+#
+#*******************************************************************************
+proc get_cores_per_socket { host } {
+
+   # check if host supports core binding
+   set output [start_sge_utilbin "loadcheck" "-cb | grep Topology" $host]
+
+   if { $output == "" } {
+      return 0
+   }
+   
+   # "Topology:                       SCCSCC"
+   set topology [split $output ":"] 
+   if { [llength $topology] != 2 } {
+      return 0
+   }   
+   
+   set tstr [lindex $topology 1]
+ 
+   if { [string first "C" $tstr] == -1 } {
+      ts_log_fine "host $host has 1 core per socket"
+      return 1
+   }
+
+   set pos [string first "C" $tstr]
+
+   set length [string length $tstr]
+   set amount 0
+   for {set i $pos} {$i < $length} {incr i} {
+      set c [string index $tstr $i]
+      if {$c == "C"} {
+         incr amount
+      } 
+      if {$c == "S"} {
+         break
+      }
+   }
+
+   return $amount
+}
+
+# -----------------------------------------------------------------------------
+#                              SUBMIT FUNCTIONS 
+# -----------------------------------------------------------------------------
+
+proc submit_linear { host {amount 1} {type "set"} {starting_point "no"} } {
+   global ts_config
+
+   set submit_string "-b y -q bq -binding $type linear:$amount -l h=$host sleep 3600"
+
+   set jobid [submit_job $submit_string]
+
+   wait_for_jobstart $jobid "sleep" 60 1 1
+
+   return $jobid
+}
+
+proc submit_linear_short { host {amount 1} {type "set"} {starting_point "no"} } {
+   global ts_config
+
+   set submit_string "-b y -q bq -binding $type linear:$amount -l h=$host sleep 30"
+
+   set jobid [submit_job $submit_string]
+
+   #wait_for_jobstart $jobid "sleep" 60 1 1
+
+   return $jobid
+}
+
+proc submit_striding { host {amount 1} {stepsize 1} {type "set"} {starting_point "no"} } {
+   global ts_config
+
+   set submit_string "-q bq -binding $type striding:$amount:$stepsize -l h=$host $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
+
+   set jobid [submit_job $submit_string]
+
+   wait_for_jobstart $jobid "leeper" 60 1 1
+
+   return $jobid
+}
+
+proc submit_explicit { host {socketcorelist "0,0:0,1"} {type "set"} } {
+   global ts_config
+  
+   set submit_string "-q bq -binding $type explicit:$socketcorelist -l h=$host $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
+
+   set jobid [submit_job $submit_string]
+
+   wait_for_jobstart $jobid "leeper" 60 1 1
+
+   return $jobid
+}
+
+
+# -----------------------------------------------------------------------------
+#                               CHECK FUNCTIONS 
+# -----------------------------------------------------------------------------
+
+#****** check.62/check_qstat_reporting() ***************************************
+#  NAME
+#     check_qstat_reporting() -- Checks if qstat returns the expected binding values. 
+#
+#  SYNOPSIS
+#     check_qstat_reporting { host jobid { strategy "linear" } { amount 1 } 
+#     { threads_per_core 1 } { stepsize 0 } { startingpoint "no" } 
+#     { type "set" } } 
+#
+#  FUNCTION
+#     Checks the output of qstat if the expected values are inside. 
+#
+#  INPUTS
+#     host                   - Execution host where the job is running 
+#     jobid                  - Job ID of the running job 
+#     { strategy "linear" }  - Binding strategy ("NONE" when none) the job was submitted with.
+#     { amount 1 }           - Amount of cores requested to bind on. 
+#     { threads_per_core 1 } - Amount of threads per core of the execution host. 
+#     { stepsize 0 }         - Stepsize in case of "striding" request. 
+#     { startingpoint "no" } - Has a given starting point requested. 
+#     { type "set" }         - Type pe, set or env 
+#
+#*******************************************************************************
+proc check_qstat_reporting { host jobid { strategy "linear" } { amount 1 } { threads_per_core 1 } { stepsize 0 } { startingpoint "no" } { type "set" } } {
+   
+   # checks qstat -j X -cb 
+
+   get_qstat_j_info $jobid qstat_j_cb_info "-cb"
+
+   # "binding " -> reports the topology string
+   # "binding"  -> reports the requested binding
+   
+   ts_log_fine "requested binding: $qstat_j_cb_info(binding)"
+
+   if { $strategy != "NONE" } {
+      ts_log_fine "binding done: $qstat_j_cb_info(binding    1)"
+   }
+
+   # get type of requested binding 
+   set parts [split $qstat_j_cb_info(binding)]
+
+   # there must be a type followed by spaces followed by the binding strategy request
+   if {[llength $parts] != 2 } {
+      ts_log_severe "Requested binding does not consist of 2 space separted parts: $qstat_j_cb_info(binding)"
+   }
+
+   # check if binding type is the requested one
+   if {$type != [lindex $parts 0]} {
+      ts_log_severe "Requested binding type is different to the requested binding type showed by qstat" 
+   } 
+   
+   # check if strategy matches
+   if { $strategy != "NONE" } { 
+      if { [string first $strategy [lindex $parts 1] ] == -1 } {
+         ts_log_severe "Requested binding strategy ($strategy) is different to the requested binding strategy showed by qstat ([lindex $parts 1])"
+      }
+   }
+
+   # TODO HERE CHECK FURTHER REQUESTS... linear:2 or linear:2:0,0
+
+   # the binding string
+   set bs [lindex $parts 1]
+
+   if { $strategy == "linear" } {
+      set lin [split $bs ":"]
+
+      # check syntax -> ":" separation
+      if { [llength $lin] <= 1} {
+         ts_log_severe "Not a valid request (needs at least one colon to separate amount etc.): $lin"
+      } 
+
+      # check amount
+      if { [lindex $lin 1] != $amount } {
+         ts_log_severe "Amount of linear request is not right (expected: $amount but: [lindex $lin 1])"
+      } else {
+         ts_log_fine "Amount in qstat is ok!"
+      }
+
+      # check starting point...
+      
+      # check binding done
+       
+   }
+
+   if { $strategy == "striding" } {
+      set strid [split $bs ":"]
+
+      # check syntax -> ":" separation
+      if { [llength $strid] <= 2} {
+         ts_log_severe "Not a valid request (needs at least two colon to separate amount and stepsize etc.): $strid"
+      }
+
+      # check amount 
+      if { [lindex $strid 1] != $amount } {
+         ts_log_severe "Amount of striding request is not right (expected: $amount but: [lindex $strid 1])"
+      } else {
+         ts_log_fine "Amount in qstat is ok!"
+      }
+
+      # check stepsize 
+      if { [lindex $strid 2] != $stepsize } {
+         ts_log_severe "Stepsize of striding request is not right (expected: $stepsize but: [lindex $strid 2])"
+      } else {
+         ts_log_fine "Stepsize in qstat is ok!"
+      }
+   
+      # check starting point...
+
+      # check binding done 
+      
+
+   }
+
+   if { $strategy == "explicit" } {
+      set expl [split $bs ":"]
+
+      # check syntax -> ":" separation
+      if { [llength $expl] <= 1 } {
+         ts_log_severe "Not a valid request (needs at least one colon to separate amount and stepsize etc.): $expl"
+      }
+      
+      # since the cores are reported as a colos separated list we can count processors 
+      if { [llength $expl] != [expr $amount + 1] } {
+         ts_log_severe "The requested amount is not equal to the number of requested cores qstat reports!" 
+      }
+      
+      # check binding done 
+      #if { [string first $bs $qstat_j_cb_info(binding    1) ] == -1 } {
+      #   ts_log_severe "Requested explicit binding from qstat output not found in qstat binding which is done!"
+      #} else {
+      #   ts_log_fine "Explicit: Ok! Requested binding is actual binding!" 
+      #}
+
+   }
+
+   if { $strategy == "NONE" } {
+      
+      ts_log_fine "NONE binding in bs : $bs"
+
+   }
+
+}
+
+
+proc check_binding { host jobid { amount 1 } { threads_per_core 1 } { stepsize 0 } { startingpoint "no" } { type "set" } } {
+
+   # wait till pid file is written 
+   set waited 0
+   while { [get_pid_from_file $host "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/pid"] == 0 && $waited < 200} {
+      after 100
+      incr waited
+   }
+   if { $waited >= 200 } {
+      ts_log_severe "Couldn't find a pid in pidfile after 20 seconds waiting (after job start)!"
+      return
+   }
+
+   if { [get_architecture $host] == "linux" } {
+      check_binding_linux $host $jobid $amount $threads_per_core $stepsize $startingpoint $type
+   } else {
+      # it must be solaris 
+      check_binding_solaris $host $jobid $amount $threads_per_core $stepsize $startingpoint $type
+   }
+
+}
+
+proc check_binding_solaris { host jobid { amount 1 } { threads_per_core 1 } { stepsize 0 } { startingpoint "no" } { type "set" } } {
+   global CHECK_USER
+   
+   set final_amount [expr $amount * $threads_per_core]
+
+   if { $type == "set" } {
+      # get the pid of the job 
+      set pid [get_pid_from_file $host "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/pid"]
+      # get processor set id from job
+      set psrsetid [get_processor_set_id_from_file $host "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/config"]
+
+      ts_log_fine "pid is $pid"
+      ts_log_fine "psrset id is $psrsetid"
+      
+      # do remote command "psrset" as root to check for binding
+      set output [start_remote_prog $host "root" "psrset" ""]
+
+      ts_log_fine "psrset says: $output"
+
+      # check hexadecimal output against amount, stepsize and startingpoint 
+      if { [check_psrset $host $output $final_amount $stepsize $startingpoint $psrsetid] == 1 } {
+         ts_log_fine "Successfully checked core binding!"
+         return 1
+      } else {
+         ts_log_severe "Core binding error: Application was not bound correctly \n(psrset: $output; amount $amount stepsize $stepsize startingpoint $startingpoint)"
+         return 0
+      }
+
+   } elseif { $type == "pe" } {
+   
+         # check if pe_hostfile has in the fourth column the right entry
+      set pe_hostfile [start_remote_prog "$host" "$CHECK_USER" "cat" "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/pe_hostfile"]
+     
+      ts_log_fine "pe_hostfile content: $pe_hostfile"
+
+      set pe_list [split $pe_hostfile]
+      set bounded_to [lindex $pe_list 3]
+      
+      ts_log_fine "bounded to: $bounded_to"
+
+      # check this socket,core:socket,core:... list if the amount is right
+      if { [count_socket_core_list $bounded_to] == $final_amount } {
+         ts_log_fine "amount of cores in pe_hostfile seems to be ok"
+      } else {
+         ts_log_severe "The amount of core in pe_hostfile seems to be wrong ([count_socket_core_list $bounded_to] instead of $final_amount)"
+      }
+
+      return 1
+   } elseif { $type == "env" } {
+
+      # attach to process and check if SGE_BINDING env variable was set
+      set found [check_sge_binding_env $host $jobid]
+
+      if { $found == 0 } {
+         ts_log_severe "SGE_BINDING variable was not set but was requested!"
+         return 0
+      } else {
+         # check if the amount of processor ids are right 
+         if { $found == $final_amount } {
+            ts_log_fine "Success!!! SGE_BINDING variable was set and has the right amount of processor ids"
+         } else {
+            ts_log_severe "SGE_BINDING variable was set but has not the right amount of processor ids (expected $final_amount content: $found)!"
+            return 0
+         }
+      }
+
+   }
+
+   return 1 
+}
+
+
+proc check_binding_linux { host jobid { amount 1 } { threads_per_core 1 } { stepsize 0 } { startingpoint "no" } { type "set" } } {
+   global CHECK_USER
+
+   set final_amount [expr $amount * $threads_per_core]
+
+   if { $type == "set" } {
+      # get the pid of the job 
+      set pid [get_pid_from_file $host "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/pid"]
+      ts_log_fine "pid is $pid"
+
+      if { $pid == 0 } {
+         ts_log_severe "PID was 0 so the process seems not to be running!"
+      }
+
+      # do remote command "taskset -p <pid>" 
+      set output [start_remote_prog $host $CHECK_USER  "taskset" "-pc $pid"]
+
+      ts_log_fine "taskset says: $output"
+
+      # check hexadecimal output against amount, stepsize and startingpoint 
+      if { [check_taskset $output $final_amount $stepsize $startingpoint] == 1 } {
+         ts_log_fine "Successfully checked core binding!"
+         return 1
+      } else {
+         ts_log_severe "Core binding error: Application was not bound correctly \n(taskset: $output; amount $amount stepsize $stepsize startingpoint $startingpoint)"
+         return 0
+      }
+
+   } elseif { $type == "pe" } {
+
+      # check if pe_hostfile has in the fourth column the right entry
+      set pe_hostfile [start_remote_prog "$host" "$CHECK_USER" "cat" "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/pe_hostfile"]
+     
+      ts_log_fine "pe_hostfile content: $pe_hostfile"
+
+      set pe_list [split $pe_hostfile]
+      set bounded_to [lindex $pe_list 3]
+      
+      ts_log_fine "bounded to: $bounded_to"
+
+      # check this socket,core:socket,core:... list if the amount is right
+      if { [count_socket_core_list $bounded_to] == $final_amount } {
+         ts_log_fine "amount of cores in pe_hostfile seems to be ok"
+      } else {
+         ts_log_severe "The amount of core in pe_hostfile seems to be wrong ([count_socket_core_list $bounded_to] instead of $final_amount)"
+      }
+
+      return 1
+ 
+   } elseif { $type == "env" } {
+      
+      # attach to process and check if SGE_BINDING env variable was set
+      set found [check_sge_binding_env $host $jobid]
+
+      if { $found == 0 } {
+         ts_log_severe "SGE_BINDING variable was not set but was requested!"
+         return 0
+      } else {
+         # check if the amount of processor ids are right 
+         if { $found == $final_amount } {
+            ts_log_fine "Success!!! SGE_BINDING variable was set and has the right amount of processor ids"
+         } else {
+            ts_log_severe "SGE_BINDING variable was set but has not the right amount of processor ids (expected $final_amount content: $found)!"
+            return 0
+         }
+      }
+
+      return 1
+      
+   }
+}
+
+
+proc check_sge_binding_env { host jobid } {
+   global CHECK_USER
+   
+   set pid [get_pid_from_file $host "[get_execd_spool_dir $host]/$host/active_jobs/$jobid.1/job_pid"]
+   ts_log_fine "pid of job is $pid"
+ 
+   # on linux via ps eww <pid>
+   if { [ get_architecture $host ] == "linux" } { 
+      # get environment variable vi ps eww
+      set output [start_remote_prog $host $CHECK_USER  "ps" "eww $pid"]
+   } elseif { [ get_architecture $host ] == "solaris" } {
+      set output [start_remote_prog $host "root" "pargs" "-e $pid"]
+   } else {
+      ts_log_info "Unknown architecuture of host $host"
+      return 0
+   }
+
+   #ts_log_fine "psargs -e shows : $output"      
+
+   # in the output the SGE_BINDING=1 2 3 must appear 
+   set envlist [split $output]
+
+   # loop over the particles (space separted) in order to find the right env var
+   set found 0
+   foreach i $envlist {
+
+      # ts_log_fine $i
+      if { [string first "SGE_BINDING" $i] != -1 || $found > 0 } {
+         
+         if { $found == 0 } {
+            ts_log_fine "Found binding environment variable $i"
+            incr found 
+         } else {
+      
+            # the SGE_BINDING part was found before, now collect the numbers 
+            if { [string is integer $i] == 1 && $i != "" && $i != " "} {
+               # processor id found 
+               incr found
+               ts_log_fine "next processor id in env var: $i"
+            } else {
+               # do not search further
+               break
+            }
+         }
+
+      }
+
+   }     
+   
+   if { $found > 0 } {
+      ts_log_fine "Found processor ids in SGE_BINDING: $found" 
+   }
+
+   # return the amount of processor ids 
+   return $found 
+}
+
+
+proc get_processor_set_id_from_file { host filename } {
+   global CHECK_USER
+   
+   # TODO check if file exists 
+
+   set psrset [start_remote_prog "$host" "$CHECK_USER" "cat" "$filename | grep binding"]
+
+   ts_log_fine "config file binding: $psrset"
+
+   set bp [split $psrset ":"]
+
+   if { [llength $bp] < 2 } {
+      ts_log_severe "No psrset found in binding string from config file"
+      return -1
+   }
+
+   return [lindex $bp 1]
+}
+
+proc check_psrset { host taskset amount stepsize startingpoint psrsetid } {
+   # check if amount of cores in taskset is the same than amount
+   set tamount [get_amount_psrset $host $taskset $psrsetid]
+   
+   if { $tamount != $amount } {
+      ts_log_severe "The amount of bound cores != the amount of requested cores ($tamount != $amount)"
+      return 0
+   }
+   
+   return 1
+}
+
+proc get_amount_psrset { host tasket psrsetid } {
+
+   # sample output
+   # user processor set 1: processors 10 4 12
+   # user processor set 2: processor 3
+   # user processor set 3: processors 0 8 2
+   # user processor set 4: processors 1 9
+   # user processor set 5: processors 5 13
+
+   set psrset [start_remote_prog $host "root" "psrset" "| grep ' $psrsetid:'"]
+
+   ts_log_fine "entries for psrset $psrsetid: >> $psrset" 
+   
+   set words [split [string trim $psrset]]
+
+   set processors 0
+   set found_id 0
+   set proc_ctr 0
+
+   foreach word $words {
+      ts_log_fine "word->  $word"
+      if { $word == "$psrsetid:" } {
+         ts_log_fine "set found_id 1"
+         set found_id 1
+         continue
+      }   
+      if { $found_id == 1 && ( $word == "processors" || $word == "processor" ) } {
+         ts_log_fine "set processors 1"
+         set processors 1
+         continue
+      }
+
+      if { $processors == 1 } {
+         # count everything what follows
+         ts_log_fine "incrementing"
+         incr proc_ctr
+      }
+
+   }
+
+   return $proc_ctr   
+}
+
+
+proc check_taskset { taskset amount stepsize startingpoint } {
+   
+   # check if amount of cores in taskset is the same than amount
+   set tamount [get_amount_taskset $taskset]
+
+   if { $tamount != $amount } {
+      ts_log_severe "The amount of bound cores != the amount of requested cores ($tamount != $amount)"
+      return 0
+   }
+
+   # if stepsize != 0 : check if the cores in taskset have the same stepsize
+
+   # if startingpoint != "no" : check if starting point is the right one 
+  
+   # return with success 
+   return 1
+}
+
+#****** check.62/get_amount_taskset() ******************************************
+#  NAME
+#     get_amount_taskset() -- Returns the amount of processors in the taskset list. 
+#
+#  SYNOPSIS
+#     get_amount_taskset { taskset } 
+#
+#  FUNCTION
+#     Counts the amount of processors in the taskset list. This list is the 
+#     last part of the "taskset -pc" command which contains a comma separated 
+#     list of processor ids and/or processor id ranges.  
+#
+#  INPUTS
+#     taskset - List containing the processor ids of the taskset output 
+#
+#  RESULT
+#     Amount of processors the task is bound to. 
+#
+#*******************************************************************************
+proc get_amount_taskset { taskset } {
+   
+   # the amount of cores bound to
+   set amount 0 
+
+   # taskset: "pid 1's current affinity list: 0-3,6,8-10"
+   set ts [split $taskset ":"]
+   set length [llength $ts]
+   ts_log_fine "length $length"
+   set affinity_list [lindex $ts 1]
+
+   # now we've the list after ":" -> "0,1" or "0-3"
+   ts_log_fine "bound list is $affinity_list"
+
+   # split affinity list in comma separated particles 
+   set laffinity [split $affinity_list ","]
+   
+   foreach affinity $laffinity {
+      # affinity is either "3" or "1-2"
+      ts_log_fine "counting processor ids in: $affinity"
+
+      set is_range [string first "-" $affinity]
+
+      if { $is_range != -1 } {
+         ts_log_fine "it is a range expression:"
+         # we have a 0-3 like output (and not a comma separated list)
+         set range [split $affinity "-"]
+         ts_log_fine "from [lindex $range 0] to [lindex $range 1]"
+         set camount [expr [lindex $range 1] - [lindex $range 0]] 
+         incr camount
+         set amount [expr $camount + $amount]
+      } else {
+         ts_log_fine "it seems to be just one processor number" 
+         incr amount
+      }
+   }
+   
+   ts_log_fine "amount of cores bound to: $amount"
+   return $amount
+}
+
+
+proc count_socket_core_list { socket_core_string } {
+
+   set pairs [split $socket_core_string ":"]
+   
+   return [llength $pairs]
+}
+
+
+proc is_linear_manner { jobtopo amount } {
+
+   # jobtopo is like "ScttcttCTTCTT"
+
+   # check if on all sockets the accounted cores 
+   # are in sequential order allocated 
+   
+   set length [string length $jobtopo]
+   
+   for {set i 0} {$i < $length} {incr i} {
+      set c [string index $jobtopo $i]
+      
+      # if character is a core occupied than all cores 
+      # on this socket which are in used must be directly 
+      # successor of this
+      if { $c == "c" } {
+         set core_in_use 1
+         continue
+      }
+
+      if { $c == "t" } {
+         
+      }
+   }
+
+}
+

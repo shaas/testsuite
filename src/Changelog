@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+DG-2009-12-03-0: Enhancem.:  Core binding functional test added.
+                 Review:     JG
+
 CR-2009-12-03-0: Bugfix:     fixed setup/cleanup of reprioritization test
                  Review:     SH
 
