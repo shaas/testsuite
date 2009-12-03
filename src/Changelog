@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-12-03-0: Bugfix:     fixed setup/cleanup of reprioritization test
+                 Review:     SH
+
 RH-2009-12-03-0: Enhancem.:  o new method has_check_error (finds out if
                                there was an error during test run, useful
                                for debugging)

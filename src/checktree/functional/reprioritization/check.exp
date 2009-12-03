@@ -71,8 +71,7 @@ proc reprioritization_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      0 -
-      1 {
+      0 {
          return 0
       }
    }
@@ -106,10 +105,25 @@ proc reprioritization_setup {} {
    set my_config(load_report_time) "0:0:10"
    set_config_and_propagate my_config $test_host
 
+   #create two projects with 10 and 20 functional shares respectively
+   set prj_array(fshare) "10"
+   add_project "rep_prj1" prj_array
+   set prj_array(fshare) "20"
+   add_project "rep_prj2" prj_array
+
+
+   # add a new queue for testing
+   add_queue "test.q" "@allhosts" q_param 1
+   set new_values(load_thresholds)       "np_load_avg=11.00"
+   set new_values(qtype)                 "BATCH INTERACTIVE CHECKPOINTING PARALLEL"
+   set result [mod_queue "test.q" "" new_values]
+
    #modify test_host to have 4 slots
-   set result_mattr [start_sge_bin "qconf" "-mattr queue slots 4 all.q@$test_host"]
+   set result_mattr [start_sge_bin "qconf" "-mattr queue slots 4 test.q@$test_host"]
    ts_log_fine "result $result_mattr"
 
+   #disable all.q
+   disable_queue "all.q"
 }
 
 proc reprioritization_cleanup {} {
@@ -119,12 +133,19 @@ proc reprioritization_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
 
+   # delete projects
    del_project "rep_prj1"
    del_project "rep_prj2"
 
+   #delete test.q
+   del_queue "test.q" "" 1 1
+
    # restore config
    reset_schedd_config
-   set_config_and_propagate reprioritization_backup $test_host
+   reset_config_and_propagate reprioritization_backup $test_host
+
+   # enable all.q
+   enable_queue "all.q"
 
    # unset our test's global variables
    foreach var "reprioritization_backup" {
@@ -170,13 +191,13 @@ proc reprioritization_sched_conf {} {
 proc reprioritization_priority {} {
    global ts_config CHECK_USER test_host
 
-   # Now modify queue all.q and set priority to 15
+   # Now modify queue test.q and set priority to 15
    set my_queue(priority)  "15"
-   ts_log_fine "Modifying priority for all.q ...\n"
-   set result [mod_queue "all.q" "" my_queue]
+   ts_log_fine "Modifying priority for test.q ...\n"
+   set result [mod_queue "test.q" "" my_queue]
 
    #submit a worker job and wait for it to run
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host $ts_config(product_root)/examples/jobs/worker.sh" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host $ts_config(product_root)/examples/jobs/worker.sh" 
    set job_id(0) [submit_job $jobargs 1 30 "" $CHECK_USER]
    set job_id(1) [submit_job $jobargs 1 30 "" $CHECK_USER]
    set job_id(2) [submit_job $jobargs 1 30 "" $CHECK_USER]
@@ -227,7 +248,7 @@ proc reprioritization_priority {} {
 
    # Reset queue priority to 0
    set my_queue(priority)  "0"
-   set result [mod_queue "all.q" "" my_queue]
+   set result [mod_queue "test.q" "" my_queue]
 
    #clean up jobs
    delete_all_jobs
@@ -240,26 +261,20 @@ proc dynamic_reprioritization {} {
    
    set failed 0
 
-   #create two projects with 10 and 20 functional shares respectively
-   set prj_array(fshare) "10"
-   add_project "rep_prj1" prj_array
-   set prj_array(fshare) "20"
-   add_project "rep_prj2" prj_array
-
    #modify the weight_tickets_functional value to 1000 in the scheduler configuration
    set mysched_config(weight_tickets_functional) "1000"
    set result1 [mod_schedd_config mysched_config]
   
    #as per the test description submit 1 job in prj1, 1 job in prj2 and two jobs without a project
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj1 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj1 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(0) [submit_job $jobargs]
 
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(1) [submit_job $jobargs]
 
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(2) [submit_job $jobargs]
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(3) [submit_job $jobargs]
 
    #wait until all jobs are running and sleep for 30 seconds for them to get some usage 
@@ -327,13 +342,13 @@ proc dynamic_reprioritization {} {
    wait_for_end_of_all_jobs
 
    #during second phase submit 3 jobs in prj2 and 1 job in prj1
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj2 -N worker1 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(0) [submit_job $jobargs]
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj2 -N worker2 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(1) [submit_job $jobargs]
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj2 -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj2 -N worker3 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(2) [submit_job $jobargs]
-   set jobargs "-o /dev/null -j yes -q all.q@$test_host -P rep_prj1 -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host -P rep_prj1 -N worker4 $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(3) [submit_job $jobargs]
 
    #wait for jobs to be running and sleep 30 for usage
