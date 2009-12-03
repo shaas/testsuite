@@ -1,0 +1,279 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_705"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests regression of issue 705 - ResourceProvider does not see resources of a newly added service (3 iterations)"
+set check_description(100)     "Tests regression of issue 705 - ResourceProvider does not see resources of a newly added service (10 iterations)"
+set check_description(200)     "Tests regression of issue 705 - ResourceProvider does not see resources of a newly added service (100 iterations)"
+set check_description(300)     "Tests regression of issue 705 - ResourceProvider does not see resources of a newly added service (1000 iterations)"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_705_init_level"
+set check_functions            {}   
+set check_highest_level        301
+
+set check_setup_level_function "hedeby_issue_705_setup_level"
+set check_cleanup_level_function "hedeby_issue_705_cleanup_level"
+
+lappend check_functions "hedeby_issue_705_check"
+
+
+#****** issues/hedeby_issue_705_init_level() ************************
+#  NAME
+#     hedeby_issue_705_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue_705_init_level { } 
+#
+#  FUNCTION
+#
+#  This function detects the run level for the test
+#
+#  The issue 705 test performs a specific test that checks that issue 705 is
+#  fixed. Depending on the runlevel several iterations of this check are
+#  performed:
+#
+#     Runlevel   Iterations
+#     0          3
+#     100        10
+#     200        100
+#     300        1000
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue_705_init_level {} {
+  global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+       0      { return 0 }
+       100    { return 0 }
+       200    { return 0 }
+       300    { return 0 }
+   }
+  return -1
+}
+
+#****** issues/hedeby_issue_705_setup_level() *********************************
+#  NAME
+#     hedeby_issue_705_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue_705_setup_level { } 
+#
+#  FUNCTION
+#
+#   Store the followning information in hedeby_issue_705_ctx
+#
+#     iterations      -  number of iterations of the test
+#     cloud_service   -  name of the cloud service
+#     service_host    -  host where the cloud service lives
+#     service_jvm     -  jvm where the cloud service lives
+#     cleanup_actions -  list with cleanup actions 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_705_setup_level {} {
+
+   if {[hedeby_get_version] <= 1.04} {
+      ts_log_config "This test work only with bound/unbound resource.\nHedeby [hedeby_get_version] does not support bound/unbound resources"
+      return 99
+   }
+
+   upvar #0 hedeby_issue_705_ctx this 
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+       0      { set this(iterations) 3 }
+       100    { set this(iterations) 10 }
+       200    { set this(iterations) 100 }
+       300    { set this(iterations) 1000 }
+       default { 
+          ts_log_severe "Unsupported run level $CHECK_ACT_LEVEL"
+          return
+       } 
+   }
+
+   set this(cloud_service)   "sim"
+   set this(service_host)    $hedeby_config(hedeby_master_host)
+   set this(service_jvm)     [get_service_jvm]
+   set this(cleanup_actions) ""
+
+}
+
+#****** issues/hedeby_issue_705_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue_705_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_issue_705_cleanup_level { } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue_705_cleanup_level {} {
+   upvar #0 hedeby_issue_705_ctx this
+
+   if {[lsearch $this(cleanup_actions) "remove_cloud_service"] >= 0} {
+      hedeby_remove_service $this(cloud_service) $this(service_host)
+   }
+
+   # Reset the context
+   unset this
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issues/hedeby_issue_705_check *****************************
+#  NAME
+#     hedeby_issue_705_check() -- 
+#
+#  SYNOPSIS
+#     hedeby_issue_705_check{ } 
+#
+#  FUNCTION
+#
+#     This tests checks that issue 705 is fixed. Issue 705 occurred only under
+#     certain timing conditions. Reproducing reliably this conditions is not
+#     possible. Hence this tests is more a stress test that tries to run into
+#     the problem.
+#     Issue 705 occurred when a previously removed service has been re-added to
+#     the system with same name. In this case it could happen that RP did not
+#     see newly added resource of the service. Interesting is also that the
+#     problem occurred only directly after a jvm start. The test sets up the
+#     conditions for the problem:
+#
+#       - restart a jvm
+#       - add a cloud service to the jvm
+#       - add a resource to the service
+#       - check that RP sees the resource
+#       - remove the cloud service
+#       - re-add the cloud service and a resource
+#       - check that RP still sees the resource
+#
+#     This sequence is executed in a loop. The number of iterations of the loop
+#     depends on the run level.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue_705_check {} {   
+   upvar #0 hedeby_issue_705_ctx this
+
+   # options for adding the service
+   set add_service_opts(cloud_type)   "simhost"
+   set add_service_opts(service_name) $this(cloud_service)
+   set add_service_opts(host)         $this(service_host)
+   set add_service_opts(start)        "true"
+
+   # Make the resource static, otherwise the
+   # it would be immediately moved to spare_pool (due to SLO setup)
+   set res_props(sim1,static)    "true"
+   set add_res_opts(res_prop_array) res_props
+
+   # options for wait_for_resource_info
+   set exp_resource_info(sim1,service) $this(cloud_service)
+   set exp_resource_info(sim1,state) "ASSIGNED"
+   set wait_res_inf_opts(cached) 1
+   set wait_res_inf_opts(timeout) 10
+
+   for {set i 1} {$i <= $this(iterations)} {incr i} {
+      unset -nocomplain opts
+      # ----------------------------------------------------------------------------------
+      ts_log_heading "Run $i/$this(iterations): Restarting jvm '$this(service_jvm)' on host '$this(service_host)'"
+      # ----------------------------------------------------------------------------------
+      if {[hedeby_restart_jvm $this(service_jvm) $this(service_host)] != 0 } {
+         return 1
+      }
+
+      # We add two times the cloud service and a resource to the service
+      for {set ii 0} {$ii < 2} {incr ii} {
+         if {[hedeby_add_cloud_service add_service_opts] != 0} {
+            return
+         }
+         set this(cleanup_actions) "remove_cloud_service"
+         
+         if {[hedeby_add_resources_to_service "sim1" $this(cloud_service) add_res_opts] != 0} {
+            ts_log_severe "add cloud resource failed"
+            return 1
+         }
+
+         if {$ii == 1} {
+            #---------------------------------------------------------------------
+            ts_log_heading "Run $i/$this(iterations): Check that resource_provider sees resources 'sim1'"
+            #---------------------------------------------------------------------
+         }
+         if {[wait_for_resource_info_opt exp_resource_info wait_res_inf_opts] != 0} {
+            set msg "!!!Regression of issue 705!!!\n"
+            append msg "Resource provider does not know resource 'sim1'"
+            ts_log_severe $msg
+            return 1
+         }
+
+         if {[hedeby_remove_service $this(cloud_service) $this(service_host)] != 0} {
+            return 1
+         }
+         set this(cleanup_actions) ""
+      }
+   }
+}
+

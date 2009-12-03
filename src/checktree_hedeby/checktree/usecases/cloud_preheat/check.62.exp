@@ -397,7 +397,7 @@ proc hedeby_cloud_preheat_check {} {
    set exp_ri($this(sim1,id),state)   "ASSIGNED"
    set exp_ri($this(sim2,id),service) "spare_pool"
    set exp_ri($this(sim2,id),state)   "ASSIGNED"
-   set opts(timeout) 120
+   set opts(timeout) 200
    if {[wait_for_resource_info_opt exp_ri opts] != 0} {
       return
    }
@@ -419,7 +419,7 @@ proc hedeby_cloud_preheat_check {} {
    set exp_ri($this(sim1,id),state)   "ASSIGNED"
    set exp_ri($this(sim2,id),service) "spare_pool"
    set exp_ri($this(sim2,id),state)   "ASSIGNED"
-   set opts(timeout)  120    
+   set opts(timeout)  200    
    if {[wait_for_resource_info_opt exp_ri opts] != 0} {
       return
    }

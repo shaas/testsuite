@@ -8934,7 +8934,7 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
    }
 
    if {$error_text != ""} {
-      ts_log_severe "$error_text" $opts(raise_error)
+      ts_log_severe "$error_text" $raise_error
       return 1
    }
 
@@ -10445,8 +10445,8 @@ proc get_hedeby_proc_opt_arg { user_opt opt } {
       if { [info exists opts($opt_name)] } {
          set opts($opt_name) $user_opts($opt_name)
       } else {
-         ts_log_severe "Error in get_hedeby_proc_opt_arg:\
-               Unkown optional argument '$opt_name' with value '$user_opts($opt_name)' found.\
+        ts_log_severe "Error in get_hedeby_proc_opt_arg:\
+               Unknown optional argument '$opt_name' with value '$user_opts($opt_name)' found.\
                Maybe you mistyped an optional argument name?"
       }
    }
@@ -11775,4 +11775,163 @@ proc hedeby_is_component_also_service { component } {
    } else {
       return 0
    }
+}
+
+
+
+#****** util/hedeby_shutdown_jvm() *********************************************
+#  NAME
+#     hedeby_shutdown_jvm() -- Shutdown a hedeby jvm
+#
+#  SYNOPSIS
+#     hedeby_shutdown_jvm { jvm_name host {timeout 60} } 
+#
+#  FUNCTION
+#
+#     This method shuts down a hedeby jvm via sdmadm sdj command. It checks
+#     that the pid file has been deleted and that the process disappeared
+#
+#  INPUTS
+#     jvm_name     - the name of the jvm
+#     host         - the host where the jvm is running
+#     {timeout 60} - timeout for the shutdown
+#
+#  RESULT
+#
+#     0 -  jvm has been stopped, pid file is deleted, process died
+#     1 -  pid for the jvm does not exist, may be the jvm is not running
+#     2 -  sdmadm sdj reported an error
+#     3 -  the pid file did not disappear within the timeout
+#     4 -  pid file has been deleted, but process did not die within the timeout  
+#
+#     Any result != 0 already did a ts_log_severe
+#
+#*******************************************************************************
+proc hedeby_shutdown_jvm { jvm_name host {timeout 60} } {
+
+   set pid_file [get_pid_file_for_jvm $host $jvm_name]
+   if {[read_hedeby_jvm_pid_file  pid_info $host [get_hedeby_startup_user] $pid_file ] != 0} {
+      ts_log_severe "Can not shutdown jvm '$jvm_name' at host '$host', pid file '$pid_file' not found"
+      return 1
+   }
+
+   sdmadm_command_opt "sdj -j $jvm_name -h $host"
+   if {$prg_exit_state != 0} {
+      return 2
+   }
+
+   set end_time [expr [clock seconds] + $timeout]
+
+   # Wait until the pid file has been removed
+   set to_go_away 1
+   set raise_error 1
+   if {[wait_for_remote_file $host [get_hedeby_admin_user] $pid_file $timeout  $raise_error $to_go_away] != 0} {
+      ts_log_severe "Pid file '$pid_file' for jvm '$jvm_name' on host '$host' did not dissapear in $timeout seconds"
+      return 3
+   }
+
+   while {$end_time > [clock seconds]} {
+      if {[is_hedeby_process_running $host $pid_info(pid)] == 0} {
+         return 0 
+      }
+      ts_log_fine "jvm '$jvm_name' on host '$host' is still running (pid $pid_info(pid))"
+      after 1000
+   }
+   ts_log_severe "jvm '$jvm_name' on host '$host' did not stop (pid $pid_info(pid))"
+   return 4
+}
+
+#****** util/hedeby_startup_jvm() **********************************************
+#  NAME
+#     hedeby_startup_jvm() -- Startup a hedeby jvm
+#
+#  SYNOPSIS
+#     hedeby_startup_jvm { jvm_name host {timeout 60} } 
+#
+#  FUNCTION
+#
+#     This methods startup a hedeby jvm, waits until the PID file appears and
+#     the process is started.
+#
+#  INPUTS
+#     jvm_name     - the name of the jvm
+#     host         - the host
+#     {timeout 60} - timout of the jvm
+#
+#  RESULT
+#
+#     0  -   jvm started
+#     1  -   sdmadm suj reported an error
+#     2  -   the pid file has not been created
+#     3  -   pid file of the jvm could not be read
+#     4  -   process in the pid file does not exist 
+#
+#     Any result != 0 already did a ts_log_severe
+#
+#*******************************************************************************
+proc hedeby_startup_jvm { jvm_name host {timeout 60} } {
+
+   set opts(user) [get_hedeby_startup_user]
+
+   sdmadm_command_opt "suj -j $jvm_name" opts
+   if {$prg_exit_state != 0} {
+      return 1
+   }
+   set pid_file [get_pid_file_for_jvm $host $jvm_name]
+
+   set to_go_away 0
+   set raise_error 1
+   if {[wait_for_remote_file $host [get_hedeby_admin_user] $pid_file $timeout $raise_error $to_go_away] != 0} {
+      ts_log_severe "Pid file '$pid_file' for jvm '$jvm_name' on host '$host' has not been created in $timeout seconds"
+      return 2
+   }
+   
+   if {[read_hedeby_jvm_pid_file  pid_info $host $opts(user) $pid_file ] != 0} {
+      return 3
+   }
+
+   if {[is_hedeby_process_running $host $pid_info(pid)] != 1} {
+      ts_log_severe "jvm '$jvm_name' on host '$host' did not start up. Process with pid $pid_info(pid) is not running."
+      return 4
+   }
+ 
+   return 0
+}
+
+#****** util/hedeby_restart_jvm() **********************************************
+#  NAME
+#     hedeby_restart_jvm() -- Restart a hedeby jvm
+#
+#  SYNOPSIS
+#     hedeby_restart_jvm { jvm_name host {shutdown_timeout 60} 
+#     {startup_timeout 60} } 
+#
+#  FUNCTION
+#
+#     This method restarts a hedeby jvm with hedeby_shutdown_jvm and
+#     hedeby_startup_jvm
+#
+#  INPUTS
+#     jvm_name              - the name of the jvm
+#     host                  - the host
+#     {shutdown_timeout 60} - shutdown timeout for the jvm
+#     {startup_timeout 60}  - startup timeout for the jvm
+#
+#  RESULT
+#
+#     0  -   jvm successfully restarted
+#     1  -   shutdown of the jvm failed
+#     2  -   startup of the jvm failed
+#
+#*******************************************************************************
+proc hedeby_restart_jvm { jvm_name host {shutdown_timeout 60} {startup_timeout 60} } {
+   
+   if {[hedeby_shutdown_jvm $jvm_name $host $shutdown_timeout] != 0} {
+      return 1
+   }
+
+   if {[hedeby_startup_jvm $jvm_name $host $startup_timeout] != 0} {
+      return 2
+   }
+   return 0
 }

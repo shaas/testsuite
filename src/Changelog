@@ -7,6 +7,15 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+RH-2009-12-03-0: Enhancem.:  o new method has_check_error (finds out if
+                               there was an error during test run, useful
+                               for debugging)
+                             Hedeby: 
+                             o New test for issue 705
+                             o New methods hedeby_start_jvm, hedeby_stop_jvm and
+                               hededby_restart_jvm
+                 Review:     TB
+
 CR-2009-12-02-0: Enhancem.:  Added new test for qrsh: extensive_qrsh
                  Review:     MD
 

@@ -3448,6 +3448,46 @@ proc clear_all_check_errors {check_name} {
    }
 }
 
+#****** check/has_check_errors() ***********************************************
+#  NAME
+#     has_check_errors() -- Has the current test run produced an error
+#
+#  SYNOPSIS
+#     has_check_errors { } 
+#
+#  FUNCTION
+#
+#    This method determines whether the current test run has already produced
+#    an error.
+#
+#    This functionality is useful e.g. in a test cleanup function. If there
+#    was an error, the test held with wait_for_enter to examine the system.
+#
+#  EXAMPLE
+#    if {[has_check_errors]} {
+#       wait_for_enter
+#    }
+#
+#  RESULT
+#     1   -   An error has been reported during the test run
+#     0   -   No error has been reported during the test run
+#
+#*******************************************************************************
+proc has_check_errors {} {
+   global check_errno
+
+   if {[info exists check_errno]} {
+      foreach function [array names check_errno] {
+         foreach elem $check_errno($function) {
+            if { $elem != 0 } {
+               return 1
+            }
+         }
+      }
+   } 
+   return 0
+}
+
 #****** check/get_all_check_functions() ****************************************
 #  NAME
 #     get_all_check_functions() -- get list of all check functions
