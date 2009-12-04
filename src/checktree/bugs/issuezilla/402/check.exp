@@ -93,18 +93,27 @@ proc issue_402_check {} {
    #
    set job_name "Sleeper"
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
-   set job_sleep_time "10"
-   set job_t_param "-t 1-1:1"
+   set job_sleep_time "7"
+   set job_t_param "-t 1-1:1 -h"  ;# Job must be in hold state for this test
    set qsub_arguments "$job_t_param $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    set qstat_output [get_standard_job_info $job_id]
    set first_qstat_line [lindex $qstat_output 0]
+   ts_log_fine $first_qstat_line
    set task_id [lindex $first_qstat_line 7]
    if { [string compare $task_id "1" ] != 0 } {
-      ts_log_severe "Submitted job is not an Array Job" 
+      ts_log_severe "Submitted pending job is not an Array Job (task_id \"$task_id\" is not \"1\")\nqstat line:\n$first_qstat_line\n" 
    } 
-   wait_for_jobstart $job_id $job_name 300
-   wait_for_jobend $job_id $job_name 20 0
+   release_job $job_id
+   wait_for_jobstart $job_id $job_name 300 1 1
+   set qstat_output [get_standard_job_info $job_id]
+   set first_qstat_line [lindex $qstat_output 0]
+   ts_log_fine $first_qstat_line
+   set task_id [lindex $first_qstat_line 9]
+   if { [string compare $task_id "1" ] != 0 } {
+      ts_log_severe "Submitted running job is not an Array Job (task_id \"$task_id\" is not \"1\")\nqstat line:\n$first_qstat_line\n" 
+   } 
+   wait_for_jobend $job_id $job_name 60 0 1 
 }
 
 proc issue_402_cleanup {} {
