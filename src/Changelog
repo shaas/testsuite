@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-12-04-1: Cleanup:    enhanced timeout for general upgrade test from 60
+                             to 120 seconds. Test might fail when qmaster 
+                             startup/shutdown takes to long.
+                 Review:     JG
+
 CR-2009-12-04-0: Cleanup:    - fixed race condition in issue test 402
                              - enhanced test 402 with additional checking
                  Review:     JG
