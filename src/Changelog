@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+SH-2009-12-09-0: Bugfix:     increase job-runtime in reprioritization-test
+                 Review:     CR
+
 CR-2009-12-04-1: Cleanup:    enhanced timeout for general upgrade test from 60
                              to 120 seconds. Test might fail when qmaster 
                              startup/shutdown takes to long.

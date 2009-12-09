@@ -197,7 +197,7 @@ proc reprioritization_priority {} {
    set result [mod_queue "test.q" "" my_queue]
 
    #submit a worker job and wait for it to run
-   set jobargs "-o /dev/null -j yes -q test.q@$test_host $ts_config(product_root)/examples/jobs/worker.sh" 
+   set jobargs "-o /dev/null -j yes -q test.q@$test_host $ts_config(product_root)/examples/jobs/worker.sh 200" 
    set job_id(0) [submit_job $jobargs 1 30 "" $CHECK_USER]
    set job_id(1) [submit_job $jobargs 1 30 "" $CHECK_USER]
    set job_id(2) [submit_job $jobargs 1 30 "" $CHECK_USER]
@@ -216,7 +216,6 @@ proc reprioritization_priority {} {
    foreach elem $pid_list {
       set job_pid [lindex [split $elem ","] 1]
       get_ps_info $job_pid $test_host
-      parray ps_info
       if {$ps_info($job_pid,nice) != 15} {
          ts_log_fine "nice value of job [lindex [split $elem ","] 0] is incorrect. Expected value 0, actual value is $ps_info($job_pid,nice)\n"
       } else {
