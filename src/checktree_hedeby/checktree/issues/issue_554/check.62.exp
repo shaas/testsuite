@@ -212,6 +212,7 @@ proc hedeby_issue554_check {} {
 
    foreach resource $this(resources) {
        set tmp_resinfo($resource,state) "ASSIGNED"
+       set tmp_resinfo($resource,service) "spare_pool"
    }
 
    # ------------------------------------------------------------------ 
@@ -226,21 +227,22 @@ proc hedeby_issue554_check {} {
        }
        set si($service,cstate) "STARTED"
        set si($service,sstate) "UNKNOWN"
-       # check if shutdown really happen
-       if {[wait_for_service_info si 60 0 error_var] != 0} {
-          ts_log_severe "Step 2: Shutdown of the services failed with following error message:\n $error_var"
-          return
-       }
-       unset si
-
-       # wait until all moveable resource are in ASSIGNED state
-       set retval [wait_for_resource_info tmp_resinfo 120 0 mvr_error]
-       if { $retval != 0 } {
-          ts_log_severe "Not all resources have been successfully reassigned (old owner was service 'service'"
-          return
-       }
-
    }
+
+   # check if shutdown really happened
+   if {[wait_for_service_info si 60 0 error_var] != 0} {
+      ts_log_severe "Step 2: Shutdown of the services failed with following error message:\n $error_var"
+      return
+   }
+   unset si
+
+   # wait until all moveable resource are in ASSIGNED state at spare pool
+   set retval [wait_for_resource_info tmp_resinfo 120 0 mvr_error]
+   if { $retval != 0 } {
+      ts_log_severe "Not all resources have been successfully freed and reassigned to spare pool.\nError=$mvr_error"
+      return
+   }
+
    # do the same for spare pool service
    set output [sdmadm_command_opt "sds -s spare_pool -fr"]
    if {$prg_exit_state != 0} {

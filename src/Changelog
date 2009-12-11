@@ -7,6 +7,11 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+TB-2009-12-11-0: Enhancem.:  o Hedeby issue 554, performance improvement
+                             o improved .cvsignore
+                 Bugfix:     fixed TCL error in Hedeby remove_blacklisted
+                 Review:     RH
+
 JG-2009-12-11-0: Bugfix:     o binary_submission test: wait for path_alias file
                                to appear
                              o some cleanup in qalter and qmaster_size check

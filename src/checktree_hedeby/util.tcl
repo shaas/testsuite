@@ -2508,7 +2508,8 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     installation. 
 #
 #  INPUTS
-#     force - if 1, reset of the system by force
+#     force - if != 0 reset the system, even if freshly installed
+#
 #  RESULT
 #     0 - on success
 #     1 - on error
@@ -2686,50 +2687,35 @@ proc reset_hedeby {{force 0}} {
 #     remove_blacklisted() -- search for and remove blacklisted resources
 #
 #  SYNOPSIS
-#     remove_blacklisted { {raise_error 0} } 
+#     remove_blacklisted { } 
 #
 #  FUNCTION
-#     Search for and remove blacklisted resources
+#     Search for and remove blacklisted resources.
 #
-#  INPUTS
-#     raise_error - if 1, generates TCL SEVERE
+#     Sends an info mail for every found blacklisted resource. Normal case: no
+#     resources are blacklisted.
 #
 #  SEE ALSO
-#     util/startup_hedeby()
-#     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
-proc remove_blacklisted {{raise_error 0}} {
-   global check_use_installed_system
-   global hedeby_config
-
+proc remove_blacklisted {} {
    ts_log_fine "Searching for blacklisted resources ..."
    
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set exec_host $hedeby_config(hedeby_master_host)
-   set error_text ""
    # Check if we have blacklisted resources
-   set sdmadm_command_line "-p $pref_type -s $sys_name sb"
-   sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 1 table
-   # Remove all blacklisted resources from all services
-   set found_error 0
-   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
-      #cols are "service resource id"
-      set service $table(service,$line)
-      set resource $table(resource_id,$line)
-      ts_log_info "Error: Unexpected blacklisted resource $resource in service $service"
-      set sdmadm_command_line "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
-      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
-      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
-      found_error 1
+   set opts(table_output) table
+   sdmadm_command_opt "show_blacklist" opts
+   if { $prg_exit_state != 0 } {
+      return
    }
-   if {$found_error} {
-      if {$raise_error} {
-         ts_log_severe $error_text
-      } else {
-         ts_log_fine $error_text
+   # Remove all blacklisted resources from all services
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      #cols are "service resource"
+      set service $table(service,$line)
+      set resource $table(resource,$line)
+      ts_log_info "Error: Found unexpected resource '$resource' on blacklist of service '$service'"
+      sdmadm_command_opt "rrfb -r $resource -s $service" ; # remove_resource_from_blacklist
+      if { $prg_exit_state == 0 } {
+         ts_log_fine "Removed resource '$resource' from blacklist of service '$service'"
       }
    }
 }
