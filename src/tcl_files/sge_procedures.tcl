@@ -5302,10 +5302,6 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
       set host $ts_config(master_host)
    }
 
-   # give the system time to change the processes before ps call!!
-   # JG: TODO: this should not be done here, but in the caller's context!
-   after 5000
-
    # get process group id
    set real_pid [get_grppid_of_job $jobid $host]
    ts_log_fine "grpid is \"$real_pid\" on host \"$host\""

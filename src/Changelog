@@ -7,6 +7,14 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2009-12-11-0: Cleanup:    o cleanup of issue test for IZ 126
+                             o new test case for IZ 126 test:
+                               test without prolog (Was a TODO in the test)
+                             o some performance enhancements
+                 Enhancem.:  o new procedure (not used by this check-in):
+                               get_available_spawn_session_count()
+                 Review:     SH
+
 TB-2009-12-11-0: Enhancem.:  o Hedeby issue 554, performance improvement
                              o improved .cvsignore
                  Bugfix:     fixed TCL error in Hedeby remove_blacklisted

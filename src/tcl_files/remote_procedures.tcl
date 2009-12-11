@@ -355,18 +355,17 @@ proc get_qping_dump_output { log_array } {
 
 
    if { $ts_config(gridengine_version) >= 60 } {
-      set timeout 2
+      set timeout 1
       log_user 0
       expect {
          -i $used_log_array(spawn_id) -- full_buffer {
             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $used_log_array(spawn_id) eof {
+            ts_log_severe "got eof"
          }
          -i $used_log_array(spawn_id) timeout {
             set return_value 1
-         }
-         -i $used_log_array(spawn_id) -- "_exit_status_" {
          }
          -i $used_log_array(spawn_id) -- "*\n" {
             set output $expect_out(buffer)
@@ -377,7 +376,9 @@ proc get_qping_dump_output { log_array } {
                if {[string length $line] == 0} {
                   continue
                }
-   
+               if {[string match "*_exit_status_*" $line] != 0} {
+                  continue
+               }
    # we got a qping output line
                
                if { [string match "??:??:??*" $line] != 0 } {
@@ -414,7 +415,6 @@ proc get_qping_dump_output { log_array } {
                if { [string match "*block end*" $line ] != 0 } {
                   set used_log_array(in_block) 0
                }
-   
             }
          }
       }
@@ -2380,6 +2380,44 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id \
       set rlogin_spawn_session_idx($hostname,$user,$win_local_user) $spawn_id
    }
 }
+
+#****** remote_procedures/get_available_spawn_session_count() ******************
+#  NAME
+#     get_available_spawn_session_count() -- get current availabe spawn sessions
+#
+#  SYNOPSIS
+#     get_available_spawn_session_count { } 
+#
+#  FUNCTION
+#     Returns the free (not used) spawn sessions for the current testsuite host.
+#
+#  INPUTS
+#
+#  RESULT
+#     nr of unused spawn sessions
+#
+#*******************************************************************************
+proc get_available_spawn_session_count {} {
+   global rlogin_max_open_connections rlogin_spawn_session_buffer
+
+   set num_connections 0
+   if {[info exists rlogin_spawn_session_buffer(index)]} {
+      set num_connections [llength $rlogin_spawn_session_buffer(index)]
+   }
+
+   # calculate available sessions
+   set available [expr ($rlogin_max_open_connections - $num_connections)]
+
+   # reduce by 20 reserved
+   incr available -20
+
+   # if we get negative, return 0
+   if {$available < 0} {
+      set available 0
+   }
+   return $available
+}
+
 
 #****** remote_procedures/remove_oldest_spawn_rlogin_session() *****************
 #  NAME
