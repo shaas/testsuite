@@ -113,10 +113,9 @@ proc binary_submission_cleanup {} {
 proc binary_submission_check {} {
    global ts_config
    global CHECK_USER
-   global qrsh_hostlist
  
-   ts_log_fine "binary_submission_check ..."
-
+   set submit_host [host_conf_get_suited_hosts]
+   
    #
    # Scenario 1:
    #  qsub -b n <file_which_does_not_exist_on_client>
@@ -267,6 +266,7 @@ proc binary_submission_check {} {
          create_path_aliasing_file $sge_aliases data 1
          set cwd_parameter "-cwd"
          wait_for_remote_file $ts_config(master_host) $CHECK_USER $sge_aliases
+         wait_for_remote_file $submit_host $CHECK_USER $sge_aliases
       } else {
          set cwd_parameter ""
       }
@@ -314,7 +314,7 @@ proc binary_submission_check {} {
       #
       set output ""
       if {$sub_cmd == 0} {
-         set job_id [submit_job $qsub_arguments 0]
+         set job_id [submit_job $qsub_arguments 0 60 $submit_host]
       } elseif {$sub_cmd == 1} {
          #
          # We need to know the id of the last job to calculate
@@ -325,7 +325,7 @@ proc binary_submission_check {} {
             set t_io_parameter "-o /dev/null -e /dev/null"
             set t_cmd "$ts_config(product_root)/examples/jobs/sleeper.sh $sleep_t"
             set t_qsub_arguments "$t_io_parameter $t_cmd"
-            set job_id [submit_job $t_qsub_arguments]
+            set job_id [submit_job $t_qsub_arguments 1 60 $submit_host]
             delete_job $job_id
          }
          incr job_id 1

@@ -1739,6 +1739,7 @@ proc qalter_a {} {
    set qalteroutput [start_sge_bin "qalter" "$option $job_id"]
    if {$prg_exit_state != 0} {
      ts_log_severe "qalter $option failed - couldn't change starttime:\nqalteroutput$"
+     delete_job $job_id
      return
    }
    
@@ -1759,7 +1760,7 @@ proc qalter_a {} {
 
    # wait for job to start
    ts_log_fine "qalter $option - ok now the job should start"
-   if {[wait_for_jobstart $job_id "leeper" 60] == -1} {
+   if {[wait_for_jobstart $job_id "leeper" 60 1 1] == -1} {
       ts_log_severe "qalter $option - job doesn't start"
       del_job_files $job_id $job_output_dir 2
       return 

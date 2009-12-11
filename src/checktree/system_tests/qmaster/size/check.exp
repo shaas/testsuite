@@ -246,7 +246,6 @@ proc qmaster_size_setup {} {
    monitor_header
 
    shutdown_master_and_scheduler $ts_config(master_host) $qmaster_spool_dir
-
    startup_qmaster
 
    set time [timestamp]
@@ -282,7 +281,7 @@ proc get_size {who} {
          ts_log_severe "could not evaluate pid of qmaster"
          return -1
       }
-      ts_log_fine "qmaster pid: $pid"
+      ts_log_finer "qmaster pid: $pid"
    } elseif {$who == "schedd"} {
       if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
          set pid [get_schedd_pid]

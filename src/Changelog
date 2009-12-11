@@ -7,6 +7,19 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+JG-2009-12-11-0: Bugfix:     o binary_submission test: wait for path_alias file
+                               to appear
+                             o some cleanup in qalter and qmaster_size check
+                             o authuser test: call authuser on *all* hosts
+                             o upgrade_general test: failed with bdb rpc
+                               spooling and no_local_qmaster_spool
+                             o get_spooled_jobs: with bdb rpc spooling, call
+                               spooledit on an arbitrary host
+                             o test system time also on testsuite host - it
+                               might not be part of the cluster, but still needs
+                               to have the correct time
+                 Review:     CR
+
 SH-2009-12-09-0: Bugfix:     increase job-runtime in reprioritization-test
                  Review:     CR
 

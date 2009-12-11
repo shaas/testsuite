@@ -3701,8 +3701,8 @@ proc get_spooled_jobs {} {
       set execute_host $ts_config(master_host)
       if {$ts_config(bdb_server) != "none"} {
          ts_log_finer "we have a bdb server host $ts_config(bdb_server) ..."
-         set execute_host $ts_config(bdb_server)
-         # don't know if this is necessary (execute host = dbd server host)
+         set execute_host [host_conf_get_suited_hosts]
+         ts_log_finer "bdb rpc spooling: calling spooledit on host $execute_host"
       }
       start_sge_bin "spooledit" "list" $execute_host $CHECK_USER prg_exit_state 120 "" "utilbin" out ""
       for {set i 0} {$i <= $out(0)} {incr i 1} {

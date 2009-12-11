@@ -171,8 +171,9 @@ proc upgrade_test_init_cluster {} {
    shutdown_core_system
    if {$ts_config(bdb_server) != "none"} {
       # start the bdb server
-      remote_delete_directory $ts_config(bdb_server) $ts_config(bdb_dir)
-      remote_file_mkdir $ts_config(bdb_server) $ts_config(bdb_dir)
+      set spool_dir [get_bdb_spooldir $ts_config(bdb_server)]
+      remote_delete_directory $ts_config(bdb_server) $spool_dir
+      remote_file_mkdir $ts_config(bdb_server) $spool_dir
       startup_bdb_rpc $ts_config(bdb_server)
    }
 

@@ -265,6 +265,8 @@ proc check_all_system_times {} {
 
    set return_value 0
    set host_list [get_all_hosts]
+   lappend host_list [gethostname]
+   set host_list [lsort -unique $host_list]
 
    foreach host $host_list {
       ts_log_fine "test connection to $host ..."
@@ -278,21 +280,21 @@ proc check_all_system_times {} {
       set time($host) [get_remote_time $host]
       ts_log_finest "$host: remote time: $time($host)"
       # fix remote execution time difference
-      set time($host) [expr ( $time($host) - [expr ( [timestamp] - $test_start ) ] )] 
+      set time($host) [expr $time($host) - [expr [timestamp] - $test_start]] 
       ts_log_finest "$host: corrected time because of execution time: $time($host)"
    }
 
    set reference_time $time($ts_config(master_host))
    foreach host $host_list {
-      set diff [expr ( $reference_time - $time($host) )]
+      set diff [expr $reference_time - $time($host)]
       ts_log_fine "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
 
-      if { $diff > 45 || $diff < -45 } {
+      if {$diff > 45 || $diff < -45} {
          ts_log_warning "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
          set return_value 1
       }
-
    }
+
    return $return_value
 }
 
@@ -319,7 +321,7 @@ proc check_all_system_times {} {
 proc get_remote_time { host } {
    global ts_config 
    global CHECK_USER
-   set tcl_bin [ get_binary_path $host "expect"]
+   set tcl_bin [get_binary_path $host "expect"]
    set time_script "$ts_config(testsuite_root_dir)/scripts/time.tcl"
    set result [string trim [start_remote_prog $host $CHECK_USER $tcl_bin $time_script]]
    set time [get_string_value_between "current time is" -1 $result]

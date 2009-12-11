@@ -77,46 +77,48 @@ proc authuser_init_level {} {
 proc test_authuser {} {
    global ts_config CHECK_USER
 
-   set arch [resolve_arch $ts_config(master_host)]
-   set authuser "$ts_config(product_root)/utilbin/$arch/authuser"
+   foreach host $ts_config(execd_nodes) {
+      set arch [resolve_arch $host]
+      set authuser "$ts_config(product_root)/utilbin/$arch/authuser"
 
-   set ONLYSUUSER [translate_macro MSG_AUTHUSER_ONLY_ROOT_S "*"]
+      set ONLYSUUSER [translate_macro MSG_AUTHUSER_ONLY_ROOT_S "*"]
 
-   set sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $authuser "system"]
-   set sp_id [lindex $sid 1]
+      set sid [open_remote_spawn_process $host $CHECK_USER $authuser "system"]
+      set sp_id [lindex $sid 1]
 
-   set timeout 10
-   expect {
-      -i $sp_id eof {
-         ts_log_severe "got eof while waiting for authuser output"
-      }
-      -i $sp_id timeout {
-         ts_log_severe "timeout while waiting for authuser output"
-      }
-      -i $sp_id $ONLYSUUSER {
-         ts_log_severe "authuser binary apparently not suid root:\n$ONLYSUUSER"
-      }
-      -i $sp_id "sername:" {
-         ts_log_fine "got username question, sending \"root\""
-         ts_send $sp_id "root\n" $ts_config(master_host)
-         exp_continue
-      }
-      -i $sp_id "assword:" {
-         after 1000
-         set root_passwd [get_root_passwd]
-         ts_log_fine "got password question, sending root passwd"
-         ts_send $sp_id "${root_passwd}\n" $ts_config(master_host) 1
-         exp_continue
-      }
-      -i $sp_id "_exit_status_:(*)" {
-         set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-         ts_log_fine "authuser exited with exit code $exit_status"
-         if {$exit_status != 0} {
-            ts_log_severe "authuser exited with exit status $exit_status"
+      set timeout 10
+      expect {
+         -i $sp_id eof {
+            ts_log_severe "got eof while waiting for authuser output on host $host"
+         }
+         -i $sp_id timeout {
+            ts_log_severe "timeout while waiting for authuser output on host $host"
+         }
+         -i $sp_id $ONLYSUUSER {
+            ts_log_severe "authuser binary apparently not suid root:\n$ONLYSUUSER"
+         }
+         -i $sp_id "sername:" {
+            ts_log_fine "got username question, sending \"root\""
+            ts_send $sp_id "root\n" $host
+            exp_continue
+         }
+         -i $sp_id "assword:" {
+            after 1000
+            set root_passwd [get_root_passwd]
+            ts_log_fine "got password question, sending root passwd"
+            ts_send $sp_id "${root_passwd}\n" $host 1
+            exp_continue
+         }
+         -i $sp_id "_exit_status_:(*)" {
+            set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
+            ts_log_fine "authuser exited with exit code $exit_status"
+            if {$exit_status != 0} {
+               ts_log_severe "authuser exited with exit status $exit_status on host $host"
+            }
          }
       }
-   }
 
-   close_spawn_process $sid
+      close_spawn_process $sid
+   }
 }
 
