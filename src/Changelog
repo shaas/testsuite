@@ -7,6 +7,9 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+RM-2009-12-14-0: Enhancem.:  o Hedeby issue 706 test               
+                 Review:     RH
+
 CR-2009-12-11-0: Cleanup:    o cleanup of issue test for IZ 126
                              o new test case for IZ 126 test:
                                test without prolog (Was a TODO in the test)

@@ -1,0 +1,430 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2009 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_706"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests that RP sets state of resources in default service to UNASSIGNED"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue706_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue706_setup_level"
+set check_cleanup_level_function "hedeby_issue706_cleanup_level"
+
+lappend check_functions "hedeby_issue706_check"
+
+
+#****** issue_706/hedeby_issue706_init_level() ************************
+#  NAME
+#     hedeby_issue706_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue706_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue706_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue706/hedeby_issue706_setup_level() *********************************
+#  NAME
+#    hedeby_issue706_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue706_setup_level { } 
+#
+#  FUNCTION
+#
+#  This function stores in the global variable hedeby_issue706_ctx (always
+#  aliased to variable this) the following information:
+#
+#    hedeby_issue706_ctx(install_template)   Path to the patched version of the execd install template
+#    hedeby_issue706_ctx(cleanup_actions)    is initialized as empty list
+#    hedeby_issue706_ctx(moving_host)        name of the resource which will be moved during the test
+#    hedeby_issue706_ctx(ge_service)         name of the GE service used for test
+#    hedeby_issue706_ctx(master_host)        name of the master host of the GE service
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue706_setup_level {} {
+   upvar #0 hedeby_issue706_ctx this
+   global hedeby_config
+   
+   # get some global settings
+   get_hedeby_default_services service_names
+   
+   # define the path to the patched execd install template
+   # The file is created in the check function
+   set this(install_template) $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/execd_install_706.sh
+   
+   # The cleanup_action contains the list of action which will be done in the cleanup method
+   set this(cleanup_actions) {}
+   
+   # Choose a random resource which will be moved to GE service
+   set this(moving_host) [pick_random [get_all_spare_pool_resources]]
+   
+   set this(ge_service)  [lindex $service_names(services) 0]
+   set this(ge_stopped) ""
+   set this(ge_other)    ""
+   set count [llength $service_names(services)]
+   set i 1
+   while {$i < $count} {
+      lappend this(ge_other) [lindex $service_names(services) $i]
+      set i [expr {$i +1}]
+   }
+   unset i
+   set this(master_host)  [get_service_host $service_names(master_host,$this(ge_service))]
+}
+
+#****** issue706/hedeby_issue706_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue706_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue706_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#
+#  The cleanup function uses the global variable hedeby_issue706_ctx to perform a proper cleanup
+#  of the test. The element hedeby_issue706_ctx(cleanup_actions) contains a list of actions name
+#  which must be executed for the cleanup. 
+#
+#  The following actions are defined:
+#
+#  reset_execd_install_params:  Resets the execd installation parameters of the GE service to the default
+#                               values
+#  delete_install_template:     Deletes the patched version of the execd install template
+#  
+#
+#  reset:                       Performs a full hedeby reset
+#
+#  If an unexpected error happens during the cleanup a full hedeby_reset is performed
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue706_cleanup_level {} {
+   upvar #0 hedeby_issue706_ctx this
+   
+   set do_reset 0
+
+   if {[lsearch -exact $this(cleanup_actions) "reset_execd_install_params"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Restore $this(ge_service) configuration"
+      #------------------------------------------------------------------------------------------------
+      # The set_execd_install_params will set all default values for the hosts if nothing
+      # is specified
+      if {[set_execd_install_params $this(ge_service) execd_params] != 0} {
+         set do_reset 1
+      } else {
+	 sdmadm_command_opt "uc -c $this(ge_service)"
+         if {$prg_exit_state != 0} {
+            ts_log_severe "Failed to update component $this(ge_service)" 
+            return
+         }
+      }
+   }
+   
+   # The patched install template is no longer used, delete it
+   if {[lsearch -exact $this(cleanup_actions) "delete_install_template"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Remove dummy install_execd script"
+      #------------------------------------------------------------------------------------------------
+      delete_file $this(install_template)
+   }
+   if { $do_reset == 0 && [lsearch -exact $this(cleanup_actions) "remove_from_spare_pool_blacklist"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Remove resource from spare_pool black list"
+      #------------------------------------------------------------------------------------------------
+      sdmadm_command_opt "rrfb -r $this(moving_host) -s spare_pool"
+      if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to remove resource: $this(moving_host) from spare_pool black list" 
+         set do_reset 1
+      }     
+   }
+   if { $do_reset == 0 && [lsearch -exact $this(cleanup_actions) "move_resource_spare_pool"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Move resource back to spare pool"
+      #------------------------------------------------------------------------------------------------
+      sdmadm_command_opt "mvr -r $this(moving_host) -s spare_pool"
+      if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to trigger move resource: $this(moving_host) to spare_pool" 
+         set do_reset 1
+      } else {
+	 set exp_res_info($this(moving_host),service) "spare_pool"
+         set exp_res_info($this(moving_host),flags) "{}"
+         set exp_res_info($this(moving_host),state) "ASSIGNED"
+         set opt(error_var) mvr_error
+         set retval [wait_for_resource_info_opt exp_res_info opt]
+         if {$retval != 0} {
+            ts_log_severe "Resource should be spare pool. Error message: $mvr_error"
+            set do_reset 1
+         }
+      }
+   }
+   if { $do_reset == 0 && [lsearch -exact $this(cleanup_actions) "remove_from_ge_blacklist"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Remove resource from GE black list"
+      #------------------------------------------------------------------------------------------------
+      sdmadm_command_opt "rrfb -r $this(moving_host) -s $this(ge_service)"
+      if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to remove resource: $this(moving_host) from $this(ge_service) black list" 
+         set do_reset 1
+      }
+   }
+   
+   if { $do_reset == 0 && [lsearch -exact $this(cleanup_actions) "start_services"] >= 0} {
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Start components that were shut down"
+      #------------------------------------------------------------------------------------------------
+      #we need to start services
+      foreach service_name $this(ge_stopped) {
+	 sdmadm_command_opt "suc -c $service_name"
+         if {$prg_exit_state != 0} {
+            set do_reset 1
+	    ts_log_severe "Failed to start up component/service: $service_name."
+	    break;
+         }
+	 set esi($service_name,cstate) "STARTED"
+         set esi($service_name,sstate) "RUNNING"	 
+      }
+      if {[wait_for_service_info esi 30] != 0} {
+	    set do_reset 1
+	    ts_log_severe "Failed to start up component/service: $service_name."
+	    break;
+      }
+   }
+   
+   
+   if {[lsearch -exact $this(cleanup_actions) "reset"] >= 0} {
+      # Something unexpect happend during the test, trigger the reset
+      set do_reset 1
+   }
+   
+   if {$do_reset == 1} {
+      # I don't know what to do, try a reset
+      #------------------------------------------------------------------------------------------------
+      ts_log_heading "Cleanup: Failure, reset hedeby triggered"
+      #------------------------------------------------------------------------------------------------
+      reset_hedeby 1
+   }
+
+   unset this
+}
+
+#****** issue_706/hedeby_issue706_check *****************************
+#  NAME
+#     hedeby_issue706_check() -- check the issue 706 does not longer occur
+#
+#  SYNOPSIS
+#     hedeby_issue706_check { } 
+#
+#  FUNCTION
+#
+#     Issue 706 describes the problem that when resource is rejected by service (resource was
+#     ASSIGNING and error occurred) and there is no more available services to which resource could
+#     go. In such situation resource should end up in UNASSIGNED state in RP (default service)
+#     In detail the test performs the following steps:
+#
+#     Step 1: Create dummy install_execd.sh script
+#     Step 2: Modify the configuration of GE adapter so it uses install_execd script generating error
+#     Step 3: Shutdown all GE adapters except the chosen one
+#     Step 4: Make a resource blacklisted by spare_pool.    
+#     Step 5: Move manually resource to GE adapter
+#             o error should occur and resource should end up in RP in UNASSIGNED state
+#     Step 6: Check that resource is in UNASSIGNED state in RP
+#     Step 7: Remove resource from a black list from spare pool
+#     Step 8: Check that resource is in spare pool in ASSIGNED state
+# 
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue706_check {} {
+   upvar #0 hedeby_issue706_ctx this
+   global hedeby_config
+   
+   set user [get_hedeby_admin_user]
+   
+   # install and uninstall script will sleep 10 seconds after (un)installing the execd
+   set sleep_time 10
+   
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "Step 1: Create dummy install_execd.sh script"
+   # -----------------------------------------------------------------------------------------------
+   set cmd "echo"
+   set cmd_args "'#!/bin/sh' > $this(install_template);echo 'exit 2' >> $this(install_template)"
+   set output [start_remote_prog $this(master_host) $user $cmd $cmd_args]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Could not created patched version execd_install script:\n$output"
+      return
+   }
+   lappend this(cleanup_actions) "delete_install_template"
+   
+   
+   # -----------------------------------------------------------------------------------------------
+   ts_log_heading "Step 2: Modify the execd configuration for the GE service
+            The moving host must use the patched version of the execd_(un)install templates"
+   # -----------------------------------------------------------------------------------------------
+   set execd_params($this(moving_host),install_template) $this(install_template)
+   if {[set_execd_install_params $this(ge_service) execd_params] != 0} {
+      return
+   }
+   lappend this(cleanup_actions) 0 "reset_execd_install_params"
+   sdmadm_command_opt "uc -c $this(ge_service)"
+   if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to update component $this(ge_service)" 
+         return
+   }
+   
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 3: Shutdown all GE adapters except the chosen one"
+   #------------------------------------------------------------------------------------------------
+   lappend this(cleanup_actions) "start_services"
+   get_service_info "" "" si
+   foreach service_name $this(ge_other) {
+      if {[info exists si($service_name,host)]} {
+         set service_host $si($service_name,host)
+      } else {
+         ts_log_severe "Service '$service_name' not found"
+         return
+      }
+      sdmadm_command_opt "sdc -c $service_name -h $service_host" ;# shutdown_component
+      if {$prg_exit_state != 0} {
+	 ts_log_severe "Error triggering shutdown of '$service_name'"
+         return
+      }     
+      set eci($service_name,$service_host,state) "STOPPED" 
+      
+      lappend this(ge_stopped) $service_name
+      unset service_name
+   }
+   if {[wait_for_component_info_opt eci] != 0} {
+         ts_log_severe "Error components were not successfully STOPPED"
+         return
+   }
+   unset si
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 4: Make a resource blacklisted by spare_pool"
+   #------------------------------------------------------------------------------------------------
+   sdmadm_command_opt "artb -r $this(moving_host) -s spare_pool"
+   if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to add resource: $this(moving_host) to spare_pool black list" 
+         return
+   }
+   lappend this(cleanup_actions) "remove_from_spare_pool_blacklist"
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 5: Move manually resource to GE adapter"
+   #------------------------------------------------------------------------------------------------
+   sdmadm_command_opt "mvr -r $this(moving_host) -s $this(ge_service)"
+   if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to trigger move resource: $this(moving_host) to service $this(ge_service)" 
+         return
+   }
+   lappend this(cleanup_actions) "move_resource_spare_pool"
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 6: Check that resource went finally to RP and is in UNASSIGNED state"
+   #------------------------------------------------------------------------------------------------
+   set exp_res_info($this(moving_host),service) "resource_provider"
+   set exp_res_info($this(moving_host),flags) "{}"
+   set exp_res_info($this(moving_host),state) "UNASSIGNED"
+   
+   set opt(timeout) 120
+   set opt(error_var) mvr_error
+   set retval [wait_for_resource_info_opt exp_res_info opt]
+   if {$retval != 0} {
+       ts_log_severe "Resource should be in resource provider. Error message: $mvr_error"
+       return
+   }
+   # resource should be black listed in ge service
+   lappend this(cleanup_actions) "remove_from_ge_blacklist"
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 7: Clear resource from service black list"
+   #------------------------------------------------------------------------------------------------
+   sdmadm_command_opt "rrfb -r $this(moving_host) -s spare_pool"
+   if {$prg_exit_state != 0} {
+	 ts_log_severe "Failed to remove resource: $this(moving_host) from spare_pool black list" 
+         return
+   }
+   set this(cleanup_actions) [remove_from_list $this(cleanup_actions) "remove_from_spare_pool_blacklist"]
+
+   #------------------------------------------------------------------------------------------------
+   ts_log_heading "Step 8: Check that resource went back to spare_pool"
+   #------------------------------------------------------------------------------------------------
+   set exp_res_info($this(moving_host),service) "spare_pool"
+   set exp_res_info($this(moving_host),flags) "{}"
+   set exp_res_info($this(moving_host),state) "ASSIGNED"
+   set opt(error_var) mvr_error
+   set opt(timeout) 240
+   set retval [wait_for_resource_info_opt exp_res_info opt]
+   if {$retval != 0} {
+       ts_log_severe "Resource should be spare pool. Error message: $mvr_error"
+       return
+   }
+   set this(cleanup_actions) [remove_from_list $this(cleanup_actions) "move_resource_spare_pool"]
+}
