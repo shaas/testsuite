@@ -6,6 +6,12 @@
           1         2         3         4         5         6         7
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
+CR-2009-12-16-0: Cleanup:    o issue test 440
+                               - increased execution time
+                               - removed test configuration runlevel dependency
+                             o fixed adoc header of 
+                               are_master_and_scheduler_running() procedure
+                 Review:     EB
 
 LP-2009-12-16-0: Cleanup:    o Added new question for retyping JMX password
                  Bugfix:     o SDM tests do not use ant specified in host

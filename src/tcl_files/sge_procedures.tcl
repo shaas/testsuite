@@ -6930,42 +6930,33 @@ proc startup_daemon { host service } {
 }
 
 
-# return values: 
-# 3 - master and scheduler are running
-# 2 - master is running, scheduler is not running
-# 1 - master is not running, scheduler is running
-# 0 - master and scheduler are not running
 
-#                                                             max. column:     |
 #****** sge_procedures/are_master_and_scheduler_running() ******
 # 
 #  NAME
-#     are_master_and_scheduler_running -- ??? 
+#     are_master_and_scheduler_running -- test if qmaster is running
 #
 #  SYNOPSIS
 #     are_master_and_scheduler_running { hostname qmaster_spool_dir } 
 #
 #  FUNCTION
-#     ??? 
+#     Check whether qmaster and/or scheduler processes are shown in
+#     ps output.
 #
 #  INPUTS
-#     hostname          - ??? 
-#     qmaster_spool_dir - ??? 
+#     hostname          - qmaster host
+#     qmaster_spool_dir - spool dir of qmaster
 #
 #  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
+#     for GE < 62 or AR branch: 
+#        3 - master and scheduler running
+#        2 - master running
+#        1 - scheduler running
+#        0 - neither master or scheduler running
+#     
+#     for GE >= 62 (scheduler is now thread in qmaster)
+#        2 - master running
+#        0 - neither master or scheduler running
 #*******************************
 proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
    global CHECK_USER 
