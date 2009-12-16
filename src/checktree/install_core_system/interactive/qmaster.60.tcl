@@ -261,7 +261,6 @@ proc install_qmaster {{report_var report}} {
             break  
          }
       }
-      set current_pass ""
       set timeout 300
       expect {
          -i $sp_id full_buffer {
@@ -477,19 +476,17 @@ proc install_qmaster {{report_var report}} {
          }
 
          -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
-            set current_pass $ts_config(jmx_ssl_keystore_pw)
-            install_send_answer $sp_id $current_pass "jmx ssl keystore pw"
+            install_send_answer $sp_id $ts_config(jmx_ssl_keystore_pw) "jmx ssl keystore pw"
             continue
          }
          
          -i $sp_id $JMX_USER_KEYSTORE_PW {
-            set current_pass "changeit"
-            install_send_answer $sp_id $current_pass "user keystore password"
+            install_send_answer $sp_id $ts_config(jmx_ssl_keystore_pw) "user keystore password"
             continue
          }
 
          -i $sp_id $JMX_PW_RETYPE {
-            install_send_answer $sp_id $current_pass "keystore password retype"
+            install_send_answer $sp_id $ts_config(jmx_ssl_keystore_pw) "keystore password retype"
             continue
          }
 
