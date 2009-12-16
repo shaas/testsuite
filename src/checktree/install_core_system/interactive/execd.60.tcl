@@ -63,9 +63,8 @@ proc install_execd {{report_var report}} {
    global ts_config
    global CORE_INSTALLED
    global check_use_installed_system
-   global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT
    global CHECK_MAIN_RESULTS_DIR
 
    set CORE_INSTALLED ""
@@ -78,7 +77,7 @@ proc install_execd {{report_var report}} {
 
    set report_host [get_test_host report $curr_task_nr]
 
-   set execd_port [expr $CHECK_COMMD_PORT + 1]
+   set execd_port [expr $ts_config(commd_port) + 1]
  
    read_install_list
 

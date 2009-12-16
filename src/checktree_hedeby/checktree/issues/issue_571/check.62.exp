@@ -129,6 +129,7 @@ proc hedeby_issue571_setup_level {} {
    
    set this(ge_service)  [lindex $service_names(services) 0]
    set this(master_host)  [get_service_host $service_names(master_host,$this(ge_service))]
+   set this(fs_server) [fs_config_get_filesystem_server $hedeby_config(hedeby_product_root)/util/templates/ge-adapter]
 }
 
 #****** issue571/hedeby_issue571_cleanup_level() *******************************
@@ -188,12 +189,18 @@ proc hedeby_issue571_cleanup_level {} {
    
    # The patched install template is not longer used, delete it
    if {[lsearch -exact $this(cleanup_actions) "delete_install_template"] >= 0} {
-      delete_file $this(install_template)
+      start_remote_prog $this(fs_server) root "rm" "-f $this(install_template)"
+      if {$prg_exit_state != 0} {
+         ts_log_severe "Could not remove $this(install_template)."
+      }
    }
    
    # The patched uninstall template is not longer used, delete it
    if {[lsearch -exact $this(cleanup_actions) "delete_uninstall_template"] >= 0} {
-      delete_file $this(uninstall_template)
+      start_remote_prog $this(fs_server) root "rm" "-f $this(uninstall_template)"
+      if {$prg_exit_state != 0} {
+         ts_log_severe "Could not remove $this(uninstall_template)."
+      }
    }
    
    if {[lsearch -exact $this(cleanup_actions) "reset"] >= 0} {
@@ -308,9 +315,9 @@ proc hedeby_issue571_check {} {
    append patch_args " $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/install_execd.sh"
    append patch_args " > $this(install_template)"
    
-   set output [start_remote_prog $this(master_host) $user $patch_cmd $patch_args]
+   set output [start_remote_prog $this(fs_server) root $patch_cmd $patch_args]
    if {$prg_exit_state != 0} {
-      ts_log_severe "Could not created patched version execd_install script:\n$output"
+      ts_log_severe "Could not create patched version execd_install script:\n$output"
       return
    }
    lappend this(cleanup_actions) "delete_install_template"
@@ -323,9 +330,9 @@ proc hedeby_issue571_check {} {
    append patch_args " $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/uninstall_execd.sh"
    append patch_args " > $this(uninstall_template)"
    
-   set output [start_remote_prog $this(master_host) $user $patch_cmd $patch_args]
+   set output [start_remote_prog $this(fs_server) root $patch_cmd $patch_args]
    if {$prg_exit_state != 0} {
-      ts_log_severe "Could not created patched version execd_uninstall script:\n$output"
+      ts_log_severe "Could not create patched version execd_uninstall script:\n$output"
       return
    }
    lappend this(cleanup_actions) "delete_uninstall_template"

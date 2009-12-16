@@ -7,6 +7,16 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+LP-2009-12-16-0: Cleanup:    o Added new question for retyping JMX password
+                 Bugfix:     o SDM tests do not use ant specified in host
+                               configuration
+                 Bugfix:     o SDM testsuite properties should define 
+                               supress.arch.check=true
+                 Bugfix:     o SDM 571 test fails if SDM root is owned by root
+                 Bugfix:     o It's possible that incorrect EXECD_PORT used in
+                               SDM init_core_system
+                 Review:     CR
+
 RM-2009-12-14-0: Enhancem.:  o Hedeby issue 706 test               
                  Review:     RH
 

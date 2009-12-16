@@ -188,6 +188,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_JMX_SSL_KEYSTORE"   { set value "Enter JMX SSL server keystore path \[%s\] >> " }
       "DISTINST_JMX_SSL_KEYSTORE_PW"   { set value "Enter JMX SSL server keystore pw *" }
       "DISTINST_JMX_USER_KEYSTORE_PW" { set value "Enter pw for * keystore (at least 6 characters) >> " }
+      "DISTINST_JMX_PW_RETYPE" { set value "Retype the password >> " }
       "DISTINST_JMX_USE_DATA"   { set value "Do you want to use these data (y/n) \[y\] >> " }
       "DISTINST_UNIQUE_CLUSTER_NAME" {set value "Unique cluster name" }
       "DISTINST_DETECT_CHOOSE_NEW_NAME" {set value "NOTE: Choose 'n' to select new SGE_CLUSTER_NAME  (y/n) *" }

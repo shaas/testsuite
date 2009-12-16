@@ -415,7 +415,7 @@ proc create_testsuite_properties_file { property_path build_host } {
 
    puts $CHECK_OUTPUT "creating testsuite property_file ..."
    set date [clock format [clock seconds] -format "%d. %b %Y - %H:%M:%S"]
-   set data(0) 9
+   set data(0) 10
    set data(1) "# automatic generated build_testsuite.properties file from"
    set data(2) "# testsuite. ($date)"
    set data(3) "sge.root=$ts_config(product_root)" 
@@ -425,6 +425,7 @@ proc create_testsuite_properties_file { property_path build_host } {
    set data(7) "#remote.starter=rsh"
    set data(8) "hedeby-cloud-adapter.dir=cloud-adapter"
    set data(9) "hedeby-upgrade.dir=upgrade"
+   set data(10) "suppress.arch.check=true"
    save_file $property_path data
    wait_for_remote_file $build_host $CHECK_USER $property_path
 
@@ -641,7 +642,8 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    if { [create_testsuite_properties_file $property_path $build_host] != 0 } {
       return -1
    }
-   puts $CHECK_OUTPUT "starting $build_host:ant $target $ant_options in dir $hedeby_source"
+   set ANT_BIN [get_binary_path $build_host "ant" 0]
+   ts_log_info "starting $build_host:$ANT_BIN $target $ant_options in dir $hedeby_source"
    
    set task_nr [report_create_task report "hedeby_build_$target" $build_host]
    
@@ -649,7 +651,8 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    report_task_add_message report $task_nr "-> starting hedeby ant $target on host $build_host ..."
   
    set env(JAVA_HOME) [get_java_home_for_host $build_host $hedeby_config(hedeby_java_version)]
-   
+   ts_log_finest "JAVA_HOME=$env(JAVA_HOME)"
+
    if { $env(JAVA_HOME) == "" } {
       report_task_add_message report $task_nr "Error: hededy build requires java $hedeby_config(hedeby_java_version). It is not available on host $build_host"
       report_finish_task report $task_nr -1
@@ -696,8 +699,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
       set env(ANT_OPTS) "$ant_options"
       report_task_add_message report $task_nr "using ANT_OPTS = $env(ANT_OPTS)"
    }
-
-   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER "ant" "$target" 0 "$hedeby_source" env]
+   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER $ANT_BIN "$target" 0 "$hedeby_source" env]
    set spawn_list [lindex $open_spawn 1]
    set timeout $hedeby_build_timeout
    set error -1
@@ -1669,7 +1671,7 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
       # ========
       # we also don't allow more than 1 execd on a host ...
       foreach execd $add_config(execd_hosts) {
-         if {[lsearch -exact $execd_host_list $execd] >= 0} {
+         if {[lsearch -exact $execd_host_list $execd] >= 0 && $CHECK_USE_HUDSON == 0} {
             append error_text "execd host \"$execd\" already defined for different cluster!\n => cur. config: $filename\n"
          }
          lappend execd_host_list $execd

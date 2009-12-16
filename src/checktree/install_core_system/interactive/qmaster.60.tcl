@@ -210,6 +210,7 @@ proc install_qmaster {{report_var report}} {
    set JMX_SSL_KEYSTORE_PW_QUESTION [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_SSL_KEYSTORE_PW]]
    set JMX_USE_DATA                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USE_DATA]]
    set JMX_USER_KEYSTORE_PW         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_USER_KEYSTORE_PW]]
+   set JMX_PW_RETYPE                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_PW_RETYPE]]
 
    set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME]]
    set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME]]
@@ -260,7 +261,7 @@ proc install_qmaster {{report_var report}} {
             break  
          }
       }
-
+      set current_pass ""
       set timeout 300
       expect {
          -i $sp_id full_buffer {
@@ -476,12 +477,19 @@ proc install_qmaster {{report_var report}} {
          }
 
          -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
-            install_send_answer $sp_id $ts_config(jmx_ssl_keystore_pw) "jmx ssl keystore pw"
+            set current_pass $ts_config(jmx_ssl_keystore_pw)
+            install_send_answer $sp_id $current_pass "jmx ssl keystore pw"
             continue
          }
          
          -i $sp_id $JMX_USER_KEYSTORE_PW {
-            install_send_answer $sp_id "changeit" "user keystore password"
+            set current_pass "changeit"
+            install_send_answer $sp_id $current_pass "user keystore password"
+            continue
+         }
+
+         -i $sp_id $JMX_PW_RETYPE {
+            install_send_answer $sp_id $current_pass "keystore password retype"
             continue
          }
 
