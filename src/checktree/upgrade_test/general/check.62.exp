@@ -554,6 +554,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    set JMX_SSL_KEYSTORE_QUESTION    [translate_macro DISTINST_JMX_SSL_KEYSTORE "*" ]
    set JMX_SSL_KEYSTORE_PW_QUESTION [translate_macro DISTINST_JMX_SSL_KEYSTORE_PW]
    set JMX_USE_DATA                 [translate_macro DISTINST_JMX_USE_DATA]
+   set JMX_PW_RETYPE                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_JMX_PW_RETYPE]]
 
    # upgrade
    set BCKP_DIR                     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_BCKP_DIR] ]
@@ -1392,6 +1393,16 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
 
          -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
             ts_log_fine "\n -->testsuite: sending jmx ssl keystore pw >$ts_config(jmx_ssl_keystore_pw)<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(jmx_ssl_keystore_pw)\n"
+            continue
+         }
+
+         -i $sp_id $JMX_PW_RETYPE {
+            ts_log_fine "\n -->testsuite: resending jmx ssl keystore pw >$ts_config(jmx_ssl_keystore_pw)<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]

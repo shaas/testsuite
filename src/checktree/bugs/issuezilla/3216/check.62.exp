@@ -1,0 +1,207 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_need_running_system
+
+set check_root_access_needs "yes"
+set check_need_running_system "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_3216_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_3216"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "rerun of a tightly integrated parallel array job crashes qmaster after restart"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_3216_setup
+set check_cleanup_function issue_3216_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_3216_test"
+lappend check_functions "issue_3216_test_array"
+
+proc issue_3216_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_3216_setup {} {
+   # we need a tightly integrated pe and a corresponding queue
+   set pe(slots)              999
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     "TRUE"
+   set pe(job_is_first_task)  "FALSE"
+   add_pe "tight" pe
+
+   set queue(pe_list)   "tight"
+   set queue(slots)     10
+   set queue(rerun)     "TRUE"
+   add_queue "tight" "@allhosts" queue
+}
+
+proc issue_3216_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # delete queue and pe
+   del_queue "tight" "" 1 1
+   del_pe "tight"
+}
+
+proc issue_3216_wait_for_tasks_running {job_id {timeout 60}} {
+   set ret 0
+
+   # wait with timeout
+   set end_time [expr [clock seconds] + $timeout]
+   while {$ret == 0 && [clock seconds] < $end_time} {
+      # qstat -ext
+      get_extended_job_info $job_id
+
+      # wait for 2 distinct states
+      if {[llength $job_info(state)] == 2} {
+         # both must be running
+         set state1 [lindex $job_info(state) 0]
+         set state2 [lindex $job_info(state) 1]
+         if {[string first "r" $state1] >= 0 && [string first "r" $state2] >= 0} {
+            set ret 1
+            break
+         }
+      }
+      after 1000
+   }
+
+   if {$ret == 0} {
+      ts_log_severe "timeout waiting for both tasks being running"
+   }
+
+   return $ret
+}
+
+proc issue_3216_test {} {
+   global ts_config
+
+   # submit a tightly integrated parallel job
+   # qsub -pe tight 2 -cwd scripts/pe_job.sh scripts/pe_task.sh 1 120
+   set sge_args "-pe tight 2 -o /dev/null -j y"
+   set job_script "$ts_config(testsuite_root_dir)/scripts/pe_job.sh"
+   set job_args "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120"
+   set job_id [submit_job "$sge_args $job_script $job_args"]
+   if {$job_id <= 0} {
+      return
+   }
+
+   # wait for the job to be running
+   if {[wait_for_jobstart $job_id "" 60] != 0} {
+      delete_job $job_id 1
+      return
+   }
+
+   # restart task 1
+   start_sge_bin "qmod" "-r $job_id"
+
+   # wait for the job to be running (rescheduled, can take some time)
+   if {[wait_for_jobstart $job_id "" 120] != 0} {
+      delete_job $job_id 1
+      return
+   }
+
+   # restart qmaster
+   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+   startup_qmaster
+
+   # wait for both tasks to finish - if we see them having finished,
+   # qmaster is still responding - everything OK
+   wait_for_end_of_all_jobs 180
+}
+
+proc issue_3216_test_array {} {
+   global ts_config
+
+   # submit a tightly integrated parallel array job
+   # qsub -pe tight 2 -cwd -t 1-2 scripts/pe_job.sh scripts/pe_task.sh 1 120
+   set sge_args "-pe tight 2 -t 1-2 -o /dev/null -j y"
+   set job_script "$ts_config(testsuite_root_dir)/scripts/pe_job.sh"
+   set job_args "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120"
+   set job_id [submit_job "$sge_args $job_script $job_args"]
+   if {$job_id <= 0} {
+      return
+   }
+
+   # wait for both tasks to be running
+   if {![issue_3216_wait_for_tasks_running $job_id]} {
+      delete_job $job_id 1
+      return
+   }
+
+   # restart task 1
+   start_sge_bin "qmod" "-r $job_id.1"
+
+   # wait for task 1 to be running (rescheduled, can take some time)
+   if {![issue_3216_wait_for_tasks_running $job_id 120]} {
+      delete_job $job_id 1
+      return
+   }
+
+   # restart qmaster
+   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+   startup_qmaster
+
+   # wait for both tasks to finish - if we see them having finished,
+   # qmaster is still responding - everything OK
+   wait_for_end_of_all_jobs 180
+}

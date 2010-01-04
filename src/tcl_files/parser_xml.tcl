@@ -690,7 +690,7 @@ proc qstat_xml_jobid { node121 jobtype output} {
       
       # For colums "queue" and others we need to append rather than set
       # since we can have more than one entries.
-      if { ($column == "queue") || ($column == "master") || ($column == "slots") || ($column == "task_id")} {
+      if {$column == "queue" || $column == "master" || $column == "slots" || $column == "task_id" || $column == "state"} {
          append output_xml_qstat($jobid,$column) "$xml_param "
          set node1211 $node21
       } else {
@@ -780,7 +780,7 @@ proc qstat_xml_jobid { node121 jobtype output} {
             
          # For colums "queue", "master", "slots", "task_id" we need to append
          # rather than set since we can have more than one entries.
-         if { ($next_column == "queue") || ($next_column == "master") || ($next_column == "slots") || ($next_column == "task_id")} {
+         if {$next_column == "queue" || $next_column == "master" || $next_column == "slots" || $next_column == "task_id" || $next_column == "state"} {
             append output_xml_qstat($next_jobid,$next_column) "$next_xml_param "
             set node122 $node22
          } else {   

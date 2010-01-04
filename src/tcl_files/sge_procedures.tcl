@@ -5383,7 +5383,7 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
 #     sge_procedures/get_standard_job_info()
 #     sge_procedures/get_extended_job_info()
 #*******************************
-proc get_job_info { jobid } {
+proc get_job_info {jobid} {
 # return:
 # info of qstat -ext for jobid
 # nothing if job was not found

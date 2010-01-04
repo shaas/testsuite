@@ -132,24 +132,31 @@ proc host_aliases_test_setup  {} {
 
 proc host_aliases_test_cleanup  {} {
    global ts_config have_host_aliases CHECK_USER
+   
+   set host_aliases_file "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"
+   set fshost [fs_config_get_server_for_path $host_aliases_file 0]
+   if {$fshost == ""} {
+      set fshost $ts_config(master_host)
+   }
 
-   if { $have_host_aliases == "true" } {
-      if { [is_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved] } {
-         delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
-         
+   if {$have_host_aliases == "true"} {
+      if {[is_remote_file $fshost $CHECK_USER $host_aliases_file.saved]} {
+         delete_remote_file $fshost $CHECK_USER $host_aliases_file
+
          foreach host [get_all_hosts] {
-            wait_for_remote_file $host $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases 60 1 1
+            wait_for_remote_file $host $CHECK_USER $host_aliases_file 60 1 1
          }
-         start_remote_prog $ts_config(master_host) $CHECK_USER "mv" \
-            "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved $ts_config(product_root)/$ts_config(cell)/common/host_aliases"
+         start_remote_prog $fshost $CHECK_USER "mv" "$host_aliases_file.saved $host_aliases_file"
       }
       foreach host [get_all_hosts] {
-         wait_for_remote_file $host $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
+         wait_for_remote_file $host $CHECK_USER $host_aliases_file
       }
    } else {
-      delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
+      if {[is_remote_file $fshost $CHECK_USER $host_aliases_file]} {
+         delete_remote_file $fshost $CHECK_USER $host_aliases_file
+      }
       foreach host [get_all_hosts] {
-         wait_for_remote_file $host $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases 60 1 1
+         wait_for_remote_file $host $CHECK_USER $host_aliases_file 60 1 1
       }
    }
    startup_core_system

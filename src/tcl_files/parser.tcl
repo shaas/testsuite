@@ -1247,138 +1247,102 @@ proc rule_max_vmem { a b } {
 #
 #***************************************************************************
 #
-proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
+proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1}} {
    get_current_cluster_config_array ts_config
    upvar $input  in
    upvar $output out
 
-   if { $ext == 1 } {
-      if { $ts_config(gridengine_version) == 53 } {
-         set   position(0)  "0 6"               ; set    names(0)    id
-         set   position(1)  "8 12"              ; set    names(1)    prior
-         set   position(2)  "14 23"             ; set    names(2)    name
-         set   position(3)  "25 36"             ; set    names(3)    user
-         set   position(4)  "38 53"             ; set    names(4)    project
-         set   position(5)  "55 64"             ; set    names(5)    department
-         set   position(6)  "66 70"             ; set    names(6)    state
-         set   position(7)  "72 90"             ; set    names(7)    time
-         set  transform(7)  transform_date_time
-         set      rules(7)  rule_min
-         set   position(8)  "92 108"            ; set    names(8)    deadline
-         set  transform(8)  transform_date_time
-         set   position(9)  "112 121"           ; set    names(9)    cpu
-         set      rules(9)  rule_sum
-         set    replace(9,) 0:00:00:00          ; set    replace(9,NA) 0:00:00:00
-         set  transform(9)  transform_cpu
-         set  position(10)  "123 129"           ; set    names(10)    mem
-         set   replace(10,) 0                   ; set    replace(10,NA) 0
-         set     rules(10)  rule_sum
-         set  position(11) "131 137"            ; set    names(11)    io
-         set   replace(11,) 0                   ; set    replace(11,NA) 0
-         set     rules(11)  rule_sum
-         set  position(12)  "139 143"           ; set    names(12)    tckts
-         set  position(13)  "145 149"           ; set    names(13)    ovrts
-         set  position(14)  "151 155"           ; set    names(14)    otckt
-         set  position(15)  "157 161"           ; set    names(15)    dtckt
-         set  position(16)  "163 167"           ; set    names(16)    ftckt
-         set  position(17)  "169 173"           ; set    names(17)    stckt
-         set  position(18)  "175 178"           ; set    names(18)    share
-         set  position(19)  "180 190"           ; set    names(19)    queue
-         set     rules(19)  rule_list
-         set  position(20)  "192 198"           ; set    names(20)    master
-         set     rules(20)  rule_list
-         set  position(21)  "200 end"           ; set    names(21)    jatask
-         set     rules(21)  rule_list
-      }  else {
-         set   position(0)  "0 6"               ; set    names(0)    id
-         set   position(1)  "8 14"              ; set    names(1)    prior
-         set   position(2)  "16 22"             ; set    names(2)    ntckts 
-         set   position(3)  "24 33"             ; set    names(3)    name
-         set   position(4)  "35 46"             ; set    names(4)    user
-         set   position(5)  "48 63"             ; set    names(5)    project
-         set   position(6)  "65 74"             ; set    names(6)    department
-         set   position(7)  "76 80"             ; set    names(7)    state
-         set   position(8)  "82 91"             ; set    names(8)    cpu
-         if { $do_replace_NA == 1 } {
-           set      rules(8)  rule_sum
-         }
-         set    replace(8,) 0:00:00:00
-         if { $do_replace_NA == 1 } {
-            set    replace(8,NA) 0:00:00:00 
-         }
-         set  transform(8)  transform_cpu
-         set  position(9)  "93 99"              ; set    names(9)    mem
-         set   replace(9,) 0                    ; set    replace(9,NA) 0
-         set     rules(9)  rule_sum
-         set  position(9) "101 107"             ; set   names(9)    io
-         set   replace(9,) 0                    ; set   replace(9,NA) 0
-         set     rules(9)  rule_sum
-         set  position(10)  "109 113"           ; set   names(10)    tckts
-         set  position(11)  "115 119"           ; set   names(11)    ovrts
-         set  position(12)  "121 125"           ; set   names(12)    otckt
-         set  position(13)  "127 131"           ; set   names(13)    ftckt
-         set  position(14)  "133 137"           ; set   names(14)    stckt
-         set  position(15)  "139 143"           ; set   names(15)    share
-         set  position(16)  "145 174"           ; set   names(16)    queue
-         set     rules(16)  rule_list
-         set  position(17)  "176 180"           ; set   names(17)     master
-         set  position(18)  "182 end"           ; set   names(18)    jatask
-         set     rules(18)  rule_list
+   if {$ext == 1} {
+      set   position(0)  "0 6"               ; set    names(0)    id
+      set   position(1)  "8 14"              ; set    names(1)    prior
+      set   position(2)  "16 22"             ; set    names(2)    ntckts
+      set   position(3)  "24 33"             ; set    names(3)    name
+      set   position(4)  "35 46"             ; set    names(4)    user
+      set   position(5)  "48 63"             ; set    names(5)    project
+      set   position(6)  "65 74"             ; set    names(6)    department
+      set   position(7)  "76 80"             ; set    names(7)    state
+      set      rules(7)  rule_list
+      set   position(8)  "82 91"             ; set    names(8)    cpu
+      if { $do_replace_NA == 1 } {
+        set      rules(8)  rule_sum
       }
-   } elseif { $ext == 2 } { 
+      set    replace(8,) 0:00:00:00
+      if {$do_replace_NA == 1} {
+         set    replace(8,NA) 0:00:00:00
+      }
+      set  transform(8)  transform_cpu
+      set  position(9)  "93 99"              ; set    names(9)    mem
+      set   replace(9,) 0                    ; set    replace(9,NA) 0
+      set     rules(9)  rule_sum
+      set  position(9) "101 107"             ; set   names(9)    io
+      set   replace(9,) 0                    ; set   replace(9,NA) 0
+      set     rules(9)  rule_sum
+      set  position(10)  "109 113"           ; set   names(10)    tckts
+      set  position(11)  "115 119"           ; set   names(11)    ovrts
+      set  position(12)  "121 125"           ; set   names(12)    otckt
+      set  position(13)  "127 131"           ; set   names(13)    ftckt
+      set  position(14)  "133 137"           ; set   names(14)    stckt
+      set  position(15)  "139 143"           ; set   names(15)    share
+      set  position(16)  "145 174"           ; set   names(16)    queue
+      set     rules(16)  rule_list
+      set  position(17)  "176 180"           ; set   names(17)    master
+      set  position(18)  "182 end"           ; set   names(18)    jatask
+      set     rules(18)  rule_list
+   } elseif {$ext == 2} {
       # qstat -urg
-      if { $ts_config(gridengine_version) == 53 } {
-         ts_log_severe "parse qstat -urg not implemented for 5.3"
-      }  else {
-         set   position(0)  "0 6"               ; set    names(0)    id
-         set   position(1)  "8 14"              ; set    names(1)    prior
-         set   position(2)  "16 23"             ; set    names(2)    nurg 
-         set   position(3)  "24 32"             ; set    names(3)    urg
-         set   position(4)  "33 41"             ; set    names(4)    rrcontr
-         set   position(5)  "42 50"             ; set    names(5)    wtcontr
-         set   position(6)  "51 59"             ; set    names(6)    dlcontr
-         set   position(7)  "60 70"             ; set    names(7)    name
-         set   position(8)  "71 83"             ; set    names(8)    user
-         set   position(9)  "84 89"             ; set    names(9)    state
-         set   position(10) "90 110"            ; set    names(10)   time
-         set  transform(10)  transform_date_time
-         set   position(11) "111 129"           ; set    names(11)   deadline
-         set   position(12) "130 160"           ; set    names(12)   queue
-         set      rules(12)  rule_list
-         set   position(13) "161 165"           ; set    names(13)   slots
-         set   position(14) "167 end"           ; set    names(14)   jatask
-         set      rules(14)  rule_list
-      }
+      set   position(0)  "0 6"               ; set    names(0)    id
+      set   position(1)  "8 14"              ; set    names(1)    prior
+      set   position(2)  "16 23"             ; set    names(2)    nurg
+      set   position(3)  "24 32"             ; set    names(3)    urg
+      set   position(4)  "33 41"             ; set    names(4)    rrcontr
+      set   position(5)  "42 50"             ; set    names(5)    wtcontr
+      set   position(6)  "51 59"             ; set    names(6)    dlcontr
+      set   position(7)  "60 70"             ; set    names(7)    name
+      set   position(8)  "71 83"             ; set    names(8)    user
+      set   position(9)  "84 89"             ; set    names(9)    state
+      set      rules(9)  rule_list
+      set   position(10) "90 110"            ; set    names(10)   time
+      set  transform(10)  transform_date_time
+      set   position(11) "111 129"           ; set    names(11)   deadline
+      set   position(12) "130 160"           ; set    names(12)   queue
+      set      rules(12)  rule_list
+      set   position(13) "161 165"           ; set    names(13)   slots
+      set   position(14) "167 end"           ; set    names(14)   jatask
+      set      rules(14)  rule_list
+   } elseif {$ext == 3} {
+      # qstat -pri
+      set   position(0)  "0 6"               ; set    names(0)    id
+      set   position(1)  "8 14"              ; set    names(1)    prior
+      set   position(2)  "16 22"             ; set    names(2)    nurg
+      set   position(3)  "24 30"             ; set    names(3)    npprior
+      set   position(4)  "32 38"             ; set    names(4)    ntckts
+      set   position(5)  "40 44"             ; set    names(5)    ppri
+      set   position(6)  "46 55"             ; set    names(6)    name
+      set   position(7)  "57 68"             ; set    names(7)    user
+      set   position(8)  "70 74"             ; set    names(8)    state
+      set      rules(8)  rule_list
+      set   position(9)  "76 94"             ; set    names(9)    time
+      set  transform(9)  transform_date_time
+      set   position(10) "96 125"            ; set    names(10)   queue
+      set      rules(10)  rule_list
+      set   position(11) "127 132"           ; set    names(11)   slots
+      set   position(12) "133 end"           ; set    names(12)   jatask
+      set      rules(12)  rule_list
    } else { # normat qstat
-      if { $ts_config(gridengine_version) == 53 } {
-         set   position(0)  "0 6"               ; set    names(0)    id   
-         set   position(1)  "8 12"              ; set    names(1)    prior
-         set   position(2)  "14 23"             ; set    names(2)    name
-         set   position(3)  "25 36"             ; set    names(3)    user
-         set   position(4)  "38 42"             ; set    names(4)    state
-         set   position(5)  "44 62"             ; set    names(5)    time
-         set  transform(5)  transform_date_time
-         set   position(6)  "64 73"             ; set    names(6)    queue
-         set      rules(6)  rule_list
-         set   position(7)  "75 81"             ; set    names(7)    master
-         set      rules(7)  rule_list
-         set   position(8)  "83 end"            ; set    names(8)    jatask
-         set      rules(8)  rule_list
-      } else {
-         set   position(0)  "0 6"               ; set    names(0)    id   
-         set   position(1)  "8 14"              ; set    names(1)    prior
-         set   position(2)  "16 25"             ; set    names(2)    name
-         set   position(3)  "27 38"             ; set    names(3)    user
-         set   position(4)  "40 44"             ; set    names(4)    state
-         set   position(5)  "46 64"             ; set    names(5)    time
-         set  transform(5)  transform_date_time
-         set   position(6)  "66 95"             ; set    names(6)    queue
-         set      rules(6)  rule_list
-         set   position(7)  "97 101"            ; set    names(7)    master
-         set      rules(7)  rule_list
-         set   position(8)  "103 end"           ; set    names(8)    jatask
-         set      rules(8)  rule_list
-      }
+      set   position(0)  "0 6"               ; set    names(0)    id
+      set   position(1)  "8 14"              ; set    names(1)    prior
+      set   position(2)  "16 25"             ; set    names(2)    name
+      set   position(3)  "27 38"             ; set    names(3)    user
+      set   position(4)  "40 44"             ; set    names(4)    state
+      set      rules(4)  rule_list
+      set   position(5)  "46 64"             ; set    names(5)    time
+      set  transform(5)  transform_date_time
+      set   position(6)  "66 95"             ; set    names(6)    queue
+      set      rules(6)  rule_list
+      set   position(7)  "97 101"            ; set    names(7)    master
+      set      rules(7)  rule_list
+      set   position(8)  "103 end"           ; set    names(8)    jatask
+      set      rules(8)  rule_list
    }
 
    # split text output of qstat to Array (list of lists)
@@ -1904,16 +1868,18 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
 #     parser/parse_qstat
 #*******************************
 
-proc qstat_pri_plain_parse { output  } {
+proc qstat_pri_plain_parse {output} {
    upvar $output qstat_output
 
    set qstat_output(jobid_list) ""
    
    # Run usual command
    set result [start_sge_bin "qstat" "-pri"]
+
+   # JG: TODO: can't we use parse_qstat here? 
+   #           already prepared -pri rules (to be verified)
    parse_multiline_list result parsed_out
-   
-     
+
    set index 0
    set parsed_out_length [llength $parsed_out]
    set final_parsed_out ""
@@ -1950,19 +1916,20 @@ proc qstat_pri_plain_parse { output  } {
       set qstat_output($jobid,ppri) [lindex $single_white_space_string  5]
       set qstat_output($jobid,name) [lindex $single_white_space_string  6]
       set qstat_output($jobid,user) [lindex $single_white_space_string  7]
-      set qstat_output($jobid,state) [lindex $single_white_space_string  8]
       set qstat_output($jobid,submit_time) [lindex $single_white_space_string  9]
       set qstat_output($jobid,start_time) [lindex $single_white_space_string  10]
       set qstat_output($jobid,time) "$qstat_output($jobid,submit_time) $qstat_output($jobid,start_time)"
       set qstat_output($jobid,time)  [transform_date_time $qstat_output($jobid,time)]
          
       if { [llength $single_white_space_string] == 14 } {; # with deadline, queue, slots, task_id
+         append qstat_output($jobid,state) "[lindex $single_white_space_string  8] "
          append qstat_output($jobid,queue) "[lindex $single_white_space_string  11] "
          append qstat_output($jobid,slots) "[lindex $single_white_space_string  12] "
          append qstat_output($jobid,task_id) "[lindex $single_white_space_string  13] "
       }
          
       if { [llength $single_white_space_string] == 13 } {; # with queue, slots, task_id
+         append qstat_output($jobid,state) "[lindex $single_white_space_string  8] "
          append qstat_output($jobid,queue) "[lindex $single_white_space_string  11] "
          append qstat_output($jobid,slots) "[lindex $single_white_space_string  12] "
          append qstat_output($jobid,task_id) ""
@@ -1971,6 +1938,7 @@ proc qstat_pri_plain_parse { output  } {
       if { [llength $single_white_space_string] == 12 } {; # with queue, slots
         append qstat_output($jobid,queue)  ""
         append qstat_output($jobid,task_id) ""
+        append qstat_output($jobid,state) "[lindex $single_white_space_string  8] "
         append qstat_output($jobid,slots) [lindex $single_white_space_string  11]
       }
          
