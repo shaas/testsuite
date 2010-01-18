@@ -173,6 +173,8 @@ proc hedeby_check_master_host_file_permissions {} {
    hedeby_file_permissions_add_dir "tmp/ca"
 
    hedeby_file_permissions_add_file "logging.properties"
+   hedeby_file_permissions_add_file "version"
+   hedeby_file_permissions_add_file ".upgradeLock"
 
    # For system preferences admin_user is the check user and startup user is
    # root
@@ -372,9 +374,12 @@ proc hedeby_file_permissions_check_managed_host {} {
       hedeby_file_permissions_add_file "security/java.policy"
       hedeby_file_permissions_add_file "security/jaas.config"
       hedeby_file_permissions_add_file "logging.properties"
+      hedeby_file_permissions_add_file "version"
+      hedeby_file_permissions_add_file ".upgradeLock"
       hedeby_file_permissions_add_file "security/ca/ca_top/cacert.pem"         ""           $startup_user
 
       hedeby_file_permissions_add_file "security/users/$admin_user.keystore"   "-rw-------" $admin_user
+      hedeby_file_permissions_add_file "security/users/$startup_user.keystore" "-rw-------" $startup_user
 
       # We have always keystores for cs_vm and rp_vm
       # even if those jvms are not started 

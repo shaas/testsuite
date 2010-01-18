@@ -33,40 +33,43 @@
 #___INFO__MARK_END__
 
 #
-# Usage: analyze_dir.sh path dirs|files|fileperm
-# Returns all dirs or files names
+# Usage: analyze_dir.sh <path> dirs|files|fileperm
+#
+# Returns all dirs or files names/permissions (ls -la output) relative to <path>
+#
+usage_and_exit() {
+   echo "usage: analyze_dir.sh <path> dirs|files|fileperm"
+   exit 1
+}
 
 if [ "$1" = "" ]; then
    echo "please specify base directory"
-   echo "usage: analyze_dir.sh path dirs|files|fileperm"
-   exit 1
+   usage_and_exit
 fi
 
 if [ ! -d "$1" ]; then
    echo "please specify valid base directory. \"$1\" is no directory."
-   echo "usage: analyze_dir.sh path dirs|files|fileperm"
-   exit 1
+   usage_and_exit
 fi
 
 if [ "$2" = "" ]; then
-   echo "please specify mode (dirs or files)"
-   echo "usage: analyze_dir.sh path dirs|files|fileperm"
-   exit 1
+   echo "please specify mode (dirs, files or fileperm)"
+   usage_and_exit
 fi
 
 if [ "$2" != "dirs" -a "$2" != "files" -a "$2" != "fileperm" ]; then
-   echo "unkown mode: \"$2\""
-   echo "usage: analyze_dir.sh path dirs|files|fileperm"
-   exit 1
+   echo "unkown mode: \"$2\", allowed values are dirs, files or fileperm"
+   usage_and_exit
 fi 
 
 if [ "$3" != "" ]; then
    echo "to much parameters specified"
-   echo "usage: analyze_dir.sh path dirs|files|fileperm"
-   exit 1
+   usage_and_exit
 fi
+
+# find all files and directories starting from $1
 cd $1
-dirs=`find . -name "*"`
+dirs=`find .`
 for file in $dirs; do
    if [ "$file" = "." ]; then
       continue

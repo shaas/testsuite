@@ -203,7 +203,10 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
 #
 #  FUNCTION
 #     This procedure is analysing the specified directory and returns
-#     informations in specified arrays and lists
+#     informations in specified arrays and lists.
+#
+#     It finds recursively all files and directories, including files starting
+#     with '.'. Permissions are only returned for files.
 #
 #  INPUTS
 #     host        - host of directory
@@ -216,8 +219,8 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
 #     files       - name of array where to store file names
 #     permissions - name of array for permissions of file names
 #                   using value "" will result in not starting analyse
-#                   script for dirs.  This is a performance parameter
-#                   when this information is not needed.
+#                   script for file permissions. This is a performance
+#                   parameter when this information is not needed.
 #     {ignore {}} - optional: list directories to ignore
 #
 #  RESULT
@@ -226,11 +229,12 @@ proc get_tmp_directory_name {{hostname ""} {type "default"} {dir_ext "tmp"} {not
 #     
 #             dirs  -> list of all sub directories
 #            files  -> list of all files (also from subdirectories)
-#      permissions  -> the permission array has following structure:
+#      permissions  -> the permission array has the following structure. Only
+#                      files are returned, no directories:
 #
-#                      permissions($FILE,perm) row 0 from "ls -la" output
-#                      permissions($FILE,owner) row 2 from "ls -la" output
-#                      permissions($FILE,group) row 3 from "ls -la" output
+#                      permissions($FILE,perm)  column 0 from "ls -la" output
+#                      permissions($FILE,owner) column 2 from "ls -la" output
+#                      permissions($FILE,group) column 3 from "ls -la" output
 #                      where $FILE is a entry from files array
 #
 #*******************************************************************************
@@ -256,7 +260,7 @@ proc analyze_directory_structure {host user path dirs files permissions {ignore 
       unset spool_files_permissions
    }
 
-   ts_log_fine "analayse directory: \"$path\" as user \"$user\" on host \"$host\""
+   ts_log_fine "analyze directory: \"$path\" as user \"$user\" on host \"$host\""
    set script "$ts_config(testsuite_root_dir)/scripts/analyze_dir.sh"
 
    
