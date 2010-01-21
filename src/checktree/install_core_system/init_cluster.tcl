@@ -1118,6 +1118,40 @@ proc setup_check_messages_files {} {
       setup_check_message_file_line $file_array($i)
    }
 
+   # Since execd does not immediately write the messages file after
+   # startup it might take some time until it is completely available 
+   set had_timeout 0
+   foreach execd $ts_config(execd_nodes) {
+      # get messages file path
+      set messages [get_execd_messages_file $execd]
+
+      # wait for the file on the remote host
+      wait_for_remote_file $execd $CHECK_USER $messages
+
+      set my_timeout [clock seconds]
+      incr my_timeout 70
+
+      # read the file it should contain more than one line ...
+      while {1} {
+         get_file_content $execd $CHECK_USER $messages file_array
+         if {$file_array(0) >= 1} {
+            # ok we have at least one line in the file
+            break
+         }
+         if {[clock seconds] >= $my_timeout} {
+            # reached timeout skipp complete loop
+            set had_timeout 1
+            break
+         }
+         after 1000
+      }
+      if {$had_timeout != 0} {
+         ts_log_severe "timeout waiting for messages file on host \"$execd\" - skip"
+         break
+      }
+   }
+
+   # Now check the content of the messages files
    foreach execd $ts_config(execd_nodes) {
       ts_log_fine "execd $execd ..."
       set messages [get_execd_messages_file $execd]
