@@ -7,6 +7,15 @@
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 -----------------+-----------+--------------------------------------------------
 
+CR-2010-01-22-0: Enhancem.:  o new user config procedures:
+                                - user_config_get_all_used_ports()
+                                - user_config_get_unused_port()
+                 Cleanup:    o read_file() did not provide return values
+                 Cleanup:    o changed loglevel of get_binary_path() errors
+                               when binary path is not configured in host config
+                               (Added TODO(CR) comment)
+                 Review:     JG
+
 CR-2010-01-21-0: Bugfix:     setup_check_messages_files() now does a timed wait
                              until the execd messages files contain at least
                              one line

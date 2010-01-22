@@ -435,6 +435,107 @@ proc user_config_userlist_show_users { array_name } {
    return $config(userlist)
 }
 
+#****** config_user/user_config_get_all_used_ports() ***************************
+#  NAME
+#     user_config_get_all_used_ports() -- get list containing all assigned ports
+#
+#  SYNOPSIS
+#     user_config_get_all_used_ports { } 
+#
+#  FUNCTION
+#     This procedure returns a list which contains all ports assigned to users
+#     in the user configuration.
+#
+#  INPUTS
+#
+#  RESULT
+#     tcl list with port numbers
+#
+#  SEE ALSO
+#     config_user/user_config_get_unused_port()
+#     config_user/user_config_get_all_used_ports()
+#*******************************************************************************
+proc user_config_get_all_used_ports {} {
+   global ts_user_config
+   set all_port_list {}
+   foreach user $ts_user_config(userlist) {
+      foreach port $ts_user_config($user,portlist) {
+         lappend all_port_list $port
+         # also append execd port which is qmaster port + 1
+         lappend all_port_list [expr $port + 1]
+      }
+   } 
+   return $all_port_list
+}
+
+#****** config_user/user_config_get_unused_port() ******************************
+#  NAME
+#     user_config_get_unused_port() -- get a not reserved port
+#
+#  SYNOPSIS
+#     user_config_get_unused_port {{port_range "1024-65535"} {exclude_list {}}} 
+#
+#  FUNCTION
+#     This procedure selects randomly within the specified port range. All ports
+#     defined in the user configuration are excluded. It is also possible to
+#     specify a list which ports should be also excluded from the range.
+#
+#  INPUTS
+#     {port_range "1024-65535"} - allowed port range
+#     {exclude_list {}}         - list with ports that are also excluded from
+#                                 selection
+#
+#  RESULT
+#     A free usable port number
+#
+#  SEE ALSO
+#     config_user/user_config_get_unused_port()
+#     config_user/user_config_get_all_used_ports()
+#*******************************************************************************
+proc user_config_get_unused_port {{port_range "1024-65535"} {exclude_list {}}} {
+   set free_port -1
+   set help [split $port_range "-"] 
+   set min_port [lindex $help 0]
+   set max_port [lindex $help 1]
+   ts_log_finer "try to find unused port between $min_port and $max_port"
+   ts_log_finer "excluded ports: $exclude_list"
+   set used_ports [user_config_get_all_used_ports]
+
+   # first try to get random port
+   set range [expr $max_port - $min_port]
+   set random_port [expr int(rand()*$range) + $min_port]  
+
+   set port $random_port
+   set complete 0
+   
+   # We start with random port.
+   while {$complete == 0} {
+      if {[lsearch -exact $exclude_list $port] < 0} {
+         if {[lsearch -exact $used_ports $port] < 0} {
+            # This port is free - fine we made it!
+            set free_port $port
+            break
+         }
+      }
+      if {$port == $max_port} {
+         # If port reached end of port range: start from begin
+         set port $min_port
+      } else {
+         # Otherwise increase port and check again if this one is free
+         incr port 1
+      }
+
+      # If we did a complete loop - terminate!
+      if {$port == $random_port} {
+         set complete 1
+      }
+   }
+   if {$free_port == -1} {
+      ts_log_severe "Cannot find a free usable port for port range $port_range"
+   }
+   return $free_port
+}
+
 #****** config_user/user_config_userlist_add_user() ****************************
 #  NAME
 #     user_config_userlist_add_user() -- add user to user configuration

@@ -1050,6 +1050,10 @@ proc save_file {filename array_name} {
 #     {wait_timeout 0} - if > 0, we'll wait wait_timeout seconds for the file
 #                        to appear
 #
+#  RESULT
+#     0 - no error
+#     1 - file not found
+#
 #  EXAMPLE
 #     read_file myfile.txt data
 #     set nr_of_lines $data(0)
@@ -1069,8 +1073,8 @@ proc read_file {filename array_name {wait_timeout 0}} {
 
    if {[file isfile $filename] != 1} {
       set data(0) 0
-      ts_log_finest "read_file - returning empty file data structure, no such file $filename"
-      return
+      ts_log_fine "read_file - returning empty file data structure, no such file $filename"
+      return 1
    }
    set file [open $filename "r"]
    set x 1
@@ -1082,6 +1086,7 @@ proc read_file {filename array_name {wait_timeout 0}} {
    incr x -1
    set data(0) $x
    ts_log_finest "file \"$filename\" has $x lines"
+   return 0
 }
 
 
@@ -1924,7 +1929,6 @@ proc create_shell_script { scriptfile
                            {disable_stty_echo 0}
                            {no_final_enter 0}
                          } {
-   global CHECK_PRODUCT_TYPE
    global CHECK_DEBUG_LEVEL 
 
    get_current_cluster_config_array ts_config
@@ -2298,23 +2302,26 @@ proc get_binary_path {nodename binary {raise_error 1}} {
       return $binary_path 
    }
    
-      # Try to find out the path from CHECK_USER user's environment
-      set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
-      set binary_path [string trim $binary_path]
+   # Try to find out the path from CHECK_USER user's environment
+   set binary_path [start_remote_prog $hostname $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
+   set binary_path [string trim $binary_path]
    if {[is_remote_file $hostname $CHECK_USER $binary_path 0]} {
       # We have figured out the path from the user's environment
       # The binary path is not configured in the host configuration, report config warning
       set config_text "No entry for binary \"$binary\" on host \"$hostname\" in host configuration!\n"
-      append config_text "Using \"$binary\" binary from testsuite user`s environment path setting: \"$binary_path\"\n"
-      ts_log_info $config_text
+      append config_text "INFO: Using \"$binary\" binary from testsuite user`s environment path setting: \"$binary_path\"\n"
+      ts_log_fine $config_text
+# TODO(CR): Enhance host configurations and add missing binary path informations. So that no binary path
+# TODO(CR): taken from the user's environment !!! 
+
       # Now add the binary path to the cache
       set cached_binary_path_array($hostname,$binary,$CHECK_USER) $binary_path
       return $binary_path
    } else {
       # If we have a root password we also try to get it from root's path environment
       if {[have_root_passwd] == 0} {
-            set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
-            set binary_path [string trim $binary_path]
+         set binary_path [start_remote_prog $hostname "root" "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" $binary prg_exit_state 60 0 "" "" 1 0]
+         set binary_path [string trim $binary_path]
          if {[is_remote_file $hostname "root" $binary_path 0]} {
             # We have figured out the path from the root user's environment
             # The binary path is not configured in the host configuration, report config warning
